@@ -142,7 +142,7 @@
 <div class="wrap">
 	<header class="top">
 		<div class="brand">
-			<h1>Mandala goal chart</h1>
+			<h1>Mandala Method</h1>
 			<p class="lede">
 				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
 				hand.

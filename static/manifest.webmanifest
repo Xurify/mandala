@@ -1,6 +1,6 @@
 {
-	"name": "Mandala goal chart",
-	"short_name": "Mandala",
+	"name": "Mandala Method",
+	"short_name": "Mandala Method",
 	"description": "One goal, eight pillars, eight actions each. Saved on this device.",
 	"start_url": "/",
 	"display": "standalone",

@@ -7,7 +7,7 @@
 </script>
 
 <svelte:head>
-	<title>Mandala goal chart</title>
+	<title>Mandala Method</title>
 	<meta
 		name="description"
 		content="One goal at the center, eight pillars around it, eight actions for each. Type or write by hand. Saved on this device."
