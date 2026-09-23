@@ -1,0 +1,24 @@
+import adapter from '@sveltejs/adapter-vercel';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+	plugins: [
+		sveltekit({
+			compilerOptions: {
+				runes: ({ filename }) =>
+					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
+			},
+			adapter: adapter(),
+			prerender: {
+				handleMissingId: 'ignore'
+			}
+		})
+	],
+	optimizeDeps: {
+		exclude: ['@xenova/transformers']
+	},
+	test: {
+		include: ['src/**/*.test.ts']
+	}
+});
