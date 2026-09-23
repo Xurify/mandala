@@ -142,7 +142,20 @@
 <div class="wrap">
 	<header class="top">
 		<div class="brand">
-			<h1>Mandala Method</h1>
+			<div class="name">
+				<svg class="mark" viewBox="0 0 150 150" aria-hidden="true">
+					<rect x="14" y="14" width="36" height="36" rx="8" fill="#b85c5a" />
+					<rect x="57" y="14" width="36" height="36" rx="8" fill="#c98a3f" />
+					<rect x="100" y="14" width="36" height="36" rx="8" fill="#c4b230" />
+					<rect x="14" y="57" width="36" height="36" rx="8" fill="#4f9a62" />
+					<circle cx="75" cy="75" r="18" fill="#d5ddf5" />
+					<rect x="100" y="57" width="36" height="36" rx="8" fill="#20a3a3" />
+					<rect x="14" y="100" width="36" height="36" rx="8" fill="#4a8fc4" />
+					<rect x="57" y="100" width="36" height="36" rx="8" fill="#8079d0" />
+					<rect x="100" y="100" width="36" height="36" rx="8" fill="#c26a9c" />
+				</svg>
+				<h1>Mandala Method</h1>
+			</div>
 			<p class="lede">
 				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
 				hand.
