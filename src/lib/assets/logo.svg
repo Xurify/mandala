@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 96" fill="none">
+	<rect x="4" y="8" width="80" height="80" rx="18" fill="#0f1215"/>
+	<rect x="12" y="16" width="18" height="18" rx="4" fill="#b85c5a"/>
+	<rect x="35" y="16" width="18" height="18" rx="4" fill="#c98a3f"/>
+	<rect x="58" y="16" width="18" height="18" rx="4" fill="#c4b230"/>
+	<rect x="12" y="39" width="18" height="18" rx="4" fill="#4f9a62"/>
+	<circle cx="44" cy="48" r="9" fill="#d5ddf5"/>
+	<rect x="58" y="39" width="18" height="18" rx="4" fill="#20a3a3"/>
+	<rect x="12" y="62" width="18" height="18" rx="4" fill="#4a8fc4"/>
+	<rect x="35" y="62" width="18" height="18" rx="4" fill="#8079d0"/>
+	<rect x="58" y="62" width="18" height="18" rx="4" fill="#c26a9c"/>
+	<text
+		x="108"
+		y="66"
+		fill="#191d22"
+		font-family="Bricolage Grotesque, Segoe UI, sans-serif"
+		font-size="52"
+		font-weight="560"
+		letter-spacing="-1.4"
+	>Mandala</text>
+</svg>
