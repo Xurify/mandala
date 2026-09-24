@@ -26,7 +26,11 @@
 			| 'monitor'
 			| 'check'
 			| 'compass'
-			| 'list';
+			| 'list'
+			| 'eye'
+			| 'columns'
+			| 'maximize'
+			| 'minimize';
 		size?: number;
 		strokeWidth?: number;
 		class?: string;
@@ -154,5 +158,21 @@
 		<line x1="3" y1="6" x2="3.01" y2="6" />
 		<line x1="3" y1="12" x2="3.01" y2="12" />
 		<line x1="3" y1="18" x2="3.01" y2="18" />
+	{:else if name === 'eye'}
+		<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+		<circle cx="12" cy="12" r="3" />
+	{:else if name === 'columns'}
+		<rect x="3" y="3" width="18" height="18" rx="2" />
+		<line x1="12" y1="3" x2="12" y2="21" />
+	{:else if name === 'maximize'}
+		<polyline points="15 3 21 3 21 9" />
+		<polyline points="9 21 3 21 3 15" />
+		<line x1="21" y1="3" x2="14" y2="10" />
+		<line x1="3" y1="21" x2="10" y2="14" />
+	{:else if name === 'minimize'}
+		<polyline points="4 14 10 14 10 20" />
+		<polyline points="20 10 14 10 14 4" />
+		<line x1="14" y1="10" x2="21" y2="3" />
+		<line x1="3" y1="21" x2="10" y2="14" />
 	{/if}
 </svg>

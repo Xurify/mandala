@@ -101,6 +101,8 @@
 			<span>Goal</span>
 		</button>
 
+		<div class="stepper-divider" role="separator" aria-orientation="vertical"></div>
+
 		<div class="pillar-stepper" role="group" aria-label="Select pillar">
 			{#each Array(8) as _, pillarIndex (pillarIndex)}
 				{@const isSelected = chart.sel !== 4 && idx(chart.sel) === pillarIndex}
@@ -129,7 +131,6 @@
 				</button>
 			{/each}
 		</div>
-
 		<div class="nav-arrows">
 			<button
 				type="button"
@@ -166,16 +167,30 @@
 				{/if}
 			</div>
 
-			{#if currentPillarActionsCount !== null}
-				<div class="panel-actions-badge" class:done={currentPillarActionsCount === 8}>
-					{#if currentPillarActionsCount === 8}
-						<Icon name="check" size={12} strokeWidth={2.2} />
-						<span>8 of 8 actions defined</span>
-					{:else}
-						<span>{currentPillarActionsCount} of 8 defined</span>
-					{/if}
-				</div>
-			{/if}
+			<div class="panel-meta-actions">
+				{#if currentPillarActionsCount !== null}
+					<div class="panel-actions-badge" class:done={currentPillarActionsCount === 8}>
+						{#if currentPillarActionsCount === 8}
+							<Icon name="check" size={12} strokeWidth={2.2} />
+							<span>8 of 8 actions defined</span>
+						{:else}
+							<span>{currentPillarActionsCount} of 8 defined</span>
+						{/if}
+					</div>
+				{/if}
+				{#if chart.viewMode === 'edit'}
+					<button
+						type="button"
+						class="panel-return-view-btn"
+						onclick={() => chart.setViewMode('view')}
+						title="Return to full 9×9 chart (V)"
+					>
+						<Icon name="grid" size={13} />
+						<span>View Chart</span>
+						<span class="panel-return-key">V</span>
+					</button>
+				{/if}
+			</div>
 		</div>
 
 		<h2>{panelTitle}</h2>

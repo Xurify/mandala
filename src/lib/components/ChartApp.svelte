@@ -7,9 +7,11 @@
 		exportFilename,
 		exportJson,
 		getByKey,
+		HUES,
 		idx,
 		labelOfKey,
-		parseChart
+		parseChart,
+		POS
 	} from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
@@ -23,9 +25,7 @@
 	let fileInputElement: HTMLInputElement | null = $state(null);
 	let isDraggingFile = $state(false);
 	let dragCounter = 0;
-	let isMobileGridVisible = $state(false);
 	let isMobile = $state(false);
-	let mobileSearchQuery = $state('');
 	let searchInputElement: HTMLInputElement | null = $state(null);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
@@ -41,6 +41,26 @@
 		);
 	});
 
+	const effectiveViewMode = $derived(
+		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
+	);
+
+	const selectedBlockTitle = $derived.by(() => {
+		if (chart.sel === 4) return chart.data.goal.trim() || 'Center Goal & Pillars';
+		const pillarIndex = idx(chart.sel);
+		return chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	});
+
+	const selectedBlockSubtitle = $derived.by(() => {
+		if (chart.sel === 4) {
+			const pillarsCount = chart.milestones.pillarsCount;
+			return `${pillarsCount} of 8 pillars set · Goal in center`;
+		}
+		const pillarIndex = idx(chart.sel);
+		const count = chart.milestones.pillarActionCounts[pillarIndex] ?? 0;
+		return `Pillar ${pillarIndex + 1} (${POS[pillarIndex]}) · ${count} of 8 actions defined`;
+	});
+
 	onMount(() => {
 		chart.load();
 		if (chart.theme === 'light' || chart.theme === 'dark') {
@@ -49,16 +69,13 @@
 			document.documentElement.removeAttribute('data-theme');
 		}
 		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		const handleThemeChange = () => chart.bumpTheme();
+		const handleThemeChange = (): void => chart.bumpTheme();
 		themeMediaQuery.addEventListener('change', handleThemeChange);
 
 		const mobileMediaQuery = window.matchMedia('(max-width: 900px)');
 		isMobile = mobileMediaQuery.matches;
-		const handleMobileChange = (event: MediaQueryListEvent) => {
+		const handleMobileChange = (event: MediaQueryListEvent): void => {
 			isMobile = event.matches;
-			if (!event.matches) {
-				isMobileGridVisible = false;
-			}
 		};
 		mobileMediaQuery.addEventListener('change', handleMobileChange);
 
@@ -68,32 +85,34 @@
 		};
 	});
 
-	function persistHidden() {
+	function persistHidden(): void {
 		if (document.visibilityState === 'hidden') chart.saveNow();
 	}
 
-	function selectBlock(blockIndex: number, targetKey?: string) {
+	function selectBlock(blockIndex: number, targetKey?: string): void {
 		if (targetKey) {
 			chart.jumpToKey(targetKey);
 		} else {
 			chart.select(blockIndex);
 		}
-		if (isMobile) {
-			isMobileGridVisible = false;
+		if (effectiveViewMode === 'edit') {
 			requestAnimationFrame(() => {
-				const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+				const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 				document.querySelector('.panel')?.scrollIntoView({
-					block: 'start',
-					behavior: reduce ? 'auto' : 'smooth'
+					block: isMobile ? 'start' : 'nearest',
+					behavior: reduceMotion ? 'auto' : 'smooth'
 				});
 			});
-		} else if (window.matchMedia('(max-width: 900px)').matches) {
-			const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			document.querySelector('.panel')?.scrollIntoView({
-				block: 'nearest',
-				behavior: reduce ? 'auto' : 'smooth'
-			});
 		}
+	}
+
+	function handleEditBlock(blockIndex: number, targetKey?: string): void {
+		selectBlock(blockIndex, targetKey);
+		chart.setViewMode('edit');
+	}
+
+	function handleEditCurrentBlock(): void {
+		chart.setViewMode('edit');
 	}
 
 	function handleExportChart() {
@@ -149,16 +168,33 @@
 		chart.loadExample();
 	}
 
-	function handleWindowKeydown(event: KeyboardEvent) {
+	function handleWindowKeydown(event: KeyboardEvent): void {
+		const isTyping =
+			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+
 		if (event.key === 'Escape') {
 			if (menuOpen) {
 				menuOpen = false;
 				menuTriggerElement?.focus();
 			} else if (chart.query.trim()) {
 				chart.setQuery('');
+			} else if (chart.viewMode === 'edit') {
+				chart.setViewMode('view');
 			} else if (chart.sel !== 4) {
 				chart.selectGoal();
 			}
+		} else if (!isTyping && (event.key === 'v' || event.key === 'V')) {
+			event.preventDefault();
+			chart.setViewMode('view');
+		} else if (!isTyping && (event.key === 'e' || event.key === 'E')) {
+			event.preventDefault();
+			chart.setViewMode('edit');
+		} else if (!isTyping && !isMobile && (event.key === 's' || event.key === 'S')) {
+			event.preventDefault();
+			chart.setViewMode('split');
+		} else if (!isTyping && event.key === 'Enter' && chart.viewMode === 'view') {
+			event.preventDefault();
+			chart.setViewMode('edit');
 		} else if (event.altKey && event.key === 'ArrowRight') {
 			event.preventDefault();
 			chart.selectNextPillar();
@@ -167,7 +203,7 @@
 			chart.selectPreviousPillar();
 		} else if (
 			(event.key === '/' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) &&
-			!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+			!isTyping
 		) {
 			event.preventDefault();
 			searchInputElement?.focus();
@@ -468,20 +504,62 @@
 				hand.
 			</p>
 		</div>
-		<div class="menu-wrap" bind:this={menuContainerElement}>
-			<button
-				bind:this={menuTriggerElement}
-				class="menu-trigger"
-				type="button"
-				aria-haspopup="menu"
-				aria-expanded={menuOpen}
-				onclick={() => {
-					menuOpen = !menuOpen;
-				}}
-			>
-				<span>Actions</span>
-				<Icon name="chevron-down" size={14} class="chevron" />
-			</button>
+		<div class="top-controls">
+			<div class="view-mode-seg" role="tablist" aria-label="Layout view mode">
+				<button
+					type="button"
+					role="tab"
+					class="view-mode-btn"
+					class:active={effectiveViewMode === 'view'}
+					aria-selected={effectiveViewMode === 'view'}
+					title="View Mode: Big 9×9 chart (V)"
+					onclick={() => chart.setViewMode('view')}
+				>
+					<Icon name="grid" size={14} />
+					<span>View</span>
+				</button>
+				<button
+					type="button"
+					role="tab"
+					class="view-mode-btn"
+					class:active={effectiveViewMode === 'edit'}
+					aria-selected={effectiveViewMode === 'edit'}
+					title="Edit Mode: Focused block editor (E)"
+					onclick={() => chart.setViewMode('edit')}
+				>
+					<Icon name="edit" size={14} />
+					<span>Edit</span>
+				</button>
+				{#if !isMobile}
+					<button
+						type="button"
+						role="tab"
+						class="view-mode-btn desktop-only"
+						class:active={effectiveViewMode === 'split'}
+						aria-selected={effectiveViewMode === 'split'}
+						title="Split Mode: Side-by-side view (S)"
+						onclick={() => chart.setViewMode('split')}
+					>
+						<Icon name="columns" size={14} />
+						<span>Split</span>
+					</button>
+				{/if}
+			</div>
+
+			<div class="menu-wrap" bind:this={menuContainerElement}>
+				<button
+					bind:this={menuTriggerElement}
+					class="menu-trigger"
+					type="button"
+					aria-haspopup="menu"
+					aria-expanded={menuOpen}
+					onclick={() => {
+						menuOpen = !menuOpen;
+					}}
+				>
+					<span>Actions</span>
+					<Icon name="chevron-down" size={14} class="chevron" />
+				</button>
 
 			{#if menuOpen}
 				<div
@@ -611,7 +689,8 @@
 				</div>
 			{/if}
 		</div>
-		<input
+	</div>
+	<input
 			bind:this={fileInputElement}
 			type="file"
 			accept=".json,application/json"
@@ -692,7 +771,14 @@
 				</div>
 			{/if}
 			{#each shownHits as key (key)}
-				<button type="button" class="res" onclick={() => selectBlock(blockOfKey(key), key)}>
+				<button
+					type="button"
+					class="res"
+					onclick={() => {
+						selectBlock(blockOfKey(key), key);
+						chart.setViewMode('edit');
+					}}
+				>
 					<b>{labelOfKey(chart.data, key)}</b>
 					{getByKey(chart.data, key).trim()}
 				</button>
@@ -719,62 +805,126 @@
 				type="button"
 				role="tab"
 				class="mobile-view-btn"
-				class:active={!isMobileGridVisible}
-				aria-selected={!isMobileGridVisible}
+				class:active={effectiveViewMode === 'view'}
+				aria-selected={effectiveViewMode === 'view'}
 				onclick={() => {
-					isMobileGridVisible = false;
+					chart.setViewMode('view');
 				}}
 			>
-				<Icon name="edit" size={15} />
-				<span>Editor</span>
+				<Icon name="grid" size={15} />
+				<span>9×9 Chart</span>
 			</button>
 			<button
 				type="button"
 				role="tab"
 				class="mobile-view-btn"
-				class:active={isMobileGridVisible}
-				aria-selected={isMobileGridVisible}
+				class:active={effectiveViewMode === 'edit'}
+				aria-selected={effectiveViewMode === 'edit'}
 				onclick={() => {
-					isMobileGridVisible = true;
+					chart.setViewMode('edit');
 				}}
 			>
-				<Icon name="grid" size={15} />
-				<span>9×9 Grid</span>
+				<Icon name="edit" size={15} />
+				<span>Editor</span>
 			</button>
 		</div>
 	{/if}
 
-	<div class="layout" class:mobile-grid-active={isMobileGridVisible}>
-		<div class="chart">
-			<MandalaGrid onSelect={selectBlock} />
+	{#if effectiveViewMode === 'view'}
+		<div class="view-mode-toolbar">
+			<div class="view-toolbar-meta">
+				<span class="view-toolbar-badge">9×9 Full Chart</span>
+				<span class="view-toolbar-hint">Double-click any cell to edit</span>
+			</div>
+			<div class="view-scale-seg" role="group" aria-label="Chart scale">
+				<button
+					type="button"
+					class="scale-btn"
+					class:active={chart.viewScale === 'fit'}
+					title="Fit entire chart on screen without scrolling"
+					onclick={() => chart.setViewScale('fit')}
+				>
+					<Icon name="minimize" size={13} />
+					<span>Fit Screen</span>
+				</button>
+				<button
+					type="button"
+					class="scale-btn"
+					class:active={chart.viewScale === 'large'}
+					title="Enlarge chart for maximum text readability"
+					onclick={() => chart.setViewScale('large')}
+				>
+					<Icon name="maximize" size={13} />
+					<span>Expanded</span>
+				</button>
+			</div>
 		</div>
-		<div class="side">
-			<SidePanel />
-			{#if isMobile}
-				<div class="mobile-peek-wrap">
-					<button
-						type="button"
-						class="mobile-peek-btn"
-						onclick={() => {
-							isMobileGridVisible = true;
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-					>
-						<Icon name="grid" size={16} />
-						<span>View Full 9×9 Grid</span>
-						<Icon name="arrow-right" size={14} class="peek-arrow" />
-					</button>
-				</div>
-			{/if}
-			<textarea
-				class="export-box"
-				class:on={!!chart.exportFallback}
-				readonly
-				aria-label="Chart as text"
-				value={chart.exportFallback}
-			></textarea>
-		</div>
+	{/if}
+
+	<div
+		class="layout mode-{effectiveViewMode}"
+		class:scale-fit={chart.viewScale === 'fit'}
+		class:scale-large={chart.viewScale === 'large'}
+	>
+		{#if effectiveViewMode === 'view' || effectiveViewMode === 'split'}
+			<div class="chart">
+				<MandalaGrid onSelect={selectBlock} onEdit={handleEditBlock} />
+			</div>
+		{/if}
+		{#if effectiveViewMode === 'edit' || effectiveViewMode === 'split'}
+			<div class="side">
+				<SidePanel />
+				{#if isMobile && effectiveViewMode === 'edit'}
+					<div class="mobile-peek-wrap">
+						<button
+							type="button"
+							class="mobile-peek-btn"
+							onclick={() => {
+								chart.setViewMode('view');
+								window.scrollTo({ top: 0, behavior: 'smooth' });
+							}}
+						>
+							<Icon name="grid" size={16} />
+							<span>View Full 9×9 Grid</span>
+							<Icon name="arrow-right" size={14} class="peek-arrow" />
+						</button>
+					</div>
+				{/if}
+				<textarea
+					class="export-box"
+					class:on={!!chart.exportFallback}
+					readonly
+					aria-label="Chart as text"
+					value={chart.exportFallback}
+				></textarea>
+			</div>
+		{/if}
 	</div>
+
+	{#if effectiveViewMode === 'view'}
+		<div class="view-selection-card">
+			<div class="selection-meta">
+				<span
+					class="selection-pip"
+					style:--pip-h={chart.sel === 4 ? undefined : HUES[idx(chart.sel)]}
+					class:goal-pip={chart.sel === 4}
+				></span>
+				<div class="selection-text">
+					<strong class="selection-title">{selectedBlockTitle}</strong>
+					<span class="selection-sub">{selectedBlockSubtitle}</span>
+				</div>
+			</div>
+			<button
+				type="button"
+				class="selection-edit-action"
+				onclick={handleEditCurrentBlock}
+			>
+				<Icon name="edit" size={14} />
+				<span>Edit This Block</span>
+				<span class="action-key-badge">E</span>
+			</button>
+		</div>
+	{/if}
 
 	{#if isDraggingFile}
 		<div class="drop-overlay" aria-hidden="true">

@@ -23,6 +23,8 @@ import {
 } from './model.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
+export type ViewMode = 'view' | 'edit' | 'split';
+export type ViewScale = 'fit' | 'large';
 
 function loadInitialTheme(): AppTheme {
 	if (typeof window === 'undefined') return 'system';
@@ -34,6 +36,32 @@ function loadInitialTheme(): AppTheme {
 		return 'system';
 	} catch {
 		return 'system';
+	}
+}
+
+function loadInitialViewMode(): ViewMode {
+	if (typeof window === 'undefined') return 'view';
+	try {
+		const storedMode = localStorage.getItem('mandala_view_mode');
+		if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split') {
+			return storedMode;
+		}
+		return 'view';
+	} catch {
+		return 'view';
+	}
+}
+
+function loadInitialViewScale(): ViewScale {
+	if (typeof window === 'undefined') return 'fit';
+	try {
+		const storedScale = localStorage.getItem('mandala_view_scale');
+		if (storedScale === 'fit' || storedScale === 'large') {
+			return storedScale;
+		}
+		return 'fit';
+	} catch {
+		return 'fit';
 	}
 }
 
@@ -58,6 +86,8 @@ export class ChartStore {
 	sel = $state(4);
 	mode: InputMode = $state('type');
 	theme: AppTheme = $state(loadInitialTheme());
+	viewMode: ViewMode = $state(loadInitialViewMode());
+	viewScale: ViewScale = $state(loadInitialViewScale());
 	fingerDraw = $state(false);
 	query = $state('');
 	status = $state('');
@@ -127,6 +157,24 @@ export class ChartStore {
 		this.mode = mode;
 	}
 
+	setViewMode(mode: ViewMode): void {
+		this.viewMode = mode;
+		try {
+			localStorage.setItem('mandala_view_mode', mode);
+		} catch {
+			// storage blocked
+		}
+	}
+
+	setViewScale(scale: ViewScale): void {
+		this.viewScale = scale;
+		try {
+			localStorage.setItem('mandala_view_scale', scale);
+		} catch {
+			// storage blocked
+		}
+	}
+
 	setQuery(value: string): void {
 		this.query = value;
 	}
@@ -175,6 +223,9 @@ export class ChartStore {
 	jumpToKey(key: string): void {
 		this.select(blockOfKey(key));
 		this.focusedKey = key;
+		if (this.viewMode === 'view') {
+			this.setViewMode('edit');
+		}
 	}
 
 	clearFocusedKey(): void {
