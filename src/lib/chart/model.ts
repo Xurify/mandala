@@ -141,24 +141,70 @@ export function unreadKeys(data: ChartData): string[] {
 	return allKeys().filter((k) => needsRead(data, k));
 }
 
+export type Milestones = {
+	goalSet: boolean;
+	pillarsCount: number;
+	actionsCount: number;
+	pillarActionCounts: number[];
+	completedPillarsCount: number;
+};
+
+export function progressMilestones(data: ChartData): Milestones {
+	const goalSet = data.goal.trim() !== '' || (data.ink['g']?.length ?? 0) > 0;
+	let pillarsCount = 0;
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const hasText = (data.pillars[pillarIndex] ?? '').trim() !== '';
+		const hasInk = (data.ink[`p${pillarIndex}`]?.length ?? 0) > 0;
+		if (hasText || hasInk) pillarsCount++;
+	}
+
+	const pillarActionCounts: number[] = [];
+	let actionsCount = 0;
+	let completedPillarsCount = 0;
+
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		let currentPillarActions = 0;
+		for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
+			const actionText = data.actions[pillarIndex]?.[actionIndex]?.trim() ?? '';
+			const actionInk = data.ink[`a${pillarIndex}_${actionIndex}`]?.length ?? 0;
+			if (actionText !== '' || actionInk > 0) {
+				currentPillarActions++;
+			}
+		}
+		pillarActionCounts.push(currentPillarActions);
+		actionsCount += currentPillarActions;
+		if (currentPillarActions === 8) {
+			completedPillarsCount++;
+		}
+	}
+
+	return {
+		goalSet,
+		pillarsCount,
+		actionsCount,
+		pillarActionCounts,
+		completedPillarsCount
+	};
+}
+
 export function filledCount(data: ChartData): number {
 	let count = 0;
-	for (const k of allKeys()) {
-		if (getByKey(data, k).trim() || inkOf(data, k).length) count++;
+	for (const key of allKeys()) {
+		if (getByKey(data, key).trim() || inkOf(data, key).length) count++;
 	}
 	return count;
 }
 
 export function searchHits(data: ChartData, query: string): string[] {
-	const q = query.trim().toLowerCase();
-	if (!q) return [];
-	return allKeys().filter((k) => getByKey(data, k).toLowerCase().includes(q));
+	const trimmedQuery = query.trim().toLowerCase();
+	if (!trimmedQuery) return [];
+	return allKeys().filter((key) => getByKey(data, key).toLowerCase().includes(trimmedQuery));
 }
 
 export function hasContent(data: ChartData): boolean {
 	if (data.goal.trim()) return true;
-	if (data.pillars.some((p) => p.trim())) return true;
-	if (data.actions.some((row) => row.some((a) => a.trim()))) return true;
+	if (data.pillars.some((pillar) => pillar.trim())) return true;
+	if (data.actions.some((row) => row.some((action) => action.trim()))) return true;
 	return Object.keys(data.ink).length > 0;
 }
 

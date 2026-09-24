@@ -1,4 +1,5 @@
 import {
+	blockOfK,
 	blockOfKey,
 	emptyChart,
 	exampleChart,
@@ -6,17 +7,35 @@ import {
 	filledCount,
 	getByKey,
 	hasContent,
+	idx,
 	inkChanged,
 	inkOf,
 	markCaptionKept,
 	parseChart,
+	progressMilestones,
 	searchHits,
 	setByKey,
 	STORAGE_KEY,
 	unreadKeys,
 	type ChartData,
-	type InputMode
+	type InputMode,
+	type Milestones
 } from './model.ts';
+
+export type AppTheme = 'system' | 'light' | 'dark';
+
+function loadInitialTheme(): AppTheme {
+	if (typeof window === 'undefined') return 'system';
+	try {
+		const storedTheme = localStorage.getItem('theme');
+		if (storedTheme === 'dark' || storedTheme === 'light') {
+			return storedTheme;
+		}
+		return 'system';
+	} catch {
+		return 'system';
+	}
+}
 
 function loadInitialChart(): ChartData {
 	if (typeof window === 'undefined') {
@@ -38,6 +57,7 @@ export class ChartStore {
 	data: ChartData = $state(loadInitialChart());
 	sel = $state(4);
 	mode: InputMode = $state('type');
+	theme: AppTheme = $state(loadInitialTheme());
 	fingerDraw = $state(false);
 	query = $state('');
 	status = $state('');
@@ -46,6 +66,7 @@ export class ChartStore {
 	saveWarned = $state(false);
 	themeTick = $state(0);
 	hoveredColorIndex = $state<number | null>(null);
+	focusedKey = $state<string | null>(null);
 
 	#saveTimer: ReturnType<typeof setTimeout> | null = null;
 	#statusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -55,6 +76,7 @@ export class ChartStore {
 	hits = $derived(searchHits(this.data, this.query));
 	unread = $derived(unreadKeys(this.data));
 	dirty = $derived(hasContent(this.data));
+	milestones: Milestones = $derived(progressMilestones(this.data));
 
 	load(): void {
 		try {
@@ -152,6 +174,55 @@ export class ChartStore {
 
 	jumpToKey(key: string): void {
 		this.select(blockOfKey(key));
+		this.focusedKey = key;
+	}
+
+	clearFocusedKey(): void {
+		this.focusedKey = null;
+	}
+
+	selectGoal(): void {
+		this.sel = 4;
+	}
+
+	selectPillar(pillarIndex: number): void {
+		this.sel = blockOfK(pillarIndex);
+	}
+
+	selectNextPillar(): void {
+		if (this.sel === 4) {
+			this.sel = blockOfK(0);
+		} else {
+			const currentPillar = idx(this.sel);
+			const nextPillar = (currentPillar + 1) % 8;
+			this.sel = blockOfK(nextPillar);
+		}
+	}
+
+	selectPreviousPillar(): void {
+		if (this.sel === 4) {
+			this.sel = blockOfK(7);
+		} else {
+			const currentPillar = idx(this.sel);
+			const previousPillar = (currentPillar + 7) % 8;
+			this.sel = blockOfK(previousPillar);
+		}
+	}
+
+	setTheme(theme: AppTheme): void {
+		this.theme = theme;
+		try {
+			if (theme === 'system') {
+				localStorage.removeItem('theme');
+				document.documentElement.removeAttribute('data-theme');
+			} else {
+				localStorage.setItem('theme', theme);
+				document.documentElement.setAttribute('data-theme', theme);
+			}
+		} catch {
+			// private mode / storage blocked
+		}
+		this.bumpTheme();
 	}
 
 	loadExample(): void {

@@ -46,6 +46,14 @@
 		return idx(blockIndex) === chart.hoveredColorIndex;
 	}
 
+	function isBlockCompleted(blockIndex: number): boolean {
+		if (blockIndex === 4) {
+			return chart.milestones.goalSet && chart.milestones.pillarsCount === 8;
+		}
+		const pillarIndex = idx(blockIndex);
+		return (chart.milestones.pillarActionCounts[pillarIndex] ?? 0) === 8;
+	}
+
 	function handlePointerEnter(blockIndex: number, cellIndex: number, event: PointerEvent) {
 		if (event.pointerType === 'touch') return;
 		const cellInformation = info(blockIndex, cellIndex);
@@ -82,6 +90,7 @@
 			class="block"
 			class:sel={chart.sel === blockIndex}
 			class:highlight={isBlockHighlighted(blockIndex)}
+			class:completed={isBlockCompleted(blockIndex)}
 			style:--block-h={blockHue(blockIndex)}
 		>
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}

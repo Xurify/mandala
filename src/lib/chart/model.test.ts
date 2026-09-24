@@ -10,6 +10,7 @@ import {
 	filledCount,
 	needsRead,
 	parseChart,
+	progressMilestones,
 	searchHits,
 	setByKey,
 	unreadKeys
@@ -116,5 +117,43 @@ describe('exportJson and exportFilename', () => {
 
 		data.goal = 'Run a half marathon in under 2:00!';
 		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-00.json');
+	});
+});
+
+describe('progressMilestones', () => {
+	it('calculates milestones for empty chart', () => {
+		const data = emptyChart();
+		const milestones = progressMilestones(data);
+		expect(milestones.goalSet).toBe(false);
+		expect(milestones.pillarsCount).toBe(0);
+		expect(milestones.actionsCount).toBe(0);
+		expect(milestones.completedPillarsCount).toBe(0);
+		expect(milestones.pillarActionCounts).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+	});
+
+	it('calculates milestones for partial and complete chart', () => {
+		const data = emptyChart();
+		data.goal = 'Reach peak performance';
+		data.pillars[0] = 'Nutrition';
+		data.actions[0] = [
+			'Meal prep',
+			'Hydrate',
+			'Protein daily',
+			'Track calories',
+			'Electrolytes',
+			'Vitamins',
+			'Limit sugar',
+			'Sleep routine'
+		];
+		data.pillars[1] = 'Training';
+		data.actions[1]![0] = 'Sprint sessions';
+
+		const milestones = progressMilestones(data);
+		expect(milestones.goalSet).toBe(true);
+		expect(milestones.pillarsCount).toBe(2);
+		expect(milestones.actionsCount).toBe(9);
+		expect(milestones.completedPillarsCount).toBe(1);
+		expect(milestones.pillarActionCounts[0]).toBe(8);
+		expect(milestones.pillarActionCounts[1]).toBe(1);
 	});
 });

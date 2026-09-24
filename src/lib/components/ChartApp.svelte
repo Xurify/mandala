@@ -7,9 +7,11 @@
 		exportFilename,
 		exportJson,
 		getByKey,
+		idx,
 		labelOfKey,
 		parseChart
 	} from '$lib/chart/model';
+	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import SidePanel from './SidePanel.svelte';
@@ -20,6 +22,9 @@
 	let fileInputElement: HTMLInputElement | null = $state(null);
 	let isDraggingFile = $state(false);
 	let dragCounter = 0;
+	let isMobileGridVisible = $state(false);
+	let isMobile = $state(false);
+	let mobileSearchQuery = $state('');
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -36,19 +41,51 @@
 
 	onMount(() => {
 		chart.load();
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		const onTheme = () => chart.bumpTheme();
-		mediaQuery.addEventListener('change', onTheme);
-		return () => mediaQuery.removeEventListener('change', onTheme);
+		if (chart.theme === 'light' || chart.theme === 'dark') {
+			document.documentElement.setAttribute('data-theme', chart.theme);
+		} else {
+			document.documentElement.removeAttribute('data-theme');
+		}
+		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		const handleThemeChange = () => chart.bumpTheme();
+		themeMediaQuery.addEventListener('change', handleThemeChange);
+
+		const mobileMediaQuery = window.matchMedia('(max-width: 900px)');
+		isMobile = mobileMediaQuery.matches;
+		const handleMobileChange = (event: MediaQueryListEvent) => {
+			isMobile = event.matches;
+			if (!event.matches) {
+				isMobileGridVisible = false;
+			}
+		};
+		mobileMediaQuery.addEventListener('change', handleMobileChange);
+
+		return () => {
+			themeMediaQuery.removeEventListener('change', handleThemeChange);
+			mobileMediaQuery.removeEventListener('change', handleMobileChange);
+		};
 	});
 
 	function persistHidden() {
 		if (document.visibilityState === 'hidden') chart.saveNow();
 	}
 
-	function selectBlock(blockIndex: number) {
-		chart.select(blockIndex);
-		if (window.matchMedia('(max-width: 900px)').matches) {
+	function selectBlock(blockIndex: number, targetKey?: string) {
+		if (targetKey) {
+			chart.jumpToKey(targetKey);
+		} else {
+			chart.select(blockIndex);
+		}
+		if (isMobile) {
+			isMobileGridVisible = false;
+			requestAnimationFrame(() => {
+				const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+				document.querySelector('.panel')?.scrollIntoView({
+					block: 'start',
+					behavior: reduce ? 'auto' : 'smooth'
+				});
+			});
+		} else if (window.matchMedia('(max-width: 900px)').matches) {
 			const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 			document.querySelector('.panel')?.scrollIntoView({
 				block: 'nearest',
@@ -60,6 +97,22 @@
 	function handleExportChart() {
 		menuOpen = false;
 		exportChartFile();
+	}
+
+	async function handleExportPoster() {
+		menuOpen = false;
+		chart.say('Generating high-resolution poster…', true);
+		try {
+			await exportChartPng(chart.data);
+			chart.say('Poster exported.');
+		} catch (error) {
+			chart.say('Failed to generate poster image.');
+		}
+	}
+
+	function handlePrintChart() {
+		menuOpen = false;
+		window.print();
 	}
 
 	function handleImportClick() {
@@ -95,9 +148,21 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape' && menuOpen) {
-			menuOpen = false;
-			menuTriggerElement?.focus();
+		if (event.key === 'Escape') {
+			if (menuOpen) {
+				menuOpen = false;
+				menuTriggerElement?.focus();
+			} else if (chart.query.trim()) {
+				chart.setQuery('');
+			} else if (chart.sel !== 4) {
+				chart.selectGoal();
+			}
+		} else if (event.altKey && event.key === 'ArrowRight') {
+			event.preventDefault();
+			chart.selectNextPillar();
+		} else if (event.altKey && event.key === 'ArrowLeft') {
+			event.preventDefault();
+			chart.selectPreviousPillar();
 		}
 	}
 
@@ -394,12 +459,6 @@
 				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
 				hand.
 			</p>
-			<div class="progress">
-				<div class="track">
-					<div class="fill" style:width="{(chart.filled / CELL_COUNT) * 100}%"></div>
-				</div>
-				<span class="progress-label">{chart.filled} of {CELL_COUNT} filled</span>
-			</div>
 		</div>
 		<div class="menu-wrap" bind:this={menuContainerElement}>
 			<button
@@ -433,9 +492,27 @@
 						class="menu-item"
 						type="button"
 						role="menuitem"
+						onclick={handlePrintChart}
+					>
+						<span>Print chart</span>
+						<span class="menu-badge">Ctrl+P</span>
+					</button>
+					<button
+						class="menu-item"
+						type="button"
+						role="menuitem"
+						onclick={handleExportPoster}
+					>
+						<span>Export poster</span>
+						<span class="menu-badge">.png</span>
+					</button>
+					<button
+						class="menu-item"
+						type="button"
+						role="menuitem"
 						onclick={handleExportChart}
 					>
-						<span>Export</span>
+						<span>Export data</span>
 						<span class="menu-badge">.json</span>
 					</button>
 					<button
@@ -444,7 +521,7 @@
 						role="menuitem"
 						onclick={handleImportClick}
 					>
-						<span>Import</span>
+						<span>Import data</span>
 						<span class="menu-badge">.json</span>
 					</button>
 					<button
@@ -455,6 +532,36 @@
 					>
 						<span>Copy as text</span>
 					</button>
+					<div class="menu-divider" role="separator"></div>
+					<div class="menu-theme-row">
+						<span class="menu-theme-label">Theme</span>
+						<div class="theme-seg" role="group" aria-label="Color theme">
+							<button
+								type="button"
+								class="theme-btn"
+								class:active={chart.theme === 'system'}
+								onclick={() => chart.setTheme('system')}
+							>
+								Auto
+							</button>
+							<button
+								type="button"
+								class="theme-btn"
+								class:active={chart.theme === 'light'}
+								onclick={() => chart.setTheme('light')}
+							>
+								Light
+							</button>
+							<button
+								type="button"
+								class="theme-btn"
+								class:active={chart.theme === 'dark'}
+								onclick={() => chart.setTheme('dark')}
+							>
+								Dark
+							</button>
+						</div>
+					</div>
 					<div class="menu-divider" role="separator"></div>
 					<button
 						class="menu-item danger"
@@ -487,16 +594,51 @@
 		/>
 	</header>
 
+	<div class="progress-wrap">
+		<div class="milestones-bar">
+			<div class="milestones-group">
+				<div class="milestone-badge" class:done={chart.milestones.goalSet}>
+					<span class="badge-label">Goal</span>
+					<span class="badge-count">{chart.milestones.goalSet ? '1/1' : '0/1'}</span>
+				</div>
+				<div class="milestone-badge" class:done={chart.milestones.pillarsCount === 8}>
+					<span class="badge-label">Pillars</span>
+					<span class="badge-count">{chart.milestones.pillarsCount}/8</span>
+				</div>
+				<div class="milestone-badge" class:done={chart.milestones.actionsCount === 64}>
+					<span class="badge-label">Actions</span>
+					<span class="badge-count">{chart.milestones.actionsCount}/64</span>
+				</div>
+			</div>
+			<span class="progress-label">{chart.filled} of {CELL_COUNT} filled</span>
+		</div>
+		<div class="track">
+			<div class="fill" style:width="{(chart.filled / CELL_COUNT) * 100}%"></div>
+		</div>
+	</div>
+
 	<div class="search">
-		<input
-			type="search"
-			placeholder="Search goal, pillars and actions"
-			aria-label="Search the chart"
-			autocomplete="off"
-			spellcheck="false"
-			value={chart.query}
-			oninput={(event) => chart.setQuery(event.currentTarget.value)}
-		/>
+		<div class="search-box">
+			<input
+				type="search"
+				placeholder="Search goal, pillars and actions"
+				aria-label="Search the chart"
+				autocomplete="off"
+				spellcheck="false"
+				value={chart.query}
+				oninput={(event) => chart.setQuery(event.currentTarget.value)}
+			/>
+			{#if chart.query.trim()}
+				<button
+					type="button"
+					class="search-clear-btn"
+					aria-label="Clear search"
+					onclick={() => chart.setQuery('')}
+				>
+					×
+				</button>
+			{/if}
+		</div>
 		<div class="results" aria-live="polite">
 			{#if chart.query.trim() && !shownHits.length}
 				<div class="res-note">
@@ -506,7 +648,7 @@
 				</div>
 			{/if}
 			{#each shownHits as key (key)}
-				<button type="button" class="res" onclick={() => selectBlock(blockOfKey(key))}>
+				<button type="button" class="res" onclick={() => selectBlock(blockOfKey(key), key)}>
 					<b>{labelOfKey(chart.data, key)}</b>
 					{getByKey(chart.data, key).trim()}
 				</button>
@@ -527,12 +669,56 @@
 	</div>
 	<div class="status" role="status" aria-live="polite">{chart.status}</div>
 
-	<div class="layout">
+	{#if isMobile}
+		<div class="mobile-view-toggle" role="tablist" aria-label="View mode">
+			<button
+				type="button"
+				role="tab"
+				class="mobile-view-btn"
+				class:active={!isMobileGridVisible}
+				aria-selected={!isMobileGridVisible}
+				onclick={() => {
+					isMobileGridVisible = false;
+				}}
+			>
+				Editor
+			</button>
+			<button
+				type="button"
+				role="tab"
+				class="mobile-view-btn"
+				class:active={isMobileGridVisible}
+				aria-selected={isMobileGridVisible}
+				onclick={() => {
+					isMobileGridVisible = true;
+				}}
+			>
+				9×9 Grid
+			</button>
+		</div>
+	{/if}
+
+	<div class="layout" class:mobile-grid-active={isMobileGridVisible}>
 		<div class="chart">
 			<MandalaGrid onSelect={selectBlock} />
 		</div>
 		<div class="side">
 			<SidePanel />
+			{#if isMobile}
+				<div class="mobile-peek-wrap">
+					<button
+						type="button"
+						class="mobile-peek-btn"
+						onclick={() => {
+							isMobileGridVisible = true;
+							window.scrollTo({ top: 0, behavior: 'smooth' });
+						}}
+					>
+						<span>View Full 9×9 Grid</span>
+						<span class="peek-arrow">→</span>
+					</button>
+				</div>
+			{/if}
 			<textarea
 				class="export-box"
 				class:on={!!chart.exportFallback}
