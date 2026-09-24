@@ -53,8 +53,8 @@
 			<input
 				type="checkbox"
 				checked={chart.fingerDraw}
-				onchange={(e) => {
-					chart.fingerDraw = e.currentTarget.checked;
+				onchange={(event) => {
+					chart.fingerDraw = event.currentTarget.checked;
 				}}
 			/>
 			Draw with finger
@@ -79,7 +79,7 @@
 					aria-label={describe(chart.sel, c)}
 					placeholder={placeholder(c)}
 					value={chart.textOf(cellKey(chart.sel, c))}
-					oninput={(e) => chart.setText(cellKey(chart.sel, c), e.currentTarget.value)}
+					oninput={(event) => chart.setText(cellKey(chart.sel, c), event.currentTarget.value)}
 				></textarea>
 			{/if}
 		{/each}

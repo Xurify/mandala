@@ -70,8 +70,8 @@ export class ChartStore {
 		this.#saveTimer = setTimeout(() => this.saveNow(), 300);
 	}
 
-	say(msg: string, keep = false): void {
-		this.status = msg;
+	say(message: string, keep = false): void {
+		this.status = message;
 		if (this.#statusTimer) clearTimeout(this.#statusTimer);
 		if (!keep) {
 			this.#statusTimer = setTimeout(() => {
@@ -80,8 +80,8 @@ export class ChartStore {
 		}
 	}
 
-	select(b: number): void {
-		this.sel = b;
+	select(blockIndex: number): void {
+		this.sel = blockIndex;
 	}
 
 	setMode(mode: InputMode): void {
@@ -149,6 +149,13 @@ export class ChartStore {
 		this.say('Chart cleared.');
 	}
 
+	importChart(importedData: ChartData): void {
+		this.data = importedData;
+		this.sel = 4;
+		this.saveNow();
+		this.say('Chart imported successfully.');
+	}
+
 	bumpTheme(): void {
 		this.themeTick += 1;
 	}
@@ -167,11 +174,11 @@ export class ChartStore {
 	}
 
 	applyRead(key: string, text: string): boolean {
-		const t = text.replace(/\s+/g, ' ').trim().slice(0, 120);
-		if (!t) return false;
+		const trimmedText = text.replace(/\s+/g, ' ').trim().slice(0, 120);
+		if (!trimmedText) return false;
 		const current = getByKey(this.data, key).trim();
 		if (current === '' || this.data.rd[key] === 'stale') {
-			setByKey(this.data, key, t);
+			setByKey(this.data, key, trimmedText);
 			this.data.rd[key] = 'ink';
 			return true;
 		}

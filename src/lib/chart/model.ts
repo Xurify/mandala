@@ -164,43 +164,48 @@ export function hasContent(data: ChartData): boolean {
 
 export function parseChart(raw: string): ChartData | null {
 	try {
-		const d = JSON.parse(raw) as unknown;
-		if (!d || typeof d !== 'object') return null;
-		const rec = d as Record<string, unknown>;
-		if (typeof rec.goal !== 'string') return null;
-		if (!Array.isArray(rec.pillars) || rec.pillars.length !== 8) return null;
-		if (!rec.pillars.every((p) => typeof p === 'string')) return null;
-		if (!Array.isArray(rec.actions) || rec.actions.length !== 8) return null;
+		const parsedObject = JSON.parse(raw) as unknown;
+		if (!parsedObject || typeof parsedObject !== 'object') return null;
+		const record = parsedObject as Record<string, unknown>;
+		if (typeof record.goal !== 'string') return null;
+		if (!Array.isArray(record.pillars) || record.pillars.length !== 8) return null;
+		if (!record.pillars.every((pillar) => typeof pillar === 'string')) return null;
+		if (!Array.isArray(record.actions) || record.actions.length !== 8) return null;
 		if (
-			!rec.actions.every(
-				(row) => Array.isArray(row) && row.length === 8 && row.every((a) => typeof a === 'string')
+			!record.actions.every(
+				(row) =>
+					Array.isArray(row) &&
+					row.length === 8 &&
+					row.every((action) => typeof action === 'string')
 			)
 		) {
 			return null;
 		}
 
 		const ink: Record<string, number[][]> = {};
-		if (rec.ink && typeof rec.ink === 'object') {
-			for (const [k, v] of Object.entries(rec.ink as Record<string, unknown>)) {
-				if (Array.isArray(v) && v.every((s) => Array.isArray(s))) {
-					ink[k] = v as number[][];
+		if (record.ink && typeof record.ink === 'object') {
+			for (const [key, value] of Object.entries(record.ink as Record<string, unknown>)) {
+				if (Array.isArray(value) && value.every((stroke) => Array.isArray(stroke))) {
+					ink[key] = value as number[][];
 				}
 			}
 		}
 
-		const rd: Record<string, ReadFlag> = {};
-		if (rec.rd && typeof rec.rd === 'object') {
-			for (const [k, v] of Object.entries(rec.rd as Record<string, unknown>)) {
-				if (v === 'ink' || v === 'stale' || v === 'kept') rd[k] = v;
+		const readStatus: Record<string, ReadFlag> = {};
+		if (record.rd && typeof record.rd === 'object') {
+			for (const [key, flag] of Object.entries(record.rd as Record<string, unknown>)) {
+				if (flag === 'ink' || flag === 'stale' || flag === 'kept') {
+					readStatus[key] = flag;
+				}
 			}
 		}
 
 		return {
-			goal: rec.goal,
-			pillars: rec.pillars as string[],
-			actions: rec.actions as string[][],
+			goal: record.goal,
+			pillars: record.pillars as string[],
+			actions: record.actions as string[][],
 			ink,
-			rd
+			rd: readStatus
 		};
 	} catch {
 		return null;
@@ -236,6 +241,19 @@ export function exampleChart(): ChartData {
 		});
 	});
 	return data;
+}
+
+export function exportJson(data: ChartData): string {
+	return JSON.stringify(data, null, 2);
+}
+
+export function exportFilename(data: ChartData): string {
+	const sanitizedGoal = data.goal
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+	return sanitizedGoal ? `mandala-${sanitizedGoal}.json` : 'mandala-chart.json';
 }
 
 export function exportText(data: ChartData): string {

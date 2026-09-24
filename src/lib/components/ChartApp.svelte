@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { blockOfKey, CELL_COUNT, getByKey, labelOfKey } from '$lib/chart/model';
+	import {
+		blockOfKey,
+		CELL_COUNT,
+		exportFilename,
+		exportJson,
+		getByKey,
+		labelOfKey,
+		parseChart
+	} from '$lib/chart/model';
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import SidePanel from './SidePanel.svelte';
@@ -10,34 +18,37 @@
 	let clearArmed = $state(false);
 	let exampleTimer: ReturnType<typeof setTimeout> | null = null;
 	let clearTimer: ReturnType<typeof setTimeout> | null = null;
+	let fileInputElement: HTMLInputElement | null = $state(null);
+	let isDraggingFile = $state(false);
+	let dragCounter = 0;
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
 	const noticeOn = $derived(chart.reading || chart.unread.length > 0);
 	const noticeText = $derived.by(() => {
 		if (chart.reading) return 'Reading handwriting…';
-		const n = chart.unread.length;
-		if (!n) return '';
+		const unreadCount = chart.unread.length;
+		if (!unreadCount) return '';
 		return (
-			`${n} handwritten note${n === 1 ? ' isn’t' : 's aren’t'} searchable yet.` +
+			`${unreadCount} handwritten note${unreadCount === 1 ? ' isn’t' : 's aren’t'} searchable yet.` +
 			' First read downloads a handwriting model (~120MB) to this device.'
 		);
 	});
 
 	onMount(() => {
 		chart.load();
-		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const onTheme = () => chart.bumpTheme();
-		mq.addEventListener('change', onTheme);
-		return () => mq.removeEventListener('change', onTheme);
+		mediaQuery.addEventListener('change', onTheme);
+		return () => mediaQuery.removeEventListener('change', onTheme);
 	});
 
 	function persistHidden() {
 		if (document.visibilityState === 'hidden') chart.saveNow();
 	}
 
-	function selectBlock(b: number) {
-		chart.select(b);
+	function selectBlock(blockIndex: number) {
+		chart.select(blockIndex);
 		if (window.matchMedia('(max-width: 900px)').matches) {
 			const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 			document.querySelector('.panel')?.scrollIntoView({
@@ -54,13 +65,13 @@
 			return;
 		}
 		const armed = kind === 'example' ? exampleArmed : clearArmed;
-		const setArmed = (v: boolean) => {
-			if (kind === 'example') exampleArmed = v;
-			else clearArmed = v;
+		const setArmed = (isArmed: boolean) => {
+			if (kind === 'example') exampleArmed = isArmed;
+			else clearArmed = isArmed;
 		};
-		const setTimer = (t: ReturnType<typeof setTimeout> | null) => {
-			if (kind === 'example') exampleTimer = t;
-			else clearTimer = t;
+		const setTimer = (timer: ReturnType<typeof setTimeout> | null) => {
+			if (kind === 'example') exampleTimer = timer;
+			else clearTimer = timer;
 		};
 		const existing = kind === 'example' ? exampleTimer : clearTimer;
 		if (armed) {
@@ -74,6 +85,93 @@
 					setArmed(false);
 				}, 3000)
 			);
+		}
+	}
+
+	function exportChartFile() {
+		const jsonContent = exportJson(chart.data);
+		const filename = exportFilename(chart.data);
+		const blob = new Blob([jsonContent], { type: 'application/json' });
+		const downloadUrl = URL.createObjectURL(blob);
+		const downloadLink = document.createElement('a');
+		downloadLink.href = downloadUrl;
+		downloadLink.download = filename;
+		downloadLink.click();
+		URL.revokeObjectURL(downloadUrl);
+		chart.say(`Exported as ${filename}`);
+	}
+
+	function importChartText(content: string): boolean {
+		const parsedChart = parseChart(content);
+		if (!parsedChart) {
+			chart.say('Invalid chart file. Please choose a valid Mandala JSON file.');
+			return false;
+		}
+		if (chart.dirty) {
+			const userConfirmed = window.confirm(
+				'Importing will replace your current chart. Do you want to proceed?'
+			);
+			if (!userConfirmed) {
+				return false;
+			}
+		}
+		chart.importChart(parsedChart);
+		return true;
+	}
+
+	async function handleFileImport(event: Event) {
+		const target = event.currentTarget as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		try {
+			const text = await file.text();
+			importChartText(text);
+		} catch {
+			chart.say('Failed to read the imported file.');
+		} finally {
+			target.value = '';
+		}
+	}
+
+	function handleDragEnter(event: DragEvent) {
+		event.preventDefault();
+		dragCounter++;
+		if (event.dataTransfer?.types.includes('Files')) {
+			isDraggingFile = true;
+		}
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+	}
+
+	function handleDragLeave(event: DragEvent) {
+		event.preventDefault();
+		dragCounter--;
+		if (dragCounter <= 0) {
+			dragCounter = 0;
+			isDraggingFile = false;
+		}
+	}
+
+	async function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		dragCounter = 0;
+		isDraggingFile = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (!file) return;
+
+		if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+			chart.say('Please drop a valid .json file.');
+			return;
+		}
+
+		try {
+			const text = await file.text();
+			importChartText(text);
+		} catch {
+			chart.say('Failed to read the dropped file.');
 		}
 	}
 
@@ -108,7 +206,7 @@
 		if (!keys.length) return;
 		const signal = chart.beginRead();
 		const result = await readUnreadInk(
-			keys.map((k) => ({ key: k, strokes: chart.strokesOf(k) })),
+			keys.map((key) => ({ key, strokes: chart.strokesOf(key) })),
 			signal
 		);
 		if (signal.aborted || result.failed === 'cancelled') {
@@ -125,18 +223,24 @@
 		}
 		chart.saveNow();
 		chart.reading = false;
-		let msg = `Read ${done} note${done === 1 ? '.' : 's.'}`;
-		if (missed) msg += ` ${missed} ${missed === 1 ? 'was' : 'were'} too unclear to read.`;
+		let message = `Read ${done} note${done === 1 ? '.' : 's.'}`;
+		if (missed) message += ` ${missed} ${missed === 1 ? 'was' : 'were'} too unclear to read.`;
 		if (result.failed === 'offline') {
-			msg += ' Need a connection the first time to download the handwriting model.';
+			message += ' Need a connection the first time to download the handwriting model.';
 		} else if (result.failed) {
-			msg += ' Something went wrong. Try again.';
+			message += ' Something went wrong. Try again.';
 		}
-		chart.say(msg);
+		chart.say(message);
 	}
 </script>
 
-<svelte:window onpagehide={() => chart.saveNow()} />
+<svelte:window
+	onpagehide={() => chart.saveNow()}
+	ondragenter={handleDragEnter}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+/>
 <svelte:document onvisibilitychange={persistHidden} />
 
 <div class="wrap">
@@ -168,6 +272,8 @@
 			</div>
 		</div>
 		<div class="btns">
+			<button class="btn" type="button" onclick={exportChartFile}>Export</button>
+			<button class="btn" type="button" onclick={() => fileInputElement?.click()}>Import</button>
 			<button class="btn" type="button" onclick={copyText}>Copy as text</button>
 			<button class="btn" class:armed={exampleArmed} type="button" onclick={() => arm('example')}>
 				{exampleArmed ? 'Click again to confirm' : 'Load example'}
@@ -176,6 +282,15 @@
 				{clearArmed ? 'Click again to confirm' : 'Clear all'}
 			</button>
 		</div>
+		<input
+			bind:this={fileInputElement}
+			type="file"
+			accept=".json,application/json"
+			class="visually-hidden"
+			tabindex="-1"
+			aria-hidden="true"
+			onchange={handleFileImport}
+		/>
 	</header>
 
 	<div class="search">
@@ -186,7 +301,7 @@
 			autocomplete="off"
 			spellcheck="false"
 			value={chart.query}
-			oninput={(e) => chart.setQuery(e.currentTarget.value)}
+			oninput={(event) => chart.setQuery(event.currentTarget.value)}
 		/>
 		<div class="results" aria-live="polite">
 			{#if chart.query.trim() && !shownHits.length}
@@ -196,10 +311,10 @@
 						: 'No matches.'}
 				</div>
 			{/if}
-			{#each shownHits as k (k)}
-				<button type="button" class="res" onclick={() => selectBlock(blockOfKey(k))}>
-					<b>{labelOfKey(chart.data, k)}</b>
-					{getByKey(chart.data, k).trim()}
+			{#each shownHits as key (key)}
+				<button type="button" class="res" onclick={() => selectBlock(blockOfKey(key))}>
+					<b>{labelOfKey(chart.data, key)}</b>
+					{getByKey(chart.data, key).trim()}
 				</button>
 			{/each}
 			{#if extraHits}
@@ -233,4 +348,10 @@
 			></textarea>
 		</div>
 	</div>
+
+	{#if isDraggingFile}
+		<div class="drop-overlay" aria-hidden="true">
+			<div class="drop-modal">Drop your Mandala JSON file here to import</div>
+		</div>
+	{/if}
 </div>

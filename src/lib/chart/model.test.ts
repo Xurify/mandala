@@ -4,6 +4,8 @@ import {
 	cellKey,
 	emptyChart,
 	exampleChart,
+	exportFilename,
+	exportJson,
 	exportText,
 	filledCount,
 	needsRead,
@@ -97,5 +99,22 @@ describe('setByKey', () => {
 		const data = emptyChart();
 		setByKey(data, 'g', 'x'.repeat(200));
 		expect(data.goal.length).toBe(120);
+	});
+});
+
+describe('exportJson and exportFilename', () => {
+	it('exports valid JSON that round-trips with parseChart', () => {
+		const data = exampleChart();
+		const json = exportJson(data);
+		const roundTripped = parseChart(json);
+		expect(roundTripped).toEqual(data);
+	});
+
+	it('generates a clean slugified filename based on the goal', () => {
+		const data = emptyChart();
+		expect(exportFilename(data)).toBe('mandala-chart.json');
+
+		data.goal = 'Run a half marathon in under 2:00!';
+		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-00.json');
 	});
 });
