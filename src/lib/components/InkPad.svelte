@@ -2,6 +2,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { drawStrokes, widthFor } from '$lib/chart/ink';
 	import { describe, HUES, info, type CellType } from '$lib/chart/model';
+	import Icon from './Icon.svelte';
 
 	let {
 		cellKey,
@@ -168,8 +169,12 @@
 			onpointerleave={handlePadPointerLeave}
 		></canvas>
 		<div class="tools">
-			<button type="button" class="tool" aria-label="Undo last stroke" onclick={undo}>↶</button>
-			<button type="button" class="tool" aria-label="Clear handwriting" onclick={clear}>×</button>
+			<button type="button" class="tool" aria-label="Undo last stroke" onclick={undo}>
+				<Icon name="undo" size={13} />
+			</button>
+			<button type="button" class="tool" aria-label="Clear handwriting" onclick={clear}>
+				<Icon name="close" size={13} />
+			</button>
 		</div>
 	</div>
 	<input

@@ -15,6 +15,7 @@
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import SidePanel from './SidePanel.svelte';
+	import Icon from './Icon.svelte';
 
 	let menuOpen = $state(false);
 	let menuContainerElement: HTMLDivElement | null = $state(null);
@@ -25,6 +26,7 @@
 	let isMobileGridVisible = $state(false);
 	let isMobile = $state(false);
 	let mobileSearchQuery = $state('');
+	let searchInputElement: HTMLInputElement | null = $state(null);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -163,6 +165,12 @@
 		} else if (event.altKey && event.key === 'ArrowLeft') {
 			event.preventDefault();
 			chart.selectPreviousPillar();
+		} else if (
+			(event.key === '/' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) &&
+			!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+		) {
+			event.preventDefault();
+			searchInputElement?.focus();
 		}
 	}
 
@@ -472,21 +480,17 @@
 				}}
 			>
 				<span>Actions</span>
-				<svg
-					class="chevron"
-					viewBox="0 0 16 16"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.8"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M4 6l4 4 4-4" />
-				</svg>
+				<Icon name="chevron-down" size={14} class="chevron" />
 			</button>
 
 			{#if menuOpen}
+				<div
+					class="menu-backdrop"
+					aria-hidden="true"
+					onclick={() => {
+						menuOpen = false;
+					}}
+				></div>
 				<div class="menu-dropdown" role="menu">
 					<button
 						class="menu-item"
@@ -494,7 +498,10 @@
 						role="menuitem"
 						onclick={handlePrintChart}
 					>
-						<span>Print chart</span>
+						<span class="menu-item-main">
+							<Icon name="printer" size={16} />
+							<span>Print chart</span>
+						</span>
 						<span class="menu-badge">Ctrl+P</span>
 					</button>
 					<button
@@ -503,7 +510,10 @@
 						role="menuitem"
 						onclick={handleExportPoster}
 					>
-						<span>Export poster</span>
+						<span class="menu-item-main">
+							<Icon name="image" size={16} />
+							<span>Export poster</span>
+						</span>
 						<span class="menu-badge">.png</span>
 					</button>
 					<button
@@ -512,7 +522,10 @@
 						role="menuitem"
 						onclick={handleExportChart}
 					>
-						<span>Export data</span>
+						<span class="menu-item-main">
+							<Icon name="download" size={16} />
+							<span>Export data</span>
+						</span>
 						<span class="menu-badge">.json</span>
 					</button>
 					<button
@@ -521,7 +534,10 @@
 						role="menuitem"
 						onclick={handleImportClick}
 					>
-						<span>Import data</span>
+						<span class="menu-item-main">
+							<Icon name="upload" size={16} />
+							<span>Import data</span>
+						</span>
 						<span class="menu-badge">.json</span>
 					</button>
 					<button
@@ -530,7 +546,10 @@
 						role="menuitem"
 						onclick={handleCopyAsText}
 					>
-						<span>Copy as text</span>
+						<span class="menu-item-main">
+							<Icon name="copy" size={16} />
+							<span>Copy as text</span>
+						</span>
 					</button>
 					<div class="menu-divider" role="separator"></div>
 					<div class="menu-theme-row">
@@ -542,7 +561,8 @@
 								class:active={chart.theme === 'system'}
 								onclick={() => chart.setTheme('system')}
 							>
-								Auto
+								<Icon name="monitor" size={12} />
+								<span>Auto</span>
 							</button>
 							<button
 								type="button"
@@ -550,7 +570,8 @@
 								class:active={chart.theme === 'light'}
 								onclick={() => chart.setTheme('light')}
 							>
-								Light
+								<Icon name="sun" size={12} />
+								<span>Light</span>
 							</button>
 							<button
 								type="button"
@@ -558,7 +579,8 @@
 								class:active={chart.theme === 'dark'}
 								onclick={() => chart.setTheme('dark')}
 							>
-								Dark
+								<Icon name="moon" size={12} />
+								<span>Dark</span>
 							</button>
 						</div>
 					</div>
@@ -569,7 +591,10 @@
 						role="menuitem"
 						onclick={handleClearChart}
 					>
-						<span>Clear chart</span>
+						<span class="menu-item-main">
+							<Icon name="trash" size={16} />
+							<span>Clear chart</span>
+						</span>
 					</button>
 					<div class="menu-divider" role="separator"></div>
 					<button
@@ -578,7 +603,10 @@
 						role="menuitem"
 						onclick={handleLoadExample}
 					>
-						<span>Load example</span>
+						<span class="menu-item-main">
+							<Icon name="sparkles" size={16} />
+							<span>Load example</span>
+						</span>
 					</button>
 				</div>
 			{/if}
@@ -598,16 +626,28 @@
 		<div class="milestones-bar">
 			<div class="milestones-group">
 				<div class="milestone-badge" class:done={chart.milestones.goalSet}>
+					<Icon name="target" size={12} strokeWidth={1.9} />
 					<span class="badge-label">Goal</span>
 					<span class="badge-count">{chart.milestones.goalSet ? '1/1' : '0/1'}</span>
+					{#if chart.milestones.goalSet}
+						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
+					{/if}
 				</div>
 				<div class="milestone-badge" class:done={chart.milestones.pillarsCount === 8}>
+					<Icon name="compass" size={12} strokeWidth={1.9} />
 					<span class="badge-label">Pillars</span>
 					<span class="badge-count">{chart.milestones.pillarsCount}/8</span>
+					{#if chart.milestones.pillarsCount === 8}
+						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
+					{/if}
 				</div>
 				<div class="milestone-badge" class:done={chart.milestones.actionsCount === 64}>
+					<Icon name="list" size={12} strokeWidth={2} />
 					<span class="badge-label">Actions</span>
 					<span class="badge-count">{chart.milestones.actionsCount}/64</span>
+					{#if chart.milestones.actionsCount === 64}
+						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
+					{/if}
 				</div>
 			</div>
 			<span class="progress-label">{chart.filled} of {CELL_COUNT} filled</span>
@@ -619,7 +659,11 @@
 
 	<div class="search">
 		<div class="search-box">
+			<span class="search-icon" aria-hidden="true">
+				<Icon name="search" size={16} />
+			</span>
 			<input
+				bind:this={searchInputElement}
 				type="search"
 				placeholder="Search goal, pillars and actions"
 				aria-label="Search the chart"
@@ -635,7 +679,7 @@
 					aria-label="Clear search"
 					onclick={() => chart.setQuery('')}
 				>
-					×
+					<Icon name="close" size={13} />
 				</button>
 			{/if}
 		</div>
@@ -681,7 +725,8 @@
 					isMobileGridVisible = false;
 				}}
 			>
-				Editor
+				<Icon name="edit" size={15} />
+				<span>Editor</span>
 			</button>
 			<button
 				type="button"
@@ -693,7 +738,8 @@
 					isMobileGridVisible = true;
 				}}
 			>
-				9×9 Grid
+				<Icon name="grid" size={15} />
+				<span>9×9 Grid</span>
 			</button>
 		</div>
 	{/if}
@@ -714,8 +760,9 @@
 							window.scrollTo({ top: 0, behavior: 'smooth' });
 						}}
 					>
+						<Icon name="grid" size={16} />
 						<span>View Full 9×9 Grid</span>
-						<span class="peek-arrow">→</span>
+						<Icon name="arrow-right" size={14} class="peek-arrow" />
 					</button>
 				</div>
 			{/if}
