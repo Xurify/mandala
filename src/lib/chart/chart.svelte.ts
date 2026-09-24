@@ -18,8 +18,24 @@ import {
 	type InputMode
 } from './model.ts';
 
+function loadInitialChart(): ChartData {
+	if (typeof window === 'undefined') {
+		return emptyChart();
+	}
+	try {
+		const rawChartData = localStorage.getItem(STORAGE_KEY);
+		if (!rawChartData) {
+			return emptyChart();
+		}
+		const parsedChartData = parseChart(rawChartData);
+		return parsedChartData ?? emptyChart();
+	} catch {
+		return emptyChart();
+	}
+}
+
 export class ChartStore {
-	data: ChartData = $state(emptyChart());
+	data: ChartData = $state(loadInitialChart());
 	sel = $state(4);
 	mode: InputMode = $state('type');
 	fingerDraw = $state(false);
@@ -42,10 +58,10 @@ export class ChartStore {
 
 	load(): void {
 		try {
-			const raw = localStorage.getItem(STORAGE_KEY);
-			if (!raw) return;
-			const parsed = parseChart(raw);
-			if (parsed) this.data = parsed;
+			const rawChartData = localStorage.getItem(STORAGE_KEY);
+			if (!rawChartData) return;
+			const parsedChartData = parseChart(rawChartData);
+			if (parsedChartData) this.data = parsedChartData;
 		} catch {
 			// private mode / blocked storage
 		}
