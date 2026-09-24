@@ -87,11 +87,7 @@ function png(size: number): Uint8Array {
 					const cx0 = pad + col * (cell + gap);
 					const cy0 = pad + line * (cell + gap);
 					const color = CELLS[i]!;
-					const inside =
-						i === 4
-							? (px - (cx0 + cell / 2)) ** 2 + (py - (cy0 + cell / 2)) ** 2 <=
-								(cell / 2) ** 2
-							: inRoundRect(px, py, cx0, cy0, cell, cell, rad);
+					const inside = inRoundRect(px, py, cx0, cy0, cell, cell, rad);
 					if (inside) {
 						hit++;
 						hr += color[0];

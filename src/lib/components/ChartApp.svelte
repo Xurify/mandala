@@ -327,11 +327,13 @@
 						onpointerenter={(event) => handleMarkPointerEnter(3, event)}
 						onpointerleave={handleMarkPointerLeave}
 					/>
-					<circle
+					<rect
 						role="presentation"
-						cx="75"
-						cy="75"
-						r="18"
+						x="57"
+						y="57"
+						width="36"
+						height="36"
+						rx="8"
 						fill="#d5ddf5"
 						class:highlight={chart.hoveredColorIndex === -1}
 						onpointerenter={(event) => handleMarkPointerEnter(-1, event)}

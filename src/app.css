@@ -125,8 +125,7 @@ body {
 	overflow: visible;
 }
 
-.mark rect,
-.mark circle {
+.mark rect {
 	cursor: pointer;
 	transform-origin: center;
 	transform-box: fill-box;
@@ -137,9 +136,7 @@ body {
 
 @media (hover: hover) {
 	.mark rect:hover,
-	.mark circle:hover,
-	.mark rect.highlight,
-	.mark circle.highlight {
+	.mark rect.highlight {
 		filter: brightness(1.22) saturate(1.25);
 		transform: scale(1.18);
 	}
@@ -584,11 +581,7 @@ h1 {
 	color: var(--text);
 }
 
-.cell.goal {
-	border-radius: 50%;
-	padding: 12%;
-}
-
+.cell.goal,
 .cell.pillar {
 	border-radius: 28%;
 }
@@ -739,7 +732,7 @@ h1 {
 	background: var(--goal-bg);
 	color: var(--goal-fg);
 	font-weight: 600;
-	border-radius: 26px;
+	border-radius: 22px;
 }
 
 .field.goal::placeholder {
