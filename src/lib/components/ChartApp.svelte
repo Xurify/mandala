@@ -14,10 +14,9 @@
 	import MandalaGrid from './MandalaGrid.svelte';
 	import SidePanel from './SidePanel.svelte';
 
-	let exampleArmed = $state(false);
-	let clearArmed = $state(false);
-	let exampleTimer: ReturnType<typeof setTimeout> | null = null;
-	let clearTimer: ReturnType<typeof setTimeout> | null = null;
+	let menuOpen = $state(false);
+	let menuContainerElement: HTMLDivElement | null = $state(null);
+	let menuTriggerElement: HTMLButtonElement | null = $state(null);
 	let fileInputElement: HTMLInputElement | null = $state(null);
 	let isDraggingFile = $state(false);
 	let dragCounter = 0;
@@ -58,33 +57,53 @@
 		}
 	}
 
-	function arm(kind: 'example' | 'clear') {
-		const run = kind === 'example' ? () => chart.loadExample() : () => chart.clearAll();
-		if (!chart.dirty) {
-			run();
-			return;
-		}
-		const armed = kind === 'example' ? exampleArmed : clearArmed;
-		const setArmed = (isArmed: boolean) => {
-			if (kind === 'example') exampleArmed = isArmed;
-			else clearArmed = isArmed;
-		};
-		const setTimer = (timer: ReturnType<typeof setTimeout> | null) => {
-			if (kind === 'example') exampleTimer = timer;
-			else clearTimer = timer;
-		};
-		const existing = kind === 'example' ? exampleTimer : clearTimer;
-		if (armed) {
-			if (existing) clearTimeout(existing);
-			setArmed(false);
-			run();
-		} else {
-			setArmed(true);
-			setTimer(
-				setTimeout(() => {
-					setArmed(false);
-				}, 3000)
+	function handleExportChart() {
+		menuOpen = false;
+		exportChartFile();
+	}
+
+	function handleImportClick() {
+		menuOpen = false;
+		fileInputElement?.click();
+	}
+
+	function handleCopyAsText() {
+		menuOpen = false;
+		copyText();
+	}
+
+	function handleClearChart() {
+		menuOpen = false;
+		if (chart.dirty) {
+			const userConfirmed = window.confirm(
+				'Are you sure you want to clear your chart? This action cannot be undone.'
 			);
+			if (!userConfirmed) return;
+		}
+		chart.clearAll();
+	}
+
+	function handleLoadExample() {
+		menuOpen = false;
+		if (chart.dirty) {
+			const userConfirmed = window.confirm(
+				'Loading the example will replace your current chart. Do you want to proceed?'
+			);
+			if (!userConfirmed) return;
+		}
+		chart.loadExample();
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && menuOpen) {
+			menuOpen = false;
+			menuTriggerElement?.focus();
+		}
+	}
+
+	function handleWindowClick(event: MouseEvent) {
+		if (menuOpen && menuContainerElement && !menuContainerElement.contains(event.target as Node)) {
+			menuOpen = false;
 		}
 	}
 
@@ -232,6 +251,16 @@
 		}
 		chart.say(message);
 	}
+
+	function handleMarkPointerEnter(colorIndex: number, event: PointerEvent) {
+		if (event.pointerType === 'touch') return;
+		chart.hoveredColorIndex = colorIndex;
+	}
+
+	function handleMarkPointerLeave(event: PointerEvent) {
+		if (event.pointerType === 'touch') return;
+		chart.hoveredColorIndex = null;
+	}
 </script>
 
 <svelte:window
@@ -240,6 +269,8 @@
 	ondragover={handleDragOver}
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
+	onkeydown={handleWindowKeydown}
+	onclick={handleWindowClick}
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
@@ -248,15 +279,112 @@
 		<div class="brand">
 			<div class="name">
 				<svg class="mark" viewBox="0 0 150 150" aria-hidden="true">
-					<rect x="14" y="14" width="36" height="36" rx="8" fill="#b85c5a" />
-					<rect x="57" y="14" width="36" height="36" rx="8" fill="#c98a3f" />
-					<rect x="100" y="14" width="36" height="36" rx="8" fill="#c4b230" />
-					<rect x="14" y="57" width="36" height="36" rx="8" fill="#4f9a62" />
-					<circle cx="75" cy="75" r="18" fill="#d5ddf5" />
-					<rect x="100" y="57" width="36" height="36" rx="8" fill="#20a3a3" />
-					<rect x="14" y="100" width="36" height="36" rx="8" fill="#4a8fc4" />
-					<rect x="57" y="100" width="36" height="36" rx="8" fill="#8079d0" />
-					<rect x="100" y="100" width="36" height="36" rx="8" fill="#c26a9c" />
+					<rect
+						role="presentation"
+						x="14"
+						y="14"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#b85c5a"
+						class:highlight={chart.hoveredColorIndex === 0}
+						onpointerenter={(event) => handleMarkPointerEnter(0, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="57"
+						y="14"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#c98a3f"
+						class:highlight={chart.hoveredColorIndex === 1}
+						onpointerenter={(event) => handleMarkPointerEnter(1, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="100"
+						y="14"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#c4b230"
+						class:highlight={chart.hoveredColorIndex === 2}
+						onpointerenter={(event) => handleMarkPointerEnter(2, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="14"
+						y="57"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#4f9a62"
+						class:highlight={chart.hoveredColorIndex === 3}
+						onpointerenter={(event) => handleMarkPointerEnter(3, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<circle
+						role="presentation"
+						cx="75"
+						cy="75"
+						r="18"
+						fill="#d5ddf5"
+						class:highlight={chart.hoveredColorIndex === -1}
+						onpointerenter={(event) => handleMarkPointerEnter(-1, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="100"
+						y="57"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#20a3a3"
+						class:highlight={chart.hoveredColorIndex === 4}
+						onpointerenter={(event) => handleMarkPointerEnter(4, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="14"
+						y="100"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#4a8fc4"
+						class:highlight={chart.hoveredColorIndex === 5}
+						onpointerenter={(event) => handleMarkPointerEnter(5, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="57"
+						y="100"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#8079d0"
+						class:highlight={chart.hoveredColorIndex === 6}
+						onpointerenter={(event) => handleMarkPointerEnter(6, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
+					<rect
+						role="presentation"
+						x="100"
+						y="100"
+						width="36"
+						height="36"
+						rx="8"
+						fill="#c26a9c"
+						class:highlight={chart.hoveredColorIndex === 7}
+						onpointerenter={(event) => handleMarkPointerEnter(7, event)}
+						onpointerleave={handleMarkPointerLeave}
+					/>
 				</svg>
 				<h1>Mandala Method</h1>
 			</div>
@@ -271,16 +399,80 @@
 				<span class="progress-label">{chart.filled} of {CELL_COUNT} filled</span>
 			</div>
 		</div>
-		<div class="btns">
-			<button class="btn" type="button" onclick={exportChartFile}>Export</button>
-			<button class="btn" type="button" onclick={() => fileInputElement?.click()}>Import</button>
-			<button class="btn" type="button" onclick={copyText}>Copy as text</button>
-			<button class="btn" class:armed={exampleArmed} type="button" onclick={() => arm('example')}>
-				{exampleArmed ? 'Click again to confirm' : 'Load example'}
+		<div class="menu-wrap" bind:this={menuContainerElement}>
+			<button
+				bind:this={menuTriggerElement}
+				class="menu-trigger"
+				type="button"
+				aria-haspopup="menu"
+				aria-expanded={menuOpen}
+				onclick={() => {
+					menuOpen = !menuOpen;
+				}}
+			>
+				<span>Actions</span>
+				<svg
+					class="chevron"
+					viewBox="0 0 16 16"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M4 6l4 4 4-4" />
+				</svg>
 			</button>
-			<button class="btn" class:armed={clearArmed} type="button" onclick={() => arm('clear')}>
-				{clearArmed ? 'Click again to confirm' : 'Clear all'}
-			</button>
+
+			{#if menuOpen}
+				<div class="menu-dropdown" role="menu">
+					<button
+						class="menu-item"
+						type="button"
+						role="menuitem"
+						onclick={handleExportChart}
+					>
+						<span>Export</span>
+						<span class="menu-badge">.json</span>
+					</button>
+					<button
+						class="menu-item"
+						type="button"
+						role="menuitem"
+						onclick={handleImportClick}
+					>
+						<span>Import</span>
+						<span class="menu-badge">.json</span>
+					</button>
+					<button
+						class="menu-item"
+						type="button"
+						role="menuitem"
+						onclick={handleCopyAsText}
+					>
+						<span>Copy as text</span>
+					</button>
+					<div class="menu-divider" role="separator"></div>
+					<button
+						class="menu-item danger"
+						type="button"
+						role="menuitem"
+						onclick={handleClearChart}
+					>
+						<span>Clear chart</span>
+					</button>
+					<div class="menu-divider" role="separator"></div>
+					<button
+						class="menu-item subtle"
+						type="button"
+						role="menuitem"
+						onclick={handleLoadExample}
+					>
+						<span>Load example</span>
+					</button>
+				</div>
+			{/if}
 		</div>
 		<input
 			bind:this={fileInputElement}

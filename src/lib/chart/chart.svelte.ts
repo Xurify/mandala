@@ -29,6 +29,7 @@ export class ChartStore {
 	exportFallback = $state('');
 	saveWarned = $state(false);
 	themeTick = $state(0);
+	hoveredColorIndex = $state<number | null>(null);
 
 	#saveTimer: ReturnType<typeof setTimeout> | null = null;
 	#statusTimer: ReturnType<typeof setTimeout> | null = null;

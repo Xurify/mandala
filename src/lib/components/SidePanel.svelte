@@ -15,17 +15,37 @@
 			: `Pillar ${idx(chart.sel) + 1}, ${POS[idx(chart.sel)]} of the center. Add eight actions that strengthen it.`
 	);
 
-	function hue(c: number) {
-		const i = info(chart.sel, c);
-		return i.type === 'goal' ? undefined : HUES[i.k];
+	function hue(cellIndex: number) {
+		const cellInformation = info(chart.sel, cellIndex);
+		return cellInformation.type === 'goal' ? undefined : HUES[cellInformation.k];
 	}
 
-	function placeholder(c: number) {
-		const i = info(chart.sel, c);
-		if (i.type === 'goal') return 'Your main goal, 6 to 12 months out';
-		if (chart.sel === 4) return `Pillar ${i.k + 1}`;
-		if (i.type === 'pillar') return 'Name this pillar';
-		return `Action ${idx(c) + 1}`;
+	function placeholder(cellIndex: number) {
+		const cellInformation = info(chart.sel, cellIndex);
+		if (cellInformation.type === 'goal') return 'Your main goal, 6 to 12 months out';
+		if (chart.sel === 4) return `Pillar ${cellInformation.k + 1}`;
+		if (cellInformation.type === 'pillar') return 'Name this pillar';
+		return `Action ${idx(cellIndex) + 1}`;
+	}
+
+	function isPanelCellHighlighted(cellIndex: number): boolean {
+		if (chart.hoveredColorIndex === null) return false;
+		const cellInformation = info(chart.sel, cellIndex);
+		if (cellInformation.type === 'goal') {
+			return chart.hoveredColorIndex === -1;
+		}
+		return cellInformation.k === chart.hoveredColorIndex;
+	}
+
+	function handleFieldPointerEnter(cellIndex: number, event: PointerEvent) {
+		if (event.pointerType === 'touch') return;
+		const cellInformation = info(chart.sel, cellIndex);
+		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
+	}
+
+	function handleFieldPointerLeave(event: PointerEvent) {
+		if (event.pointerType === 'touch') return;
+		chart.hoveredColorIndex = null;
 	}
 </script>
 
@@ -66,20 +86,23 @@
 		searchable without reading.
 	</p>
 	<div class="fields">
-		{#each Array(9) as _, c (c)}
+		{#each Array(9) as _, cellIndex (cellIndex)}
 			{#if chart.mode === 'ink'}
-				<InkPad cellKey={cellKey(chart.sel, c)} block={chart.sel} cell={c} />
+				<InkPad cellKey={cellKey(chart.sel, cellIndex)} block={chart.sel} cell={cellIndex} />
 			{:else}
 				<textarea
-					class="field {info(chart.sel, c).type}"
-					style:--h={hue(c)}
+					class="field {info(chart.sel, cellIndex).type}"
+					class:highlight={isPanelCellHighlighted(cellIndex)}
+					style:--h={hue(cellIndex)}
 					maxlength="120"
 					spellcheck="false"
 					autocapitalize="sentences"
-					aria-label={describe(chart.sel, c)}
-					placeholder={placeholder(c)}
-					value={chart.textOf(cellKey(chart.sel, c))}
-					oninput={(event) => chart.setText(cellKey(chart.sel, c), event.currentTarget.value)}
+					aria-label={describe(chart.sel, cellIndex)}
+					placeholder={placeholder(cellIndex)}
+					value={chart.textOf(cellKey(chart.sel, cellIndex))}
+					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
+					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
+					onpointerleave={handleFieldPointerLeave}
 				></textarea>
 			{/if}
 		{/each}
