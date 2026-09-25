@@ -16,6 +16,7 @@
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import MandalaGrid from './MandalaGrid.svelte';
+	import MethodGuide, { methodGuideUnseen } from './MethodGuide.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import Icon from './Icon.svelte';
 
@@ -27,6 +28,7 @@
 	let dragCounter = 0;
 	let isMobile = $state(false);
 	let searchInputElement: HTMLInputElement | null = $state(null);
+	let methodOpen = $state(false);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -63,6 +65,7 @@
 
 	onMount(() => {
 		chart.load();
+		if (methodGuideUnseen() && chart.data.goal.trim() === '') methodOpen = true;
 		if (chart.theme === 'light' || chart.theme === 'dark') {
 			document.documentElement.setAttribute('data-theme', chart.theme);
 		} else {
@@ -173,6 +176,9 @@
 			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
 
 		if (event.key === 'Escape') {
+			const escapeFromGuide =
+				event.target instanceof Element && event.target.closest('dialog') !== null;
+			if (escapeFromGuide) return;
 			if (menuOpen) {
 				menuOpen = false;
 				menuTriggerElement?.focus();
@@ -503,6 +509,15 @@
 				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
 				hand.
 			</p>
+			<MethodGuide
+				open={methodOpen}
+				onopen={() => {
+					methodOpen = true;
+				}}
+				onclose={() => {
+					methodOpen = false;
+				}}
+			/>
 		</div>
 		<div class="top-controls">
 			<div class="view-mode-seg" role="tablist" aria-label="Layout view mode">

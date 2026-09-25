@@ -30,7 +30,8 @@
 			| 'eye'
 			| 'columns'
 			| 'maximize'
-			| 'minimize';
+			| 'minimize'
+			| 'info';
 		size?: number;
 		strokeWidth?: number;
 		class?: string;
@@ -174,5 +175,9 @@
 		<polyline points="20 10 14 10 14 4" />
 		<line x1="14" y1="10" x2="21" y2="3" />
 		<line x1="3" y1="21" x2="10" y2="14" />
+	{:else if name === 'info'}
+		<circle cx="12" cy="12" r="9" />
+		<line x1="12" y1="11" x2="12" y2="16" />
+		<line x1="12" y1="8" x2="12.01" y2="8" />
 	{/if}
 </svg>
