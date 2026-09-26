@@ -38,6 +38,8 @@
 		triggerElement?.focus();
 	}
 
+	const sampleHue = HUES[3];
+
 	let fromMouse = false;
 
 	function pillarFromEvent(event: Event): number | null {
@@ -136,19 +138,11 @@
 							<span>Goal</span>
 						</li>
 						<li>
-							<span class="method-samples" aria-hidden="true">
-								{#each HUES as hue (hue)}
-									<span class="method-swatch pillar" style:--h={hue}></span>
-								{/each}
-							</span>
+							<span class="method-swatch pillar" style:--h={sampleHue} aria-hidden="true"></span>
 							<span>Pillar</span>
 						</li>
 						<li>
-							<span class="method-samples" aria-hidden="true">
-								{#each HUES as hue (hue)}
-									<span class="method-swatch action" style:--h={hue}></span>
-								{/each}
-							</span>
+							<span class="method-swatch action" style:--h={sampleHue} aria-hidden="true"></span>
 							<span>Action</span>
 						</li>
 					</ul>

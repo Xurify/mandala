@@ -329,12 +329,6 @@ h1 {
 	margin-top: 0;
 }
 
-.method-samples {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-}
-
 .method-swatch {
 	width: 12px;
 	height: 12px;
