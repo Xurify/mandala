@@ -1,12 +1,5 @@
-<script lang="ts" module>
-	const SEEN_KEY = 'mandala_method_seen';
-
-	export function methodGuideUnseen(): boolean {
-		return localStorage.getItem(SEEN_KEY) !== '1';
-	}
-</script>
-
 <script lang="ts">
+	import { HUES, info } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 
 	interface Props {
@@ -19,6 +12,13 @@
 
 	let dialogElement: HTMLDialogElement | null = $state(null);
 	let triggerElement: HTMLButtonElement | null = $state(null);
+	let focusK = $state<number | null>(null);
+
+	const mapCaption = $derived(
+		focusK === null
+			? 'Each color is one pillar. It sits beside the goal, then again at the center of its own block. The lighter cells are that pillar’s eight actions.'
+			: `Pillar ${focusK + 1} is written next to the goal, then copied into the center of its block. The lighter cells around that center are its actions.`
+	);
 
 	$effect(() => {
 		const dialog = dialogElement;
@@ -27,19 +27,46 @@
 		if (!open && dialog.open) dialog.close();
 	});
 
-	function rememberSeen(): void {
-		localStorage.setItem(SEEN_KEY, '1');
-	}
-
 	function requestClose(): void {
-		rememberSeen();
+		focusK = null;
 		onclose?.();
 	}
 
 	function handleDialogClose(): void {
-		rememberSeen();
+		focusK = null;
 		if (open) onclose?.();
 		triggerElement?.focus();
+	}
+
+	let fromMouse = false;
+
+	function pillarFromEvent(event: Event): number | null {
+		const target = event.target;
+		if (!(target instanceof Element)) return null;
+		const marked = target.closest('[data-k]');
+		if (!(marked instanceof HTMLElement) || marked.dataset.k === undefined) return null;
+		const k = Number(marked.dataset.k);
+		return Number.isInteger(k) ? k : null;
+	}
+
+	function trackPointer(event: PointerEvent): void {
+		if (event.pointerType !== 'mouse') return;
+		focusK = pillarFromEvent(event);
+	}
+
+	function clearPointer(event: PointerEvent): void {
+		if (event.pointerType !== 'mouse') return;
+		focusK = null;
+	}
+
+	function pressPointer(event: PointerEvent): void {
+		fromMouse = event.pointerType === 'mouse';
+	}
+
+	function togglePillar(event: MouseEvent): void {
+		if (fromMouse) return;
+		const k = pillarFromEvent(event);
+		focusK = k === null || focusK === k ? null : k;
 	}
 
 	function handleDialogClick(event: MouseEvent): void {
@@ -68,12 +95,65 @@
 >
 	<div class="method-sheet">
 		<div class="method-head">
-			<h2 id="method-title">The Mandala method</h2>
+			<h2 id="method-title">The Mandala Method</h2>
 			<button type="button" class="method-close" onclick={requestClose} aria-label="Close">
 				<Icon name="close" size={16} />
 			</button>
 		</div>
 		<div class="method-body">
+			<figure class="method-map" class:is-active={focusK !== null}>
+				<div
+					class="method-map-grid"
+					aria-hidden="true"
+					onpointerdown={pressPointer}
+					onpointermove={trackPointer}
+					onpointerleave={clearPointer}
+					onclick={togglePillar}
+				>
+					{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as block (block)}
+						<div class="method-block">
+							{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as cell (cell)}
+								{@const cellInfo = info(block, cell)}
+								{#if cellInfo.type === 'goal'}
+									<span class="method-dot goal"></span>
+								{:else}
+									<span
+										class="method-dot {cellInfo.type}"
+										class:on={focusK === cellInfo.k}
+										data-k={cellInfo.k}
+										style:--h={HUES[cellInfo.k]}
+									></span>
+								{/if}
+							{/each}
+						</div>
+					{/each}
+				</div>
+				<figcaption>
+					<p class="method-map-caption">{mapCaption}</p>
+					<ul class="method-legend">
+						<li>
+							<span class="method-swatch goal" aria-hidden="true"></span>
+							<span>Goal</span>
+						</li>
+						<li>
+							<span class="method-samples" aria-hidden="true">
+								{#each HUES as hue (hue)}
+									<span class="method-swatch pillar" style:--h={hue}></span>
+								{/each}
+							</span>
+							<span>Pillar</span>
+						</li>
+						<li>
+							<span class="method-samples" aria-hidden="true">
+								{#each HUES as hue (hue)}
+									<span class="method-swatch action" style:--h={hue}></span>
+								{/each}
+							</span>
+							<span>Action</span>
+						</li>
+					</ul>
+				</figcaption>
+			</figure>
 			<p>
 				A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it as a
 				plan and keep it. You do not redraw it every day.

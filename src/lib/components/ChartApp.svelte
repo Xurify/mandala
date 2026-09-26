@@ -16,7 +16,7 @@
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import MandalaGrid from './MandalaGrid.svelte';
-	import MethodGuide, { methodGuideUnseen } from './MethodGuide.svelte';
+	import MethodGuide from './MethodGuide.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import Icon from './Icon.svelte';
 
@@ -65,7 +65,6 @@
 
 	onMount(() => {
 		chart.load();
-		if (methodGuideUnseen() && chart.data.goal.trim() === '') methodOpen = true;
 		if (chart.theme === 'light' || chart.theme === 'dark') {
 			document.documentElement.setAttribute('data-theme', chart.theme);
 		} else {
