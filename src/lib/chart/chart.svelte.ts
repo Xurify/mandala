@@ -295,6 +295,14 @@ export class ChartStore {
 		this.say('Chart imported successfully.');
 	}
 
+	applyDraft(next: ChartData): void {
+		this.data = next;
+		this.sel = 4;
+		this.query = '';
+		this.saveNow();
+		this.say('Draft ready. Edit any cell to make it yours.');
+	}
+
 	bumpTheme(): void {
 		this.themeTick += 1;
 	}

@@ -195,11 +195,19 @@ h1 {
 	font-size: 0.95rem;
 }
 
+.brand-links {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 16px;
+	margin: 0 0 14px;
+}
+
 .method-link {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	margin: 0 0 14px;
+	margin: 0;
 	padding: 4px 2px;
 	min-height: 32px;
 	border: 0;
@@ -444,6 +452,146 @@ h1 {
 	color: var(--muted);
 }
 
+.draft-dialog {
+	width: min(40rem, calc(100vw - 32px));
+}
+
+.draft-sub {
+	margin: 2px 0 0;
+	color: var(--muted);
+	font-size: 0.85rem;
+	font-weight: 400;
+}
+
+.draft-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.draft-note {
+	margin: 0;
+	padding: 12px 14px;
+	border: 0;
+	border-radius: 12px;
+	background: var(--soft);
+	color: var(--muted);
+	font-size: 0.9rem;
+	line-height: 1.5;
+}
+
+.draft-panel {
+	position: relative;
+	flex: none;
+	border-radius: 12px;
+	background: var(--bg);
+}
+
+.draft-prompt-text {
+	margin: 0;
+	padding: 16px 16px 52px;
+	max-height: min(44vh, 440px);
+	overflow: auto;
+	overscroll-behavior: contain;
+	font: inherit;
+	font-size: 0.95rem;
+	line-height: 1.55;
+	white-space: pre-wrap;
+	word-break: break-word;
+	color: var(--text);
+}
+
+.draft-panel-foot {
+	position: absolute;
+	right: 10px;
+	bottom: 10px;
+	display: flex;
+	justify-content: flex-end;
+}
+
+.draft-copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font: inherit;
+	font-size: 0.82rem;
+	font-weight: 500;
+	padding: 6px 10px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+	touch-action: manipulation;
+}
+
+.draft-copy:hover {
+	background: var(--soft);
+}
+
+.draft-copy:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.draft-reveal {
+	align-self: flex-start;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--muted);
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+
+.draft-reveal:hover {
+	color: var(--text);
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.draft-reveal:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.draft-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.draft-field span {
+	font-size: 0.8rem;
+	font-weight: 600;
+}
+
+.draft-field textarea {
+	font: inherit;
+	font-size: 0.95rem;
+	line-height: 1.45;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 0;
+	background: var(--bg);
+	color: var(--text);
+	resize: vertical;
+}
+
+.draft-field textarea:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.draft-error {
+	margin: 0;
+	color: oklch(0.55 0.2 25);
+	font-size: 0.88rem;
+}
+
 .method-body a {
 	color: var(--accent);
 	text-underline-offset: 3px;
@@ -550,7 +698,7 @@ h1 {
 
 .top-controls {
 	display: inline-flex;
-	align-items: center;
+	align-items: stretch;
 	gap: 10px;
 	flex-wrap: wrap;
 	align-self: flex-start;
@@ -611,7 +759,7 @@ h1 {
 
 .menu-wrap {
 	position: relative;
-	align-self: flex-start;
+	display: flex;
 }
 
 .menu-trigger {
@@ -619,11 +767,12 @@ h1 {
 	align-items: center;
 	gap: 6px;
 	font: inherit;
-	font-size: 0.88rem;
+	font-size: 0.84rem;
 	font-weight: 500;
-	padding: 7px 13px;
-	min-height: 38px;
-	border-radius: 10px;
+	padding: 0 13px;
+	min-height: 40px;
+	height: 100%;
+	border-radius: 12px;
 	cursor: pointer;
 	background: var(--surface);
 	color: var(--text);

@@ -11,10 +11,12 @@
 		idx,
 		labelOfKey,
 		parseChart,
-		POS
+		POS,
+		type ChartData
 	} from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
+	import DraftDialog from './DraftDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import MethodGuide from './MethodGuide.svelte';
 	import SidePanel from './SidePanel.svelte';
@@ -29,6 +31,7 @@
 	let isMobile = $state(false);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let methodOpen = $state(false);
+	let draftOpen = $state(false);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -157,6 +160,22 @@
 			if (!userConfirmed) return;
 		}
 		chart.clearAll();
+	}
+
+	function handleOpenDraft() {
+		menuOpen = false;
+		draftOpen = true;
+	}
+
+	function handleApplyDraft(data: ChartData): void {
+		if (chart.dirty) {
+			const userConfirmed = window.confirm(
+				'Drafting will replace your current chart. Do you want to proceed?'
+			);
+			if (!userConfirmed) return;
+		}
+		chart.applyDraft(data);
+		draftOpen = false;
 	}
 
 	function handleLoadExample() {
@@ -508,14 +527,27 @@
 				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
 				hand.
 			</p>
-			<MethodGuide
-				open={methodOpen}
-				onopen={() => {
-					methodOpen = true;
-				}}
+			<div class="brand-links">
+				<MethodGuide
+					open={methodOpen}
+					onopen={() => {
+						methodOpen = true;
+					}}
+					onclose={() => {
+						methodOpen = false;
+					}}
+				/>
+				<button type="button" class="method-link" onclick={handleOpenDraft}>
+					<Icon name="sparkles" size={14} />
+					<span>Get a prompt</span>
+				</button>
+			</div>
+			<DraftDialog
+				open={draftOpen}
 				onclose={() => {
-					methodOpen = false;
+					draftOpen = false;
 				}}
+				onapply={handleApplyDraft}
 			/>
 		</div>
 		<div class="top-controls">
@@ -689,6 +721,12 @@
 						</span>
 					</button>
 					<div class="menu-divider" role="separator"></div>
+					<button class="menu-item" type="button" role="menuitem" onclick={handleOpenDraft}>
+						<span class="menu-item-main">
+							<Icon name="sparkles" size={16} />
+							<span>Get a prompt</span>
+						</span>
+					</button>
 					<button
 						class="menu-item subtle"
 						type="button"
