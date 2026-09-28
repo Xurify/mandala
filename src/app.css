@@ -836,6 +836,43 @@ h1 {
 	align-self: flex-start;
 }
 
+.chart-switch .menu-trigger {
+	max-width: min(280px, calc(100vw - 28px));
+}
+
+.chart-switch-label {
+	display: inline-block;
+	max-width: 24ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chart-switch-menu {
+	right: auto;
+	left: 0;
+	min-width: min(320px, calc(100vw - 28px));
+}
+
+.chart-switch-item-title {
+	display: inline-block;
+	max-width: 28ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chart-switch-spacer {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	flex: none;
+}
+
+.menu-item.active {
+	background: var(--soft);
+}
+
 .view-mode-seg {
 	display: inline-flex;
 	align-items: center;
@@ -2274,7 +2311,7 @@ h1 {
 	color: var(--goal-fg);
 	font-weight: 600;
 	border-color: transparent;
-	border-radius: 28%;
+	border-radius: 16px;
 	text-align: center;
 	padding-left: 16px;
 	padding-right: 16px;
@@ -2293,7 +2330,7 @@ h1 {
 	color: var(--on-p);
 	font-weight: 600;
 	border-color: transparent;
-	border-radius: 28%;
+	border-radius: 16px;
 	box-shadow: 0 2px 10px oklch(0 0 0 / 0.12);
 }
 
