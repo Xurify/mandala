@@ -16,8 +16,10 @@
 	import DraftDialog from './DraftDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import MethodGuide from './MethodGuide.svelte';
+	import PresetPicker from './PresetPicker.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import Icon from './Icon.svelte';
+	import type { Preset } from '$lib/chart/presets';
 
 	let menuOpen = $state(false);
 	let menuContainerElement: HTMLDivElement | null = $state(null);
@@ -29,6 +31,7 @@
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let methodOpen = $state(false);
 	let draftOpen = $state(false);
+	let presetOpen = $state(false);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -155,15 +158,20 @@
 		draftOpen = false;
 	}
 
-	function handleLoadExample() {
+	function handleOpenPresets() {
 		menuOpen = false;
+		presetOpen = true;
+	}
+
+	function handleApplyPreset(preset: Preset): void {
 		if (chart.dirty) {
 			const userConfirmed = window.confirm(
-				'Loading the example will replace your current chart. Do you want to proceed?'
+				'Starting from a preset will replace your current chart. Do you want to proceed?'
 			);
 			if (!userConfirmed) return;
 		}
-		chart.loadExample();
+		chart.applyPreset(preset);
+		presetOpen = false;
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
@@ -514,6 +522,10 @@
 						methodOpen = false;
 					}}
 				/>
+				<button type="button" class="method-link" onclick={handleOpenPresets}>
+					<Icon name="list" size={14} />
+					<span>Presets</span>
+				</button>
 				<button type="button" class="method-link" onclick={handleOpenDraft}>
 					<Icon name="sparkles" size={14} />
 					<span>Get a prompt</span>
@@ -525,6 +537,13 @@
 					draftOpen = false;
 				}}
 				onapply={handleApplyDraft}
+			/>
+			<PresetPicker
+				open={presetOpen}
+				onclose={() => {
+					presetOpen = false;
+				}}
+				onapply={handleApplyPreset}
 			/>
 		</div>
 		<div class="top-controls">
@@ -698,21 +717,16 @@
 						</span>
 					</button>
 					<div class="menu-divider" role="separator"></div>
+					<button class="menu-item" type="button" role="menuitem" onclick={handleOpenPresets}>
+						<span class="menu-item-main">
+							<Icon name="list" size={16} />
+							<span>Start from a preset</span>
+						</span>
+					</button>
 					<button class="menu-item" type="button" role="menuitem" onclick={handleOpenDraft}>
 						<span class="menu-item-main">
 							<Icon name="sparkles" size={16} />
 							<span>Get a prompt</span>
-						</span>
-					</button>
-					<button
-						class="menu-item subtle"
-						type="button"
-						role="menuitem"
-						onclick={handleLoadExample}
-					>
-						<span class="menu-item-main">
-							<Icon name="sparkles" size={16} />
-							<span>Load example</span>
 						</span>
 					</button>
 				</div>

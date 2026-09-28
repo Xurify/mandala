@@ -84,6 +84,41 @@
 			textareaElements[nextIndex]?.focus();
 		}
 	}
+
+	function centerGoalText(_text: string) {
+		return (node: HTMLTextAreaElement) => {
+			let frame = 0;
+			const apply = (): void => {
+				node.style.paddingTop = '0px';
+				node.style.paddingBottom = '0px';
+				node.style.height = 'auto';
+				node.style.aspectRatio = 'auto';
+				const contentHeight = node.scrollHeight;
+				node.style.height = '';
+				node.style.aspectRatio = '';
+				const room = node.clientHeight - contentHeight;
+				const top = room / 2;
+				if (top >= 26) {
+					node.style.paddingTop = `${top}px`;
+					node.style.paddingBottom = `${top}px`;
+				} else {
+					node.style.paddingTop = '26px';
+					node.style.paddingBottom = '10px';
+				}
+			};
+			const schedule = (): void => {
+				cancelAnimationFrame(frame);
+				frame = requestAnimationFrame(apply);
+			};
+			schedule();
+			const observer = new ResizeObserver(schedule);
+			observer.observe(node);
+			return () => {
+				cancelAnimationFrame(frame);
+				observer.disconnect();
+			};
+		};
+	}
 </script>
 
 <div class="panel">
@@ -242,6 +277,7 @@
 				<div
 					class="field-container"
 					class:center-cell={cellIndex === 4}
+					class:is-goal={cellIndex === 4 && chart.sel === 4}
 					class:has-content={chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
 				>
 					{#if cellIndex === 4}
@@ -273,6 +309,9 @@
 						aria-label={describe(chart.sel, cellIndex)}
 						placeholder={placeholder(cellIndex)}
 						value={chart.textOf(cellKey(chart.sel, cellIndex))}
+						{@attach info(chart.sel, cellIndex).type === 'goal'
+							? centerGoalText(chart.textOf(cellKey(chart.sel, cellIndex)))
+							: undefined}
 						onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
 						oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
 						onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}

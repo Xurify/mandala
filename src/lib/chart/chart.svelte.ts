@@ -2,7 +2,6 @@ import {
 	blockOfK,
 	blockOfKey,
 	emptyChart,
-	exampleChart,
 	exportText,
 	filledCount,
 	getByKey,
@@ -21,6 +20,7 @@ import {
 	type InputMode,
 	type Milestones
 } from './model.ts';
+import { buildChart, type Preset } from './presets/index.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
 export type ViewMode = 'view' | 'edit' | 'split';
@@ -276,10 +276,12 @@ export class ChartStore {
 		this.bumpTheme();
 	}
 
-	loadExample(): void {
-		this.data = exampleChart();
+	applyPreset(preset: Preset): void {
+		this.data = buildChart(preset);
+		this.sel = 4;
+		this.query = '';
 		this.saveNow();
-		this.say('Example loaded. Edit any cell to make it yours.');
+		this.say(`${preset.title} preset loaded. Edit any cell to make it yours.`);
 	}
 
 	clearAll(): void {

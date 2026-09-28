@@ -3,7 +3,6 @@ import {
 	blockOfKey,
 	cellKey,
 	emptyChart,
-	exampleChart,
 	exportFilename,
 	exportJson,
 	exportText,
@@ -15,6 +14,7 @@ import {
 	setByKey,
 	unreadKeys
 } from './model.ts';
+import { buildChart, getPreset } from './presets/index.ts';
 
 describe('cellKey', () => {
 	it('maps the 9x9 layout to goal, pillars, and actions', () => {
@@ -82,7 +82,7 @@ describe('search and fill', () => {
 
 describe('exportText', () => {
 	it('exports the example as indented text', () => {
-		const text = exportText(exampleChart());
+		const text = exportText(buildChart(getPreset('fitness')!));
 		expect(text).toContain('Goal: Run a half marathon');
 		expect(text).toContain('Pillar 1: Training plan');
 		expect(text).toContain('  - Print a 16-week plan');
@@ -106,7 +106,7 @@ describe('setByKey', () => {
 
 describe('exportJson and exportFilename', () => {
 	it('exports valid JSON that round-trips with parseChart', () => {
-		const data = exampleChart();
+		const data = buildChart(getPreset('fitness')!);
 		const json = exportJson(data);
 		const roundTripped = parseChart(json);
 		expect(roundTripped).toEqual(data);
