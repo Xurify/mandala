@@ -7,11 +7,8 @@
 		exportFilename,
 		exportJson,
 		getByKey,
-		HUES,
-		idx,
 		labelOfKey,
 		parseChart,
-		POS,
 		type ChartData
 	} from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
@@ -49,22 +46,6 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
-
-	const selectedBlockTitle = $derived.by(() => {
-		if (chart.sel === 4) return chart.data.goal.trim() || 'Center Goal & Pillars';
-		const pillarIndex = idx(chart.sel);
-		return chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
-	});
-
-	const selectedBlockSubtitle = $derived.by(() => {
-		if (chart.sel === 4) {
-			const pillarsCount = chart.milestones.pillarsCount;
-			return `${pillarsCount} of 8 pillars set · Goal in center`;
-		}
-		const pillarIndex = idx(chart.sel);
-		const count = chart.milestones.pillarActionCounts[pillarIndex] ?? 0;
-		return `Pillar ${pillarIndex + 1} (${POS[pillarIndex]}) · ${count} of 8 actions defined`;
-	});
 
 	onMount(() => {
 		chart.load();
@@ -113,10 +94,6 @@
 
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
 		selectBlock(blockIndex, targetKey);
-		chart.setViewMode('edit');
-	}
-
-	function handleEditCurrentBlock(): void {
 		chart.setViewMode('edit');
 	}
 
@@ -886,7 +863,7 @@
 		<div class="view-mode-toolbar">
 			<div class="view-toolbar-meta">
 				<span class="view-toolbar-badge">9×9 Full Chart</span>
-				<span class="view-toolbar-hint">Double-click any cell to edit</span>
+				<span class="view-toolbar-hint">Double-click a cell to edit that block</span>
 			</div>
 			<div class="view-scale-seg" role="group" aria-label="Chart scale">
 				<button
@@ -952,31 +929,6 @@
 			</div>
 		{/if}
 	</div>
-
-	{#if effectiveViewMode === 'view'}
-		<div class="view-selection-card">
-			<div class="selection-meta">
-				<span
-					class="selection-pip"
-					style:--pip-h={chart.sel === 4 ? undefined : HUES[idx(chart.sel)]}
-					class:goal-pip={chart.sel === 4}
-				></span>
-				<div class="selection-text">
-					<strong class="selection-title">{selectedBlockTitle}</strong>
-					<span class="selection-sub">{selectedBlockSubtitle}</span>
-				</div>
-			</div>
-			<button
-				type="button"
-				class="selection-edit-action"
-				onclick={handleEditCurrentBlock}
-			>
-				<Icon name="edit" size={14} />
-				<span>Edit This Block</span>
-				<span class="action-key-badge">E</span>
-			</button>
-		</div>
-	{/if}
 
 	{#if isDraggingFile}
 		<div class="drop-overlay" aria-hidden="true">

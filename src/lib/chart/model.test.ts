@@ -85,7 +85,8 @@ describe('exportText', () => {
 		const text = exportText(exampleChart());
 		expect(text).toContain('Goal: Run a half marathon');
 		expect(text).toContain('Pillar 1: Training plan');
-		expect(text).toContain('  - Pick a 16-week plan');
+		expect(text).toContain('  - Print a 16-week plan');
+		expect(text.match(/^\s+- /gm)?.length).toBe(64);
 	});
 
 	it('marks unread ink', () => {
