@@ -152,16 +152,16 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 			let cornerRadius = 10;
 
 			if (cellInformation.type === 'goal') {
-				fillColor = '#3152a5';
-				textColor = '#ffffff';
-				borderColor = '#2a478f';
-				cornerRadius = Math.round(cellSize * 0.14);
+				fillColor = '#182029';
+				textColor = '#f9f8f5';
+				borderColor = '#3a4654';
+				cornerRadius = Math.round(cellSize * 0.26);
 			} else if (cellInformation.type === 'pillar') {
 				const hue = HUES[cellInformation.k];
 				fillColor = `hsl(${hue}, 60%, 82%)`;
 				textColor = `hsl(${hue}, 80%, 15%)`;
 				borderColor = `hsl(${hue}, 50%, 68%)`;
-				cornerRadius = 18;
+				cornerRadius = Math.round(cellSize * 0.26);
 			} else {
 				const hue = HUES[cellInformation.k];
 				fillColor = `hsl(${hue}, 35%, 95%)`;
