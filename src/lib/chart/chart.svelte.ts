@@ -10,7 +10,6 @@ import {
 	inkChanged,
 	inkOf,
 	markCaptionKept,
-	parseChart,
 	progressMilestones,
 	searchHits,
 	setByKey,
@@ -20,6 +19,20 @@ import {
 	type InputMode,
 	type Milestones
 } from './model.ts';
+import {
+	CHART_CAP,
+	LIBRARY_KEY,
+	activeRecord,
+	cloneChart,
+	emptyLibrary,
+	flushActive,
+	migrateFromV1,
+	newRecord,
+	parseLibrary,
+	summarize,
+	type ChartLibrary,
+	type ChartSummary
+} from './library.ts';
 import { buildChart, type Preset } from './presets/index.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
@@ -65,24 +78,27 @@ function loadInitialViewScale(): ViewScale {
 	}
 }
 
-function loadInitialChart(): ChartData {
+function loadInitialLibrary(): ChartLibrary {
 	if (typeof window === 'undefined') {
-		return emptyChart();
+		return emptyLibrary();
 	}
 	try {
-		const rawChartData = localStorage.getItem(STORAGE_KEY);
-		if (!rawChartData) {
-			return emptyChart();
+		const rawLibrary = localStorage.getItem(LIBRARY_KEY);
+		if (rawLibrary) {
+			const parsed = parseLibrary(rawLibrary);
+			if (parsed) return parsed;
 		}
-		const parsedChartData = parseChart(rawChartData);
-		return parsedChartData ?? emptyChart();
+		return migrateFromV1(localStorage.getItem(STORAGE_KEY));
 	} catch {
-		return emptyChart();
+		return emptyLibrary();
 	}
 }
 
+const bootLibrary = loadInitialLibrary();
+
 export class ChartStore {
-	data: ChartData = $state(loadInitialChart());
+	#library: ChartLibrary = $state(bootLibrary);
+	data: ChartData = $state(cloneChart(activeRecord(bootLibrary).data));
 	sel = $state(4);
 	mode: InputMode = $state('type');
 	theme: AppTheme = $state(loadInitialTheme());
@@ -107,16 +123,49 @@ export class ChartStore {
 	unread = $derived(unreadKeys(this.data));
 	dirty = $derived(hasContent(this.data));
 	milestones: Milestones = $derived(progressMilestones(this.data));
+	charts: ChartSummary[] = $derived(
+		summarize(this.#library.charts, this.#library.activeId, this.data)
+	);
+	chartCount = $derived(this.#library.charts.length);
+	canAddChart = $derived(this.#library.charts.length < CHART_CAP);
+	canDeleteChart = $derived(this.#library.charts.length > 1);
 
 	load(): void {
 		try {
-			const rawChartData = localStorage.getItem(STORAGE_KEY);
-			if (!rawChartData) return;
-			const parsedChartData = parseChart(rawChartData);
-			if (parsedChartData) this.data = parsedChartData;
+			const rawLibrary = localStorage.getItem(LIBRARY_KEY);
+			if (rawLibrary) {
+				const parsed = parseLibrary(rawLibrary);
+				if (parsed) {
+					this.#adopt(parsed);
+					return;
+				}
+			}
+			this.#adopt(migrateFromV1(localStorage.getItem(STORAGE_KEY)));
+			this.saveNow();
 		} catch {
 			// private mode / blocked storage
 		}
+	}
+
+	#adopt(library: ChartLibrary): void {
+		this.#library = library;
+		this.data = cloneChart(activeRecord(library).data);
+		this.sel = 4;
+		this.query = '';
+	}
+
+	#resetView(): void {
+		this.sel = 4;
+		this.query = '';
+		this.focusedKey = null;
+	}
+
+	#flush(): void {
+		this.#library.charts = flushActive(
+			this.#library.charts,
+			this.#library.activeId,
+			this.data
+		);
 	}
 
 	saveNow(): void {
@@ -124,7 +173,9 @@ export class ChartStore {
 			clearTimeout(this.#saveTimer);
 			this.#saveTimer = null;
 		}
+		this.#flush();
 		try {
+			localStorage.setItem(LIBRARY_KEY, JSON.stringify(this.#library));
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
 		} catch {
 			if (!this.saveWarned) {
@@ -276,12 +327,11 @@ export class ChartStore {
 		this.bumpTheme();
 	}
 
-	applyPreset(preset: Preset): void {
-		this.data = buildChart(preset);
-		this.sel = 4;
-		this.query = '';
-		this.saveNow();
-		this.say(`${preset.title} preset loaded. Edit any cell to make it yours.`);
+	applyPreset(preset: Preset): boolean {
+		return this.#fillOrSpawn(
+			buildChart(preset),
+			`${preset.title} preset loaded. Edit any cell to make it yours.`
+		);
 	}
 
 	clearAll(): void {
@@ -290,19 +340,83 @@ export class ChartStore {
 		this.say('Chart cleared.');
 	}
 
-	importChart(importedData: ChartData): void {
-		this.data = importedData;
-		this.sel = 4;
-		this.saveNow();
-		this.say('Chart imported successfully.');
+	importChart(importedData: ChartData): boolean {
+		return this.#fillOrSpawn(importedData, 'Chart imported successfully.');
 	}
 
-	applyDraft(next: ChartData): void {
-		this.data = next;
-		this.sel = 4;
-		this.query = '';
+	applyDraft(next: ChartData): boolean {
+		return this.#fillOrSpawn(next, 'Draft ready. Edit any cell to make it yours.');
+	}
+
+	newChart(): boolean {
+		if (!this.canAddChart) {
+			this.say('Chart limit reached (12). Delete one first.');
+			return false;
+		}
+		this.#flush();
+		const record = newRecord(emptyChart());
+		this.#library.charts = [...this.#library.charts, record];
+		this.#library.activeId = record.id;
+		this.data = emptyChart();
+		this.#resetView();
 		this.saveNow();
-		this.say('Draft ready. Edit any cell to make it yours.');
+		this.say('New chart.');
+		return true;
+	}
+
+	switchChart(id: string): void {
+		if (id === this.#library.activeId) return;
+		const record = this.#library.charts.find((chart) => chart.id === id);
+		if (!record) return;
+		this.#flush();
+		this.#library.activeId = id;
+		this.data = cloneChart(record.data);
+		this.#resetView();
+		this.saveNow();
+	}
+
+	deleteChart(id: string): void {
+		if (this.#library.charts.length <= 1) {
+			this.data = emptyChart();
+			this.saveNow();
+			this.say('Chart cleared.');
+			return;
+		}
+		this.#flush();
+		const remaining = this.#library.charts.filter((chart) => chart.id !== id);
+		if (remaining.length === this.#library.charts.length) return;
+		this.#library.charts = remaining;
+		if (this.#library.activeId === id) {
+			const next = remaining.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0]!;
+			this.#library.activeId = next.id;
+			this.data = cloneChart(next.data);
+			this.#resetView();
+		}
+		this.saveNow();
+		this.say('Chart deleted.');
+	}
+
+	#fillOrSpawn(next: ChartData, message: string): boolean {
+		if (!this.dirty) {
+			this.data = cloneChart(next);
+			this.#resetView();
+			this.saveNow();
+			this.say(message);
+			return true;
+		}
+		if (!this.canAddChart) {
+			this.say('Chart limit reached (12). Delete one first.');
+			return false;
+		}
+		this.#flush();
+		const record = newRecord(next);
+		this.#library.charts = [...this.#library.charts, record];
+		this.#library.activeId = record.id;
+		this.data = cloneChart(next);
+		this.#resetView();
+		this.saveNow();
+		this.say(message);
+		return true;
 	}
 
 	bumpTheme(): void {

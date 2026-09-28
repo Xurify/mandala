@@ -166,6 +166,10 @@
 				The point is to break a vague ambition into themes, and the themes into things you can
 				actually do. Empty cells show gaps in the plan.
 			</p>
+			<p>
+				One chart is one direction. Keep a separate chart for each real aim — Slovak, Russian, a
+				project — and switch between them. Do not cram two lives into one center.
+			</p>
 
 			<h3>How often you use it</h3>
 			<ul>

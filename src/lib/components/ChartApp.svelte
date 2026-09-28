@@ -13,6 +13,7 @@
 	} from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
+	import ChartSwitcher from './ChartSwitcher.svelte';
 	import DraftDialog from './DraftDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import MethodGuide from './MethodGuide.svelte';
@@ -148,14 +149,7 @@
 	}
 
 	function handleApplyDraft(data: ChartData): void {
-		if (chart.dirty) {
-			const userConfirmed = window.confirm(
-				'Drafting will replace your current chart. Do you want to proceed?'
-			);
-			if (!userConfirmed) return;
-		}
-		chart.applyDraft(data);
-		draftOpen = false;
+		if (chart.applyDraft(data)) draftOpen = false;
 	}
 
 	function handleOpenPresets() {
@@ -164,14 +158,7 @@
 	}
 
 	function handleApplyPreset(preset: Preset): void {
-		if (chart.dirty) {
-			const userConfirmed = window.confirm(
-				'Starting from a preset will replace your current chart. Do you want to proceed?'
-			);
-			if (!userConfirmed) return;
-		}
-		chart.applyPreset(preset);
-		presetOpen = false;
+		if (chart.applyPreset(preset)) presetOpen = false;
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
@@ -244,16 +231,7 @@
 			chart.say('Invalid chart file. Please choose a valid Mandala JSON file.');
 			return false;
 		}
-		if (chart.dirty) {
-			const userConfirmed = window.confirm(
-				'Importing will replace your current chart. Do you want to proceed?'
-			);
-			if (!userConfirmed) {
-				return false;
-			}
-		}
-		chart.importChart(parsedChart);
-		return true;
+		return chart.importChart(parsedChart);
 	}
 
 	async function handleFileImport(event: Event) {
@@ -394,7 +372,7 @@
 
 <div class="wrap">
 	<header class="top">
-		<div class="brand">
+		<div class="mast">
 			<div class="name">
 				<svg class="mark" viewBox="0 0 150 150" aria-hidden="true">
 					<rect
@@ -508,45 +486,8 @@
 				</svg>
 				<h1>Mandala Method</h1>
 			</div>
-			<p class="lede">
-				One goal at the center, eight pillars around it, eight actions for each. Type, or write by
-				hand.
-			</p>
-			<div class="brand-links">
-				<MethodGuide
-					open={methodOpen}
-					onopen={() => {
-						methodOpen = true;
-					}}
-					onclose={() => {
-						methodOpen = false;
-					}}
-				/>
-				<button type="button" class="method-link" onclick={handleOpenPresets}>
-					<Icon name="list" size={14} />
-					<span>Presets</span>
-				</button>
-				<button type="button" class="method-link" onclick={handleOpenDraft}>
-					<Icon name="sparkles" size={14} />
-					<span>Get a prompt</span>
-				</button>
-			</div>
-			<DraftDialog
-				open={draftOpen}
-				onclose={() => {
-					draftOpen = false;
-				}}
-				onapply={handleApplyDraft}
-			/>
-			<PresetPicker
-				open={presetOpen}
-				onclose={() => {
-					presetOpen = false;
-				}}
-				onapply={handleApplyPreset}
-			/>
-		</div>
-		<div class="top-controls">
+			<div class="top-controls">
+			<ChartSwitcher />
 			<div class="view-mode-seg" role="tablist" aria-label="Layout view mode">
 				<button
 					type="button"
@@ -732,8 +673,46 @@
 				</div>
 			{/if}
 		</div>
-	</div>
-	<input
+			</div>
+		</div>
+		<p class="lede">
+			One goal at the center, eight pillars around it, eight actions for each. Type, or write by
+			hand.
+		</p>
+		<div class="brand-links">
+			<MethodGuide
+				open={methodOpen}
+				onopen={() => {
+					methodOpen = true;
+				}}
+				onclose={() => {
+					methodOpen = false;
+				}}
+			/>
+			<button type="button" class="method-link" onclick={handleOpenPresets}>
+				<Icon name="list" size={14} />
+				<span>Presets</span>
+			</button>
+			<button type="button" class="method-link" onclick={handleOpenDraft}>
+				<Icon name="sparkles" size={14} />
+				<span>Get a prompt</span>
+			</button>
+		</div>
+		<DraftDialog
+			open={draftOpen}
+			onclose={() => {
+				draftOpen = false;
+			}}
+			onapply={handleApplyDraft}
+		/>
+		<PresetPicker
+			open={presetOpen}
+			onclose={() => {
+				presetOpen = false;
+			}}
+			onapply={handleApplyPreset}
+		/>
+		<input
 			bind:this={fileInputElement}
 			type="file"
 			accept=".json,application/json"
@@ -874,7 +853,11 @@
 	{/if}
 
 	{#if effectiveViewMode === 'view'}
-		<div class="view-mode-toolbar">
+		<div
+			class="view-mode-toolbar"
+			class:scale-fit={chart.viewScale === 'fit'}
+			class:scale-large={chart.viewScale === 'large'}
+		>
 			<div class="view-toolbar-meta">
 				<span class="view-toolbar-badge">9×9 Full Chart</span>
 				<span class="view-toolbar-hint">Double-click a cell to edit that block</span>
