@@ -50,6 +50,11 @@ describe('draftPrompt', () => {
 		expect(prompt).toContain('- Body:');
 		expect(prompt).toContain('own pillar');
 		expect(prompt).toContain('work hard');
+		expect(prompt).toContain("[Don't]");
+		expect(prompt).toContain('nice-to-have');
+		expect(prompt).toContain('study 5 hours a week');
+		expect(prompt).toContain('10 million views');
+		expect(prompt).toContain('Ask more questions');
 		expect(prompt).toContain('"pillars"');
 		expect(prompt).not.toContain('not given');
 	});
