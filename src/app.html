@@ -6,9 +6,17 @@
 		<meta name="text-scale" content="scale" />
 		<script>
 			try {
+				const root = document.documentElement;
 				const storedTheme = localStorage.getItem('theme');
 				if (storedTheme === 'dark' || storedTheme === 'light') {
-					document.documentElement.setAttribute('data-theme', storedTheme);
+					root.setAttribute('data-theme', storedTheme);
+				}
+				const storedMode = localStorage.getItem('mandala_view_mode');
+				if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split') {
+					root.dataset.view = storedMode;
+				}
+				if (localStorage.getItem('mandala_view_scale') === 'large') {
+					root.dataset.scale = 'large';
 				}
 			} catch {
 				// private mode / blocked storage

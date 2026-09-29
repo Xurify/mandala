@@ -1,17 +1,15 @@
 <script lang="ts">
-	import { chart, type ViewScale } from '$lib/chart/chart.svelte';
+	import { chart } from '$lib/chart/chart.svelte';
 	import { drawStrokes } from '$lib/chart/ink';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
 	import { cn } from './ui/cn';
 
 	let {
 		mode = 'split',
-		scale = 'fit',
 		onSelect,
 		onEdit
 	}: {
 		mode?: 'view' | 'edit' | 'split';
-		scale?: ViewScale;
 		onSelect: (blockIndex: number, targetKey?: string) => void;
 		onEdit?: (blockIndex: number, targetKey?: string) => void;
 	} = $props();
@@ -47,27 +45,27 @@
 			chart.hoveredColorIndex !== null &&
 			((type === 'goal' && chart.hoveredColorIndex === -1) ||
 				(type !== 'goal' && cellInformation.k === chart.hoveredColorIndex));
-		const placeholder = !hasText && !(hasInk && !hasText);
+		const placeholder = !hasText && !hasInk;
 
 		return cn(
-			'cell relative flex aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
+			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
 			'focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink',
 			'can-hover:hover:z-2 can-hover:hover:scale-[1.04] can-hover:hover:shadow-[0_6px_16px_-4px_oklch(0_0_0/0.2)]',
-			view
-				? 'rounded-[11px] px-1 py-[5px] text-[clamp(8.5px,1.3cqw,13px)] leading-[1.25]'
-				: 'rounded-[7px] p-[3px] text-[clamp(8px,1.55cqw,12px)] leading-[1.15]',
+			view ? 'rounded-[11px] leading-[1.25]' : 'rounded-[7px] p-[3px] text-[clamp(8px,1.55cqw,12px)] leading-[1.15]',
+			view && type === 'action' && 'px-1 py-[5px] text-[clamp(8.5px,1.3cqw,13px)]',
+			view && type === 'pillar' && 'px-1 py-[5px] text-[clamp(9px,1.45cqw,13.5px)]',
+			view &&
+				type === 'goal' &&
+				'px-[clamp(10px,1.15em,18px)] py-1.5 font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.01em]',
 			type === 'goal' &&
-				'goal bg-goal font-semibold text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
+				'goal bg-goal text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
+			type === 'goal' && (view ? 'font-[560]' : 'font-semibold'),
 			type === 'pillar' &&
-				'pillar pillar-cell font-semibold text-on-p can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot',
+				'pillar pillar-cell text-on-p can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot',
+			type === 'pillar' && (view ? 'font-[620]' : 'font-semibold'),
 			type === 'action' &&
 				'action pillar-action text-text can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 			(type === 'goal' || type === 'pillar') && 'rounded-[28%]',
-			type === 'goal' &&
-				view &&
-				'px-[5px] py-1.5 font-serif text-[clamp(10.5px,1.7cqw,16px)] font-[560] tracking-[-0.01em]',
-			type === 'goal' && view && scale === 'fit' && 'text-[clamp(10px,1.45cqw,14px)]',
-			type === 'pillar' && view && 'px-1 py-[5px] text-[clamp(9px,1.45cqw,13.5px)] font-[620]',
 			placeholder &&
 				type === 'goal' &&
 				"before:font-medium before:opacity-60 before:content-['Your_goal']",
@@ -188,9 +186,8 @@
 				>
 					<span
 						class={cn(
-							'line-clamp-4 hyphens-manual wrap-break-word @max-[480px]:hidden',
-							view && 'line-clamp-5 text-pretty',
-							view && info(blockIndex, cellIndex).type === 'goal' && 'text-balance'
+							'w-full hyphens-manual wrap-break-word @max-[480px]:hidden',
+							view ? 'line-clamp-5' : 'line-clamp-4'
 						)}>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
 					>
 					<canvas

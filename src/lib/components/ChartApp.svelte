@@ -520,7 +520,7 @@
 	{#if effectiveViewMode === 'view'}
 		<div
 			class={cn(
-				'mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end',
+				'chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end',
 				chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
 				chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]'
 			)}
@@ -558,7 +558,7 @@
 				class={cn(
 					'chart min-w-0 @container',
 					effectiveViewMode === 'edit' && 'hidden',
-					effectiveViewMode === 'view' && 'mx-auto w-full max-w-none flex-none motion-safe:transition-[max-width] motion-safe:duration-200 motion-safe:ease-ui',
+					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full max-w-none flex-none',
 					effectiveViewMode === 'view' && chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
 					effectiveViewMode === 'view' && chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]',
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
@@ -566,7 +566,6 @@
 			>
 				<MandalaGrid
 					mode={effectiveViewMode === 'edit' ? 'view' : effectiveViewMode}
-					scale={chart.viewScale}
 					onSelect={selectBlock}
 					onEdit={handleEditBlock}
 				/>

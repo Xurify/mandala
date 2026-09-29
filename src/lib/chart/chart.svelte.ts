@@ -33,6 +33,7 @@ import {
 	type ChartLibrary,
 	type ChartSummary
 } from './library.ts';
+import { exampleChart } from './example.ts';
 import { buildChart, type Preset } from './presets/index.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
@@ -210,6 +211,7 @@ export class ChartStore {
 
 	setViewMode(mode: ViewMode): void {
 		this.viewMode = mode;
+		document.documentElement.dataset.view = mode;
 		try {
 			localStorage.setItem('mandala_view_mode', mode);
 		} catch {
@@ -219,6 +221,8 @@ export class ChartStore {
 
 	setViewScale(scale: ViewScale): void {
 		this.viewScale = scale;
+		if (scale === 'large') document.documentElement.dataset.scale = 'large';
+		else delete document.documentElement.dataset.scale;
 		try {
 			localStorage.setItem('mandala_view_scale', scale);
 		} catch {
@@ -331,6 +335,13 @@ export class ChartStore {
 		return this.#fillOrSpawn(
 			buildChart(preset),
 			`${preset.title} preset loaded. Edit any cell to make it yours.`
+		);
+	}
+
+	loadExample(): boolean {
+		return this.#fillOrSpawn(
+			exampleChart(),
+			'Example chart loaded. Edit any cell to make it yours.'
 		);
 	}
 

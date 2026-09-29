@@ -251,6 +251,11 @@
 	color-scheme: dark;
 }
 
+/* Applied from the head script before hydration, so a saved Large scale does not resize cell text after paint. */
+html[data-scale='large']:is([data-view='view'], :not([data-view])) .chart-frame {
+	max-width: min(1120px, 100%);
+}
+
 html {
 	scroll-padding-top: env(safe-area-inset-top, 0px);
 	overflow-x: hidden;
@@ -303,6 +308,21 @@ body {
 	display: none;
 	width: 0;
 	height: 0;
+}
+
+@layer base {
+	button,
+	input,
+	textarea,
+	select {
+		font-family: inherit;
+		font-size: inherit;
+		font-weight: inherit;
+		line-height: inherit;
+		letter-spacing: inherit;
+		font-feature-settings: inherit;
+		font-variation-settings: inherit;
+	}
 }
 
 button {

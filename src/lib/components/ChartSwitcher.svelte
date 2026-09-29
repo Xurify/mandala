@@ -41,6 +41,10 @@
 		chart.newChart();
 	}
 
+	function handleExample(): void {
+		chart.loadExample();
+	}
+
 	function handleDelete(): void {
 		const active = chart.charts.find((item) => item.active);
 		if (!active || !chart.canDeleteChart) return;
@@ -102,6 +106,7 @@
 	<MenuItem icon="edit" onclick={openRename}>Rename chart</MenuItem>
 	<MenuItem icon="copy" onclick={handleDuplicate}>Duplicate chart</MenuItem>
 	<MenuItem icon="grid" onclick={handleNew}>New blank chart</MenuItem>
+	<MenuItem icon="target" onclick={handleExample}>Example chart</MenuItem>
 	{#if chart.canDeleteChart}
 		<MenuItem icon="trash" tone="danger" onclick={handleDelete}>Delete this chart</MenuItem>
 	{/if}
