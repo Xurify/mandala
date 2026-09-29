@@ -1,0 +1,76 @@
+---
+name: mandala-ui-review
+description: Reviews and verifies Mandala UI/UX against DESIGN.md, researches reference patterns on Mobbin, and checks rendered output in both themes and on mobile. Use when the user asks for a design or UX review, says something looks or feels off, wants redesign ideas or inspiration, or before calling a UI change done.
+---
+
+# Mandala UI review
+
+## When a change is "done": checklist
+
+Run through every item; fix before reporting.
+
+**Hierarchy**
+- [ ] At most one `btn-primary` visible per view or dialog
+- [ ] Rare or destructive actions live in a menu, not the main surface
+- [ ] The screen reads in one glance: eyebrow → serif title → muted lede → action
+
+**System**
+- [ ] Only global classes and tokens; no raw hex/rgb, no component `<style>`
+- [ ] Pillar hues used only for pillars; chrome is paper and ink
+- [ ] Separation by tone/shadow, not borders
+- [ ] Pill radius on every pressable control
+- [ ] Serif only for titles, goal, headings, wordmark
+
+**States**
+- [ ] Hover, active (`scale`), focus-visible, disabled all defined
+- [ ] Empty state has a friendly line and a next step
+- [ ] New animation is in the `prefers-reduced-motion` block
+
+**Themes and sizes**
+- [ ] Light and dark both look intentional (new tokens exist in both dark blocks)
+- [ ] ≤900px: nothing overflows, dock doesn't cover content, targets ≥44px
+- [ ] Desktop split mode still balances
+
+**Accessibility and copy**
+- [ ] Icon-only controls have `aria-label`; correct `aria-pressed/selected/expanded`
+- [ ] Contrast ≥4.5:1 (watch `--muted` on `--sunken`)
+- [ ] Sentence case, short, no emoji, toasts in past tense
+
+**Build**
+- [ ] `bun run check` → 0 errors, 0 warnings; `bun run test` passes
+
+## Visual verification
+
+Use the `user-chrome-devtools` MCP when available (check its schema with GetDynamicTools first):
+
+1. `list_pages` and reuse the user's dev server tab if one exists; otherwise start `bun run dev` and `new_page`.
+2. `take_screenshot` at desktop width in split mode.
+3. Switch theme via the overflow menu (or `evaluate_script`: `document.documentElement.dataset.theme = 'dark'`) and screenshot again.
+4. `resize_page` to 390×844 and screenshot light + dark.
+5. Tab through the changed area with `press_key` and confirm focus rings.
+
+Show the screenshots to the user inline. If a screenshot times out, retry once on another existing tab before giving up and saying so.
+
+## Researching patterns on Mobbin
+
+Use the `user-Mobbin` MCP (`search_screens`, `search_flows`, `search_sections`; read schemas first).
+
+- Stay in our field: habit, journaling, planning, self-improvement, focus. Proven references: Finch, Me+, Tiimo, Structured, stoic., Bloom, ABY Journal, Atoms, timespent, pliability, QUITTR, Liven.
+- Search for the **pattern**, not the feature name: "onboarding goal setting", "progress ring", "bottom sheet picker", "empty state journal", "settings list".
+- Pull 3–6 examples, then name what each does well in one line and what we'd take. Map every idea back to existing tokens/classes. If it needs a new token or component, say so explicitly.
+- Never copy another app's hues or branding. Our color stays paper, ink, and the eight pillar hues.
+- When proposing directions, give the user 2–3 distinct options via AskQuestion, not a single take.
+
+## Report format
+
+```
+Verdict: ship / fix first
+
+Fix first
+- <problem> → <concrete change> (file)
+
+Nice to have
+- …
+
+Screenshots: <inline>
+```
