@@ -53,6 +53,39 @@
 		chart.deleteChart(active.id);
 	}
 
+	function isTypingTarget(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return true;
+		return target.isContentEditable;
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (isTypingTarget(event.target)) return;
+		if (document.querySelector('dialog[open]')) return;
+
+		const key = event.key.toLowerCase();
+		if (key === 'r') {
+			event.preventDefault();
+			openRename();
+			return;
+		}
+		if (key === 'd') {
+			event.preventDefault();
+			handleDuplicate();
+			return;
+		}
+		if (key === 'n') {
+			event.preventDefault();
+			handleNew();
+			return;
+		}
+		if (key === 'delete') {
+			event.preventDefault();
+			handleDelete();
+		}
+	}
+
 	$effect(() => {
 		if (!renameOpen || !nameField) return;
 		const field = nameField;
@@ -63,6 +96,8 @@
 		return () => clearTimeout(timer);
 	});
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <Menu class="max-w-full" align="start" label="Switch chart">
 	{#snippet trigger({ expanded, toggle })}
@@ -103,12 +138,12 @@
 		</MenuItem>
 	{/each}
 	<MenuDivider />
-	<MenuItem icon="edit" onclick={openRename}>Rename chart</MenuItem>
-	<MenuItem icon="copy" onclick={handleDuplicate}>Duplicate chart</MenuItem>
-	<MenuItem icon="grid" onclick={handleNew}>New blank chart</MenuItem>
+	<MenuItem icon="edit" badge="R" onclick={openRename}>Rename chart</MenuItem>
+	<MenuItem icon="copy" badge="D" onclick={handleDuplicate}>Duplicate chart</MenuItem>
+	<MenuItem icon="grid" badge="N" onclick={handleNew}>New blank chart</MenuItem>
 	<MenuItem icon="target" onclick={handleExample}>Example chart</MenuItem>
 	{#if chart.canDeleteChart}
-		<MenuItem icon="trash" tone="danger" onclick={handleDelete}>Delete this chart</MenuItem>
+		<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete this chart</MenuItem>
 	{/if}
 </Menu>
 
