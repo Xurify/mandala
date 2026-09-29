@@ -1,6 +1,6 @@
 # Plan: Tailwind v4 + composable UI primitives
 
-Status: **feature screens are on utilities.** `app.css` keeps tokens, `@theme`, pillar/shadow utilities, the base reset, and print. Print still selects `.mandala`, `.block`, `.cell`, `.goal`, `.pillar`, `.action`. `ChartApp` was not split into `Topbar` and `Hero`.
+Status: **feature screens are on utilities.** `app.css` keeps tokens, `@theme`, pillar/shadow utilities, and the base reset. Chart print lives in `src/print.css` and still selects `.mandala`, `.block`, `.cell`, `.goal`, `.pillar`, `.action`. `ChartApp` was not split into `Topbar` and `Hero`.
 
 ## Goal
 
@@ -60,7 +60,7 @@ Rule after migration: **feature components may only put layout utilities (flex, 
 - Container queries (`@container`, `cqi` sizing on the grid) are built into v4: use `@container` + `@md:` variants.
 - Reduced motion: `motion-safe:` on every transition and animation, which replaces the manual list at the bottom of `app.css`.
 - Coarse pointer: `@custom-variant coarse (@media (pointer: coarse))`.
-- Print: keep a small plain `@media print` block in `app.css`; utilities are awkward for print.
+- Print: a plain `@media print` block in `src/print.css`, imported from `app.css`. `@page` and the forced paper palette do not fit utilities.
 
 ## Phases
 
@@ -76,7 +76,7 @@ Each phase ends with `bun run check`, `bun run test`, and screenshot comparison 
    4. Hero and topbar: split `ChartApp` into `Topbar.svelte` and `Hero.svelte`
    5. SidePanel and InkPad
    6. MandalaGrid (last, because it has the most `cqi` sizing and hover logic)
-4. **Cleanup.** `app.css` should shrink to about 250 lines (tokens, `@theme`, pillar utilities, base, print). Update DESIGN.md (component section → primitive table), AGENTS.md (styling rules), and the `mandala-component` skill.
+4. **Cleanup.** `app.css` should shrink to about 250 lines (tokens, `@theme`, pillar utilities, base). Chart print stays in `src/print.css`. Update DESIGN.md (component section → primitive table), AGENTS.md (styling rules), and the `mandala-component` skill.
 
 ## Risks
 

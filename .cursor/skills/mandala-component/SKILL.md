@@ -15,7 +15,7 @@ Feature screens and `src/lib/components/ui/` both use Tailwind utilities (`tv` +
 - [ ] 1. Find the closest existing pattern
 - [ ] 2. Decide the hierarchy (what is the one primary action?)
 - [ ] 3. Build with a primitive, or utilities on the feature component
-- [ ] 4. Add CSS only for tokens, print, or a shared pillar utility
+- [ ] 4. Add CSS only for tokens, a shared pillar utility, or chart print
 - [ ] 5. Wire state through `chart`
 - [ ] 6. Verify (check, both themes, mobile, keyboard)
 ```
@@ -24,9 +24,9 @@ Feature screens and `src/lib/components/ui/` both use Tailwind utilities (`tv` +
 
 **2. Decide hierarchy.** List the actions. Exactly one gets `Button` `variant="primary"` (or none). Secondary → `soft`. Informational or escape → `ghost` or `IconButton`. Rarely used or destructive → the overflow menu, not a visible button.
 
-**3. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because the print block selects them.
+**3. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because `src/print.css` selects them.
 
-**4. New CSS goes in `src/app.css` only for tokens, the print block, or a shared `@utility`.** Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
+**4. New CSS goes in `src/app.css` only for tokens or a shared `@utility`.** Chart print goes in `src/print.css` (imported from `app.css`). Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
 
 **5. State.** Read and mutate through the `chart` singleton (`$lib/chart/chart.svelte.ts`). Derived UI state uses `$derived`, not `$effect`. Local UI state uses `$state` in the component.
 

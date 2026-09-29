@@ -511,7 +511,7 @@
 	</div>
 
 	{#if noticeOn}
-		<Notice class="mb-5">
+		<Notice class="mb-5 print:hidden">
 			{noticeText}
 			{#snippet action()}
 				<Button size="sm" variant={chart.reading ? 'soft' : 'primary'} onclick={onRead}>
@@ -548,10 +548,20 @@
 			(effectiveViewMode === 'view' || effectiveViewMode === 'edit') && 'flex-col items-center'
 		)}
 	>
-		{#if effectiveViewMode === 'view' || effectiveViewMode === 'split'}
+		<div class="print-sheet contents">
+			<header class="print-mast hidden">
+				<div class="min-w-0">
+					<p class="print-kicker">Mandala</p>
+					<h1 class="print-title">{chart.data.goal.trim() || 'Untitled'}</h1>
+				</div>
+				<p class="print-meta">
+					{chart.milestones.pillarsCount} of 8 pillars · {chart.milestones.actionsCount} of 64 actions
+				</p>
+			</header>
 			<div
 				class={cn(
-					'chart min-w-0 @container print:!mx-auto print:!flex print:w-full print:max-w-full print:flex-none print:items-center print:justify-center print:break-inside-avoid',
+					'chart min-w-0 @container',
+					effectiveViewMode === 'edit' && 'hidden',
 					effectiveViewMode === 'view' && 'mx-auto w-full max-w-none flex-none motion-safe:transition-[max-width] motion-safe:duration-200 motion-safe:ease-ui',
 					effectiveViewMode === 'view' && chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
 					effectiveViewMode === 'view' && chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]',
@@ -559,13 +569,13 @@
 				)}
 			>
 				<MandalaGrid
-					mode={effectiveViewMode}
+					mode={effectiveViewMode === 'edit' ? 'view' : effectiveViewMode}
 					scale={chart.viewScale}
 					onSelect={selectBlock}
 					onEdit={handleEditBlock}
 				/>
 			</div>
-		{/if}
+		</div>
 		{#if effectiveViewMode === 'edit' || effectiveViewMode === 'split'}
 			<div
 				class={cn(

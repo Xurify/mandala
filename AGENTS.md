@@ -8,7 +8,7 @@ Mandala is a local-first goal chart (the Harada / Mandal-Art method): one goal i
 
 - SvelteKit 2 + **Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`, snippets, `{@attach}`). No stores from `svelte/store`, no `export let`, no `on:click`.
 - TypeScript strict. Package manager and runner: **bun**.
-- Styling: tokens, base reset, pillar utilities, and print live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Tailwind v4 utilities everywhere else, preflight off. Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
+- Styling: tokens, base reset, and pillar utilities live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Chart print lives in `src/print.css`, imported from `app.css`. Tailwind v4 utilities everywhere else, preflight off. Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
 - Fonts: `@fontsource-variable/source-sans-3` only, imported in `src/routes/+layout.svelte`. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
 - PWA: `src/service-worker.ts` + `static/manifest.webmanifest`. Deployed on Vercel.
 
@@ -27,8 +27,9 @@ bun run gen:icons    # regenerate app icons, favicon.svg, logo.svg from src/lib/
 
 ```
 src/
-  app.css                     all styles; tokens at the top, dark block duplicated twice
-  routes/+layout.svelte       fonts, theme-color metas, favicon
+  app.css                     tokens, base reset, pillar utilities; imports print.css; dark block duplicated twice
+  print.css                   chart print (@page, forced paper colors, cell type)
+  routes/+layout.svelte       fonts, app.css, theme-color metas, favicon
   routes/+page.svelte         mounts ChartApp
   lib/chart/
     model.ts                  chart data model, HUES, block/cell indexing (pure, tested)

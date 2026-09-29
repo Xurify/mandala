@@ -138,6 +138,8 @@
 		return `${describe(blockIndex, cellIndex)}: ${text || (hasInk ? 'handwriting' : 'empty')}`;
 	}
 
+	let grid = $state<HTMLDivElement | null>(null);
+
 	function attachThumb(blockIndex: number, cellIndex: number) {
 		return (canvas: HTMLCanvasElement) => {
 			const key = cellKey(blockIndex, cellIndex);
@@ -148,11 +150,25 @@
 			drawStrokes(canvas, strokes, getComputedStyle(canvas).color, 2.2);
 		};
 	}
+
+	function paintThumbs(color?: string) {
+		if (!grid) return;
+		for (const canvas of grid.querySelectorAll<HTMLCanvasElement>('canvas[data-ink-key]')) {
+			const key = canvas.dataset.inkKey;
+			if (!key) continue;
+			const strokes = chart.strokesOf(key);
+			if (!strokes.length || chart.textOf(key).trim()) continue;
+			drawStrokes(canvas, strokes, color ?? getComputedStyle(canvas).color, 2.2);
+		}
+	}
 </script>
 
+<svelte:window onbeforeprint={() => paintThumbs('#1f1b16')} onafterprint={() => paintThumbs()} />
+
 <div
+	bind:this={grid}
 	class={cn(
-		'mandala grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1 print:mx-auto print:aspect-square print:h-auto print:max-w-[250mm] print:gap-[5px] print:break-inside-avoid',
+		'mandala grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1',
 		view ? 'aspect-square gap-2.5' : 'gap-1.5'
 	)}
 >
@@ -179,6 +195,7 @@
 					>
 					<canvas
 						class="thumb pointer-events-none absolute inset-0 hidden size-full [.ink-only_&]:!block"
+						data-ink-key={cellKey(blockIndex, cellIndex)}
 						width="192"
 						height="192"
 						{@attach attachThumb(blockIndex, cellIndex)}
