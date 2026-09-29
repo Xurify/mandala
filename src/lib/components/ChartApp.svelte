@@ -433,7 +433,7 @@
 			</Menu>
 		</div>
 
-		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-8 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
+		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
 			<div class="min-w-0">
 				<Eyebrow class="mb-2">Your chart</Eyebrow>
 				<ChartSwitcher />
