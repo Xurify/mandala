@@ -12,7 +12,7 @@ Run through every item; fix before reporting.
 **Hierarchy**
 - [ ] At most one `btn-primary` visible per view or dialog
 - [ ] Rare or destructive actions live in a menu, not the main surface
-- [ ] The screen reads in one glance: eyebrow → serif title → muted lede → action
+- [ ] The screen reads in one glance: eyebrow → serif title → action
 
 **System**
 - [ ] Only global classes and tokens; no raw hex/rgb, no component `<style>`

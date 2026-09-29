@@ -42,7 +42,7 @@ export const menu = tv({
 		trigger: 'relative z-50 w-full',
 		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
 		panel:
-			'absolute top-[calc(100%+8px)] z-50 flex min-w-[min(290px,calc(100vw-32px))] flex-col gap-px rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
+			'absolute top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,32rem)] min-w-[min(290px,calc(100vw-32px))] flex-col gap-px overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
 	},
 	variants: {
 		align: {

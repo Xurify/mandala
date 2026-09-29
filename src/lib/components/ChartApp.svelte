@@ -433,15 +433,11 @@
 			</Menu>
 		</div>
 
-		<div class="mt-11 mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-12 gap-y-6 max-[900px]:mt-[26px] max-[900px]:mb-[22px] max-[900px]:grid-cols-1 max-[900px]:gap-[18px]">
+		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-8 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
 			<div class="min-w-0">
-				<Eyebrow class="mb-2.5">Your chart</Eyebrow>
+				<Eyebrow class="mb-2">Your chart</Eyebrow>
 				<ChartSwitcher />
-				<p class="mt-3.5 max-w-[54ch] text-pretty text-base text-muted max-[900px]:hidden">
-					One goal at the center, eight pillars around it, eight actions for each. Type, or write
-					by hand.
-				</p>
-				<div class="mt-[22px] flex flex-wrap items-center gap-2 max-[900px]:mt-4">
+				<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 					<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
 					<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Get a prompt</Button>
 					<MethodGuide />

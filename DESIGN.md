@@ -123,7 +123,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 ## Layout
 
 - Page max width 1180px, 28px gutters, safe-area aware.
-- Hero: title + lede + actions on the left, progress ring + stats on the right. Collapses to a stack at ≤900px.
+- Hero: title + actions on the left, progress ring + stats on the right. The method lives in How it works. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
 - Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only).
 - The page reserves 128px of bottom padding for the fixed dock (112px under 900px). Anything new that scrolls on its own must do the same.
