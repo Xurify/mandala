@@ -13,11 +13,13 @@
 	} from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
+	import BrandMark from './BrandMark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import DraftDialog from './DraftDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import MethodGuide from './MethodGuide.svelte';
 	import PresetPicker from './PresetPicker.svelte';
+	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import Icon from './Icon.svelte';
 	import type { Preset } from '$lib/chart/presets';
@@ -347,16 +349,6 @@
 		}
 		chart.say(message);
 	}
-
-	function handleMarkPointerEnter(colorIndex: number, event: PointerEvent) {
-		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = colorIndex;
-	}
-
-	function handleMarkPointerLeave(event: PointerEvent) {
-		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
-	}
 </script>
 
 <svelte:window
@@ -372,332 +364,189 @@
 
 <div class="wrap">
 	<header class="top">
-		<div class="mast">
+		<div class="topbar">
 			<div class="name">
-				<svg class="mark" viewBox="0 0 150 150" aria-hidden="true">
-					<rect
-						role="presentation"
-						x="14"
-						y="14"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#b85c5a"
-						class:highlight={chart.hoveredColorIndex === 0}
-						onpointerenter={(event) => handleMarkPointerEnter(0, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="57"
-						y="14"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#c98a3f"
-						class:highlight={chart.hoveredColorIndex === 1}
-						onpointerenter={(event) => handleMarkPointerEnter(1, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="100"
-						y="14"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#c4b230"
-						class:highlight={chart.hoveredColorIndex === 2}
-						onpointerenter={(event) => handleMarkPointerEnter(2, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="14"
-						y="57"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#4f9a62"
-						class:highlight={chart.hoveredColorIndex === 3}
-						onpointerenter={(event) => handleMarkPointerEnter(3, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="57"
-						y="57"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#d5ddf5"
-						class:highlight={chart.hoveredColorIndex === -1}
-						onpointerenter={(event) => handleMarkPointerEnter(-1, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="100"
-						y="57"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#20a3a3"
-						class:highlight={chart.hoveredColorIndex === 4}
-						onpointerenter={(event) => handleMarkPointerEnter(4, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="14"
-						y="100"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#4a8fc4"
-						class:highlight={chart.hoveredColorIndex === 5}
-						onpointerenter={(event) => handleMarkPointerEnter(5, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="57"
-						y="100"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#8079d0"
-						class:highlight={chart.hoveredColorIndex === 6}
-						onpointerenter={(event) => handleMarkPointerEnter(6, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-					<rect
-						role="presentation"
-						x="100"
-						y="100"
-						width="36"
-						height="36"
-						rx="8"
-						fill="#c26a9c"
-						class:highlight={chart.hoveredColorIndex === 7}
-						onpointerenter={(event) => handleMarkPointerEnter(7, event)}
-						onpointerleave={handleMarkPointerLeave}
-					/>
-				</svg>
-				<h1>Mandala Method</h1>
+				<BrandMark />
+				<span class="wordmark">Mandala</span>
 			</div>
-			<div class="top-controls">
-			<ChartSwitcher />
-			<div class="view-mode-seg" role="tablist" aria-label="Layout view mode">
-				<button
-					type="button"
-					role="tab"
-					class="view-mode-btn"
-					class:active={effectiveViewMode === 'view'}
-					aria-selected={effectiveViewMode === 'view'}
-					title="View Mode: Big 9×9 chart (V)"
-					onclick={() => chart.setViewMode('view')}
-				>
-					<Icon name="grid" size={14} />
-					<span>View</span>
-				</button>
-				<button
-					type="button"
-					role="tab"
-					class="view-mode-btn"
-					class:active={effectiveViewMode === 'edit'}
-					aria-selected={effectiveViewMode === 'edit'}
-					title="Edit Mode: Focused block editor (E)"
-					onclick={() => chart.setViewMode('edit')}
-				>
-					<Icon name="edit" size={14} />
-					<span>Edit</span>
-				</button>
-				{#if !isMobile}
+
+			<div class="search-box">
+				<span class="search-icon" aria-hidden="true">
+					<Icon name="search" size={16} />
+				</span>
+				<input
+					bind:this={searchInputElement}
+					type="search"
+					placeholder="Search your chart"
+					aria-label="Search the chart"
+					autocomplete="off"
+					spellcheck="false"
+					value={chart.query}
+					oninput={(event) => chart.setQuery(event.currentTarget.value)}
+				/>
+				{#if chart.query.trim()}
 					<button
 						type="button"
-						role="tab"
-						class="view-mode-btn desktop-only"
-						class:active={effectiveViewMode === 'split'}
-						aria-selected={effectiveViewMode === 'split'}
-						title="Split Mode: Side-by-side view (S)"
-						onclick={() => chart.setViewMode('split')}
+						class="search-clear-btn"
+						aria-label="Clear search"
+						onclick={() => chart.setQuery('')}
 					>
-						<Icon name="columns" size={14} />
-						<span>Split</span>
+						<Icon name="close" size={12} strokeWidth={2.2} />
 					</button>
+				{:else}
+					<kbd class="search-kbd" aria-hidden="true">/</kbd>
 				{/if}
 			</div>
 
 			<div class="menu-wrap" bind:this={menuContainerElement}>
 				<button
 					bind:this={menuTriggerElement}
-					class="menu-trigger"
+					class="icon-btn"
 					type="button"
+					aria-label="More actions"
+					title="More actions"
 					aria-haspopup="menu"
 					aria-expanded={menuOpen}
 					onclick={() => {
 						menuOpen = !menuOpen;
 					}}
 				>
-					<span>Actions</span>
-					<Icon name="chevron-down" size={14} class="chevron" />
+					<Icon name="more" size={20} />
 				</button>
 
-			{#if menuOpen}
-				<div
-					class="menu-backdrop"
-					aria-hidden="true"
-					onclick={() => {
-						menuOpen = false;
-					}}
-				></div>
-				<div class="menu-dropdown" role="menu">
-					<button
-						class="menu-item"
-						type="button"
-						role="menuitem"
-						onclick={handlePrintChart}
-					>
-						<span class="menu-item-main">
-							<Icon name="printer" size={16} />
-							<span>Print chart</span>
-						</span>
-						<span class="menu-badge">Ctrl+P</span>
-					</button>
-					<button
-						class="menu-item"
-						type="button"
-						role="menuitem"
-						onclick={handleExportPoster}
-					>
-						<span class="menu-item-main">
-							<Icon name="image" size={16} />
-							<span>Export poster</span>
-						</span>
-						<span class="menu-badge">.png</span>
-					</button>
-					<button
-						class="menu-item"
-						type="button"
-						role="menuitem"
-						onclick={handleExportChart}
-					>
-						<span class="menu-item-main">
-							<Icon name="download" size={16} />
-							<span>Export data</span>
-						</span>
-						<span class="menu-badge">.json</span>
-					</button>
-					<button
-						class="menu-item"
-						type="button"
-						role="menuitem"
-						onclick={handleImportClick}
-					>
-						<span class="menu-item-main">
-							<Icon name="upload" size={16} />
-							<span>Import data</span>
-						</span>
-						<span class="menu-badge">.json</span>
-					</button>
-					<button
-						class="menu-item"
-						type="button"
-						role="menuitem"
-						onclick={handleCopyAsText}
-					>
-						<span class="menu-item-main">
-							<Icon name="copy" size={16} />
-							<span>Copy as text</span>
-						</span>
-					</button>
-					<div class="menu-divider" role="separator"></div>
-					<div class="menu-theme-row">
-						<span class="menu-theme-label">Theme</span>
-						<div class="theme-seg" role="group" aria-label="Color theme">
-							<button
-								type="button"
-								class="theme-btn"
-								class:active={chart.theme === 'system'}
-								onclick={() => chart.setTheme('system')}
-							>
-								<Icon name="monitor" size={12} />
-								<span>Auto</span>
-							</button>
-							<button
-								type="button"
-								class="theme-btn"
-								class:active={chart.theme === 'light'}
-								onclick={() => chart.setTheme('light')}
-							>
-								<Icon name="sun" size={12} />
-								<span>Light</span>
-							</button>
-							<button
-								type="button"
-								class="theme-btn"
-								class:active={chart.theme === 'dark'}
-								onclick={() => chart.setTheme('dark')}
-							>
-								<Icon name="moon" size={12} />
-								<span>Dark</span>
-							</button>
+				{#if menuOpen}
+					<div
+						class="menu-backdrop"
+						aria-hidden="true"
+						onclick={() => {
+							menuOpen = false;
+						}}
+					></div>
+					<div class="menu-dropdown" role="menu">
+						<button class="menu-item" type="button" role="menuitem" onclick={handlePrintChart}>
+							<span class="menu-item-main">
+								<Icon name="printer" size={16} />
+								<span>Print chart</span>
+							</span>
+							<span class="menu-badge">Ctrl+P</span>
+						</button>
+						<button class="menu-item" type="button" role="menuitem" onclick={handleExportPoster}>
+							<span class="menu-item-main">
+								<Icon name="image" size={16} />
+								<span>Export poster</span>
+							</span>
+							<span class="menu-badge">.png</span>
+						</button>
+						<button class="menu-item" type="button" role="menuitem" onclick={handleExportChart}>
+							<span class="menu-item-main">
+								<Icon name="download" size={16} />
+								<span>Export data</span>
+							</span>
+							<span class="menu-badge">.json</span>
+						</button>
+						<button class="menu-item" type="button" role="menuitem" onclick={handleImportClick}>
+							<span class="menu-item-main">
+								<Icon name="upload" size={16} />
+								<span>Import data</span>
+							</span>
+							<span class="menu-badge">.json</span>
+						</button>
+						<button class="menu-item" type="button" role="menuitem" onclick={handleCopyAsText}>
+							<span class="menu-item-main">
+								<Icon name="copy" size={16} />
+								<span>Copy as text</span>
+							</span>
+						</button>
+						<div class="menu-divider" role="separator"></div>
+						<div class="menu-theme-row">
+							<span class="menu-theme-label">Theme</span>
+							<div class="seg seg-sm" role="group" aria-label="Color theme">
+								<button
+									type="button"
+									aria-pressed={chart.theme === 'system'}
+									onclick={() => chart.setTheme('system')}
+								>
+									<Icon name="monitor" size={12} />
+									<span>Auto</span>
+								</button>
+								<button
+									type="button"
+									aria-pressed={chart.theme === 'light'}
+									onclick={() => chart.setTheme('light')}
+								>
+									<Icon name="sun" size={12} />
+									<span>Light</span>
+								</button>
+								<button
+									type="button"
+									aria-pressed={chart.theme === 'dark'}
+									onclick={() => chart.setTheme('dark')}
+								>
+									<Icon name="moon" size={12} />
+									<span>Dark</span>
+								</button>
+							</div>
 						</div>
+						<div class="menu-divider" role="separator"></div>
+						<button class="menu-item danger" type="button" role="menuitem" onclick={handleClearChart}>
+							<span class="menu-item-main">
+								<Icon name="trash" size={16} />
+								<span>Clear chart</span>
+							</span>
+						</button>
 					</div>
-					<div class="menu-divider" role="separator"></div>
-					<button
-						class="menu-item danger"
-						type="button"
-						role="menuitem"
-						onclick={handleClearChart}
-					>
-						<span class="menu-item-main">
-							<Icon name="trash" size={16} />
-							<span>Clear chart</span>
-						</span>
-					</button>
-					<div class="menu-divider" role="separator"></div>
-					<button class="menu-item" type="button" role="menuitem" onclick={handleOpenPresets}>
-						<span class="menu-item-main">
-							<Icon name="list" size={16} />
-							<span>Start from a preset</span>
-						</span>
-					</button>
-					<button class="menu-item" type="button" role="menuitem" onclick={handleOpenDraft}>
-						<span class="menu-item-main">
-							<Icon name="sparkles" size={16} />
-							<span>Get a prompt</span>
-						</span>
-					</button>
-				</div>
-			{/if}
-		</div>
+				{/if}
 			</div>
 		</div>
-		<p class="lede">
-			One goal at the center, eight pillars around it, eight actions for each. Type, or write by
-			hand.
-		</p>
-		<div class="brand-links">
-			<MethodGuide
-				open={methodOpen}
-				onopen={() => {
-					methodOpen = true;
-				}}
-				onclose={() => {
-					methodOpen = false;
-				}}
-			/>
-			<button type="button" class="method-link" onclick={handleOpenPresets}>
-				<Icon name="list" size={14} />
-				<span>Presets</span>
-			</button>
-			<button type="button" class="method-link" onclick={handleOpenDraft}>
-				<Icon name="sparkles" size={14} />
-				<span>Get a prompt</span>
-			</button>
+
+		<div class="hero">
+			<div class="hero-main">
+				<p class="eyebrow">Your chart</p>
+				<ChartSwitcher />
+				<p class="lede">
+					One goal at the center, eight pillars around it, eight actions for each. Type, or write
+					by hand.
+				</p>
+				<div class="hero-actions">
+					<button type="button" class="btn btn-primary" onclick={handleOpenPresets}>
+						<Icon name="list" size={16} />
+						<span>Start from a preset</span>
+					</button>
+					<button type="button" class="btn btn-soft" onclick={handleOpenDraft}>
+						<Icon name="sparkles" size={16} />
+						<span>Get a prompt</span>
+					</button>
+					<MethodGuide
+						open={methodOpen}
+						onopen={() => {
+							methodOpen = true;
+						}}
+						onclose={() => {
+							methodOpen = false;
+						}}
+					/>
+				</div>
+			</div>
+
+			<div class="hero-progress">
+				<ProgressRing size={isMobile ? 56 : 76} />
+				<dl class="stats">
+					<div class="stat" class:done={chart.milestones.goalSet}>
+						<dt>Goal</dt>
+						<dd>{chart.milestones.goalSet ? 'Set' : 'Not yet'}</dd>
+					</div>
+					<div class="stat" class:done={chart.milestones.pillarsCount === 8}>
+						<dt>Pillars</dt>
+						<dd>{chart.milestones.pillarsCount}<span>/8</span></dd>
+					</div>
+					<div class="stat" class:done={chart.milestones.actionsCount === 64}>
+						<dt>Actions</dt>
+						<dd>{chart.milestones.actionsCount}<span>/64</span></dd>
+					</div>
+				</dl>
+			</div>
 		</div>
+
 		<DraftDialog
 			open={draftOpen}
 			onclose={() => {
@@ -723,134 +572,46 @@
 		/>
 	</header>
 
-	<div class="progress-wrap">
-		<div class="milestones-bar">
-			<div class="milestones-group">
-				<div class="milestone-badge" class:done={chart.milestones.goalSet}>
-					<Icon name="target" size={12} strokeWidth={1.9} />
-					<span class="badge-label">Goal</span>
-					<span class="badge-count">{chart.milestones.goalSet ? '1/1' : '0/1'}</span>
-					{#if chart.milestones.goalSet}
-						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
-					{/if}
-				</div>
-				<div class="milestone-badge" class:done={chart.milestones.pillarsCount === 8}>
-					<Icon name="compass" size={12} strokeWidth={1.9} />
-					<span class="badge-label">Pillars</span>
-					<span class="badge-count">{chart.milestones.pillarsCount}/8</span>
-					{#if chart.milestones.pillarsCount === 8}
-						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
-					{/if}
-				</div>
-				<div class="milestone-badge" class:done={chart.milestones.actionsCount === 64}>
-					<Icon name="list" size={12} strokeWidth={2} />
-					<span class="badge-label">Actions</span>
-					<span class="badge-count">{chart.milestones.actionsCount}/64</span>
-					{#if chart.milestones.actionsCount === 64}
-						<Icon name="check" size={10} strokeWidth={2.6} class="badge-done-check" />
-					{/if}
-				</div>
+	<div class="results" aria-live="polite">
+		{#if chart.query.trim() && !shownHits.length}
+			<div class="res-note">
+				{chart.unread.length
+					? 'No matches. Handwriting is only searchable after it has been read.'
+					: 'No matches.'}
 			</div>
-			<span class="progress-label">{chart.filled} of {CELL_COUNT} filled</span>
-		</div>
-		<div class="track">
-			<div class="fill" style:width="{(chart.filled / CELL_COUNT) * 100}%"></div>
-		</div>
-	</div>
-
-	<div class="search">
-		<div class="search-box">
-			<span class="search-icon" aria-hidden="true">
-				<Icon name="search" size={16} />
-			</span>
-			<input
-				bind:this={searchInputElement}
-				type="search"
-				placeholder="Search goal, pillars and actions"
-				aria-label="Search the chart"
-				autocomplete="off"
-				spellcheck="false"
-				value={chart.query}
-				oninput={(event) => chart.setQuery(event.currentTarget.value)}
-			/>
-			{#if chart.query.trim()}
-				<button
-					type="button"
-					class="search-clear-btn"
-					aria-label="Clear search"
-					onclick={() => chart.setQuery('')}
-				>
-					<Icon name="close" size={13} />
-				</button>
-			{/if}
-		</div>
-		<div class="results" aria-live="polite">
-			{#if chart.query.trim() && !shownHits.length}
-				<div class="res-note">
-					{chart.unread.length
-						? 'No matches. Handwriting is only searchable after it has been read.'
-						: 'No matches.'}
-				</div>
-			{/if}
-			{#each shownHits as key (key)}
-				<button
-					type="button"
-					class="res"
-					onclick={() => {
-						selectBlock(blockOfKey(key), key);
-						chart.setViewMode('edit');
-					}}
-				>
-					<b>{labelOfKey(chart.data, key)}</b>
-					{getByKey(chart.data, key).trim()}
-				</button>
-			{/each}
-			{#if extraHits}
-				<div class="res-note">+{extraHits} more</div>
-			{/if}
-		</div>
+		{/if}
+		{#each shownHits as key (key)}
+			<button
+				type="button"
+				class="res"
+				onclick={() => {
+					selectBlock(blockOfKey(key), key);
+					chart.setViewMode('edit');
+				}}
+			>
+				<b>{labelOfKey(chart.data, key)}</b>
+				{getByKey(chart.data, key).trim()}
+			</button>
+		{/each}
+		{#if extraHits}
+			<div class="res-note">+{extraHits} more</div>
+		{/if}
 	</div>
 
 	<div class="notice" class:on={noticeOn}>
 		<span>{noticeText}</span>
 		{#if chart.unread.length || chart.reading}
-			<button class="btn" class:primary={!chart.reading} type="button" onclick={onRead}>
+			<button
+				class="btn btn-sm"
+				class:btn-primary={!chart.reading}
+				class:btn-soft={chart.reading}
+				type="button"
+				onclick={onRead}
+			>
 				{chart.reading ? 'Stop' : 'Read handwriting'}
 			</button>
 		{/if}
 	</div>
-	<div class="status" role="status" aria-live="polite">{chart.status}</div>
-
-	{#if isMobile}
-		<div class="mobile-view-toggle" role="tablist" aria-label="View mode">
-			<button
-				type="button"
-				role="tab"
-				class="mobile-view-btn"
-				class:active={effectiveViewMode === 'view'}
-				aria-selected={effectiveViewMode === 'view'}
-				onclick={() => {
-					chart.setViewMode('view');
-				}}
-			>
-				<Icon name="grid" size={15} />
-				<span>9×9 Chart</span>
-			</button>
-			<button
-				type="button"
-				role="tab"
-				class="mobile-view-btn"
-				class:active={effectiveViewMode === 'edit'}
-				aria-selected={effectiveViewMode === 'edit'}
-				onclick={() => {
-					chart.setViewMode('edit');
-				}}
-			>
-				<Icon name="edit" size={15} />
-				<span>Editor</span>
-			</button>
-		</div>
-	{/if}
 
 	{#if effectiveViewMode === 'view'}
 		<div
@@ -858,36 +619,31 @@
 			class:scale-fit={chart.viewScale === 'fit'}
 			class:scale-large={chart.viewScale === 'large'}
 		>
-			<div class="view-toolbar-meta">
-				<span class="view-toolbar-badge">9×9 Full Chart</span>
-				<span class="view-toolbar-hint">Double-click a cell to edit that block</span>
-			</div>
-			<div class="view-scale-seg" role="group" aria-label="Chart scale">
+			<span class="view-toolbar-hint">Double-click a cell to edit its block</span>
+			<div class="seg seg-sm" role="group" aria-label="Chart scale">
 				<button
 					type="button"
-					class="scale-btn"
-					class:active={chart.viewScale === 'fit'}
+					aria-pressed={chart.viewScale === 'fit'}
 					title="Fit entire chart on screen without scrolling"
 					onclick={() => chart.setViewScale('fit')}
 				>
 					<Icon name="minimize" size={13} />
-					<span>Fit Screen</span>
+					<span>Fit</span>
 				</button>
 				<button
 					type="button"
-					class="scale-btn"
-					class:active={chart.viewScale === 'large'}
+					aria-pressed={chart.viewScale === 'large'}
 					title="Enlarge chart for maximum text readability"
 					onclick={() => chart.setViewScale('large')}
 				>
 					<Icon name="maximize" size={13} />
-					<span>Expanded</span>
+					<span>Large</span>
 				</button>
 			</div>
 		</div>
 	{/if}
 
-	<div
+	<main
 		class="layout mode-{effectiveViewMode}"
 		class:scale-fit={chart.viewScale === 'fit'}
 		class:scale-large={chart.viewScale === 'large'}
@@ -900,22 +656,6 @@
 		{#if effectiveViewMode === 'edit' || effectiveViewMode === 'split'}
 			<div class="side">
 				<SidePanel />
-				{#if isMobile && effectiveViewMode === 'edit'}
-					<div class="mobile-peek-wrap">
-						<button
-							type="button"
-							class="mobile-peek-btn"
-							onclick={() => {
-								chart.setViewMode('view');
-								window.scrollTo({ top: 0, behavior: 'smooth' });
-							}}
-						>
-							<Icon name="grid" size={16} />
-							<span>View Full 9×9 Grid</span>
-							<Icon name="arrow-right" size={14} class="peek-arrow" />
-						</button>
-					</div>
-				{/if}
 				<textarea
 					class="export-box"
 					class:on={!!chart.exportFallback}
@@ -925,6 +665,52 @@
 				></textarea>
 			</div>
 		{/if}
+	</main>
+
+	<div class="dock-wrap">
+		<div class="toast" class:on={!!chart.status} role="status" aria-live="polite">
+			{chart.status}
+		</div>
+		<div class="dock" role="tablist" aria-label="Layout view mode">
+			<button
+				type="button"
+				role="tab"
+				class="dock-btn"
+				aria-selected={effectiveViewMode === 'view'}
+				title="Full 9×9 chart (V)"
+				onclick={() => {
+					chart.setViewMode('view');
+					if (isMobile) window.scrollTo({ top: 0, behavior: 'smooth' });
+				}}
+			>
+				<Icon name="grid" size={16} />
+				<span>Chart</span>
+			</button>
+			<button
+				type="button"
+				role="tab"
+				class="dock-btn"
+				aria-selected={effectiveViewMode === 'edit'}
+				title="Focused block editor (E)"
+				onclick={() => chart.setViewMode('edit')}
+			>
+				<Icon name="edit" size={16} />
+				<span>Edit</span>
+			</button>
+			{#if !isMobile}
+				<button
+					type="button"
+					role="tab"
+					class="dock-btn"
+					aria-selected={effectiveViewMode === 'split'}
+					title="Chart and editor side by side (S)"
+					onclick={() => chart.setViewMode('split')}
+				>
+					<Icon name="columns" size={16} />
+					<span>Split</span>
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	{#if isDraggingFile}

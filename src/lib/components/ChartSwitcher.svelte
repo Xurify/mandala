@@ -55,17 +55,18 @@
 
 <div class="menu-wrap chart-switch" bind:this={wrapElement}>
 	<button
-		class="menu-trigger"
+		class="chart-title-btn"
 		type="button"
 		aria-haspopup="menu"
 		aria-expanded={open}
-		aria-label="Switch chart"
+		aria-label="Switch chart: {activeTitle}"
 		title={activeTitle}
 		onclick={toggle}
 	>
-		<Icon name="target" size={14} />
-		<span class="chart-switch-label">{activeTitle}</span>
-		<Icon name="chevron-down" size={14} class="chevron" />
+		<span class="chart-title">{activeTitle}</span>
+		<span class="chart-title-chevron">
+			<Icon name="chevron-down" size={16} strokeWidth={2} class="chevron" />
+		</span>
 	</button>
 	{#if open}
 		<div class="menu-backdrop" aria-hidden="true" onclick={close}></div>

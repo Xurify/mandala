@@ -96,8 +96,8 @@
 				<h2 id="draft-title">Prompt</h2>
 				<p class="draft-sub">Paste into ChatGPT, Claude, or Gemini.</p>
 			</div>
-			<button type="button" class="method-close" onclick={requestClose} aria-label="Close">
-				<Icon name="close" size={16} />
+			<button type="button" class="icon-btn" onclick={requestClose} aria-label="Close">
+				<Icon name="close" size={18} />
 			</button>
 		</div>
 		<div class="method-body draft-form">
@@ -108,7 +108,7 @@
 			<div class="draft-panel">
 				<pre class="draft-prompt-text">{promptText}</pre>
 				<div class="draft-panel-foot">
-					<button class="draft-copy" type="button" onclick={copyPrompt}>
+					<button class="btn btn-sm btn-primary" type="button" onclick={copyPrompt}>
 						<Icon name="copy" size={14} />
 						<span>{copied ? 'Copied' : 'Copy prompt'}</span>
 					</button>
@@ -124,8 +124,8 @@
 					<textarea rows="3" placeholder="Paste the JSON when it comes back" bind:value={reply}
 					></textarea>
 				</label>
-				<div class="draft-panel-foot">
-					<button class="draft-copy" type="button" onclick={applyReply}>Use this chart</button>
+				<div class="dialog-foot">
+					<button class="btn btn-primary" type="button" onclick={applyReply}>Use this chart</button>
 				</div>
 			{/if}
 			{#if errorText}

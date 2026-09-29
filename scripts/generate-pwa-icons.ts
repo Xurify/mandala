@@ -2,10 +2,20 @@ import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { arcPath, BRAND, pillarArc, toHex, type Arc, type RingGeometry } from '../src/lib/chart/ring';
 
-const dir = join(dirname(fileURLToPath(import.meta.url)), '../static');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const staticDir = join(root, 'static');
+const assetsDir = join(root, 'src/lib/assets');
 
-function crcTable() {
+type Rgb = readonly [number, number, number];
+
+/** App icons are full-bleed so iOS/Android masks can crop them; content stays inside the 80% safe zone. */
+const APP = { radius: 0.28, stroke: 0.105, gap: 7, dot: 0.085 };
+/** Favicon is read at 16px, so the ring runs larger and thicker on a rounded tile. */
+const FAVICON = { radius: 31, stroke: 15, gap: 8, dot: 11, tile: 24 };
+
+function crcTable(): Uint32Array {
 	const table = new Uint32Array(256);
 	for (let n = 0; n < 256; n++) {
 		let c = n;
@@ -29,108 +39,135 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
 	view.setUint32(0, data.length);
 	for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
 	out.set(data, 8);
-	const crcSrc = out.subarray(4, 8 + data.length);
-	view.setUint32(8 + data.length, crc32(crcSrc));
+	view.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
 	return out;
 }
 
-const BG = [0x0f, 0x12, 0x15] as const;
-const CELLS = [
-	[0xb8, 0x5c, 0x5a],
-	[0xc9, 0x8a, 0x3f],
-	[0xc4, 0xb2, 0x30],
-	[0x4f, 0x9a, 0x62],
-	[0xd5, 0xdd, 0xf5],
-	[0x20, 0xa3, 0xa3],
-	[0x4a, 0x8f, 0xc4],
-	[0x80, 0x79, 0xd0],
-	[0xc2, 0x6a, 0x9c]
-] as const;
-
-function inRoundRect(px: number, py: number, x: number, y: number, w: number, h: number, rad: number) {
-	const cx = Math.min(Math.max(px, x + rad), x + w - rad);
-	const cy = Math.min(Math.max(py, y + rad), y + h - rad);
-	const dx = px - cx;
-	const dy = py - cy;
-	return dx * dx + dy * dy <= rad * rad;
-}
-
-function png(size: number): Uint8Array {
+function encodePng(size: number, rgba: Uint8Array): Uint8Array {
 	const raw = new Uint8Array(size * (1 + size * 4));
-	const pad = size * (14 / 150);
-	const gap = size * (7 / 150);
-	const cell = (size - pad * 2 - gap * 2) / 3;
-	const rad = cell * (8 / 36);
 	for (let y = 0; y < size; y++) {
-		const row = y * (1 + size * 4);
-		raw[row] = 0;
-		for (let x = 0; x < size; x++) {
-			let r = BG[0];
-			let g = BG[1];
-			let b = BG[2];
-			const samples = [
-				[0.25, 0.25],
-				[0.75, 0.25],
-				[0.25, 0.75],
-				[0.75, 0.75]
-			];
-			let hit = 0;
-			let hr = 0;
-			let hg = 0;
-			let hb = 0;
-			for (const [sx, sy] of samples) {
-				const px = x + sx;
-				const py = y + sy;
-				for (let i = 0; i < 9; i++) {
-					const col = i % 3;
-					const line = (i - col) / 3;
-					const cx0 = pad + col * (cell + gap);
-					const cy0 = pad + line * (cell + gap);
-					const color = CELLS[i]!;
-					const inside = inRoundRect(px, py, cx0, cy0, cell, cell, rad);
-					if (inside) {
-						hit++;
-						hr += color[0];
-						hg += color[1];
-						hb += color[2];
-						break;
-					}
-				}
-			}
-			if (hit) {
-				r = Math.round((r * (4 - hit) + hr) / 4);
-				g = Math.round((g * (4 - hit) + hg) / 4);
-				b = Math.round((b * (4 - hit) + hb) / 4);
-			}
-			const i = row + 1 + x * 4;
-			raw[i] = r;
-			raw[i + 1] = g;
-			raw[i + 2] = b;
-			raw[i + 3] = 255;
-		}
+		raw[y * (1 + size * 4)] = 0;
+		raw.set(rgba.subarray(y * size * 4, (y + 1) * size * 4), y * (1 + size * 4) + 1);
 	}
-
 	const ihdr = new Uint8Array(13);
 	const view = new DataView(ihdr.buffer);
 	view.setUint32(0, size);
 	view.setUint32(4, size);
 	ihdr[8] = 8;
 	ihdr[9] = 6;
-	const idat = deflateSync(raw);
-	const sig = Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10);
-	const parts = [sig, chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', new Uint8Array(0))];
-	const total = parts.reduce((n, p) => n + p.length, 0);
-	const out = new Uint8Array(total);
-	let o = 0;
-	for (const p of parts) {
-		out.set(p, o);
-		o += p.length;
+	const parts = [
+		Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10),
+		chunk('IHDR', ihdr),
+		chunk('IDAT', deflateSync(raw)),
+		chunk('IEND', new Uint8Array(0))
+	];
+	const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+	let offset = 0;
+	for (const part of parts) {
+		out.set(part, offset);
+		offset += part.length;
 	}
 	return out;
 }
 
-mkdirSync(dir, { recursive: true });
-writeFileSync(join(dir, 'icon-192.png'), png(192));
-writeFileSync(join(dir, 'icon-512.png'), png(512));
-writeFileSync(join(dir, 'apple-touch-icon.png'), png(180));
-console.log('wrote PWA icons');
+function clockwiseAngle(dx: number, dy: number): number {
+	return ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360) % 360;
+}
+
+function onArc(dx: number, dy: number, arc: Arc, { radius, stroke }: RingGeometry): boolean {
+	const distance = Math.hypot(dx, dy);
+	const sweep = arc.end - arc.start;
+	const along = (clockwiseAngle(dx, dy) - arc.start + 360) % 360;
+	if (along <= sweep && Math.abs(distance - radius) <= stroke / 2) return true;
+	for (const angle of [arc.start, arc.end]) {
+		const radians = ((angle - 90) * Math.PI) / 180;
+		const ex = radius * Math.cos(radians);
+		const ey = radius * Math.sin(radians);
+		if (Math.hypot(dx - ex, dy - ey) <= stroke / 2) return true;
+	}
+	return false;
+}
+
+function colorAt(dx: number, dy: number, arcs: Arc[]): Rgb {
+	if (Math.hypot(dx, dy) <= APP.dot) return BRAND.paper;
+	for (let k = 0; k < arcs.length; k++) {
+		if (onArc(dx, dy, arcs[k]!, APP)) return BRAND.pillars[k]!;
+	}
+	return BRAND.ink;
+}
+
+function appIcon(size: number): Uint8Array {
+	const arcs = Array.from({ length: 8 }, (_, k) => pillarArc(k, APP));
+	const rgba = new Uint8Array(size * size * 4);
+	const offsets = [0.125, 0.375, 0.625, 0.875];
+	for (let y = 0; y < size; y++) {
+		for (let x = 0; x < size; x++) {
+			let r = 0;
+			let g = 0;
+			let b = 0;
+			for (const sy of offsets) {
+				for (const sx of offsets) {
+					const color = colorAt((x + sx) / size - 0.5, (y + sy) / size - 0.5, arcs);
+					r += color[0];
+					g += color[1];
+					b += color[2];
+				}
+			}
+			const i = (y * size + x) * 4;
+			rgba[i] = Math.round(r / 16);
+			rgba[i + 1] = Math.round(g / 16);
+			rgba[i + 2] = Math.round(b / 16);
+			rgba[i + 3] = 255;
+		}
+	}
+	return encodePng(size, rgba);
+}
+
+function ringPaths(cx: number, cy: number, geometry: RingGeometry, indent: string): string {
+	return BRAND.pillars
+		.map((color, k) => {
+			const { start, end } = pillarArc(k, geometry);
+			return `${indent}<path d="${arcPath(cx, cy, geometry.radius, start, end)}" stroke="${toHex(color)}"/>`;
+		})
+		.join('\n');
+}
+
+function faviconSvg(): string {
+	const { radius, stroke, gap, dot, tile } = FAVICON;
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+	<rect width="100" height="100" rx="${tile}" fill="${toHex(BRAND.ink)}"/>
+	<g fill="none" stroke-width="${stroke}" stroke-linecap="round">
+${ringPaths(50, 50, { radius, stroke, gap }, '\t\t')}
+	</g>
+	<circle cx="50" cy="50" r="${dot}" fill="${toHex(BRAND.paper)}"/>
+</svg>
+`;
+}
+
+function logoSvg(): string {
+	const geometry = { radius: 34, stroke: 14, gap: 7 };
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 96" fill="none">
+	<g stroke-width="${geometry.stroke}" stroke-linecap="round">
+${ringPaths(48, 48, geometry, '\t\t')}
+	</g>
+	<circle cx="48" cy="48" r="12" fill="${toHex(BRAND.ink)}"/>
+	<text
+		x="112"
+		y="66"
+		fill="${toHex(BRAND.ink)}"
+		font-family="Source Sans 3 Variable, Source Sans 3, Segoe UI, sans-serif"
+		font-size="54"
+		font-weight="560"
+		letter-spacing="-1.2"
+	>Mandala</text>
+</svg>
+`;
+}
+
+mkdirSync(staticDir, { recursive: true });
+writeFileSync(join(staticDir, 'icon-192.png'), appIcon(192));
+writeFileSync(join(staticDir, 'icon-512.png'), appIcon(512));
+writeFileSync(join(staticDir, 'apple-touch-icon.png'), appIcon(180));
+writeFileSync(join(assetsDir, 'favicon.svg'), faviconSvg());
+writeFileSync(join(assetsDir, 'logo.svg'), logoSvg());
+console.log('wrote app icons, favicon.svg, logo.svg');

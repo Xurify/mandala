@@ -136,8 +136,6 @@
 			<span>Goal</span>
 		</button>
 
-		<div class="stepper-divider" role="separator" aria-orientation="vertical"></div>
-
 		<div class="pillar-stepper" role="group" aria-label="Select pillar">
 			{#each Array(8) as _, pillarIndex (pillarIndex)}
 				{@const isSelected = chart.sel !== 4 && idx(chart.sel) === pillarIndex}
@@ -188,44 +186,23 @@
 
 	<div class="panel-header">
 		<div class="panel-meta-row">
-			<div
-				class="panel-tag"
-				class:goal-tag={chart.sel === 4}
-				style:--tag-h={chart.sel === 4 ? undefined : HUES[idx(chart.sel)]}
-			>
+			<p class="eyebrow panel-eyebrow">
 				{#if chart.sel === 4}
-					<Icon name="target" size={13} />
-					<span>Center Goal</span>
+					<span class="tag-pip goal" aria-hidden="true"></span>
+					<span>Center goal</span>
 				{:else}
 					<span class="tag-pip" aria-hidden="true" style:--pip-h={HUES[idx(chart.sel)]}></span>
 					<span>Pillar {idx(chart.sel) + 1} · {POS[idx(chart.sel)]}</span>
 				{/if}
-			</div>
-
-			<div class="panel-meta-actions">
-				{#if currentPillarActionsCount !== null}
-					<div class="panel-actions-badge" class:done={currentPillarActionsCount === 8}>
-						{#if currentPillarActionsCount === 8}
-							<Icon name="check" size={12} strokeWidth={2.2} />
-							<span>8 of 8 actions defined</span>
-						{:else}
-							<span>{currentPillarActionsCount} of 8 defined</span>
-						{/if}
-					</div>
-				{/if}
-				{#if chart.viewMode === 'edit'}
-					<button
-						type="button"
-						class="panel-return-view-btn"
-						onclick={() => chart.setViewMode('view')}
-						title="Return to full 9×9 chart (V)"
-					>
-						<Icon name="grid" size={13} />
-						<span>View Chart</span>
-						<span class="panel-return-key">V</span>
-					</button>
-				{/if}
-			</div>
+			</p>
+			{#if currentPillarActionsCount !== null}
+				<span class="panel-actions-badge" class:done={currentPillarActionsCount === 8}>
+					{#if currentPillarActionsCount === 8}
+						<Icon name="check" size={12} strokeWidth={2.4} />
+					{/if}
+					<span>{currentPillarActionsCount} of 8 actions</span>
+				</span>
+			{/if}
 		</div>
 
 		<h2>{panelTitle}</h2>

@@ -107,12 +107,12 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 	context.textAlign = 'center';
 	context.textBaseline = 'top';
 
-	context.font = '600 32px "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif';
+	context.font = '600 32px "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif';
 	context.fillStyle = '#6b7280';
 	context.fillText('MANDALA METHOD', totalSize / 2, headerTop);
 
 	const goalText = data.goal.trim() || 'Central Goal';
-	context.font = '700 48px "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif';
+	context.font = '700 48px "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif';
 	context.fillStyle = '#111827';
 	context.fillText(goalText, totalSize / 2, headerTop + 48);
 
@@ -195,7 +195,7 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 
 				const isPrimary = cellInformation.type === 'goal' || cellInformation.type === 'pillar';
 				context.fillStyle = textColor;
-				context.font = `${isPrimary ? '600' : '500'} ${isPrimary ? '24px' : '20px'} "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif`;
+				context.font = `${isPrimary ? '600' : '500'} ${isPrimary ? '24px' : '20px'} "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif`;
 				context.textAlign = 'center';
 				context.textBaseline = 'middle';
 
@@ -217,7 +217,7 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 	// Footer
 	context.textAlign = 'center';
 	context.textBaseline = 'bottom';
-	context.font = '500 22px "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif';
+	context.font = '500 22px "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif';
 	context.fillStyle = '#9ca3af';
 	context.fillText(
 		'1 Center Goal • 8 Strategic Pillars • 64 Immediate Actions',

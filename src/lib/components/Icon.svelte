@@ -31,7 +31,8 @@
 			| 'columns'
 			| 'maximize'
 			| 'minimize'
-			| 'info';
+			| 'info'
+			| 'more';
 		size?: number;
 		strokeWidth?: number;
 		class?: string;
@@ -179,5 +180,9 @@
 		<circle cx="12" cy="12" r="9" />
 		<line x1="12" y1="11" x2="12" y2="16" />
 		<line x1="12" y1="8" x2="12.01" y2="8" />
+	{:else if name === 'more'}
+		<circle cx="5" cy="12" r="1.4" fill="currentColor" />
+		<circle cx="12" cy="12" r="1.4" fill="currentColor" />
+		<circle cx="19" cy="12" r="1.4" fill="currentColor" />
 	{/if}
 </svg>

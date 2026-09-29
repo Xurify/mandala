@@ -79,12 +79,12 @@
 <button
 	bind:this={triggerElement}
 	type="button"
-	class="method-link"
+	class="btn btn-ghost"
 	onclick={() => onopen?.()}
 	aria-haspopup="dialog"
 	aria-expanded={open}
 >
-	<Icon name="info" size={14} />
+	<Icon name="info" size={16} />
 	<span>How it works</span>
 </button>
 
@@ -98,8 +98,8 @@
 	<div class="method-sheet">
 		<div class="method-head">
 			<h2 id="method-title">The Mandala Method</h2>
-			<button type="button" class="method-close" onclick={requestClose} aria-label="Close">
-				<Icon name="close" size={16} />
+			<button type="button" class="icon-btn" onclick={requestClose} aria-label="Close">
+				<Icon name="close" size={18} />
 			</button>
 		</div>
 		<div class="method-body">

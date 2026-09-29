@@ -59,8 +59,8 @@
 				<h2 id="preset-title">Presets</h2>
 				<p class="draft-sub">Each one fills the whole chart. Edit anything after.</p>
 			</div>
-			<button type="button" class="method-close" onclick={requestClose} aria-label="Close">
-				<Icon name="close" size={16} />
+			<button type="button" class="icon-btn" onclick={requestClose} aria-label="Close">
+				<Icon name="close" size={18} />
 			</button>
 		</div>
 		<div class="method-body draft-form">
@@ -86,8 +86,9 @@
 					</ol>
 				</div>
 			{/if}
-			<div class="draft-panel-foot">
-				<button class="draft-copy" type="button" onclick={applySelected}>Use this preset</button>
+			<div class="dialog-foot">
+				<button class="btn btn-ghost" type="button" onclick={requestClose}>Cancel</button>
+				<button class="btn btn-primary" type="button" onclick={applySelected}>Use this preset</button>
 			</div>
 		</div>
 	</div>
