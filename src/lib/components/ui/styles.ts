@@ -30,7 +30,7 @@ export const segmented = tv({
 	variants: {
 		size: {
 			md: { option: 'min-h-[34px] px-4 text-[0.86rem]' },
-			sm: { option: 'min-h-7 px-[11px] text-[0.8rem]' }
+			sm: { option: 'min-h-7 gap-[5px] px-[11px] text-[0.76rem] coarse:min-h-[34px]' }
 		}
 	},
 	defaultVariants: { size: 'md' }
@@ -39,7 +39,7 @@ export const segmented = tv({
 export const menu = tv({
 	slots: {
 		wrap: 'relative flex',
-		trigger: 'relative z-50',
+		trigger: 'relative z-50 w-full',
 		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
 		panel:
 			'absolute top-[calc(100%+8px)] z-50 flex min-w-[min(290px,calc(100vw-32px))] flex-col gap-px rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
@@ -55,7 +55,7 @@ export const menu = tv({
 
 export const menuItem = tv({
 	slots: {
-		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none',
+		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
 		main: 'inline-flex min-w-0 items-center gap-3',
 		icon: 'shrink-0 text-muted',
 		badge:
@@ -80,12 +80,13 @@ export const menuItem = tv({
 export const dialog = tv({
 	slots: {
 		panel:
-			'm-auto overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop',
+			'm-auto overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
 		sheet: 'flex min-h-0 max-h-full flex-col overflow-hidden',
 		head: 'flex items-start justify-between gap-3 pt-[22px] pr-4 pb-2.5 pl-[26px]',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
-		body: 'min-h-0 flex-1 overflow-auto overscroll-contain px-[26px] pt-2.5 pb-[26px] text-[0.95rem] text-pretty',
+		body: 'min-h-0 flex-1 overflow-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
+		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
 		foot: 'flex items-center justify-end gap-2 px-[26px] pb-[22px]'
 	},
 	variants: {
@@ -103,13 +104,13 @@ export const dialog = tv({
 
 export const dock = tv({
 	slots: {
-		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4',
+		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 print:hidden',
 		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150'
 	}
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[background-color,color,transform] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[background-color,color,transform] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink max-[900px]:px-[22px] ${focus}`
 });
 
 export const toast = tv({
@@ -124,7 +125,7 @@ export const toast = tv({
 });
 
 export const notice = tv({
-	base: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-[22px] bg-surface py-3 pr-3 pl-5 text-[0.9rem] text-muted shadow-card'
+	base: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-[22px] bg-surface py-3 pr-3 pl-5 text-[0.9rem] text-muted shadow-card print:hidden'
 });
 
 export const eyebrow = tv({

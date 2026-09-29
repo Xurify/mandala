@@ -2,6 +2,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { drawStrokes, widthFor } from '$lib/chart/ink';
 	import { describe, HUES, info, type CellType } from '$lib/chart/model';
+	import { cn } from './ui/cn';
 	import Icon from './Icon.svelte';
 
 	let {
@@ -156,9 +157,21 @@
 	}
 </script>
 
-<div class="slot">
-	<div class="pad {type}" class:blank class:highlight={isHighlighted} style:--h={hue}>
+<div class="flex min-w-0 flex-col gap-1">
+	<div
+		class={cn(
+			'pad relative aspect-square touch-none overflow-hidden rounded-[20px] motion-safe:transition-colors motion-safe:duration-[180ms]',
+			type === 'goal' && 'goal rounded-[26px] bg-goal text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
+			type === 'pillar' && 'pillar pillar-cell rounded-[26px] text-on-p can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot',
+			type === 'action' && 'action pillar-action text-text can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+			blank &&
+				"blank before:pointer-events-none before:absolute before:inset-0 before:flex before:items-center before:justify-center before:text-[0.85rem] before:font-medium before:opacity-50 before:content-['Write_here']",
+			isHighlighted && 'highlight'
+		)}
+		style:--h={hue}
+	>
 		<canvas
+			class="absolute inset-0 block size-full cursor-crosshair touch-none"
 			aria-label="Handwriting area: {describe(block, cell)}"
 			{@attach attachPad}
 			onpointerdown={onDown}
@@ -168,18 +181,18 @@
 			onpointerenter={handlePadPointerEnter}
 			onpointerleave={handlePadPointerLeave}
 		></canvas>
-		<div class="tools">
-			<button type="button" class="tool" aria-label="Undo last stroke" onclick={undo}>
+		<div class={cn('absolute top-1.5 right-1.5 flex gap-1', blank && 'hidden')}>
+			<button type="button" class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-black/22 p-0 text-inherit coarse:size-9" aria-label="Undo last stroke" onclick={undo}>
 				<Icon name="undo" size={13} />
 			</button>
-			<button type="button" class="tool" aria-label="Clear handwriting" onclick={clear}>
+			<button type="button" class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-black/22 p-0 text-inherit coarse:size-9" aria-label="Clear handwriting" onclick={clear}>
 				<Icon name="close" size={13} />
 			</button>
 		</div>
 	</div>
 	<input
 		type="text"
-		class="caption"
+		class="caption w-full min-w-0 rounded-none border-0 border-b border-line bg-transparent px-0.5 py-1.5 text-base text-text placeholder:text-muted focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink"
 		maxlength="120"
 		value={chart.textOf(cellKey)}
 		placeholder="Type to make searchable"

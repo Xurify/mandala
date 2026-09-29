@@ -42,13 +42,14 @@
 	function onKey(event: KeyboardEvent): void {
 		if (!expanded || event.key !== 'Escape') return;
 		event.preventDefault();
+		event.stopImmediatePropagation();
 		close();
 	}
 
 	setMenu({ close });
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydowncapture={onKey} />
 
 <div class={cn(styles.wrap(), expanded && 'z-[2]', className)} bind:this={root}>
 	<div class={styles.trigger()}>

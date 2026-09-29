@@ -49,7 +49,7 @@
 </script>
 
 <svg
-	class="ui-icon {className}"
+	class="inline-block shrink-0 align-middle {className}"
 	width={size}
 	height={size}
 	viewBox="0 0 24 24"

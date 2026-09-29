@@ -1,17 +1,10 @@
 <script lang="ts">
 	import { HUES, info } from '$lib/chart/model';
-	import Icon from './Icon.svelte';
+	import Button from './ui/Button.svelte';
+	import Dialog from './ui/Dialog.svelte';
+	import { cn } from './ui/cn';
 
-	interface Props {
-		open?: boolean;
-		onopen?: () => void;
-		onclose?: () => void;
-	}
-
-	let { open = false, onopen, onclose }: Props = $props();
-
-	let dialogElement: HTMLDialogElement | null = $state(null);
-	let triggerElement: HTMLButtonElement | null = $state(null);
+	let open = $state(false);
 	let focusK = $state<number | null>(null);
 
 	const mapCaption = $derived(
@@ -20,25 +13,9 @@
 			: `Pillar ${focusK + 1} is written next to the goal, then copied into the center of its block. The lighter cells around that center are its actions.`
 	);
 
-	$effect(() => {
-		const dialog = dialogElement;
-		if (!dialog) return;
-		if (open && !dialog.open) dialog.showModal();
-		if (!open && dialog.open) dialog.close();
-	});
-
-	function requestClose(): void {
-		focusK = null;
-		onclose?.();
-	}
-
-	function handleDialogClose(): void {
-		focusK = null;
-		if (open) onclose?.();
-		triggerElement?.focus();
-	}
-
 	const sampleHue = HUES[3];
+	const linkClass =
+		'text-text underline decoration-muted underline-offset-[3px] hover:decoration-text focus-visible:rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
 	let fromMouse = false;
 
@@ -71,154 +48,131 @@
 		focusK = k === null || focusK === k ? null : k;
 	}
 
-	function handleDialogClick(event: MouseEvent): void {
-		if (event.target === dialogElement) requestClose();
-	}
+	$effect(() => {
+		if (!open) focusK = null;
+	});
 </script>
 
-<button
-	bind:this={triggerElement}
-	type="button"
-	class="btn btn-ghost"
-	onclick={() => onopen?.()}
-	aria-haspopup="dialog"
-	aria-expanded={open}
->
-	<Icon name="info" size={16} />
-	<span>How it works</span>
-</button>
+<Button variant="ghost" icon="info" aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = true)}>
+	How it works
+</Button>
 
-<dialog
-	bind:this={dialogElement}
-	class="method-dialog"
-	aria-labelledby="method-title"
-	onclick={handleDialogClick}
-	onclose={handleDialogClose}
->
-	<div class="method-sheet">
-		<div class="method-head">
-			<h2 id="method-title">The Mandala Method</h2>
-			<button type="button" class="icon-btn" onclick={requestClose} aria-label="Close">
-				<Icon name="close" size={18} />
-			</button>
-		</div>
-		<div class="method-body">
-			<figure class="method-map" class:is-active={focusK !== null}>
-				<div
-					class="method-map-grid"
-					aria-hidden="true"
-					onpointerdown={pressPointer}
-					onpointermove={trackPointer}
-					onpointerleave={clearPointer}
-					onclick={togglePillar}
-				>
-					{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as block (block)}
-						<div class="method-block">
-							{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as cell (cell)}
-								{@const cellInfo = info(block, cell)}
-								{#if cellInfo.type === 'goal'}
-									<span class="method-dot goal"></span>
-								{:else}
-									<span
-										class="method-dot {cellInfo.type}"
-										class:on={focusK === cellInfo.k}
-										data-k={cellInfo.k}
-										style:--h={HUES[cellInfo.k]}
-									></span>
-								{/if}
-							{/each}
-						</div>
+<Dialog bind:open title="The Mandala Method">
+	<figure class="m-0 mb-[18px] rounded-[22px] bg-bg px-4 pt-[18px] pb-3.5">
+		<div
+			class="mx-auto mb-3.5 grid w-[min(232px,100%)] grid-cols-3 gap-[5px]"
+			aria-hidden="true"
+			onpointerdown={pressPointer}
+			onpointermove={trackPointer}
+			onpointerleave={clearPointer}
+			onclick={togglePillar}
+		>
+			{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as block (block)}
+				<div class="grid grid-cols-3 gap-0.5">
+					{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as cell (cell)}
+						{@const cellInfo = info(block, cell)}
+						{#if cellInfo.type === 'goal'}
+							<span class="aspect-square cursor-default rounded-[28%] bg-ink"></span>
+						{:else}
+							<span
+								class={cn(
+									'aspect-square cursor-pointer rounded-[3px] pillar-action motion-safe:transition-opacity motion-safe:duration-150 motion-safe:ease-ui',
+									cellInfo.type === 'pillar' && 'rounded-[28%] pillar-cell',
+									focusK !== null && focusK !== cellInfo.k && 'opacity-[0.22]'
+								)}
+								data-k={cellInfo.k}
+								style:--h={HUES[cellInfo.k]}
+							></span>
+						{/if}
 					{/each}
 				</div>
-				<figcaption>
-					<p class="method-map-caption">{mapCaption}</p>
-					<ul class="method-legend">
-						<li>
-							<span class="method-swatch goal" aria-hidden="true"></span>
-							<span>Goal</span>
-						</li>
-						<li>
-							<span class="method-swatch pillar" style:--h={sampleHue} aria-hidden="true"></span>
-							<span>Pillar</span>
-						</li>
-						<li>
-							<span class="method-swatch action" style:--h={sampleHue} aria-hidden="true"></span>
-							<span>Action</span>
-						</li>
-					</ul>
-				</figcaption>
-			</figure>
-			<p>
-				A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it as a
-				plan and keep it. You do not redraw it every day.
-			</p>
-
-			<h3>How it’s built</h3>
-			<ol>
-				<li>Write your main goal in the center cell of the center block.</li>
-				<li>Fill the eight cells around it with the themes that would get you there.</li>
-				<li>Copy each theme into the center of one surrounding block.</li>
-				<li>
-					Around each theme, write eight concrete actions or habits. That is 64 actions.
+			{/each}
+		</div>
+		<figcaption>
+			<p class="m-0 mb-2.5 text-[0.9rem]">{mapCaption}</p>
+			<ul class="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-2 p-0 text-[0.8rem] font-semibold text-muted">
+				<li class="flex items-center gap-1.5">
+					<span class="size-3 shrink-0 rounded-[28%] bg-ink" aria-hidden="true"></span>
+					<span>Goal</span>
 				</li>
-			</ol>
-			<p>
-				The point is to break a vague ambition into themes, and the themes into things you can
-				actually do. Empty cells show gaps in the plan.
-			</p>
-			<p>
-				One chart is one direction. Keep a separate chart for each real aim — Slovak, Russian, a
-				project — and switch between them. Do not cram two lives into one center.
-			</p>
-
-			<h3>How often you use it</h3>
-			<ul>
-				<li>
-					<strong>Setup.</strong> Once, usually in a single sitting. It often takes a few revisions.
+				<li class="flex items-center gap-1.5">
+					<span class="size-3 shrink-0 rounded-[28%] pillar-cell" style:--h={sampleHue} aria-hidden="true"></span>
+					<span>Pillar</span>
 				</li>
-				<li>
-					<strong>Review.</strong> Weekly, monthly, or quarterly. Cross off what has become a habit,
-					swap actions that are not working, and adjust themes when priorities shift.
-				</li>
-				<li>
-					<strong>Day to day.</strong> Leave the grid alone. Pull one or a few actions into your
-					normal to-do list or habit tracker. The chart is the map. The daily list is the route for
-					that day.
+				<li class="flex items-center gap-1.5">
+					<span class="size-3 shrink-0 rounded-[3px] pillar-action" style:--h={sampleHue} aria-hidden="true"></span>
+					<span>Action</span>
 				</li>
 			</ul>
-			<p>
-				A single 3×3 is the smaller form of the same idea, for working through one theme. It is not a
-				daily rewrite of the full chart.
-			</p>
+		</figcaption>
+	</figure>
+	<p class="mb-2.5">
+		A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it as a
+		plan and keep it. You do not redraw it every day.
+	</p>
 
-			<h3>Ohtani’s sheet</h3>
-			<p>
-				Shohei Ohtani filled this same 9×9 as a
-				<a
-					href="https://www.nippon.com/en/japan-topics/g01204/"
-					target="_blank"
-					rel="noopener noreferrer"
-					>first-year at Hanamaki Higashi High School<span class="visually-hidden">
-						(opens in a new tab)</span
-					></a
-				>. The center goal was to be the No. 1 draft pick of all eight NPB clubs.
-				<a
-					href="https://www.sponichi.co.jp/baseball/news/2013/02/02/gazo/G20130202005109500.html"
-					target="_blank"
-					rel="noopener noreferrer"
-					>Sports Nippon<span class="visually-hidden"> (opens in a new tab)</span></a
-				>
-				printed the handwritten sheet in 2013. The eight themes were body building, control,
-				sharpness, 160 km/h, breaking balls, mental strength, character, and luck.
-			</p>
-			<p class="method-note">
-				Takashi Harada, who created the Harada Method, calls that sheet the
-				<a href="https://harada-educate.jp/ow64/" target="_blank" rel="noopener noreferrer"
-					>Open Window 64<span class="visually-hidden"> (opens in a new tab)</span></a
-				>. The 64 is the number of actions, not an 8×8 grid. Coverage often calls the same page a
-				mandala chart. The Harada Method is wider than the grid: it pairs this sheet with a
-				longer-term goal page, daily routines, and reflection.
-			</p>
-		</div>
-	</div>
-</dialog>
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How it’s built</h3>
+	<ol class="mb-2.5 list-decimal space-y-1.5 ps-5">
+		<li>Write your main goal in the center cell of the center block.</li>
+		<li>Fill the eight cells around it with the themes that would get you there.</li>
+		<li>Copy each theme into the center of one surrounding block.</li>
+		<li>Around each theme, write eight concrete actions or habits. That is 64 actions.</li>
+	</ol>
+	<p class="mb-2.5">
+		The point is to break a vague ambition into themes, and the themes into things you can
+		actually do. Empty cells show gaps in the plan.
+	</p>
+	<p class="mb-2.5">
+		One chart is one direction. Keep a separate chart for each real aim — Slovak, Russian, a
+		project — and switch between them. Do not cram two lives into one center.
+	</p>
+
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How often you use it</h3>
+	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
+		<li>
+			<strong>Setup.</strong> Once, usually in a single sitting. It often takes a few revisions.
+		</li>
+		<li>
+			<strong>Review.</strong> Weekly, monthly, or quarterly. Cross off what has become a habit,
+			swap actions that are not working, and adjust themes when priorities shift.
+		</li>
+		<li>
+			<strong>Day to day.</strong> Leave the grid alone. Pull one or a few actions into your
+			normal to-do list or habit tracker. The chart is the map. The daily list is the route for
+			that day.
+		</li>
+	</ul>
+	<p class="mb-2.5">
+		A single 3×3 is the smaller form of the same idea, for working through one theme. It is not a
+		daily rewrite of the full chart.
+	</p>
+
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Ohtani’s sheet</h3>
+	<p class="mb-2.5">
+		Shohei Ohtani filled this same 9×9 as a
+		<a
+			class={linkClass}
+			href="https://www.nippon.com/en/japan-topics/g01204/"
+			target="_blank"
+			rel="noopener noreferrer"
+			>first-year at Hanamaki Higashi High School<span class="sr-only"> (opens in a new tab)</span></a
+		>. The center goal was to be the No. 1 draft pick of all eight NPB clubs.
+		<a
+			class={linkClass}
+			href="https://www.sponichi.co.jp/baseball/news/2013/02/02/gazo/G20130202005109500.html"
+			target="_blank"
+			rel="noopener noreferrer"
+			>Sports Nippon<span class="sr-only"> (opens in a new tab)</span></a
+		>
+		printed the handwritten sheet in 2013. The eight themes were body building, control,
+		sharpness, 160 km/h, breaking balls, mental strength, character, and luck.
+	</p>
+	<p class="mb-0 text-muted">
+		Takashi Harada, who created the Harada Method, calls that sheet the
+		<a class={linkClass} href="https://harada-educate.jp/ow64/" target="_blank" rel="noopener noreferrer"
+			>Open Window 64<span class="sr-only"> (opens in a new tab)</span></a
+		>. The 64 is the number of actions, not an 8×8 grid. Coverage often calls the same page a
+		mandala chart. The Harada Method is wider than the grid: it pairs this sheet with a
+		longer-term goal page, daily routines, and reflection.
+	</p>
+</Dialog>

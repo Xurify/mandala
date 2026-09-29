@@ -3,7 +3,7 @@
 	import { cn } from './cn';
 	import { segmented } from './styles';
 
-	export type SegmentOption = { value: string; label: string; icon?: IconName };
+	export type SegmentOption = { value: string; label: string; icon?: IconName; title?: string };
 
 	type Props = {
 		options: SegmentOption[];
@@ -37,6 +37,7 @@
 			type="button"
 			class={styles.option()}
 			aria-pressed={value === option.value}
+			title={option.title}
 			onclick={() => pick(option.value)}
 		>
 			{#if option.icon}

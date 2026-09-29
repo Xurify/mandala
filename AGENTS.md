@@ -8,7 +8,7 @@ Mandala is a local-first goal chart (the Harada / Mandal-Art method): one goal i
 
 - SvelteKit 2 + **Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`, snippets, `{@attach}`). No stores from `svelte/store`, no `export let`, no `on:click`.
 - TypeScript strict. Package manager and runner: **bun**.
-- Styling: tokens and the current screens live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Tailwind v4 is installed with preflight off. New primitives in `src/lib/components/ui/` use utilities (`tv` + `cn`) and are previewed at `/dev/ui`. Feature screens still use the global classes until the swap in [docs/plans/tailwind-ui-primitives.md](./docs/plans/tailwind-ui-primitives.md). Don't mix the two on one screen.
+- Styling: tokens, base reset, pillar utilities, and print live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Tailwind v4 utilities everywhere else, preflight off. Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
 - Fonts: `@fontsource-variable/source-sans-3` only, imported in `src/routes/+layout.svelte`. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
 - PWA: `src/service-worker.ts` + `static/manifest.webmanifest`. Deployed on Vercel.
 
@@ -59,10 +59,10 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 
 ## Conventions
 
-- Reuse the global classes: `btn` + `btn-primary | btn-soft | btn-ghost` (+ `btn-sm`), `icon-btn`, `seg`, `eyebrow`, `menu-*`, `method-dialog`, `dialog-foot`, `dock`, `toast`, `notice`. If none fits, add a new global class to the right section of `app.css`; don't inline styles.
+- Reuse `src/lib/components/ui/` (`Button`, `IconButton`, `SegmentedControl`, `Menu`, `Dialog`, `Dock`, `Toast`, `Notice`, `Eyebrow`). Layout that has no primitive goes on the feature component as utilities. Don't add a global class for a one-off.
 - Only standard HTML elements and components that exist in this repo. No animation libraries. Icons come from `Icon.svelte`; add a path there if one is missing.
 - Colors only through tokens. New token = add a light value and a dark value in **both** dark blocks.
-- New animations go in the `prefers-reduced-motion` block too.
+- New animations use `motion-safe:` so reduced motion skips them.
 - Icon-only buttons need `aria-label`. Toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
 - Copy: sentence case, short, warm, no emoji, toasts in past tense ("Copied as text").
 - Don't edit generated files (`static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/favicon.svg`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.

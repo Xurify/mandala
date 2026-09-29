@@ -1,6 +1,6 @@
 # Plan: Tailwind v4 + composable UI primitives
 
-Status: **phase 1–2 started.** Tailwind v4 is installed beside the global CSS (preflight off). Primitives live in `src/lib/components/ui/` and are catalogued at `/dev/ui`. Feature screens still use the global classes until phase 3.
+Status: **feature screens are on utilities.** `app.css` keeps tokens, `@theme`, pillar/shadow utilities, the base reset, and print. Print still selects `.mandala`, `.block`, `.cell`, `.goal`, `.pillar`, `.action`. `ChartApp` was not split into `Topbar` and `Hero`.
 
 ## Goal
 

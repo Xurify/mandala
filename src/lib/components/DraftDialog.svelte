@@ -1,31 +1,23 @@
 <script lang="ts">
 	import { draftPrompt, parseDraftText } from '$lib/chart/draft';
 	import type { ChartData } from '$lib/chart/model';
-	import Icon from './Icon.svelte';
+	import Button from './ui/Button.svelte';
+	import Dialog from './ui/Dialog.svelte';
 
 	interface Props {
 		open?: boolean;
-		onclose?: () => void;
 		onapply?: (data: ChartData) => void;
 	}
 
-	let { open = false, onclose, onapply }: Props = $props();
+	let { open = $bindable(false), onapply }: Props = $props();
 
 	const promptText = draftPrompt();
 
-	let dialogElement: HTMLDialogElement | null = $state(null);
 	let pasteOpen = $state(false);
 	let reply = $state('');
 	let errorText = $state('');
 	let copied = $state(false);
 	let copiedTimer: ReturnType<typeof setTimeout> | null = null;
-
-	$effect(() => {
-		const dialog = dialogElement;
-		if (!dialog) return;
-		if (open && !dialog.open) dialog.showModal();
-		if (!open && dialog.open) dialog.close();
-	});
 
 	function resetDraft(): void {
 		pasteOpen = false;
@@ -38,18 +30,10 @@
 		}
 	}
 
-	function requestClose(): void {
-		onclose?.();
-	}
-
-	function handleDialogClose(): void {
+	$effect(() => {
+		if (open) return;
 		resetDraft();
-		if (open) onclose?.();
-	}
-
-	function handleDialogClick(event: MouseEvent): void {
-		if (event.target === dialogElement) requestClose();
-	}
+	});
 
 	async function copyPrompt(): Promise<void> {
 		errorText = '';
@@ -83,54 +67,49 @@
 	}
 </script>
 
-<dialog
-	bind:this={dialogElement}
-	class="method-dialog draft-dialog"
-	aria-labelledby="draft-title"
-	onclick={handleDialogClick}
-	onclose={handleDialogClose}
+<Dialog
+	bind:open
+	title="Prompt"
+	description="Paste into ChatGPT, Claude, or Gemini."
+	size="sm"
 >
-	<div class="method-sheet">
-		<div class="method-head">
-			<div>
-				<h2 id="draft-title">Prompt</h2>
-				<p class="draft-sub">Paste into ChatGPT, Claude, or Gemini.</p>
+	<div class="flex flex-col gap-3.5">
+		<p class="m-0 rounded-[18px] bg-sunken px-4 py-3.5 text-[0.88rem] leading-[1.45] text-pretty text-muted">
+			Fill the blanks in the chat. Add what you know about the direction, your situation, and the
+			separate aims.
+		</p>
+		<div class="flex min-h-0 flex-col overflow-hidden rounded-[20px] bg-bg shadow-card">
+			<pre
+				class="m-0 max-h-[min(40vh,340px)] overflow-auto px-[18px] py-4 font-sans text-[0.86rem] leading-[1.55] break-words whitespace-pre-wrap text-text overscroll-contain"
+			>{promptText}</pre>
+			<div class="flex justify-end border-t border-line p-2">
+				<Button size="sm" icon="copy" onclick={copyPrompt}>{copied ? 'Copied' : 'Copy prompt'}</Button>
 			</div>
-			<button type="button" class="icon-btn" onclick={requestClose} aria-label="Close">
-				<Icon name="close" size={18} />
+		</div>
+		{#if !pasteOpen}
+			<button
+				class="cursor-pointer self-start border-0 bg-transparent px-0.5 py-1 font-sans text-[0.88rem] font-[560] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+				type="button"
+				onclick={() => (pasteOpen = true)}
+			>
+				Paste a reply
 			</button>
-		</div>
-		<div class="method-body draft-form">
-			<p class="draft-note">
-				Fill the blanks in the chat. Add what you know about the direction, your situation, and the
-				separate aims.
-			</p>
-			<div class="draft-panel">
-				<pre class="draft-prompt-text">{promptText}</pre>
-				<div class="draft-panel-foot">
-					<button class="btn btn-sm btn-primary" type="button" onclick={copyPrompt}>
-						<Icon name="copy" size={14} />
-						<span>{copied ? 'Copied' : 'Copy prompt'}</span>
-					</button>
-				</div>
+		{:else}
+			<label class="flex flex-col gap-1.5">
+				<span class="text-[0.82rem] font-semibold">Paste the reply</span>
+				<textarea
+					class="resize-y rounded-2xl border-0 bg-sunken px-3.5 py-3 font-sans text-[0.95rem] leading-[1.45] text-text focus-visible:bg-surface focus-visible:shadow-[0_0_0_1.5px_var(--ink)] focus-visible:outline-none"
+					rows="3"
+					placeholder="Paste the JSON when it comes back"
+					bind:value={reply}
+				></textarea>
+			</label>
+			<div class="flex items-center justify-end gap-2">
+				<Button onclick={applyReply}>Use this chart</Button>
 			</div>
-			{#if !pasteOpen}
-				<button class="draft-reveal" type="button" onclick={() => (pasteOpen = true)}>
-					Paste a reply
-				</button>
-			{:else}
-				<label class="draft-field">
-					<span>Paste the reply</span>
-					<textarea rows="3" placeholder="Paste the JSON when it comes back" bind:value={reply}
-					></textarea>
-				</label>
-				<div class="dialog-foot">
-					<button class="btn btn-primary" type="button" onclick={applyReply}>Use this chart</button>
-				</div>
-			{/if}
-			{#if errorText}
-				<p class="draft-error" role="alert">{errorText}</p>
-			{/if}
-		</div>
+		{/if}
+		{#if errorText}
+			<p class="m-0 text-[0.88rem] text-danger" role="alert">{errorText}</p>
+		{/if}
 	</div>
-</dialog>
+</Dialog>

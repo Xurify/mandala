@@ -59,7 +59,7 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 - `--shadow-md`: floating things (menus, dialogs, dock, toast).
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for all UI transitions, 150ms for state changes, 180–240ms for enter/exit.
 - Playful overshoot `cubic-bezier(0.34, 1.56, 0.64, 1)` is allowed only on the brand mark and chart hover.
-- Everything animated must be listed in the `prefers-reduced-motion` block at the bottom of `app.css`.
+- Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`.
 
 ## Typography
 
@@ -71,49 +71,49 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 | Wordmark | `--font` | small, semibold |
 | Body / lede | `--font` | ~1rem, 400, `--muted` for lede |
 | Controls | `--font` | 0.84–0.9rem, 560 |
-| Eyebrow (`.eyebrow`) | `--font` | 0.72rem, 600, uppercase, `0.12em` tracking, `--muted` |
+| Eyebrow | `--font` | 0.72rem, 600, uppercase, `0.12em` tracking, `--muted` |
 | Stats numbers | `--font` | tabular-nums |
 
-Exact sizes live next to each selector in `app.css`; copy the nearest existing one rather than inventing a new step.
+Exact sizes live on the nearest component; copy that rather than inventing a new step.
 
 Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose.
 
 ## Components
 
-These are global classes in `app.css`. Use them; don't restyle per component.
+Primitives live in `src/lib/components/ui/` (`Button`, `IconButton`, `SegmentedControl`, `Menu`, `Dialog`, `Dock`, `Toast`, `Notice`, `Eyebrow`, `Card`). They own color, radius, and type. Feature screens pass layout classes only. Preview at `/dev/ui`.
 
 ### Buttons
 
-| Class | When |
+| Component | When |
 | --- | --- |
-| `btn btn-primary` | The single main action of a view or dialog ("Start from a preset", "Use this preset") |
-| `btn btn-soft` | Secondary actions that still matter ("Get a prompt", "Cancel") |
-| `btn btn-ghost` | Tertiary / informational ("How it works") |
-| `btn-sm` | Modifier for dense contexts (notice rows, toolbars, inside dialogs) |
-| `icon-btn` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
+| `Button` `variant="primary"` | The single main action of a view or dialog ("Start from a preset", "Use this preset") |
+| `Button` `variant="soft"` | Secondary actions that still matter ("Get a prompt", "Cancel") |
+| `Button` `variant="ghost"` | Tertiary / informational ("How it works") |
+| `size="sm"` | Dense contexts (notice rows, toolbars, inside dialogs) |
+| `IconButton` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
 
-Order in a row: primary first on the left in content; in dialog footers (`.dialog-foot`) cancel left, primary right. Icon sizes: 16 in `btn-sm`, 18 in `btn` and `icon-btn`.
+Order in a row: primary first on the left in content; in a dialog footer cancel left, primary right. Icon sizes: 16 in `sm`, 18 in the default button and `IconButton`.
 
 ### Segmented control
 
-`.seg` (or `.seg .seg-sm`) wrapping `<button aria-pressed>`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock.
+`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock.
 
 ### Dock
 
-The floating bottom pill (`.dock-wrap > .dock > .dock-btn`), `role="tablist"`, with `aria-selected` giving the ink fill. It holds view modes only (Chart / Edit / Split, Split desktop only). The toast sits directly above it inside `.dock-wrap`.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the ink fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
 
 ### Menus
 
-`.menu-wrap` > trigger (`icon-btn` with `aria-expanded`) + `.menu-dropdown` with `.menu-item`s, `.menu-divider`, and `.menu-theme-row`. Destructive items go last, after a divider, in `--danger`.
+`Menu` owns open, escape, outside click, and focus return. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone.
 
 ### Dialogs
 
-Native `<dialog class="method-dialog …">` (base class shared by all dialogs, plus a size modifier like `.preset-dialog`). Header = heading + `icon-btn` close; scrolling body; `.dialog-foot` for actions. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
+`Dialog` is a native `<dialog>`. Header = heading + close; scrolling body; footer snippet for actions. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
 
 ### Feedback
 
-- `.toast` (`role="status"`) for results of actions. One line, past tense, no exclamation marks: "Copied as text", "Preset applied".
-- `.notice` for persistent inline info with an optional `btn btn-sm` action.
+- `Toast` (`role="status"`) reads `chart.say()`. One line, past tense, no exclamation marks: "Copied as text", "Preset applied".
+- `Notice` for persistent inline info with an optional small primary or soft `Button`.
 
 ### Brand
 
@@ -122,11 +122,11 @@ Native `<dialog class="method-dialog …">` (base class shared by all dialogs, p
 
 ## Layout
 
-- Page (`.wrap`) max width 1180px, 28px gutters, safe-area aware.
+- Page max width 1180px, 28px gutters, safe-area aware.
 - Hero: title + lede + actions on the left, progress ring + stats on the right. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
 - Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only).
-- `.wrap` reserves 128px of bottom padding for the fixed dock; anything new that scrolls on its own must do the same.
+- The page reserves 128px of bottom padding for the fixed dock (112px under 900px). Anything new that scrolls on its own must do the same.
 
 ## Voice and copy
 
@@ -134,7 +134,7 @@ Short, warm, plain. Sentence case everywhere. Say what happens, not what the fea
 
 ## Accessibility
 
-- Visible focus: `outline: 2px solid var(--ink); outline-offset: 2px` (already global for `.btn`, `.icon-btn`, `.seg button`, `.dock-btn`).
+- Visible focus: `outline: 2px solid var(--ink); outline-offset: 2px` on buttons, menu items, dock tabs, fields, and cells.
 - Hit targets ≥42px (≥44px on coarse pointers, handled by the `pointer: coarse` block).
 - Text contrast ≥4.5:1 in both themes; `--muted` on `--sunken` is the tightest pair, so check it when adjusting.
 - Every icon-only control has `aria-label`; toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
@@ -144,9 +144,9 @@ Short, warm, plain. Sentence case everywhere. Say what happens, not what the fea
 
 | Do | Don't |
 | --- | --- |
-| Reuse `.btn` variants | Invent a new button style in a component `<style>` |
+| Reuse `Button` variants | Invent a new button style in a component `<style>` |
 | Separate with tone and `--shadow-sm` | Wrap things in `1px solid` borders |
-| Use one `btn-primary` per view | Put two ink buttons side by side |
+| Use one primary `Button` per view | Put two ink buttons side by side |
 | Use pillar hues only for pillars | Tint a button or badge with a pillar hue |
 | Add dark values for new tokens in both dark blocks | Hardcode hex / rgb in components |
 | Serif for reflective content | Serif on buttons, labels, or inputs |

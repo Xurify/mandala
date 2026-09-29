@@ -1,15 +1,22 @@
 <script lang="ts">
-	import { chart } from '$lib/chart/chart.svelte';
+	import { chart, type ViewScale } from '$lib/chart/chart.svelte';
 	import { drawStrokes } from '$lib/chart/ink';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
+	import { cn } from './ui/cn';
 
 	let {
+		mode = 'split',
+		scale = 'fit',
 		onSelect,
 		onEdit
 	}: {
+		mode?: 'view' | 'edit' | 'split';
+		scale?: ViewScale;
 		onSelect: (blockIndex: number, targetKey?: string) => void;
 		onEdit?: (blockIndex: number, targetKey?: string) => void;
 	} = $props();
+
+	const view = $derived(mode === 'view');
 
 	function hue(blockIndex: number, cellIndex: number): number | undefined {
 		const cellInformation = info(blockIndex, cellIndex);
@@ -35,22 +42,68 @@
 		const query = chart.query.trim().toLowerCase();
 		const hit = query !== '' && text.toLowerCase().includes(query);
 		const cellInformation = info(blockIndex, cellIndex);
-		const parts = ['cell', cellInformation.type];
-		if (hasText) parts.push('filled');
-		else parts.push('empty');
-		if (hasInk && !hasText) parts.push('ink-only');
-		if (hit) parts.push('hit');
-		if (query !== '' && !hit) parts.push('dim');
-
-		const isColorHighlighted =
+		const type = cellInformation.type;
+		const highlighted =
 			chart.hoveredColorIndex !== null &&
-			((cellInformation.type === 'goal' && chart.hoveredColorIndex === -1) ||
-				(cellInformation.type !== 'goal' && cellInformation.k === chart.hoveredColorIndex));
-		if (isColorHighlighted) {
-			parts.push('highlight');
-		}
+			((type === 'goal' && chart.hoveredColorIndex === -1) ||
+				(type !== 'goal' && cellInformation.k === chart.hoveredColorIndex));
+		const placeholder = !hasText && !(hasInk && !hasText);
 
-		return parts.join(' ');
+		return cn(
+			'cell relative flex aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
+			'focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink',
+			'can-hover:hover:z-2 can-hover:hover:scale-[1.04] can-hover:hover:shadow-[0_6px_16px_-4px_oklch(0_0_0/0.2)]',
+			view
+				? 'rounded-[11px] px-1 py-[5px] text-[clamp(8.5px,1.3cqw,13px)] leading-[1.25]'
+				: 'rounded-[7px] p-[3px] text-[clamp(8px,1.55cqw,12px)] leading-[1.15]',
+			type === 'goal' &&
+				'goal bg-goal font-semibold text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
+			type === 'pillar' &&
+				'pillar pillar-cell font-semibold text-on-p can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot',
+			type === 'action' &&
+				'action pillar-action text-text can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+			(type === 'goal' || type === 'pillar') && 'rounded-[28%]',
+			type === 'goal' &&
+				view &&
+				'px-[5px] py-1.5 font-serif text-[clamp(10.5px,1.7cqw,16px)] font-[560] tracking-[-0.01em]',
+			type === 'goal' && view && scale === 'fit' && 'text-[clamp(10px,1.45cqw,14px)]',
+			type === 'pillar' && view && 'px-1 py-[5px] text-[clamp(9px,1.45cqw,13.5px)] font-[620]',
+			placeholder &&
+				type === 'goal' &&
+				"before:font-medium before:opacity-60 before:content-['Your_goal']",
+			placeholder &&
+				type === 'pillar' &&
+				'before:text-[0.88em] before:font-medium before:opacity-50 before:content-[attr(data-placeholder)]',
+			hasText &&
+				"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden",
+			hasText ? 'filled' : 'empty',
+			hasInk && !hasText && 'ink-only',
+			hit && 'hit shadow-[inset_0_0_0_2px_var(--ink)]',
+			query !== '' && !hit && 'dim opacity-[0.18]',
+			highlighted && 'highlight'
+		);
+	}
+
+	function blockClass(blockIndex: number): string {
+		const selected = chart.sel === blockIndex;
+		const completed = isBlockCompleted(blockIndex);
+		const highlighted = isBlockHighlighted(blockIndex);
+		return cn(
+			'block !grid grid-cols-3 bg-surface shadow-card motion-safe:transition-shadow motion-safe:duration-[180ms]',
+			view ? 'gap-[5px] rounded-[22px] p-2' : 'gap-[3px] rounded-[18px] p-1.5',
+			'max-[900px]:gap-0.5 max-[900px]:rounded-[13px] max-[900px]:p-1',
+			selected && 'sel shadow-[0_0_0_2px_var(--ink)]',
+			completed &&
+				!selected &&
+				'shadow-[var(--shadow-sm),0_0_0_2px_color-mix(in_oklch,var(--success)_55%,transparent)]',
+			completed &&
+				selected &&
+				'shadow-[0_0_0_2px_var(--ink),0_0_0_4.5px_color-mix(in_oklch,var(--success)_45%,transparent)]',
+			highlighted &&
+				!selected &&
+				'can-hover:shadow-[var(--shadow-sm),0_0_0_2px_oklch(var(--p-l-hover)_var(--p-c-hover)_var(--block-h)/0.55)]',
+			highlighted && 'highlight'
+		);
 	}
 
 	function isBlockHighlighted(blockIndex: number): boolean {
@@ -97,15 +150,14 @@
 	}
 </script>
 
-<div class="mandala">
+<div
+	class={cn(
+		'mandala grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1 print:mx-auto print:aspect-square print:h-auto print:max-w-[250mm] print:gap-[5px] print:break-inside-avoid',
+		view ? 'aspect-square gap-2.5' : 'gap-1.5'
+	)}
+>
 	{#each Array(9) as _, blockIndex (blockIndex)}
-		<div
-			class="block"
-			class:sel={chart.sel === blockIndex}
-			class:highlight={isBlockHighlighted(blockIndex)}
-			class:completed={isBlockCompleted(blockIndex)}
-			style:--block-h={blockHue(blockIndex)}
-		>
+		<div class={blockClass(blockIndex)} style:--block-h={blockHue(blockIndex)}>
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}
 				<button
 					type="button"
@@ -118,8 +170,18 @@
 					onpointerenter={(event) => handlePointerEnter(blockIndex, cellIndex, event)}
 					onpointerleave={handlePointerLeave}
 				>
-					<span>{chart.textOf(cellKey(blockIndex, cellIndex))}</span>
-					<canvas class="thumb" width="192" height="192" {@attach attachThumb(blockIndex, cellIndex)}
+					<span
+						class={cn(
+							'line-clamp-4 hyphens-manual wrap-break-word @max-[480px]:hidden',
+							view && 'line-clamp-5 text-pretty',
+							view && info(blockIndex, cellIndex).type === 'goal' && 'text-balance'
+						)}>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
+					>
+					<canvas
+						class="thumb pointer-events-none absolute inset-0 hidden size-full [.ink-only_&]:!block"
+						width="192"
+						height="192"
+						{@attach attachThumb(blockIndex, cellIndex)}
 					></canvas>
 				</button>
 			{/each}

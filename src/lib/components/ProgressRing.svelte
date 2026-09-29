@@ -26,20 +26,27 @@
 </script>
 
 <div
-	class="progress-ring"
-	style:--ring-size="{size}px"
+	class="relative shrink-0"
+	style:width="{size}px"
+	style:height="{size}px"
 	role="img"
 	aria-label="{chart.filled} of {CELL_COUNT} cells filled"
 >
-	<svg viewBox="0 0 {VIEW} {VIEW}" width={size} height={size} aria-hidden="true">
+	<svg class="block overflow-visible" viewBox="0 0 {VIEW} {VIEW}" width={size} height={size} aria-hidden="true">
 		{#each segments as segment, pillarIndex (pillarIndex)}
-			<path class="ring-track" d={segment.track} style:--h={segment.hue} />
+			<path class="ring-track fill-none stroke-[9] [stroke-linecap:round]" d={segment.track} style:--h={segment.hue} />
 			{#if segment.fill}
-				<path class="ring-fill" d={segment.fill} style:--h={segment.hue} />
+				<path
+					class="pillar-stroke fill-none stroke-[9] [stroke-linecap:round] motion-safe:transition-[d] motion-safe:duration-300 motion-safe:ease-ui"
+					d={segment.fill}
+					style:--h={segment.hue}
+				/>
 			{/if}
 		{/each}
 	</svg>
-	<span class="ring-center" class:goal-set={chart.milestones.goalSet}>
-		<span class="ring-count">{chart.filled}</span>
+	<span
+		class="absolute inset-0 flex items-center justify-center {chart.milestones.goalSet ? 'text-text' : 'text-muted'}"
+	>
+		<span class="font-serif text-[length:calc(var(--count-size))] leading-none font-[560] tracking-[-0.02em] tabular-nums" style:--count-size="{size * 0.3}px">{chart.filled}</span>
 	</span>
 </div>

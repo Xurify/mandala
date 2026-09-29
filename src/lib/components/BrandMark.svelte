@@ -19,11 +19,11 @@
 	}
 </script>
 
-<svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+<svg class="block size-[30px] shrink-0 overflow-visible" viewBox="0 0 100 100" aria-hidden="true">
 	{#each segments as segment, pillarIndex (pillarIndex)}
 		<path
 			role="presentation"
-			class="mark-arc"
+			class="pillar-stroke cursor-pointer fill-none stroke-[15] [stroke-linecap:round] motion-safe:transition-[stroke-width] motion-safe:duration-[180ms] motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)] can-hover:hover:stroke-[18] can-hover:[&.highlight]:stroke-[18]"
 			class:highlight={chart.hoveredColorIndex === pillarIndex}
 			d={segment.d}
 			style:--h={segment.hue}
@@ -33,7 +33,7 @@
 	{/each}
 	<circle
 		role="presentation"
-		class="mark-goal"
+		class="origin-center cursor-pointer fill-ink motion-safe:transition-transform motion-safe:duration-[180ms] motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)] [transform-box:fill-box] can-hover:hover:scale-125 can-hover:[&.highlight]:scale-125"
 		class:highlight={chart.hoveredColorIndex === -1}
 		cx="50"
 		cy="50"

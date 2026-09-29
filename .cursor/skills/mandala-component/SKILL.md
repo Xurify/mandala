@@ -7,26 +7,26 @@ description: Builds or changes Svelte 5 UI in the Mandala app using its calm-edi
 
 Read `DESIGN.md` first if it isn't already in context. This skill is the workflow; `DESIGN.md` holds the rules.
 
-Feature screens still use the global classes below. `src/lib/components/ui/` is the Tailwind set (`tv` + `cn`), previewed at `/dev/ui`. Use those primitives on the catalog, or when the migration plan says to swap a surface. Don't put utilities on `.btn` in a feature screen, and don't restyle a primitive's color, radius, or type.
+Feature screens and `src/lib/components/ui/` both use Tailwind utilities (`tv` + `cn` on primitives). Preview primitives at `/dev/ui`. A feature component may pass layout classes to a primitive. It does not restyle that primitive's color, radius, or type.
 
 ## Workflow
 
 ```
 - [ ] 1. Find the closest existing pattern
 - [ ] 2. Decide the hierarchy (what is the one primary action?)
-- [ ] 3. Build with existing global classes
-- [ ] 4. Add CSS only if nothing fits
+- [ ] 3. Build with a primitive, or utilities on the feature component
+- [ ] 4. Add CSS only for tokens, print, or a shared pillar utility
 - [ ] 5. Wire state through `chart`
 - [ ] 6. Verify (check, both themes, mobile, keyboard)
 ```
 
-**1. Find the closest pattern.** Search before writing. A dialog → copy `PresetPicker.svelte`. A toggle → `.seg` like the theme row in `ChartApp.svelte`. An overflow action → a `.menu-item` in the topbar menu. A header → `.eyebrow` + serif heading + muted `.sub`, like `SidePanel.svelte`.
+**1. Find the closest pattern.** Search before writing. A dialog → copy `PresetPicker.svelte`. A toggle → `SegmentedControl` like the theme row in `ChartApp.svelte`. An overflow action → `MenuItem` in the topbar menu. A header → `Eyebrow` + serif heading + muted line, like `SidePanel.svelte`.
 
-**2. Decide hierarchy.** List the actions. Exactly one gets `btn-primary` (or none). Secondary → `btn-soft`. Informational or escape → `btn-ghost` or `icon-btn`. Rarely used or destructive → the overflow menu, not a visible button.
+**2. Decide hierarchy.** List the actions. Exactly one gets `Button` `variant="primary"` (or none). Secondary → `soft`. Informational or escape → `ghost` or `IconButton`. Rarely used or destructive → the overflow menu, not a visible button.
 
-**3. Build with global classes.** `btn`, `btn-primary | btn-soft | btn-ghost`, `btn-sm`, `icon-btn`, `seg`/`seg-sm`, `eyebrow`, `menu-*`, `method-dialog` + `dialog-foot`, `notice`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`.
+**3. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because the print block selects them.
 
-**4. New CSS goes in `src/app.css`**, in the matching section, never in a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. If you animate: add the selector to the `prefers-reduced-motion` block.
+**4. New CSS goes in `src/app.css` only for tokens, the print block, or a shared `@utility`.** Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
 
 **5. State.** Read and mutate through the `chart` singleton (`$lib/chart/chart.svelte.ts`). Derived UI state uses `$derived`, not `$effect`. Local UI state uses `$state` in the component.
 

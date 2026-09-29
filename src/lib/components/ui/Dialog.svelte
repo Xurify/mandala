@@ -7,6 +7,7 @@
 	type Props = {
 		open?: boolean;
 		title: string;
+		description?: string;
 		size?: 'md' | 'sm';
 		children: Snippet;
 		footer?: Snippet;
@@ -16,6 +17,7 @@
 	let {
 		open = $bindable(false),
 		title,
+		description,
 		size = 'md',
 		children,
 		footer,
@@ -47,7 +49,12 @@
 >
 	<div class={styles.sheet()}>
 		<div class={styles.head()}>
-			<h2 id={uid} class={styles.title()}>{title}</h2>
+			<div class="min-w-0">
+				<h2 id={uid} class={styles.title()}>{title}</h2>
+				{#if description}
+					<p class={styles.sub()}>{description}</p>
+				{/if}
+			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
 		<div class={styles.body()}>
