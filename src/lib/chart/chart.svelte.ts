@@ -364,6 +364,22 @@ export class ChartStore {
 		return true;
 	}
 
+	duplicateChart(): boolean {
+		if (!this.canAddChart) {
+			this.say('Chart limit reached (12). Delete one first.');
+			return false;
+		}
+		this.#flush();
+		const record = newRecord(this.data);
+		this.#library.charts = [...this.#library.charts, record];
+		this.#library.activeId = record.id;
+		this.data = cloneChart(record.data);
+		this.#resetView();
+		this.saveNow();
+		this.say('Chart duplicated.');
+		return true;
+	}
+
 	switchChart(id: string): void {
 		if (id === this.#library.activeId) return;
 		const record = this.#library.charts.find((chart) => chart.id === id);
