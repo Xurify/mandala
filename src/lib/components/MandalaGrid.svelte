@@ -1,8 +1,12 @@
 <script lang="ts">
+	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { drawStrokes } from '$lib/chart/ink';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
 	import { cn } from './ui/cn';
+
+	const GOAL_TYPE_FLOOR = 0.7;
+	const GOAL_TYPE_MIN_PX = 11;
 
 	let {
 		mode = 'split',
@@ -149,6 +153,90 @@
 		};
 	}
 
+	const fitGoalText: Attachment = (element) => {
+		if (!(element instanceof HTMLSpanElement)) return;
+		const cell = element.parentElement;
+		if (!(cell instanceof HTMLElement)) return;
+
+		let frame = 0;
+
+		const apply = (): void => {
+			const text = element.textContent ?? '';
+			element.style.fontSize = '';
+			element.style.display = '';
+			element.style.overflow = '';
+			element.style.removeProperty('-webkit-line-clamp');
+			if (text.trim() === '' || getComputedStyle(element).display === 'none') return;
+
+			const cellStyle = getComputedStyle(cell);
+			const available =
+				cell.clientHeight - parseFloat(cellStyle.paddingTop) - parseFloat(cellStyle.paddingBottom);
+			if (available <= 0) return;
+
+			element.style.display = 'block';
+			element.style.overflow = 'visible';
+			element.style.setProperty('-webkit-line-clamp', 'unset');
+
+			const max = parseFloat(getComputedStyle(element).fontSize);
+			if (!Number.isFinite(max) || max <= 0) {
+				element.style.display = '';
+				element.style.overflow = '';
+				element.style.removeProperty('-webkit-line-clamp');
+				return;
+			}
+
+			const min = Math.min(max, Math.max(GOAL_TYPE_MIN_PX, max * GOAL_TYPE_FLOOR));
+			const fits = (size: number): boolean => {
+				element.style.fontSize = `${size}px`;
+				return element.scrollHeight <= available + 1;
+			};
+
+			let chosen = max;
+			if (!fits(max)) {
+				if (!fits(min)) {
+					chosen = min;
+				} else {
+					let low = min;
+					let high = max;
+					for (let step = 0; step < 8; step += 1) {
+						const mid = (low + high) / 2;
+						if (fits(mid)) low = mid;
+						else high = mid;
+					}
+					chosen = low;
+				}
+			}
+
+			element.style.display = '';
+			element.style.overflow = '';
+			element.style.removeProperty('-webkit-line-clamp');
+			element.style.fontSize = chosen >= max - 0.25 ? '' : `${chosen.toFixed(2)}px`;
+		};
+
+		const schedule = (): void => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(apply);
+		};
+
+		schedule();
+		const resizeObserver = new ResizeObserver(schedule);
+		resizeObserver.observe(cell);
+		const textObserver = new MutationObserver(schedule);
+		textObserver.observe(element, { characterData: true, childList: true, subtree: true });
+		const classObserver = new MutationObserver(schedule);
+		classObserver.observe(cell, { attributes: true, attributeFilter: ['class'] });
+		return () => {
+			cancelAnimationFrame(frame);
+			resizeObserver.disconnect();
+			textObserver.disconnect();
+			classObserver.disconnect();
+			element.style.fontSize = '';
+			element.style.display = '';
+			element.style.overflow = '';
+			element.style.removeProperty('-webkit-line-clamp');
+		};
+	};
+
 	function paintThumbs(color?: string) {
 		if (!grid) return;
 		for (const canvas of grid.querySelectorAll<HTMLCanvasElement>('canvas[data-ink-key]')) {
@@ -188,7 +276,9 @@
 						class={cn(
 							'w-full hyphens-manual wrap-break-word @max-[480px]:hidden',
 							view ? 'line-clamp-5' : 'line-clamp-4'
-						)}>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
+						)}
+						{@attach info(blockIndex, cellIndex).type === 'goal' ? fitGoalText : undefined}
+						>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
 					>
 					<canvas
 						class="thumb pointer-events-none absolute inset-0 hidden size-full [.ink-only_&]:!block"
