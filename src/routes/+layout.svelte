@@ -1,6 +1,5 @@
 <script lang="ts">
-	import '@fontsource-variable/bricolage-grotesque';
-	import '@fontsource-variable/fraunces';
+	import '@fontsource-variable/source-sans-3';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 

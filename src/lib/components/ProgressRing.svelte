@@ -26,7 +26,7 @@
 </script>
 
 <div
-	class="ring"
+	class="progress-ring"
 	style:--ring-size="{size}px"
 	role="img"
 	aria-label="{chart.filled} of {CELL_COUNT} cells filled"
