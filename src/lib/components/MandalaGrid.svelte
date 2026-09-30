@@ -88,19 +88,12 @@
 
 	function blockClass(blockIndex: number): string {
 		const selected = chart.sel === blockIndex;
-		const completed = isBlockCompleted(blockIndex);
 		const highlighted = isBlockHighlighted(blockIndex);
 		return cn(
 			'block !grid grid-cols-3 bg-surface shadow-card motion-safe:transition-shadow motion-safe:duration-[180ms]',
 			view ? 'gap-[5px] rounded-[22px] p-2' : 'gap-[3px] rounded-[18px] p-1.5',
 			'max-[900px]:gap-0.5 max-[900px]:rounded-[13px] max-[900px]:p-1',
-			selected && 'sel shadow-[0_0_0_2px_var(--ink)]',
-			completed &&
-				!selected &&
-				'shadow-[var(--shadow-sm),0_0_0_2px_color-mix(in_oklch,var(--success)_55%,transparent)]',
-			completed &&
-				selected &&
-				'shadow-[0_0_0_2px_var(--ink),0_0_0_4.5px_color-mix(in_oklch,var(--success)_45%,transparent)]',
+			selected && 'sel shadow-[var(--shadow-sm),0_0_0_2px_var(--ink)]',
 			highlighted &&
 				!selected &&
 				'can-hover:shadow-[var(--shadow-sm),0_0_0_2px_oklch(var(--p-l-hover)_var(--p-c-hover)_var(--block-h)/0.55)]',
@@ -112,14 +105,6 @@
 		if (chart.hoveredColorIndex === null) return false;
 		if (blockIndex === 4) return chart.hoveredColorIndex === -1;
 		return idx(blockIndex) === chart.hoveredColorIndex;
-	}
-
-	function isBlockCompleted(blockIndex: number): boolean {
-		if (blockIndex === 4) {
-			return chart.milestones.goalSet && chart.milestones.pillarsCount === 8;
-		}
-		const pillarIndex = idx(blockIndex);
-		return (chart.milestones.pillarActionCounts[pillarIndex] ?? 0) === 8;
 	}
 
 	function handlePointerEnter(blockIndex: number, cellIndex: number, event: PointerEvent): void {
