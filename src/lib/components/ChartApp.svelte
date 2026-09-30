@@ -358,6 +358,28 @@
 		}
 		chart.say(message);
 	}
+
+	function handleGoHome(event: MouseEvent): void {
+		if (
+			event.defaultPrevented ||
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		) {
+			return;
+		}
+		if (chart.query) {
+			chart.setQuery('');
+		}
+		if (chart.viewMode !== 'view') {
+			chart.setViewMode('view');
+		}
+		chart.selectGoal();
+		chart.clearFocusedKey();
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 </script>
 
 <svelte:window
@@ -375,10 +397,15 @@
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
-			<div class="flex min-w-0 shrink-0 items-center gap-2.5 text-text max-[900px]:flex-auto">
+			<a
+				href="/"
+				class="flex min-w-0 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[900px]:flex-auto"
+				aria-label="Mandala home"
+				onclick={handleGoHome}
+			>
 				<BrandMark />
 				<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
-			</div>
+			</a>
 
 			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:order-3 max-[900px]:ms-0 max-[900px]:max-w-none max-[900px]:flex-auto">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">

@@ -43,7 +43,11 @@
 <div class="mx-auto flex max-w-[1180px] flex-col gap-8 px-7 pt-8 pb-40">
 	<header class="flex flex-wrap items-end justify-between gap-6">
 		<div class="flex max-w-[62ch] flex-col gap-3">
-			<a href="/" class="inline-flex items-center gap-2.5 text-text no-underline">
+			<a
+				href="/"
+				class="inline-flex cursor-pointer items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+				aria-label="Mandala home"
+			>
 				<BrandMark />
 				<span class="font-serif text-[1.25rem] font-[560]">Mandala</span>
 			</a>
