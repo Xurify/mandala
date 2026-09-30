@@ -1,6 +1,8 @@
 <script lang="ts">
+	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info, POS } from '$lib/chart/model';
+	import { goalTypeMin, largestFittingSize } from './goal-fit';
 	import Icon from './Icon.svelte';
 	import InkPad from './InkPad.svelte';
 	import { cn } from './ui/cn';
@@ -95,40 +97,143 @@
 		}
 	}
 
-	function centerGoalText(_text: string) {
-		return (node: HTMLTextAreaElement) => {
-			let frame = 0;
-			const apply = (): void => {
-				node.style.paddingTop = '0px';
-				node.style.paddingBottom = '0px';
-				node.style.height = 'auto';
-				node.style.aspectRatio = 'auto';
-				const contentHeight = node.scrollHeight;
-				node.style.height = '';
-				node.style.aspectRatio = '';
-				const room = node.clientHeight - contentHeight;
-				const top = room / 2;
-				if (top >= 26) {
-					node.style.paddingTop = `${top}px`;
-					node.style.paddingBottom = `${top}px`;
-				} else {
-					node.style.paddingTop = '26px';
-					node.style.paddingBottom = '10px';
-				}
-			};
-			const schedule = (): void => {
-				cancelAnimationFrame(frame);
-				frame = requestAnimationFrame(apply);
-			};
-			schedule();
-			const observer = new ResizeObserver(schedule);
-			observer.observe(node);
-			return () => {
-				cancelAnimationFrame(frame);
-				observer.disconnect();
-			};
+	const GOAL_PAD_TOP = 26;
+	const GOAL_PAD_BOTTOM = 10;
+
+	const fitGoalField: Attachment = (element) => {
+		if (!(element instanceof HTMLTextAreaElement)) return;
+		const host = element.parentElement;
+		let frame = 0;
+
+		const contentHeight = (): number => {
+			element.style.height = 'auto';
+			element.style.aspectRatio = 'auto';
+			const height = element.scrollHeight;
+			element.style.height = '';
+			element.style.aspectRatio = '';
+			return height;
 		};
-	}
+
+		const syncColor = (): void => {
+			const hide = element.hasAttribute('data-clamped') && document.activeElement !== element;
+			element.style.color = hide ? 'transparent' : '';
+		};
+
+		const apply = (): void => {
+			element.style.fontSize = '';
+			element.style.paddingTop = `${GOAL_PAD_TOP}px`;
+			element.style.paddingBottom = `${GOAL_PAD_BOTTOM}px`;
+			element.removeAttribute('data-clamped');
+			host?.removeAttribute('data-goal-clamped');
+			if (element.clientHeight <= 0) {
+				syncColor();
+				return;
+			}
+
+			const max = parseFloat(getComputedStyle(element).fontSize);
+			if (!Number.isFinite(max) || max <= 0 || element.value.trim() === '') {
+				centerShortText();
+				syncColor();
+				return;
+			}
+
+			const min = goalTypeMin(max);
+			const fits = (size: number): boolean => {
+				element.style.fontSize = `${size}px`;
+				return contentHeight() <= element.clientHeight + 1;
+			};
+			const chosen = largestFittingSize(min, max, fits);
+			const clamped = !fits(min);
+			element.style.fontSize = chosen >= max - 0.25 ? '' : `${chosen.toFixed(2)}px`;
+
+			if (clamped) {
+				element.style.paddingTop = `${GOAL_PAD_TOP}px`;
+				element.style.paddingBottom = `${GOAL_PAD_BOTTOM}px`;
+				element.setAttribute('data-clamped', '');
+				host?.setAttribute('data-goal-clamped', '');
+				host?.style.setProperty('--goal-fit', getComputedStyle(element).fontSize);
+				const clamp = host?.querySelector<HTMLElement>(':scope > .goal-clamp');
+				if (clamp) {
+					const counter = element.value.length >= 100 ? 22 : 0;
+					clamp.style.display = '-webkit-box';
+					clamp.style.webkitBoxOrient = 'vertical';
+					clamp.style.overflow = 'hidden';
+					clamp.style.paddingBottom = `${GOAL_PAD_BOTTOM + counter}px`;
+					const style = getComputedStyle(clamp);
+					const line = parseFloat(style.lineHeight);
+					const inner =
+						clamp.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+					let lines = Math.max(
+						1,
+						Math.floor(inner / (Number.isFinite(line) && line > 0 ? line : chosen))
+					);
+					clamp.style.webkitLineClamp = String(lines);
+					if (clamp.scrollHeight > clamp.clientHeight + 1 && lines > 1) {
+						lines -= 1;
+						clamp.style.webkitLineClamp = String(lines);
+					}
+				}
+				syncColor();
+				return;
+			}
+
+			host?.style.removeProperty('--goal-fit');
+			const clamp = host?.querySelector<HTMLElement>(':scope > .goal-clamp');
+			if (clamp) {
+				clamp.style.display = '';
+				clamp.style.removeProperty('-webkit-line-clamp');
+				clamp.style.paddingBottom = '';
+			}
+
+			centerShortText();
+			syncColor();
+		};
+
+		const centerShortText = (): void => {
+			element.style.paddingTop = '0px';
+			element.style.paddingBottom = '0px';
+			const room = element.clientHeight - contentHeight();
+			const top = room / 2;
+			if (top >= GOAL_PAD_TOP) {
+				element.style.paddingTop = `${top}px`;
+				element.style.paddingBottom = `${top}px`;
+			} else {
+				element.style.paddingTop = `${GOAL_PAD_TOP}px`;
+				element.style.paddingBottom = `${GOAL_PAD_BOTTOM}px`;
+			}
+		};
+
+		const schedule = (): void => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(() => {
+				frame = requestAnimationFrame(apply);
+			});
+		};
+
+		schedule();
+		const resizeObserver = new ResizeObserver(schedule);
+		resizeObserver.observe(host ?? element);
+		window.addEventListener('resize', schedule);
+		element.addEventListener('focus', schedule);
+		element.addEventListener('blur', schedule);
+		const textObserver = new MutationObserver(schedule);
+		textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
+		return () => {
+			cancelAnimationFrame(frame);
+			resizeObserver.disconnect();
+			textObserver.disconnect();
+			window.removeEventListener('resize', schedule);
+			element.removeEventListener('focus', schedule);
+			element.removeEventListener('blur', schedule);
+			element.style.color = '';
+			element.style.fontSize = '';
+			element.style.paddingTop = '';
+			element.style.paddingBottom = '';
+			element.removeAttribute('data-clamped');
+			host?.removeAttribute('data-goal-clamped');
+			host?.style.removeProperty('--goal-fit');
+		};
+	};
 </script>
 
 <div class="rounded-[30px] bg-surface p-6 shadow-card max-[900px]:rounded-[26px] max-[900px]:px-3.5 max-[900px]:py-[18px]">
@@ -281,7 +386,7 @@
 						class={cn(
 							'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
 							info(chart.sel, cellIndex).type === 'goal' &&
-								'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px]',
+								'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 							info(chart.sel, cellIndex).type === 'pillar' &&
 								'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
 							info(chart.sel, cellIndex).type === 'action' &&
@@ -296,16 +401,25 @@
 						aria-label={describe(chart.sel, cellIndex)}
 						placeholder={placeholder(cellIndex)}
 						value={chart.textOf(cellKey(chart.sel, cellIndex))}
-						{@attach info(chart.sel, cellIndex).type === 'goal'
-							? centerGoalText(chart.textOf(cellKey(chart.sel, cellIndex)))
+						data-fit={info(chart.sel, cellIndex).type === 'goal'
+							? chart.textOf(cellKey(chart.sel, cellIndex))
 							: undefined}
+						{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : undefined}
 						onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
 						oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
 						onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
 						onpointerleave={handleFieldPointerLeave}
 					></textarea>
+					{#if info(chart.sel, cellIndex).type === 'goal'}
+						<span
+							class="goal-clamp pointer-events-none absolute inset-0 z-[1] px-4 text-center font-serif text-[length:var(--goal-fit,17px)] leading-[1.35] font-[520] text-goal-fg opacity-0 max-[900px]:px-2 max-[900px]:text-[length:var(--goal-fit,15px)] max-[900px]:leading-[1.25] [[data-goal-clamped]:not(:focus-within)_&]:opacity-100"
+							style:padding-top="{GOAL_PAD_TOP}px"
+							style:padding-bottom="{GOAL_PAD_BOTTOM}px"
+							aria-hidden="true">{chart.textOf(cellKey(chart.sel, cellIndex))}</span
+						>
+					{/if}
 					{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
-						<span class="pointer-events-none absolute right-2 bottom-2 rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
+						<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
 							{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
 						</span>
 					{/if}

@@ -3,10 +3,8 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { drawStrokes } from '$lib/chart/ink';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
+	import { goalTypeMin, largestFittingSize } from './goal-fit';
 	import { cn } from './ui/cn';
-
-	const GOAL_TYPE_FLOOR = 0.7;
-	const GOAL_TYPE_MIN_PX = 11;
 
 	let {
 		mode = 'split',
@@ -170,27 +168,13 @@
 				return;
 			}
 
-			const min = Math.min(max, Math.max(GOAL_TYPE_MIN_PX, max * GOAL_TYPE_FLOOR));
+			const min = goalTypeMin(max);
 			const fits = (size: number): boolean => {
 				element.style.fontSize = `${size}px`;
 				return element.scrollHeight <= available + 1;
 			};
 
-			let chosen = max;
-			if (!fits(max)) {
-				if (!fits(min)) {
-					chosen = min;
-				} else {
-					let low = min;
-					let high = max;
-					for (let step = 0; step < 8; step += 1) {
-						const mid = (low + high) / 2;
-						if (fits(mid)) low = mid;
-						else high = mid;
-					}
-					chosen = low;
-				}
-			}
+			const chosen = largestFittingSize(min, max, fits);
 
 			element.style.display = '';
 			element.style.overflow = '';
