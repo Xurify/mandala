@@ -258,6 +258,153 @@ export function parseChart(raw: string): ChartData | null {
 	}
 }
 
+export function parseText(raw: string): ChartData | null {
+	if (!raw || typeof raw !== 'string') return null;
+	const trimmed = raw.trim();
+	if (!trimmed) return null;
+
+	if (trimmed.startsWith('{') || (trimmed.includes('{') && trimmed.includes('}'))) {
+		const jsonParsed = parseChart(trimmed);
+		if (jsonParsed) return jsonParsed;
+
+		const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+		const candidateText = fencedMatch?.[1]?.trim() ?? trimmed;
+		const startIndex = candidateText.indexOf('{');
+		const endIndex = candidateText.lastIndexOf('}');
+		if (startIndex >= 0 && endIndex > startIndex) {
+			const candidateParsed = parseChart(candidateText.slice(startIndex, endIndex + 1));
+			if (candidateParsed) return candidateParsed;
+		}
+	}
+
+	const isIgnoredPlaceholder = (value: string): boolean => {
+		const normalized = value.trim().toLowerCase();
+		return (
+			normalized === '(not set)' ||
+			normalized === '(unnamed)' ||
+			normalized === UNREAD_LABEL.toLowerCase() ||
+			normalized === '(handwriting, not read yet)' ||
+			normalized === '(handwriting)' ||
+			normalized === '(empty)'
+		);
+	};
+
+	const sanitizeEntry = (value: string): string => {
+		if (isIgnoredPlaceholder(value)) return '';
+		return value.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX);
+	};
+
+	const lines = trimmed.split(/\r?\n/);
+	const data = emptyChart();
+
+	let currentPillarIndex = -1;
+	let nextAvailablePillarIndex = 0;
+	let foundExplicitStructure = false;
+
+	for (const originalLine of lines) {
+		const trimmedLine = originalLine.trim();
+		if (!trimmedLine) continue;
+
+		const goalMatch = trimmedLine.match(/^(?:#+\s*)?(?:goal|aim|target)\s*[:=\-]\s*(.*)$/i);
+		if (goalMatch) {
+			data.goal = sanitizeEntry(goalMatch[1] ?? '');
+			foundExplicitStructure = true;
+			currentPillarIndex = -1;
+			continue;
+		}
+
+		if (currentPillarIndex < 0 && trimmedLine.startsWith('# ')) {
+			data.goal = sanitizeEntry(trimmedLine.slice(2));
+			foundExplicitStructure = true;
+			continue;
+		}
+
+		const pillarPrefixMatch = trimmedLine.match(
+			/^(?:#+\s*)?pillar\s*(?:(\d+)\b)?\s*[:.\-]?\s*(.*)$/i
+		);
+		const markdownHeadingMatch = !pillarPrefixMatch
+			? trimmedLine.match(/^##+\s*(?:(\d+)\s*[:.)\-]\s*)?(.*)$/)
+			: null;
+
+		if (pillarPrefixMatch || markdownHeadingMatch) {
+			const numberString = pillarPrefixMatch
+				? pillarPrefixMatch[1]
+				: markdownHeadingMatch?.[1];
+			const titleString = pillarPrefixMatch
+				? pillarPrefixMatch[2]
+				: markdownHeadingMatch?.[2];
+
+			let targetPillarIndex: number;
+			if (numberString) {
+				const parsedNumber = parseInt(numberString, 10);
+				if (parsedNumber >= 1 && parsedNumber <= 8) {
+					targetPillarIndex = parsedNumber - 1;
+				} else {
+					targetPillarIndex = Math.min(nextAvailablePillarIndex, 7);
+				}
+			} else {
+				targetPillarIndex = Math.min(nextAvailablePillarIndex, 7);
+			}
+
+			currentPillarIndex = targetPillarIndex;
+			nextAvailablePillarIndex = Math.max(nextAvailablePillarIndex, targetPillarIndex + 1);
+
+			const cleanedTitle = sanitizeEntry(titleString ?? '');
+			if (cleanedTitle) {
+				data.pillars[currentPillarIndex] = cleanedTitle;
+			}
+			foundExplicitStructure = true;
+			continue;
+		}
+
+		const numberedPillarMatch = originalLine.match(/^(\d+)\s*[:.)\-]\s+(.+)$/);
+		if (
+			numberedPillarMatch &&
+			(currentPillarIndex < 0 ||
+				(data.actions[currentPillarIndex]?.filter(Boolean).length ?? 0) >= 8)
+		) {
+			const parsedNumber = parseInt(numberedPillarMatch[1] ?? '', 10);
+			if (parsedNumber >= 1 && parsedNumber <= 8) {
+				currentPillarIndex = parsedNumber - 1;
+				nextAvailablePillarIndex = Math.max(nextAvailablePillarIndex, currentPillarIndex + 1);
+				const cleanedTitle = sanitizeEntry(numberedPillarMatch[2] ?? '');
+				if (cleanedTitle) {
+					data.pillars[currentPillarIndex] = cleanedTitle;
+				}
+				foundExplicitStructure = true;
+				continue;
+			}
+		}
+
+		if (currentPillarIndex >= 0 && currentPillarIndex < 8) {
+			const bulletMatch = trimmedLine.match(/^(?:[-*•+—]|(?:\d+[.)]|\(\d+\)|\[\d+\]))\s+(.*)$/);
+			const rawAction = bulletMatch ? bulletMatch[1]! : trimmedLine;
+			const cleanedAction = sanitizeEntry(rawAction);
+
+			const actionRow = data.actions[currentPillarIndex]!;
+			const emptySlotIndex = actionRow.findIndex((action) => action === '');
+			if (emptySlotIndex >= 0 && emptySlotIndex < 8) {
+				actionRow[emptySlotIndex] = cleanedAction;
+			}
+			foundExplicitStructure = true;
+		}
+	}
+
+	if (!foundExplicitStructure) {
+		return null;
+	}
+
+	if (
+		!data.goal.trim() &&
+		!data.pillars.some((pillar) => pillar.trim()) &&
+		!data.actions.some((row) => row.some((action) => action.trim()))
+	) {
+		return null;
+	}
+
+	return data;
+}
+
 export function exportJson(data: ChartData): string {
 	return JSON.stringify(data, null, 2);
 }

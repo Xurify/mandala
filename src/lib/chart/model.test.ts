@@ -9,6 +9,7 @@ import {
 	filledCount,
 	needsRead,
 	parseChart,
+	parseText,
 	progressMilestones,
 	searchHits,
 	setByKey,
@@ -93,6 +94,93 @@ describe('exportText', () => {
 		const data = emptyChart();
 		data.ink.g = [[1, 2, 3]];
 		expect(exportText(data)).toContain('(handwriting, not read yet)');
+	});
+});
+
+describe('parseText', () => {
+	it('returns null for empty or non-chart text', () => {
+		expect(parseText('')).toBeNull();
+		expect(parseText('   \n  ')).toBeNull();
+		expect(parseText('just some random prose with no chart structure')).toBeNull();
+	});
+
+	it('round-trips an exported chart text perfectly', () => {
+		const originalData = buildChart(getPreset('fitness')!);
+		const exported = exportText(originalData);
+		const parsed = parseText(exported);
+		expect(parsed).not.toBeNull();
+		expect(parsed?.goal).toBe(originalData.goal);
+		expect(parsed?.pillars).toEqual(originalData.pillars);
+		expect(parsed?.actions).toEqual(originalData.actions);
+	});
+
+	it('parses markdown headings format', () => {
+		const markdown = `
+# Launch side project
+
+## Pillar 1: Validation
+- Talk to 10 users
+- Create sign-up page
+
+## Pillar 2: Prototype
+- Write MVP
+`;
+		const parsed = parseText(markdown);
+		expect(parsed).not.toBeNull();
+		expect(parsed?.goal).toBe('Launch side project');
+		expect(parsed?.pillars[0]).toBe('Validation');
+		expect(parsed?.actions[0]?.[0]).toBe('Talk to 10 users');
+		expect(parsed?.actions[0]?.[1]).toBe('Create sign-up page');
+		expect(parsed?.pillars[1]).toBe('Prototype');
+		expect(parsed?.actions[1]?.[0]).toBe('Write MVP');
+	});
+
+	it('handles sparse charts and custom pillar indices', () => {
+		const text = `
+Goal: Master chess
+
+Pillar 1: Tactics
+- Puzzle rush daily
+
+Pillar 8: Mindset
+- Review lost games
+`;
+		const parsed = parseText(text);
+		expect(parsed).not.toBeNull();
+		expect(parsed?.goal).toBe('Master chess');
+		expect(parsed?.pillars[0]).toBe('Tactics');
+		expect(parsed?.actions[0]?.[0]).toBe('Puzzle rush daily');
+		expect(parsed?.pillars[7]).toBe('Mindset');
+		expect(parsed?.actions[7]?.[0]).toBe('Review lost games');
+		expect(parsed?.pillars[1]).toBe('');
+	});
+
+	it('parses JSON data when pasted as text', () => {
+		const originalData = buildChart(getPreset('language')!);
+		const jsonString = exportJson(originalData);
+		const parsed = parseText(jsonString);
+		expect(parsed).not.toBeNull();
+		expect(parsed?.goal).toBe(originalData.goal);
+		expect(parsed?.pillars).toEqual(originalData.pillars);
+	});
+
+	it('ignores unread and unnamed placeholders', () => {
+		const text = `
+Goal: (handwriting, not read yet)
+
+Pillar 1: (unnamed)
+- (handwriting, not read yet)
+
+Pillar 2: Real pillar
+- Real action
+`;
+		const parsed = parseText(text);
+		expect(parsed).not.toBeNull();
+		expect(parsed?.goal).toBe('');
+		expect(parsed?.pillars[0]).toBe('');
+		expect(parsed?.actions[0]?.[0]).toBe('');
+		expect(parsed?.pillars[1]).toBe('Real pillar');
+		expect(parsed?.actions[1]?.[0]).toBe('Real action');
 	});
 });
 

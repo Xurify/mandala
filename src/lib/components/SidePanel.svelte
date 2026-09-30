@@ -23,14 +23,6 @@
 		return chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
 	});
 
-	const panelSub = $derived.by(() => {
-		if (chart.sel === 4) {
-			return chart.data.goal.trim() ? '' : 'Eight pillars around this goal.';
-		}
-		const pillarIndex = idx(chart.sel);
-		return chart.data.pillars[pillarIndex]?.trim() ? '' : 'Eight actions for this pillar.';
-	});
-
 	const currentPillarActionsCount = $derived(
 		chart.sel === 4 ? null : (chart.milestones.pillarActionCounts[idx(chart.sel)] ?? 0)
 	);
@@ -321,10 +313,7 @@
 			{/if}
 		</div>
 
-		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem] {panelSub ? 'mb-1.5' : 'mb-3.5 max-[900px]:mb-3'}">{panelTitle}</h2>
-		{#if panelSub}
-			<p class="mb-5 text-[0.92rem] leading-[1.45] text-pretty text-muted max-[900px]:mb-4 max-[900px]:text-[0.86rem]">{panelSub}</p>
-		{/if}
+		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 	</div>
 
 	<div class="mb-4 flex flex-wrap items-center gap-x-3.5 gap-y-2">

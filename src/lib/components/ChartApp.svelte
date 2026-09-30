@@ -3,21 +3,20 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import {
 		blockOfKey,
-		CELL_COUNT,
-		exportFilename,
-		exportJson,
 		getByKey,
 		labelOfKey,
 		parseChart,
+		parseText,
 		type ChartData
 	} from '$lib/chart/model';
-	import { exportChartPng } from '$lib/chart/export-image';
 	import { readUnreadInk } from '$lib/chart/ocr';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
 	import type { Preset } from '$lib/chart/presets';
 	import BrandMark from './BrandMark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import DraftDialog from './DraftDialog.svelte';
+	import ExportDialog from './ExportDialog.svelte';
+	import ImportDialog from './ImportDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
 	import MethodGuide from './MethodGuide.svelte';
 	import PresetPicker from './PresetPicker.svelte';
@@ -46,13 +45,14 @@
 		{ value: 'large', label: 'Large', icon: 'maximize' as const, title: 'Enlarge chart for maximum text readability' }
 	];
 
-	let fileInputElement: HTMLInputElement | null = $state(null);
 	let isDraggingFile = $state(false);
 	let dragCounter = 0;
 	let isMobile = $state(false);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let draftOpen = $state(false);
 	let presetOpen = $state(false);
+	let importOpen = $state(false);
+	let exportOpen = $state(false);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -121,30 +121,22 @@
 		chart.setViewMode('edit');
 	}
 
-	function handleExportChart() {
-		exportChartFile();
-	}
-
-	async function handleExportPoster() {
-		chart.say('Generating high-resolution poster…', true);
-		try {
-			await exportChartPng(chart.data);
-			chart.say('Poster exported.');
-		} catch (error) {
-			chart.say('Failed to generate poster image.');
-		}
-	}
-
 	function handlePrintChart() {
 		window.print();
 	}
 
-	function handleImportClick() {
-		fileInputElement?.click();
+	function handleOpenExport(): void {
+		exportOpen = true;
 	}
 
-	function handleCopyAsText() {
-		copyText();
+	function handleOpenImport(): void {
+		importOpen = true;
+	}
+
+	function handleApplyImport(data: ChartData): void {
+		if (chart.importChart(data, 'Chart imported.')) {
+			importOpen = false;
+		}
 	}
 
 	function handleClearChart() {
@@ -223,42 +215,16 @@
 		return value === 'fit' || value === 'large';
 	}
 
-	function exportChartFile() {
-		const jsonContent = exportJson(chart.data);
-		const filename = exportFilename(chart.data);
-		const blob = new Blob([jsonContent], { type: 'application/json' });
-		const downloadUrl = URL.createObjectURL(blob);
-		const downloadLink = document.createElement('a');
-		downloadLink.href = downloadUrl;
-		downloadLink.download = filename;
-		downloadLink.click();
-		URL.revokeObjectURL(downloadUrl);
-		chart.say(`Exported as ${filename}`);
-	}
 
-	function importChartText(content: string): boolean {
-		const parsedChart = parseChart(content);
+	function importChartContent(content: string): boolean {
+		const parsedChart = parseChart(content) ?? parseText(content);
 		if (!parsedChart) {
-			chart.say('Invalid chart file. Please choose a valid Mandala JSON file.');
+			chart.say('Invalid chart file. Please choose a valid JSON or text chart.');
 			return false;
 		}
 		return chart.importChart(parsedChart);
 	}
 
-	async function handleFileImport(event: Event) {
-		const target = event.currentTarget as HTMLInputElement;
-		const file = target.files?.[0];
-		if (!file) return;
-
-		try {
-			const text = await file.text();
-			importChartText(text);
-		} catch {
-			chart.say('Failed to read the imported file.');
-		} finally {
-			target.value = '';
-		}
-	}
 
 	function handleDragEnter(event: DragEvent) {
 		event.preventDefault();
@@ -288,14 +254,17 @@
 		const file = event.dataTransfer?.files?.[0];
 		if (!file) return;
 
-		if (!file.name.endsWith('.json') && file.type !== 'application/json') {
-			chart.say('Please drop a valid .json file.');
+		const isJson = file.name.endsWith('.json') || file.type === 'application/json';
+		const isText = file.name.endsWith('.txt') || file.type === 'text/plain';
+
+		if (!isJson && !isText) {
+			chart.say('Please drop a valid .json or .txt file.');
 			return;
 		}
 
 		try {
 			const text = await file.text();
-			importChartText(text);
+			importChartContent(text);
 		} catch {
 			chart.say('Failed to read the dropped file.');
 		}
@@ -316,7 +285,7 @@
 			try {
 				await navigator.clipboard.writeText(text);
 				chart.exportFallback = '';
-				chart.say('Copied to clipboard.');
+				chart.say('Copied as text.');
 			} catch {
 				fallback();
 			}
@@ -393,7 +362,7 @@
 <svelte:document onvisibilitychange={persistHidden} />
 
 <div
-	class="mx-auto max-w-[1180px] pt-[max(24px,env(safe-area-inset-top,24px))] pr-[max(28px,env(safe-area-inset-right,28px))] pb-[calc(128px+env(safe-area-inset-bottom,0px))] pl-[max(28px,env(safe-area-inset-left,28px))] max-[900px]:pt-[max(14px,env(safe-area-inset-top,14px))] max-[900px]:pr-[max(14px,env(safe-area-inset-right,14px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] max-[900px]:pl-[max(14px,env(safe-area-inset-left,14px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class="mx-auto max-w-295 pt-[max(24px,env(safe-area-inset-top,24px))] pr-[max(28px,env(safe-area-inset-right,28px))] pb-[calc(128px+env(safe-area-inset-bottom,0px))] pl-[max(28px,env(safe-area-inset-left,28px))] max-[900px]:pt-[max(14px,env(safe-area-inset-top,14px))] max-[900px]:pr-[max(14px,env(safe-area-inset-right,14px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] max-[900px]:pl-[max(14px,env(safe-area-inset-left,14px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
@@ -438,10 +407,8 @@
 
 			<Menu label="More actions">
 				<MenuItem icon="printer" badge="Ctrl+P" onclick={handlePrintChart}>Print chart</MenuItem>
-				<MenuItem icon="image" badge=".png" onclick={handleExportPoster}>Export poster</MenuItem>
-				<MenuItem icon="download" badge=".json" onclick={handleExportChart}>Export data</MenuItem>
-				<MenuItem icon="upload" badge=".json" onclick={handleImportClick}>Import data</MenuItem>
-				<MenuItem icon="copy" onclick={handleCopyAsText}>Copy as text</MenuItem>
+				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
+				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				<MenuDivider />
 				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
 					<span class="text-muted">Theme</span>
@@ -496,15 +463,8 @@
 
 		<DraftDialog bind:open={draftOpen} onapply={handleApplyDraft} />
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
-		<input
-			bind:this={fileInputElement}
-			type="file"
-			accept=".json,application/json"
-			class="sr-only"
-			tabindex="-1"
-			aria-hidden="true"
-			onchange={handleFileImport}
-		/>
+		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
+		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
 	</header>
 
 	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">

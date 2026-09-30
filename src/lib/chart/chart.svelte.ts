@@ -351,8 +351,8 @@ export class ChartStore {
 		this.say('Chart cleared.');
 	}
 
-	importChart(importedData: ChartData): boolean {
-		return this.#fillOrSpawn(importedData, 'Chart imported successfully.');
+	importChart(importedData: ChartData, message = 'Chart imported.'): boolean {
+		return this.#fillOrSpawn(importedData, message);
 	}
 
 	applyDraft(next: ChartData): boolean {
