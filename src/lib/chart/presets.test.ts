@@ -69,8 +69,6 @@ describe('presets', () => {
 		const chart = buildChart(preset!);
 		expect(hasContent(chart)).toBe(true);
 		expect(filledCount(chart)).toBe(73);
-		expect(chart.ink).toEqual({});
-		expect(chart.rd).toEqual({});
 		expect(parseChart(exportJson(chart))).toEqual(chart);
 
 		chart.goal = 'changed';

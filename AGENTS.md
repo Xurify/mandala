@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Mandala is a local-first goal chart (the Harada / Mandal-Art method): one goal in the center, eight pillars around it, eight actions per pillar. Typed or handwritten (in-browser TrOCR). No accounts, no backend. Data stays in `localStorage`.
+Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`.
 
 **Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy.
 
@@ -39,14 +39,13 @@ src/
     presets/                  starter charts
     draft.ts                  "get a prompt" / paste-back flow
     export-image.ts           poster export (canvas)
-    ink.ts, ocr.ts            handwriting strokes + TrOCR
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
     MandalaGrid.svelte        the 9×9 grid
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
-    ChartSwitcher, PresetPicker, DraftDialog, MethodGuide, InkPad, Icon
+    ChartSwitcher, PresetPicker, DraftDialog, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, …). Catalog: /dev/ui
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 ```

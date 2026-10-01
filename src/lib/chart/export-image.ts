@@ -1,11 +1,9 @@
-import { drawStrokes } from './ink.ts';
 import {
 	cellKey,
 	exportFilename,
 	getByKey,
 	HUES,
 	info,
-	inkOf,
 	type ChartData
 } from './model.ts';
 import { oklchToRgb, toHex } from './ring.ts';
@@ -231,7 +229,6 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 			const key = cellKey(blockIndex, cellIndex);
 			const cellInformation = info(blockIndex, cellIndex);
 			const text = getByKey(data, key).trim();
-			const strokes = inkOf(data, key);
 
 			let fillColor = PALETTE.surface;
 			let textColor = PALETTE.ink;
@@ -257,14 +254,8 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 			context.fillStyle = fillColor;
 			context.fill();
 
-			// Render handwriting or text
-			if (strokes.length > 0 && !text) {
-				const inkCanvas = document.createElement('canvas');
-				inkCanvas.width = cellSize * 2;
-				inkCanvas.height = cellSize * 2;
-				drawStrokes(inkCanvas, strokes, textColor, 2);
-				context.drawImage(inkCanvas, cellX, cellY, cellSize, cellSize);
-			} else if (text) {
+			// Render text
+			if (text) {
 				context.save();
 				drawRoundedRectangle(context, cellX, cellY, cellSize, cellSize, cornerRadius);
 				context.clip();

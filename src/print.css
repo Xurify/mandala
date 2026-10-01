@@ -160,7 +160,7 @@
 		opacity: 1 !important;
 	}
 
-	.cell.filled:not(.ink-only)::after {
+	.cell.filled::after {
 		display: none !important;
 	}
 
@@ -187,13 +187,5 @@
 
 	.cell.action {
 		color: #2a241d !important;
-	}
-
-	.cell .thumb {
-		display: none;
-	}
-
-	.cell.ink-only .thumb {
-		display: block !important;
 	}
 }

@@ -11,7 +11,6 @@
 		| 'grid'
 		| 'edit'
 		| 'type'
-		| 'ink'
 		| 'printer'
 		| 'image'
 		| 'download'
@@ -101,11 +100,6 @@
 		<polyline points="4 7 4 4 20 4 20 7" />
 		<line x1="12" y1="4" x2="12" y2="20" />
 		<line x1="9" y1="20" x2="15" y2="20" />
-	{:else if name === 'ink'}
-		<path d="M12 19l7-7 3 3-7 7-3-3z" />
-		<path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-		<path d="M2 2l7.586 7.586" />
-		<circle cx="11" cy="11" r="2" />
 	{:else if name === 'printer'}
 		<polyline points="6 9 6 2 18 2 18 9" />
 		<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { drawStrokes } from '$lib/chart/ink';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
 	import { goalTypeMin, largestFittingSize } from './goal-fit';
 	import { cn } from './ui/cn';
@@ -38,7 +37,6 @@
 		const key = cellKey(blockIndex, cellIndex);
 		const text = chart.textOf(key);
 		const hasText = text.trim() !== '';
-		const hasInk = chart.strokesOf(key).length > 0;
 		const query = chart.query.trim().toLowerCase();
 		const hit = query !== '' && text.toLowerCase().includes(query);
 		const cellInformation = info(blockIndex, cellIndex);
@@ -47,7 +45,7 @@
 			chart.hoveredColorIndex !== null &&
 			((type === 'goal' && chart.hoveredColorIndex === -1) ||
 				(type !== 'goal' && cellInformation.k === chart.hoveredColorIndex));
-		const placeholder = !hasText && !hasInk;
+		const placeholder = !hasText;
 
 		return cn(
 			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
@@ -77,7 +75,6 @@
 			hasText &&
 				"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden",
 			hasText ? 'filled' : 'empty',
-			hasInk && !hasText && 'ink-only',
 			hit && 'hit shadow-[inset_0_0_0_2px_var(--ink)]',
 			query !== '' && !hit && 'dim opacity-[0.18]',
 			highlighted && 'highlight'
@@ -119,21 +116,7 @@
 	function aria(blockIndex: number, cellIndex: number): string {
 		const key = cellKey(blockIndex, cellIndex);
 		const text = chart.textOf(key).trim();
-		const hasInk = chart.strokesOf(key).length > 0;
-		return `${describe(blockIndex, cellIndex)}: ${text || (hasInk ? 'handwriting' : 'empty')}`;
-	}
-
-	let grid = $state<HTMLDivElement | null>(null);
-
-	function attachThumb(blockIndex: number, cellIndex: number) {
-		return (canvas: HTMLCanvasElement) => {
-			const key = cellKey(blockIndex, cellIndex);
-			const strokes = chart.strokesOf(key);
-			const text = chart.textOf(key).trim();
-			void chart.themeTick;
-			if (!strokes.length || text) return;
-			drawStrokes(canvas, strokes, getComputedStyle(canvas).color, 2.2);
-		};
+		return `${describe(blockIndex, cellIndex)}: ${text || 'empty'}`;
 	}
 
 	const fitGoalText: Attachment = (element) => {
@@ -205,23 +188,9 @@
 			element.style.removeProperty('-webkit-line-clamp');
 		};
 	};
-
-	function paintThumbs(color?: string) {
-		if (!grid) return;
-		for (const canvas of grid.querySelectorAll<HTMLCanvasElement>('canvas[data-ink-key]')) {
-			const key = canvas.dataset.inkKey;
-			if (!key) continue;
-			const strokes = chart.strokesOf(key);
-			if (!strokes.length || chart.textOf(key).trim()) continue;
-			drawStrokes(canvas, strokes, color ?? getComputedStyle(canvas).color, 2.2);
-		}
-	}
 </script>
 
-<svelte:window onbeforeprint={() => paintThumbs('#1f1b16')} onafterprint={() => paintThumbs()} />
-
 <div
-	bind:this={grid}
 	class={cn(
 		'mandala grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1',
 		view ? 'aspect-square gap-2.5' : 'gap-1.5'
@@ -249,13 +218,6 @@
 						{@attach info(blockIndex, cellIndex).type === 'goal' ? fitGoalText : undefined}
 						>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
 					>
-					<canvas
-						class="thumb pointer-events-none absolute inset-0 hidden size-full [.ink-only_&]:!block"
-						data-ink-key={cellKey(blockIndex, cellIndex)}
-						width="192"
-						height="192"
-						{@attach attachThumb(blockIndex, cellIndex)}
-					></canvas>
 				</button>
 			{/each}
 		</div>

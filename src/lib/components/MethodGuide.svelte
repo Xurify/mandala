@@ -147,7 +147,7 @@
 		daily rewrite of the full chart.
 	</p>
 
-	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Ohtani’s sheet</h3>
+	<h3 class="mt-5.5 mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Ohtani’s sheet</h3>
 	<p class="mb-2.5">
 		Shohei Ohtani filled this same 9×9 as a
 		<a

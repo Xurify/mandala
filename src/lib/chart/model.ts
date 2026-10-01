@@ -12,11 +12,8 @@ export const POS = [
 export const STORAGE_KEY = 'mandala-goal-chart-v1';
 export const CELL_COUNT = 73;
 export const TEXT_MAX = 120;
-export const UNREAD_LABEL = '(handwriting, not read yet)';
 
 export type CellType = 'goal' | 'pillar' | 'action';
-export type ReadFlag = 'ink' | 'stale' | 'kept';
-export type InputMode = 'type' | 'ink';
 
 export type CellInfo =
 	| { type: 'goal' }
@@ -27,17 +24,13 @@ export type ChartData = {
 	goal: string;
 	pillars: string[];
 	actions: string[][];
-	ink: Record<string, number[][]>;
-	rd: Record<string, ReadFlag>;
 };
 
 export function emptyChart(): ChartData {
 	return {
 		goal: '',
 		pillars: Array.from({ length: 8 }, () => ''),
-		actions: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => '')),
-		ink: {},
-		rd: {}
+		actions: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => ''))
 	};
 }
 
@@ -125,22 +118,6 @@ export function placeholderFor(sel: number, c: number): string {
 	return `Action ${idx(c) + 1}`;
 }
 
-export function inkOf(data: ChartData, key: string): number[][] {
-	return data.ink[key] ?? [];
-}
-
-export function needsRead(data: ChartData, key: string): boolean {
-	if (!inkOf(data, key).length) return false;
-	const r = data.rd[key];
-	if (r === 'stale') return true;
-	if (r === 'ink' || r === 'kept') return false;
-	return getByKey(data, key).trim() === '';
-}
-
-export function unreadKeys(data: ChartData): string[] {
-	return allKeys().filter((k) => needsRead(data, k));
-}
-
 export type Milestones = {
 	goalSet: boolean;
 	pillarsCount: number;
@@ -150,12 +127,10 @@ export type Milestones = {
 };
 
 export function progressMilestones(data: ChartData): Milestones {
-	const goalSet = data.goal.trim() !== '' || (data.ink['g']?.length ?? 0) > 0;
+	const goalSet = data.goal.trim() !== '';
 	let pillarsCount = 0;
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
-		const hasText = (data.pillars[pillarIndex] ?? '').trim() !== '';
-		const hasInk = (data.ink[`p${pillarIndex}`]?.length ?? 0) > 0;
-		if (hasText || hasInk) pillarsCount++;
+		if ((data.pillars[pillarIndex] ?? '').trim() !== '') pillarsCount++;
 	}
 
 	const pillarActionCounts: number[] = [];
@@ -166,8 +141,7 @@ export function progressMilestones(data: ChartData): Milestones {
 		let currentPillarActions = 0;
 		for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
 			const actionText = data.actions[pillarIndex]?.[actionIndex]?.trim() ?? '';
-			const actionInk = data.ink[`a${pillarIndex}_${actionIndex}`]?.length ?? 0;
-			if (actionText !== '' || actionInk > 0) {
+			if (actionText !== '') {
 				currentPillarActions++;
 			}
 		}
@@ -190,7 +164,7 @@ export function progressMilestones(data: ChartData): Milestones {
 export function filledCount(data: ChartData): number {
 	let count = 0;
 	for (const key of allKeys()) {
-		if (getByKey(data, key).trim() || inkOf(data, key).length) count++;
+		if (getByKey(data, key).trim()) count++;
 	}
 	return count;
 }
@@ -204,8 +178,7 @@ export function searchHits(data: ChartData, query: string): string[] {
 export function hasContent(data: ChartData): boolean {
 	if (data.goal.trim()) return true;
 	if (data.pillars.some((pillar) => pillar.trim())) return true;
-	if (data.actions.some((row) => row.some((action) => action.trim()))) return true;
-	return Object.keys(data.ink).length > 0;
+	return data.actions.some((row) => row.some((action) => action.trim()));
 }
 
 export function parseChart(raw: string): ChartData | null {
@@ -228,30 +201,10 @@ export function parseChart(raw: string): ChartData | null {
 			return null;
 		}
 
-		const ink: Record<string, number[][]> = {};
-		if (record.ink && typeof record.ink === 'object') {
-			for (const [key, value] of Object.entries(record.ink as Record<string, unknown>)) {
-				if (Array.isArray(value) && value.every((stroke) => Array.isArray(stroke))) {
-					ink[key] = value as number[][];
-				}
-			}
-		}
-
-		const readStatus: Record<string, ReadFlag> = {};
-		if (record.rd && typeof record.rd === 'object') {
-			for (const [key, flag] of Object.entries(record.rd as Record<string, unknown>)) {
-				if (flag === 'ink' || flag === 'stale' || flag === 'kept') {
-					readStatus[key] = flag;
-				}
-			}
-		}
-
 		return {
 			goal: record.goal,
 			pillars: record.pillars as string[],
-			actions: record.actions as string[][],
-			ink,
-			rd: readStatus
+			actions: record.actions as string[][]
 		};
 	} catch {
 		return null;
@@ -282,9 +235,6 @@ export function parseText(raw: string): ChartData | null {
 		return (
 			normalized === '(not set)' ||
 			normalized === '(unnamed)' ||
-			normalized === UNREAD_LABEL.toLowerCase() ||
-			normalized === '(handwriting, not read yet)' ||
-			normalized === '(handwriting)' ||
 			normalized === '(empty)'
 		);
 	};
@@ -420,30 +370,15 @@ export function exportFilename(data: ChartData): string {
 
 export function exportText(data: ChartData): string {
 	const lines: string[] = [];
-	lines.push(
-		`Goal: ${data.goal.trim() || (inkOf(data, 'g').length ? UNREAD_LABEL : '(not set)')}`
-	);
-	data.pillars.forEach((p, k) => {
-		const acts = data.actions[k]!
-			.map((a, j) => a.trim() || (inkOf(data, `a${k}_${j}`).length ? UNREAD_LABEL : ''))
+	lines.push(`Goal: ${data.goal.trim() || '(not set)'}`);
+	data.pillars.forEach((pillarText, pillarIndex) => {
+		const actions = data.actions[pillarIndex]!
+			.map((action) => action.trim())
 			.filter(Boolean);
-		if (!p.trim() && !acts.length && !inkOf(data, `p${k}`).length) return;
+		if (!pillarText.trim() && !actions.length) return;
 		lines.push('');
-		lines.push(
-			`Pillar ${k + 1}: ${p.trim() || (inkOf(data, `p${k}`).length ? UNREAD_LABEL : '(unnamed)')}`
-		);
-		acts.forEach((a) => lines.push(`  - ${a.trim()}`));
+		lines.push(`Pillar ${pillarIndex + 1}: ${pillarText.trim() || '(unnamed)'}`);
+		actions.forEach((action) => lines.push(`  - ${action.trim()}`));
 	});
 	return lines.join('\n');
-}
-
-export function inkChanged(data: ChartData, key: string): void {
-	const r = data.rd[key];
-	if (r === 'ink') data.rd[key] = 'stale';
-	else if (r === 'kept') delete data.rd[key];
-}
-
-export function markCaptionKept(data: ChartData, key: string): void {
-	const r = data.rd[key];
-	if (r === 'ink' || r === 'stale') data.rd[key] = 'kept';
 }

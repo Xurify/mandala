@@ -113,9 +113,9 @@
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Notice</Eyebrow>
 		<Notice>
-			Handwriting is ready to read.
+			A notification or guidance note for your chart.
 			{#snippet action()}
-				<Button size="sm" onclick={() => chart.say('Read started')}>Read</Button>
+				<Button size="sm" onclick={() => chart.say('Action confirmed')}>Action</Button>
 			{/snippet}
 		</Notice>
 	</Card>

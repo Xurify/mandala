@@ -72,7 +72,7 @@
 						{isExportingPng ? 'Generating poster…' : 'Poster image'}
 					</span>
 					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
-						High-resolution graphic with the 9×9 grid and handwriting.
+						High-resolution graphic with the complete 9×9 grid.
 					</span>
 				</div>
 			</div>
@@ -93,7 +93,7 @@
 				<div class="flex min-w-0 flex-col gap-0.5">
 					<span class="text-[0.92rem] font-[620]">Data backup</span>
 					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
-						Complete chart data including handwriting strokes.
+						Complete chart data in JSON format for backup or transfer.
 					</span>
 				</div>
 			</div>

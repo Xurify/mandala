@@ -24,7 +24,6 @@ describe('chartFromDraft', () => {
 		expect(chart?.goal).toBe(sample.goal);
 		expect(chart?.pillars).toHaveLength(8);
 		expect(chart?.actions[3]).toHaveLength(8);
-		expect(chart?.ink).toEqual({});
 	});
 
 	it('rejects a short action row', () => {

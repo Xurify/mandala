@@ -17,9 +17,6 @@ export default defineConfig({
 			}
 		})
 	],
-	optimizeDeps: {
-		exclude: ['@xenova/transformers']
-	},
 	test: {
 		include: ['src/**/*.test.ts']
 	}

@@ -9,7 +9,6 @@
 		parseText,
 		type ChartData
 	} from '$lib/chart/model';
-	import { readUnreadInk } from '$lib/chart/ocr';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
 	import type { Preset } from '$lib/chart/presets';
 	import BrandMark from './BrandMark.svelte';
@@ -31,7 +30,6 @@
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
 	import MenuItem from './ui/MenuItem.svelte';
-	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 
 	const themes = [
@@ -56,16 +54,6 @@
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
-	const noticeOn = $derived(chart.reading || chart.unread.length > 0);
-	const noticeText = $derived.by(() => {
-		if (chart.reading) return 'Reading handwriting…';
-		const unreadCount = chart.unread.length;
-		if (!unreadCount) return '';
-		return (
-			`${unreadCount} handwritten note${unreadCount === 1 ? ' isn’t' : 's aren’t'} searchable yet.` +
-			' First read downloads a handwriting model (~120MB) to this device.'
-		);
-	});
 
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
@@ -292,41 +280,6 @@
 		} else fallback();
 	}
 
-	async function onRead() {
-		if (chart.reading) {
-			chart.stopRead();
-			return;
-		}
-		const keys = chart.unread;
-		if (!keys.length) return;
-		const signal = chart.beginRead();
-		const result = await readUnreadInk(
-			keys.map((key) => ({ key, strokes: chart.strokesOf(key) })),
-			signal
-		);
-		if (signal.aborted || result.failed === 'cancelled') {
-			chart.reading = false;
-			chart.say('Stopped.');
-			return;
-		}
-		let done = 0;
-		let missed = 0;
-		for (const [key, text] of result.texts) {
-			if (!text) missed++;
-			else if (chart.applyRead(key, text)) done++;
-			else missed++;
-		}
-		chart.saveNow();
-		chart.reading = false;
-		let message = `Read ${done} note${done === 1 ? '.' : 's.'}`;
-		if (missed) message += ` ${missed} ${missed === 1 ? 'was' : 'were'} too unclear to read.`;
-		if (result.failed === 'offline') {
-			message += ' Need a connection the first time to download the handwriting model.';
-		} else if (result.failed) {
-			message += ' Something went wrong. Try again.';
-		}
-		chart.say(message);
-	}
 
 	function handleGoHome(event: MouseEvent): void {
 		if (
@@ -469,11 +422,7 @@
 
 	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">
 		{#if chart.query.trim() && !shownHits.length}
-			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">
-				{chart.unread.length
-					? 'No matches. Handwriting is only searchable after it has been read.'
-					: 'No matches.'}
-			</div>
+			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
 		{/if}
 		{#each shownHits as key (key)}
 			<button
@@ -492,17 +441,6 @@
 			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">+{extraHits} more</div>
 		{/if}
 	</div>
-
-	{#if noticeOn}
-		<Notice class="mb-5 print:hidden">
-			{noticeText}
-			{#snippet action()}
-				<Button size="sm" variant={chart.reading ? 'soft' : 'primary'} onclick={onRead}>
-					{chart.reading ? 'Stop' : 'Read handwriting'}
-				</Button>
-			{/snippet}
-		</Notice>
-	{/if}
 
 	{#if effectiveViewMode === 'view'}
 		<div

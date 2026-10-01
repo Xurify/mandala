@@ -4,15 +4,8 @@
 	import { cellKey, describe, HUES, idx, info, POS } from '$lib/chart/model';
 	import { goalTypeMin, largestFittingSize } from './goal-fit';
 	import Icon from './Icon.svelte';
-	import InkPad from './InkPad.svelte';
 	import { cn } from './ui/cn';
 	import Eyebrow from './ui/Eyebrow.svelte';
-	import SegmentedControl from './ui/SegmentedControl.svelte';
-
-	const inputModes = [
-		{ value: 'type', label: 'Type', icon: 'type' as const },
-		{ value: 'ink', label: 'Ink', icon: 'ink' as const }
-	];
 
 	const textareaElements: (HTMLTextAreaElement | null)[] = $state(Array(9).fill(null));
 	let activePulseIndex: number | null = $state(null);
@@ -294,7 +287,7 @@
 		</div>
 	</div>
 
-	<div class="mb-[18px]">
+	<div class="mb-5 max-[900px]:mb-4">
 		<div class="mb-2.5 flex items-center justify-between gap-2">
 			<Eyebrow pip={chart.sel === 4 ? 'goal' : idx(chart.sel)}>
 				{#if chart.sel === 4}
@@ -316,112 +309,76 @@
 		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 	</div>
 
-	<div class="mb-4 flex flex-wrap items-center gap-x-3.5 gap-y-2">
-		<SegmentedControl
-			label="Input mode"
-			options={inputModes}
-			value={chart.mode}
-			onchange={(value) => {
-				if (value === 'type' || value === 'ink') chart.setMode(value);
-			}}
-		/>
-		<label class={cn('hidden items-center gap-1.5 text-[0.88rem] text-muted', chart.mode === 'ink' && 'inline-flex')}>
-			<input
-				class="size-[18px] accent-ink"
-				type="checkbox"
-				checked={chart.fingerDraw}
-				onchange={(event) => {
-					chart.fingerDraw = event.currentTarget.checked;
-				}}
-			/>
-			<span>Draw with finger</span>
-		</label>
-	</div>
-
-	<p class={cn('mb-4 hidden text-[0.88rem] text-muted', chart.mode === 'ink' && 'block')}>
-		Write with a pen in each pad. Reading handwriting runs on this device the first time you tap
-		Read handwriting (needs a download). After that it works offline. Type under a pad to make it
-		searchable without reading.
-	</p>
-
 	<div class="grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5">
 		{#each Array(9) as _, cellIndex (cellIndex)}
-			{#if chart.mode === 'ink'}
-				<InkPad cellKey={cellKey(chart.sel, cellIndex)} block={chart.sel} cell={cellIndex} />
-			{:else}
-				<div
-					class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
-				>
-					{#if cellIndex === 4}
-						<span
-							class={cn(
-								'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
-								chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
-							)}
-						>
-							<Icon name={chart.sel === 4 ? 'target' : 'compass'} size={11} />
-							<span>{chart.sel === 4 ? 'Goal' : 'Pillar'}</span>
-						</span>
-					{:else}
-						<span class="pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:left-2">
-							<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
-							{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
-								<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
-							{/if}
-						</span>
-					{/if}
-					<textarea
-						bind:this={textareaElements[cellIndex]}
+			<div
+				class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
+			>
+				{#if cellIndex === 4}
+					<span
 						class={cn(
-							'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
-							info(chart.sel, cellIndex).type === 'goal' &&
-								'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
-							info(chart.sel, cellIndex).type === 'pillar' &&
-								'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
-							info(chart.sel, cellIndex).type === 'action' &&
-								'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
-							isPanelCellHighlighted(cellIndex) && 'highlight',
-							activePulseIndex === cellIndex && 'motion-safe:animate-target'
+							'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
+							chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
 						)}
-						style:--h={hue(cellIndex)}
-						maxlength="120"
-						spellcheck="false"
-						autocapitalize="sentences"
-						aria-label={describe(chart.sel, cellIndex)}
-						placeholder={placeholder(cellIndex)}
-						value={chart.textOf(cellKey(chart.sel, cellIndex))}
-						data-fit={info(chart.sel, cellIndex).type === 'goal'
-							? chart.textOf(cellKey(chart.sel, cellIndex))
-							: undefined}
-						{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : undefined}
-						onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
-						oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
-						onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
-						onpointerleave={handleFieldPointerLeave}
-					></textarea>
-					{#if info(chart.sel, cellIndex).type === 'goal'}
-						<span
-							class="goal-clamp pointer-events-none absolute inset-0 z-[1] px-4 text-center font-serif text-[length:var(--goal-fit,17px)] leading-[1.35] font-[520] text-goal-fg opacity-0 max-[900px]:px-2 max-[900px]:text-[length:var(--goal-fit,15px)] max-[900px]:leading-[1.25] [[data-goal-clamped]:not(:focus-within)_&]:opacity-100"
-							style:padding-top="{GOAL_PAD_TOP}px"
-							style:padding-bottom="{GOAL_PAD_BOTTOM}px"
-							aria-hidden="true">{chart.textOf(cellKey(chart.sel, cellIndex))}</span
-						>
-					{/if}
-					{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
-						<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
-							{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
-						</span>
-					{/if}
-				</div>
-			{/if}
+					>
+						<Icon name={chart.sel === 4 ? 'target' : 'compass'} size={11} />
+						<span>{chart.sel === 4 ? 'Goal' : 'Pillar'}</span>
+					</span>
+				{:else}
+					<span class="pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:left-2">
+						<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
+						{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
+							<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
+						{/if}
+					</span>
+				{/if}
+				<textarea
+					bind:this={textareaElements[cellIndex]}
+					class={cn(
+						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
+						info(chart.sel, cellIndex).type === 'goal' &&
+							'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
+						info(chart.sel, cellIndex).type === 'pillar' &&
+							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
+						info(chart.sel, cellIndex).type === 'action' &&
+							'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+						isPanelCellHighlighted(cellIndex) && 'highlight',
+						activePulseIndex === cellIndex && 'motion-safe:animate-target'
+					)}
+					style:--h={hue(cellIndex)}
+					maxlength="120"
+					spellcheck="false"
+					autocapitalize="sentences"
+					aria-label={describe(chart.sel, cellIndex)}
+					placeholder={placeholder(cellIndex)}
+					value={chart.textOf(cellKey(chart.sel, cellIndex))}
+					data-fit={info(chart.sel, cellIndex).type === 'goal'
+						? chart.textOf(cellKey(chart.sel, cellIndex))
+						: undefined}
+					{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : undefined}
+					onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
+					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
+					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
+					onpointerleave={handleFieldPointerLeave}
+				></textarea>
+				{#if info(chart.sel, cellIndex).type === 'goal'}
+					<span
+						class="goal-clamp pointer-events-none absolute inset-0 z-[1] px-4 text-center font-serif text-[length:var(--goal-fit,17px)] leading-[1.35] font-[520] text-goal-fg opacity-0 max-[900px]:px-2 max-[900px]:text-[length:var(--goal-fit,15px)] max-[900px]:leading-[1.25] [[data-goal-clamped]:not(:focus-within)_&]:opacity-100"
+						style:padding-top="{GOAL_PAD_TOP}px"
+						style:padding-bottom="{GOAL_PAD_BOTTOM}px"
+						aria-hidden="true">{chart.textOf(cellKey(chart.sel, cellIndex))}</span
+					>
+				{/if}
+				{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
+					<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
+						{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
+					</span>
+				{/if}
+			</div>
 		{/each}
 	</div>
 
 	<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">
-		<li class="tip relative mb-1.5 hidden ps-4 text-text before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-[''] coarse:!block">
-			With Apple Pencil, Type mode uses Scribble (handwriting becomes text as you write). Ink mode
-			keeps your handwriting as you drew it.
-		</li>
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>

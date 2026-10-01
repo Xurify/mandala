@@ -7,16 +7,11 @@ import {
 	getByKey,
 	hasContent,
 	idx,
-	inkChanged,
-	inkOf,
-	markCaptionKept,
 	progressMilestones,
 	searchHits,
 	setByKey,
 	STORAGE_KEY,
-	unreadKeys,
 	type ChartData,
-	type InputMode,
 	type Milestones
 } from './model.ts';
 import {
@@ -101,14 +96,11 @@ export class ChartStore {
 	#library: ChartLibrary = $state(bootLibrary);
 	data: ChartData = $state(cloneChart(activeRecord(bootLibrary).data));
 	sel = $state(4);
-	mode: InputMode = $state('type');
 	theme: AppTheme = $state(loadInitialTheme());
 	viewMode: ViewMode = $state(loadInitialViewMode());
 	viewScale: ViewScale = $state(loadInitialViewScale());
-	fingerDraw = $state(false);
 	query = $state('');
 	status = $state('');
-	reading = $state(false);
 	exportFallback = $state('');
 	saveWarned = $state(false);
 	themeTick = $state(0);
@@ -117,11 +109,9 @@ export class ChartStore {
 
 	#saveTimer: ReturnType<typeof setTimeout> | null = null;
 	#statusTimer: ReturnType<typeof setTimeout> | null = null;
-	#readAbort: AbortController | null = null;
 
 	filled = $derived(filledCount(this.data));
 	hits = $derived(searchHits(this.data, this.query));
-	unread = $derived(unreadKeys(this.data));
 	dirty = $derived(hasContent(this.data));
 	milestones: Milestones = $derived(progressMilestones(this.data));
 	charts: ChartSummary[] = $derived(
@@ -205,10 +195,6 @@ export class ChartStore {
 		this.sel = blockIndex;
 	}
 
-	setMode(mode: InputMode): void {
-		this.mode = mode;
-	}
-
 	setViewMode(mode: ViewMode): void {
 		this.viewMode = mode;
 		document.documentElement.dataset.view = mode;
@@ -236,39 +222,11 @@ export class ChartStore {
 
 	setText(key: string, value: string): void {
 		setByKey(this.data, key, value);
-		markCaptionKept(this.data, key);
-		this.save();
-	}
-
-	pushStroke(key: string, stroke: number[]): void {
-		const existing = this.data.ink[key] ?? [];
-		this.data.ink[key] = [...existing, stroke];
-		inkChanged(this.data, key);
-		this.save();
-	}
-
-	undoStroke(key: string): void {
-		const existing = this.data.ink[key];
-		if (!existing?.length) return;
-		existing.pop();
-		if (!existing.length) delete this.data.ink[key];
-		inkChanged(this.data, key);
-		this.save();
-	}
-
-	clearInk(key: string): void {
-		if (!this.data.ink[key]) return;
-		delete this.data.ink[key];
-		inkChanged(this.data, key);
 		this.save();
 	}
 
 	textOf(key: string): string {
 		return getByKey(this.data, key);
-	}
-
-	strokesOf(key: string): number[][] {
-		return inkOf(this.data, key);
 	}
 
 	exported(): string {
@@ -448,31 +406,6 @@ export class ChartStore {
 
 	bumpTheme(): void {
 		this.themeTick += 1;
-	}
-
-	beginRead(): AbortSignal {
-		this.#readAbort?.abort();
-		this.#readAbort = new AbortController();
-		this.reading = true;
-		return this.#readAbort.signal;
-	}
-
-	stopRead(): void {
-		this.#readAbort?.abort();
-		this.#readAbort = null;
-		this.reading = false;
-	}
-
-	applyRead(key: string, text: string): boolean {
-		const trimmedText = text.replace(/\s+/g, ' ').trim().slice(0, 120);
-		if (!trimmedText) return false;
-		const current = getByKey(this.data, key).trim();
-		if (current === '' || this.data.rd[key] === 'stale') {
-			setByKey(this.data, key, trimmedText);
-			this.data.rd[key] = 'ink';
-			return true;
-		}
-		return false;
 	}
 }
 

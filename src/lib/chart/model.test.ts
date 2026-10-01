@@ -7,13 +7,11 @@ import {
 	exportJson,
 	exportText,
 	filledCount,
-	needsRead,
 	parseChart,
 	parseText,
 	progressMilestones,
 	searchHits,
-	setByKey,
-	unreadKeys
+	setByKey
 } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 
@@ -47,37 +45,24 @@ describe('parseChart', () => {
 		data.goal = 'Ship it';
 		data.pillars[0] = 'Focus';
 		data.actions[0]![0] = 'Write tests';
-		data.ink.g = [[10, 20, 50]];
-		data.rd.g = 'ink';
 		const parsed = parseChart(JSON.stringify(data));
 		expect(parsed).toEqual(data);
-	});
-
-	it('drops malformed ink entries', () => {
-		const data = emptyChart();
-		const raw = JSON.stringify({ ...data, ink: { g: 'bad', p0: [[1, 2, 3]] } });
-		const parsed = parseChart(raw);
-		expect(parsed?.ink.g).toBeUndefined();
-		expect(parsed?.ink.p0).toEqual([[1, 2, 3]]);
 	});
 });
 
 describe('search and fill', () => {
-	it('counts filled cells including ink-only', () => {
+	it('counts filled cells', () => {
 		const data = emptyChart();
 		expect(filledCount(data)).toBe(0);
 		data.goal = 'Run';
-		data.ink.p0 = [[1, 2, 3]];
+		data.pillars[0] = 'Training';
 		expect(filledCount(data)).toBe(2);
 	});
 
-	it('searches text, not unread ink', () => {
+	it('searches text', () => {
 		const data = emptyChart();
 		data.goal = 'Run a marathon';
-		data.ink.p0 = [[1, 2, 3]];
 		expect(searchHits(data, 'run')).toEqual(['g']);
-		expect(needsRead(data, 'p0')).toBe(true);
-		expect(unreadKeys(data)).toEqual(['p0']);
 	});
 });
 
@@ -88,12 +73,6 @@ describe('exportText', () => {
 		expect(text).toContain('Pillar 1: Training plan');
 		expect(text).toContain('  - Print a 16-week plan');
 		expect(text.match(/^\s+- /gm)?.length).toBe(64);
-	});
-
-	it('marks unread ink', () => {
-		const data = emptyChart();
-		data.ink.g = [[1, 2, 3]];
-		expect(exportText(data)).toContain('(handwriting, not read yet)');
 	});
 });
 
@@ -164,12 +143,12 @@ Pillar 8: Mindset
 		expect(parsed?.pillars).toEqual(originalData.pillars);
 	});
 
-	it('ignores unread and unnamed placeholders', () => {
+	it('ignores empty and unnamed placeholders', () => {
 		const text = `
-Goal: (handwriting, not read yet)
+Goal: (not set)
 
 Pillar 1: (unnamed)
-- (handwriting, not read yet)
+- (empty)
 
 Pillar 2: Real pillar
 - Real action
