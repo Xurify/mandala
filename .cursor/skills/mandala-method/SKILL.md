@@ -4,8 +4,8 @@ description: >-
   Coaches a Mandala chart (Mandalart, Open Window 64): one goal, eight pillars,
   64 actions. Use when starting, filling, reviewing, or tightening a chart;
   writing method copy or the draft prompt; or when the user mentions Mandala,
-  Mandalart, Harada, Ohtani’s sheet, pillars, or actions. UI work stays in
-  mandala-component.
+  Mandalart, Harada, Ohtani’s sheet, pillars, or actions. Visual work stays in
+  mandala-component and mandala-ui-review.
 ---
 
 # Mandala method

@@ -1,6 +1,6 @@
 ---
 name: mandala-ui-review
-description: Reviews and verifies Mandala UI/UX against DESIGN.md, researches reference patterns on Mobbin, and checks rendered output in both themes and on mobile. Use when the user asks for a design or UX review, says something looks or feels off, wants redesign ideas or inspiration, or before calling a UI change done.
+description: Reviews and verifies Mandala UI/UX against DESIGN.md and the Mandala method, researches reference patterns on Mobbin, and checks rendered output in both themes and on mobile. Use when the user asks for a design or UX review, says something looks or feels off, wants redesign ideas or inspiration, or before calling a UI change done.
 ---
 
 # Mandala UI review
@@ -10,21 +10,28 @@ description: Reviews and verifies Mandala UI/UX against DESIGN.md, researches re
 Run through every item; fix before reporting.
 
 **Hierarchy**
-- [ ] At most one `btn-primary` visible per view or dialog
+- [ ] At most one `Button` `variant="primary"` visible per view or dialog
 - [ ] Rare or destructive actions live in a menu, not the main surface
-- [ ] The screen reads in one glance: eyebrow → serif title → action
+- [ ] The screen reads in one glance: `Eyebrow` → `font-serif` title → action
 
 **System**
-- [ ] Only global classes and tokens; no raw hex/rgb, no component `<style>`
+- [ ] Primitives from `src/lib/components/ui/`. Feature screens pass layout classes only. No raw hex/rgb, no component `<style>`
 - [ ] Pillar hues used only for pillars; chrome is paper and ink
 - [ ] Separation by tone/shadow, not borders
 - [ ] Pill radius on every pressable control
-- [ ] Serif only for titles, goal, headings, wordmark
+- [ ] `font-serif` only for titles, the goal, headings, and the wordmark. It is still Source Sans 3 (`--serif` aliases `--font`)
+
+**The chart**
+- [ ] Copy says goal, pillar, action. It does not rename them sub-goals, themes, or tasks in the same screen
+- [ ] The grid reads as a map kept and reviewed, not a list to refill every morning
+- [ ] Empty cells read as gaps, with a next step. Sample text can be ticked and is under the person’s control
+- [ ] No life-wheel, streak, or “do all 64” control unless that was the ask. A week’s handful of actions stays off the grid
+- [ ] One chart is one direction in the switcher, presets, and empty state
 
 **States**
 - [ ] Hover, active (`scale`), focus-visible, disabled all defined
 - [ ] Empty state has a friendly line and a next step
-- [ ] New animation is in the `prefers-reduced-motion` block
+- [ ] New motion uses `motion-safe:` so reduced motion skips it
 
 **Themes and sizes**
 - [ ] Light and dark both look intentional (new tokens exist in both dark blocks)
@@ -56,6 +63,7 @@ Show the screenshots to the user inline. If a screenshot times out, retry once o
 Use the `user-Mobbin` MCP (`search_screens`, `search_flows`, `search_sections`; read schemas first).
 
 - Stay in our field: habit, journaling, planning, self-improvement, focus. Proven references: Finch, Me+, Tiimo, Structured, stoic., Bloom, ABY Journal, Atoms, timespent, pliability, QUITTR, Liven.
+- Reject patterns that fight the method: daily grid rewrites, eight life-area wheels, streak counters, two primary actions, pillar hues on chrome. Take structure (one action, quiet paper, a ring) and leave the rest.
 - Search for the **pattern**, not the feature name: "onboarding goal setting", "progress ring", "bottom sheet picker", "empty state journal", "settings list".
 - Pull 3–6 examples, then name what each does well in one line and what we'd take. Map every idea back to existing tokens/classes. If it needs a new token or component, say so explicitly.
 - Never copy another app's hues or branding. Our color stays paper, ink, and the eight pillar hues.
