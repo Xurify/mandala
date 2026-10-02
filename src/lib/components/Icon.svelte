@@ -32,7 +32,11 @@
 		| 'maximize'
 		| 'minimize'
 		| 'info'
-		| 'more';
+		| 'more'
+		| 'calendar'
+		| 'pin'
+		| 'link'
+		| 'refresh';
 
 	interface Props {
 		name: IconName;
@@ -191,5 +195,20 @@
 		<circle cx="5" cy="12" r="1.4" fill="currentColor" />
 		<circle cx="12" cy="12" r="1.4" fill="currentColor" />
 		<circle cx="19" cy="12" r="1.4" fill="currentColor" />
+	{:else if name === 'calendar'}
+		<rect x="3" y="4" width="18" height="18" rx="2" />
+		<line x1="16" y1="2" x2="16" y2="6" />
+		<line x1="8" y1="2" x2="8" y2="6" />
+		<line x1="3" y1="10" x2="21" y2="10" />
+	{:else if name === 'pin'}
+		<line x1="12" y1="17" x2="12" y2="22" />
+		<path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+	{:else if name === 'link'}
+		<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+		<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+	{:else if name === 'refresh'}
+		<polyline points="23 4 23 10 17 10" />
+		<polyline points="1 20 1 14 7 14" />
+		<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 	{/if}
 </svg>

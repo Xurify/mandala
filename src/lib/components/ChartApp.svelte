@@ -21,6 +21,7 @@
 	import PresetPicker from './PresetPicker.svelte';
 	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
+	import TodayView from './TodayView.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 	import Button from './ui/Button.svelte';
@@ -466,7 +467,7 @@
 	<main
 		class={cn(
 			'flex w-full flex-wrap items-start gap-7 print:!m-0 print:!block print:!gap-0 max-[900px]:block',
-			(effectiveViewMode === 'view' || effectiveViewMode === 'edit') && 'flex-col items-center'
+			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today') && 'flex-col items-center'
 		)}
 	>
 		<div class="print-sheet contents">
@@ -482,7 +483,7 @@
 			<div
 				class={cn(
 					'chart min-w-0 @container',
-					effectiveViewMode === 'edit' && 'hidden',
+					(effectiveViewMode === 'edit' || effectiveViewMode === 'today') && 'hidden',
 					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full max-w-none flex-none',
 					effectiveViewMode === 'view' && chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
 					effectiveViewMode === 'view' && chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]',
@@ -490,7 +491,7 @@
 				)}
 			>
 				<MandalaGrid
-					mode={effectiveViewMode === 'edit' ? 'view' : effectiveViewMode}
+					mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' ? 'view' : effectiveViewMode}
 					onSelect={selectBlock}
 					onEdit={handleEditBlock}
 				/>
@@ -516,9 +517,20 @@
 				></textarea>
 			</div>
 		{/if}
+		{#if effectiveViewMode === 'today'}
+			<TodayView />
+		{/if}
 	</main>
 
 	<Dock label="Layout view mode">
+		<DockTab
+			icon="calendar"
+			selected={effectiveViewMode === 'today'}
+			title="Today's focus (T)"
+			onclick={() => chart.setViewMode('today')}
+		>
+			Today
+		</DockTab>
 		<DockTab
 			icon="grid"
 			selected={effectiveViewMode === 'view'}

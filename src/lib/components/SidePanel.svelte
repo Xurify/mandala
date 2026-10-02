@@ -1,14 +1,56 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { cellKey, describe, HUES, idx, info, POS } from '$lib/chart/model';
+	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
 	import { goalTypeMin, largestFittingSize } from './goal-fit';
+	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
+	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
 	import Eyebrow from './ui/Eyebrow.svelte';
+	import Notice from './ui/Notice.svelte';
 
 	const textareaElements: (HTMLTextAreaElement | null)[] = $state(Array(9).fill(null));
 	let activePulseIndex: number | null = $state(null);
+	let activeCellIndex: number | null = $state(null);
+	let haradaOpen = $state(false);
+
+	const showHaradaNotice = $derived.by((): boolean => {
+		if (chart.sel !== 4) return false;
+		if (!chart.data.goal.trim()) return false;
+		let filledPillars = 0;
+		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+			if ((chart.data.pillars[pillarIndex] ?? '').trim() !== '') {
+				filledPillars++;
+			}
+		}
+		if (filledPillars >= 3) return false;
+		if (typeof window !== 'undefined') {
+			try {
+				if (sessionStorage.getItem('mandala-harada-completed') === 'true') {
+					return false;
+				}
+			} catch {
+				// storage blocked
+			}
+		}
+		return true;
+	});
+
+	const effectiveCellIndex = $derived.by((): number | null => {
+		if (chart.sel === 4) return null;
+		if (activeCellIndex !== null && activeCellIndex !== 4) return activeCellIndex;
+		for (let cellIndex = 0; cellIndex < 9; cellIndex++) {
+			if (cellIndex !== 4 && chart.textOf(cellKey(chart.sel, cellIndex)).trim() !== '') {
+				return cellIndex;
+			}
+		}
+		return 0;
+	});
+
+	const activeActionKey = $derived(
+		effectiveCellIndex !== null ? cellKey(chart.sel, effectiveCellIndex) : null
+	);
 
 	const panelTitle = $derived.by(() => {
 		if (chart.sel === 4) return chart.data.goal.trim() || 'Goal and pillars';
@@ -25,6 +67,7 @@
 		if (!targetKey) return;
 		for (let cellIndex = 0; cellIndex < 9; cellIndex++) {
 			if (cellKey(chart.sel, cellIndex) === targetKey) {
+				activeCellIndex = cellIndex;
 				const targetElement = textareaElements[cellIndex];
 				if (targetElement) {
 					targetElement.focus();
@@ -309,6 +352,21 @@
 		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 	</div>
 
+	{#if showHaradaNotice}
+		<div class="mb-4">
+			<Notice>
+				{#snippet children()}
+					Want help choosing balanced pillars? Try the 4 Perspectives.
+				{/snippet}
+				{#snippet action()}
+					<Button size="sm" variant="soft" onclick={() => (haradaOpen = true)}>
+						Explore
+					</Button>
+				{/snippet}
+			</Notice>
+		</div>
+	{/if}
+
 	<div class="grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5">
 		{#each Array(9) as _, cellIndex (cellIndex)}
 			<div
@@ -331,6 +389,22 @@
 							<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
 						{/if}
 					</span>
+					{#if info(chart.sel, cellIndex).type === 'action'}
+						{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
+						{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note}
+							<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
+								{#if actionMeta.pinned}
+									<Icon name="pin" size={11} />
+								{/if}
+								{#if actionMeta.done}
+									<Icon name="check" size={11} class="text-success" />
+								{/if}
+								{#if actionMeta.note}
+									<Icon name="link" size={11} class="opacity-80" />
+								{/if}
+							</span>
+						{/if}
+					{/if}
 				{/if}
 				<textarea
 					bind:this={textareaElements[cellIndex]}
@@ -342,6 +416,9 @@
 							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
 						info(chart.sel, cellIndex).type === 'action' &&
 							'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+						info(chart.sel, cellIndex).type === 'action' &&
+							chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
+							'line-through opacity-60 text-muted',
 						isPanelCellHighlighted(cellIndex) && 'highlight',
 						activePulseIndex === cellIndex && 'motion-safe:animate-target'
 					)}
@@ -356,6 +433,9 @@
 						? chart.textOf(cellKey(chart.sel, cellIndex))
 						: undefined}
 					{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : undefined}
+					onfocus={() => {
+						activeCellIndex = cellIndex;
+					}}
 					onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
 					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
 					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
@@ -378,9 +458,126 @@
 		{/each}
 	</div>
 
+	{#if activeActionKey && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
+		{@const meta = chart.metaOf(activeActionKey)}
+		{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
+		{#if actionHasText}
+			<div class="mt-4 rounded-[20px] bg-sunken p-3.5 shadow-press max-[900px]:rounded-[16px] max-[900px]:p-3">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<div class="flex items-center gap-2">
+						<span class="text-[0.76rem] font-bold tracking-wider text-muted uppercase">
+							Action {idx(effectiveCellIndex) + 1}
+						</span>
+						<div class="inline-flex rounded-full bg-surface p-0.5 shadow-seg" role="group" aria-label="Action type">
+							<button
+								type="button"
+								class={cn(
+									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
+									!meta?.kind ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
+								)}
+								onclick={() => chart.setActionMeta(activeActionKey, { kind: undefined })}
+							>
+								Standard
+							</button>
+							<button
+								type="button"
+								class={cn(
+									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
+									meta?.kind === 'routine' ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
+								)}
+								onclick={() => chart.setActionMeta(activeActionKey, { kind: 'routine' })}
+							>
+								Routine
+							</button>
+							<button
+								type="button"
+								class={cn(
+									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
+									meta?.kind === 'milestone' ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
+								)}
+								onclick={() => chart.setActionMeta(activeActionKey, { kind: 'milestone' })}
+							>
+								Milestone
+							</button>
+						</div>
+					</div>
+
+					<div class="flex items-center gap-1.5">
+						{#if meta?.kind === 'routine'}
+							<button
+								type="button"
+								class={cn(
+									'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[0.76rem] font-medium motion-safe:transition-colors',
+									meta?.pinned ? 'bg-ink text-on-ink shadow-sm' : 'border border-line bg-surface text-muted hover:text-text'
+								)}
+								onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
+								aria-pressed={meta?.pinned}
+							>
+								<Icon name="pin" size={12} />
+								<span>{meta?.pinned ? 'Pinned' : 'Pin to Today'}</span>
+							</button>
+						{/if}
+						{#if meta?.kind === 'milestone'}
+							<button
+								type="button"
+								class={cn(
+									'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[0.76rem] font-medium motion-safe:transition-colors',
+									meta?.done ? 'bg-success text-surface shadow-sm' : 'border border-line bg-surface text-muted hover:text-text'
+								)}
+								onclick={() => chart.toggleDone(activeActionKey)}
+								aria-pressed={meta?.done}
+							>
+								<Icon name="check" size={12} strokeWidth={2.4} />
+								<span>{meta?.done ? 'Completed' : 'Mark done'}</span>
+							</button>
+						{/if}
+					</div>
+				</div>
+
+				<div class="mt-2.5 flex items-center gap-2">
+					<div class="relative flex-1">
+						<span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted">
+							<Icon name="link" size={13} />
+						</span>
+						<input
+							type="text"
+							class="w-full rounded-[14px] border-0 bg-surface py-1.5 pr-3 pl-8 text-[0.82rem] text-text placeholder:text-muted focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
+							placeholder="Add link or note (e.g. YouTube, article, chapter)..."
+							value={meta?.note ?? ''}
+							oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
+						/>
+					</div>
+					{#if meta?.note && isUrl(meta.note)}
+						<a
+							href={meta.note}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-muted shadow-sm hover:text-text motion-safe:transition-colors"
+							title="Open link in new tab"
+							aria-label="Open link in new tab"
+						>
+							<Icon name="arrow-right" size={13} />
+						</a>
+					{/if}
+				</div>
+			</div>
+		{/if}
+	{/if}
+
 	<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>
+		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
+			<button
+				type="button"
+				class="cursor-pointer text-muted underline underline-offset-2 hover:text-text"
+				onclick={() => (haradaOpen = true)}
+			>
+				Open Harada 4 Perspectives guide
+			</button>
+		</li>
 	</ul>
+
+	<HaradaOnboarding bind:open={haradaOpen} />
 </div>

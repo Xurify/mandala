@@ -4,15 +4,25 @@ import {
 	emptyChart,
 	exportText,
 	filledCount,
+	getDayLog,
+	getMeta,
+	getWeekReflection,
 	getByKey,
 	hasContent,
 	idx,
+	pillarActivityLast7,
 	progressMilestones,
 	searchHits,
 	setByKey,
+	setMeta,
 	STORAGE_KEY,
+	todayKey,
+	weekStartKey,
+	type ActionMeta,
 	type ChartData,
-	type Milestones
+	type DayLog,
+	type Milestones,
+	type WeekReflection
 } from './model.ts';
 import {
 	CHART_CAP,
@@ -32,7 +42,7 @@ import { exampleChart } from './example.ts';
 import { buildChart, type Preset } from './presets/index.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
-export type ViewMode = 'view' | 'edit' | 'split';
+export type ViewMode = 'view' | 'edit' | 'split' | 'today';
 export type ViewScale = 'fit' | 'large';
 
 function loadInitialTheme(): AppTheme {
@@ -52,7 +62,7 @@ function loadInitialViewMode(): ViewMode {
 	if (typeof window === 'undefined') return 'view';
 	try {
 		const storedMode = localStorage.getItem('mandala_view_mode');
-		if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split') {
+		if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split' || storedMode === 'today') {
 			return storedMode;
 		}
 		return 'view';
@@ -120,6 +130,19 @@ export class ChartStore {
 	chartCount = $derived(this.#library.charts.length);
 	canAddChart = $derived(this.#library.charts.length < CHART_CAP);
 	canDeleteChart = $derived(this.#library.charts.length > 1);
+
+	todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
+	pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
+	weekReflectionDue: boolean = $derived.by(() => {
+		if (typeof window === 'undefined') return false;
+		const now = new Date();
+		if (now.getDay() !== 0) return false;
+		const weekKey = weekStartKey(now);
+		const reflection = getWeekReflection(this.data, weekKey);
+		if (reflection.dismissed) return false;
+		const hasDayLogThisWeek = this.pillarActivity.some((count) => count > 0);
+		return hasDayLogThisWeek;
+	});
 
 	load(): void {
 		try {
@@ -229,6 +252,60 @@ export class ChartStore {
 		return getByKey(this.data, key);
 	}
 
+	metaOf(key: string): ActionMeta | undefined {
+		return getMeta(this.data, key);
+	}
+
+	setActionMeta(key: string, patch: Partial<ActionMeta>): void {
+		setMeta(this.data, key, patch);
+		this.save();
+	}
+
+	toggleDone(key: string): void {
+		const current = getMeta(this.data, key);
+		const isDone = !current?.done;
+		setMeta(this.data, key, {
+			kind: current?.kind ?? 'milestone',
+			done: isDone,
+			doneAt: isDone ? todayKey() : undefined
+		});
+		this.save();
+	}
+
+	setFocus(dateKey: string, keys: string[]): void {
+		if (!this.data.days) this.data.days = {};
+		const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
+		this.data.days[dateKey] = { ...existing, focus: keys };
+		this.save();
+	}
+
+	toggleChecked(dateKey: string, key: string): void {
+		if (!this.data.days) this.data.days = {};
+		const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
+		const isChecked = existing.checked.includes(key);
+		this.data.days[dateKey] = {
+			...existing,
+			checked: isChecked
+				? existing.checked.filter((checkedKey) => checkedKey !== key)
+				: [...existing.checked, key]
+		};
+		this.save();
+	}
+
+	saveWeekReflection(weekKey: string, patch: Partial<{ note: string; swapped: string[] }>): void {
+		if (!this.data.weeks) this.data.weeks = {};
+		const existing = getWeekReflection(this.data, weekKey);
+		this.data.weeks[weekKey] = { ...existing, ...patch };
+		this.save();
+	}
+
+	dismissWeekNotice(weekKey: string): void {
+		if (!this.data.weeks) this.data.weeks = {};
+		const existing = getWeekReflection(this.data, weekKey);
+		this.data.weeks[weekKey] = { ...existing, dismissed: true };
+		this.save();
+	}
+
 	exported(): string {
 		return exportText(this.data);
 	}
@@ -236,7 +313,7 @@ export class ChartStore {
 	jumpToKey(key: string): void {
 		this.select(blockOfKey(key));
 		this.focusedKey = key;
-		if (this.viewMode === 'view') {
+		if (this.viewMode === 'view' || this.viewMode === 'today') {
 			this.setViewMode('edit');
 		}
 	}

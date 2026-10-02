@@ -7,11 +7,19 @@ import {
 	exportJson,
 	exportText,
 	filledCount,
+	getDayLog,
+	getMeta,
+	getWeekReflection,
+	isUrl,
 	parseChart,
 	parseText,
+	pillarActivityLast7,
 	progressMilestones,
 	searchHits,
-	setByKey
+	setByKey,
+	setMeta,
+	todayKey,
+	weekStartKey
 } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 
@@ -223,5 +231,65 @@ describe('progressMilestones', () => {
 		expect(milestones.completedPillarsCount).toBe(1);
 		expect(milestones.pillarActionCounts[0]).toBe(8);
 		expect(milestones.pillarActionCounts[1]).toBe(1);
+	});
+});
+
+describe('companion helpers', () => {
+	it('formats todayKey as YYYY-MM-DD', () => {
+		const key = todayKey();
+		expect(key).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+	});
+
+	it('computes weekStartKey as Monday', () => {
+		// A known Wednesday: 2026-09-30
+		const wednesday = new Date('2026-09-30T12:00:00Z');
+		expect(weekStartKey(wednesday)).toBe('2026-09-28');
+
+		// A known Sunday: 2026-10-04
+		const sunday = new Date('2026-10-04T12:00:00Z');
+		expect(weekStartKey(sunday)).toBe('2026-09-28');
+	});
+
+	it('manages action metadata correctly', () => {
+		const chartData = emptyChart();
+		expect(getMeta(chartData, 'a0_0')).toBeUndefined();
+
+		setMeta(chartData, 'a0_0', { kind: 'routine', pinned: true });
+		expect(getMeta(chartData, 'a0_0')).toEqual({ kind: 'routine', pinned: true });
+
+		setMeta(chartData, 'a0_0', { note: 'https://youtube.com' });
+		expect(getMeta(chartData, 'a0_0')).toEqual({
+			kind: 'routine',
+			pinned: true,
+			note: 'https://youtube.com'
+		});
+	});
+
+	it('retrieves default day logs and week reflections safely', () => {
+		const chartData = emptyChart();
+		expect(getDayLog(chartData, '2026-09-30')).toEqual({ focus: [], checked: [] });
+		expect(getWeekReflection(chartData, '2026-09-28')).toEqual({ note: '', swapped: [] });
+	});
+
+	it('computes pillar activity over the last 7 days', () => {
+		const chartData = emptyChart();
+		const today = todayKey();
+		chartData.days = {
+			[today]: {
+				focus: ['a0_0', 'a2_1'],
+				checked: ['a0_0']
+			}
+		};
+		const activity = pillarActivityLast7(chartData);
+		expect(activity[0]).toBe(1);
+		expect(activity[2]).toBe(1);
+		expect(activity[1]).toBe(0);
+	});
+
+	it('identifies web URLs correctly', () => {
+		expect(isUrl('https://youtube.com/watch?v=123')).toBe(true);
+		expect(isUrl('http://readline.app')).toBe(true);
+		expect(isUrl('chapter 3 to 5')).toBe(false);
+		expect(isUrl('')).toBe(false);
 	});
 });

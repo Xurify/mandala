@@ -20,10 +20,34 @@ export type CellInfo =
 	| { type: 'pillar'; k: number }
 	| { type: 'action'; k: number };
 
+export type ActionKind = 'routine' | 'milestone';
+
+export type ActionMeta = {
+	kind: ActionKind;
+	pinned?: boolean;
+	done?: boolean;
+	doneAt?: string;
+	note?: string;
+};
+
+export type DayLog = {
+	focus: string[];
+	checked: string[];
+};
+
+export type WeekReflection = {
+	note: string;
+	swapped: string[];
+	dismissed?: boolean;
+};
+
 export type ChartData = {
 	goal: string;
 	pillars: string[];
 	actions: string[][];
+	meta?: Record<string, ActionMeta>;
+	days?: Record<string, DayLog>;
+	weeks?: Record<string, WeekReflection>;
 };
 
 export function emptyChart(): ChartData {
@@ -381,4 +405,76 @@ export function exportText(data: ChartData): string {
 		actions.forEach((action) => lines.push(`  - ${action.trim()}`));
 	});
 	return lines.join('\n');
+}
+
+export function todayKey(): string {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+export function weekStartKey(date: Date = new Date()): string {
+	const dayOfWeek = date.getDay();
+	const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+	const monday = new Date(date);
+	monday.setDate(date.getDate() - daysToMonday);
+	const year = monday.getFullYear();
+	const month = String(monday.getMonth() + 1).padStart(2, '0');
+	const day = String(monday.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+export function getMeta(data: ChartData, key: string): ActionMeta | undefined {
+	return data.meta?.[key];
+}
+
+export function setMeta(data: ChartData, key: string, patch: Partial<ActionMeta>): void {
+	if (!data.meta) data.meta = {};
+	const existing = data.meta[key];
+	if (existing) {
+		Object.assign(existing, patch);
+	} else {
+		data.meta[key] = patch as ActionMeta;
+	}
+}
+
+export function getDayLog(data: ChartData, dateKey: string): DayLog {
+	return data.days?.[dateKey] ?? { focus: [], checked: [] };
+}
+
+export function getWeekReflection(data: ChartData, weekKey: string): WeekReflection {
+	return data.weeks?.[weekKey] ?? { note: '', swapped: [] };
+}
+
+export function pillarActivityLast7(data: ChartData): number[] {
+	const counts = Array.from({ length: 8 }, () => 0);
+	if (!data.days) return counts;
+
+	const today = new Date();
+	for (let offset = 0; offset < 7; offset++) {
+		const date = new Date(today);
+		date.setDate(today.getDate() - offset);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		const dateKey = `${year}-${month}-${day}`;
+		const log: DayLog | undefined = data.days[dateKey];
+		if (!log) continue;
+
+		const activeKeys: Set<string> = new Set([...log.focus, ...log.checked]);
+		for (const key of activeKeys) {
+			if (!key.startsWith('a')) continue;
+			const pillarIndex = Number(key.slice(1).split('_')[0]);
+			if (pillarIndex >= 0 && pillarIndex < 8) {
+				counts[pillarIndex]!++;
+			}
+		}
+	}
+	return counts;
+}
+
+export function isUrl(value: string): boolean {
+	return /^https?:\/\//i.test(value.trim());
 }

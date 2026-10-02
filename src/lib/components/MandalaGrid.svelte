@@ -41,6 +41,8 @@
 		const hit = query !== '' && text.toLowerCase().includes(query);
 		const cellInformation = info(blockIndex, cellIndex);
 		const type = cellInformation.type;
+		const meta = chart.metaOf(key);
+		const isMilestoneDone = type === 'action' && meta?.kind === 'milestone' && Boolean(meta?.done);
 		const highlighted =
 			chart.hoveredColorIndex !== null &&
 			((type === 'goal' && chart.hoveredColorIndex === -1) ||
@@ -65,6 +67,7 @@
 			type === 'pillar' && (view ? 'font-[620]' : 'font-semibold'),
 			type === 'action' &&
 				'action pillar-action text-text can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+			isMilestoneDone && 'line-through opacity-60 text-muted',
 			(type === 'goal' || type === 'pillar') && 'rounded-[28%]',
 			placeholder &&
 				type === 'goal' &&
@@ -199,24 +202,39 @@
 	{#each Array(9) as _, blockIndex (blockIndex)}
 		<div class={blockClass(blockIndex)} style:--block-h={blockHue(blockIndex)}>
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}
+				{@const cellInformation = info(blockIndex, cellIndex)}
+				{@const key = cellKey(blockIndex, cellIndex)}
+				{@const meta = chart.metaOf(key)}
 				<button
 					type="button"
 					class={cellClass(blockIndex, cellIndex)}
 					style:--h={hue(blockIndex, cellIndex)}
 					aria-label={aria(blockIndex, cellIndex)}
 					data-placeholder={cellPlaceholder(blockIndex, cellIndex)}
-					onclick={() => onSelect(blockIndex, cellKey(blockIndex, cellIndex))}
-					ondblclick={() => onEdit?.(blockIndex, cellKey(blockIndex, cellIndex))}
+					onclick={() => onSelect(blockIndex, key)}
+					ondblclick={() => onEdit?.(blockIndex, key)}
 					onpointerenter={(event) => handlePointerEnter(blockIndex, cellIndex, event)}
 					onpointerleave={handlePointerLeave}
 				>
+					{#if cellInformation.type === 'action' && meta?.pinned}
+						<span
+							class="pointer-events-none absolute top-1 left-1 size-1 rounded-full bg-current opacity-70 @max-[480px]:hidden"
+							aria-hidden="true"
+						></span>
+					{/if}
+					{#if cellInformation.type === 'action' && meta?.note}
+						<span
+							class="pointer-events-none absolute right-1 bottom-1 size-1 rounded-full bg-muted opacity-70 @max-[480px]:hidden"
+							aria-hidden="true"
+						></span>
+					{/if}
 					<span
 						class={cn(
 							'w-full hyphens-manual wrap-break-word @max-[480px]:hidden',
 							view ? 'line-clamp-5' : 'line-clamp-4'
 						)}
-						{@attach info(blockIndex, cellIndex).type === 'goal' ? fitGoalText : undefined}
-						>{chart.textOf(cellKey(blockIndex, cellIndex))}</span
+						{@attach cellInformation.type === 'goal' ? fitGoalText : undefined}
+						>{chart.textOf(key)}</span
 					>
 				</button>
 			{/each}
