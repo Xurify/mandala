@@ -422,7 +422,6 @@
 	bind:open={planningOpen}
 	title="Plan tomorrow"
 	description={tomorrowLabel}
-	class="w-[min(58rem,calc(100vw-32px))] max-h-[min(88dvh,780px)]"
 >
 	<FocusPicker actions={pickerActions} bind:selected={tomorrowSelected} inset />
 	{#snippet footer()}
