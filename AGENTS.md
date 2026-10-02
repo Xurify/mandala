@@ -79,4 +79,5 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 
 - `.cursor/skills/mandala-component/` — building or changing UI within the design system.
 - `.cursor/skills/mandala-ui-review/` — reviewing UI/UX, researching patterns on Mobbin, visual verification.
+- `.cursor/skills/mandala-delight/` — making a flat or overwhelming screen tactile and fun: metaphor first, depth, motion, drag, game-verb copy.
 - `.cursor/skills/mandala-method/` — filling, reviewing, and tightening a chart (goal, pillars, actions).
