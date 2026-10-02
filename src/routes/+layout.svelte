@@ -1,5 +1,4 @@
 <script lang="ts">
-	import '@fontsource-variable/source-sans-3';
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 

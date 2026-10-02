@@ -36,7 +36,12 @@
 		| 'calendar'
 		| 'pin'
 		| 'link'
-		| 'refresh';
+		| 'refresh'
+		| 'folder'
+		| 'command'
+		| 'keyboard'
+		| 'clock'
+		| 'plus';
 
 	interface Props {
 		name: IconName;
@@ -71,6 +76,9 @@
 	{:else if name === 'close'}
 		<line x1="18" y1="6" x2="6" y2="18" />
 		<line x1="6" y1="6" x2="18" y2="18" />
+	{:else if name === 'plus'}
+		<line x1="12" y1="5" x2="12" y2="19" />
+		<line x1="5" y1="12" x2="19" y2="12" />
 	{:else if name === 'chevron-down'}
 		<polyline points="6 9 12 15 18 9" />
 	{:else if name === 'chevron-left'}
@@ -210,5 +218,15 @@
 		<polyline points="23 4 23 10 17 10" />
 		<polyline points="1 20 1 14 7 14" />
 		<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+	{:else if name === 'folder'}
+		<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+	{:else if name === 'command'}
+		<path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+	{:else if name === 'keyboard'}
+		<rect x="2" y="5" width="20" height="14" rx="2" />
+		<path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M8 13h.01M12 13h.01M16 13h.01M7 16h10" />
+	{:else if name === 'clock'}
+		<circle cx="12" cy="12" r="9" />
+		<polyline points="12 7 12 12 15 14" />
 	{/if}
 </svg>

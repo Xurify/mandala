@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	blockOfKey,
 	cellKey,
+	dateKeyOffset,
 	emptyChart,
 	exportFilename,
 	exportJson,
@@ -9,6 +10,8 @@ import {
 	filledCount,
 	getDayLog,
 	getMeta,
+	isOpenFocus,
+	isRoutine,
 	getWeekReflection,
 	isUrl,
 	parseChart,
@@ -19,7 +22,9 @@ import {
 	setByKey,
 	setMeta,
 	todayKey,
-	weekStartKey
+	weekStartKey,
+	yearActivity,
+	yearStats
 } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 
@@ -55,6 +60,24 @@ describe('parseChart', () => {
 		data.actions[0]![0] = 'Write tests';
 		const parsed = parseChart(JSON.stringify(data));
 		expect(parsed).toEqual(data);
+	});
+
+	it('preserves metadata, days, and reflections across round-trips', () => {
+		const data = emptyChart();
+		data.goal = 'Learn Russian';
+		data.meta = {
+			a0_0: { kind: 'routine', pinned: true, note: 'https://readline.app' }
+		};
+		data.days = {
+			'2026-09-30': { focus: ['a0_0'], checked: ['a0_0'] }
+		};
+		data.weeks = {
+			'2026-09-28': { note: 'Great week', swapped: [] }
+		};
+		const parsed = parseChart(JSON.stringify(data));
+		expect(parsed?.meta).toEqual(data.meta);
+		expect(parsed?.days).toEqual(data.days);
+		expect(parsed?.weeks).toEqual(data.weeks);
 	});
 });
 
@@ -265,6 +288,15 @@ describe('companion helpers', () => {
 		});
 	});
 
+	it('keeps routines off the one-time list and drops finished milestones', () => {
+		expect(isRoutine(undefined)).toBe(false);
+		expect(isRoutine({ kind: 'routine' })).toBe(true);
+		expect(isOpenFocus(undefined)).toBe(true);
+		expect(isOpenFocus({ kind: 'milestone' })).toBe(true);
+		expect(isOpenFocus({ kind: 'milestone', done: true })).toBe(false);
+		expect(isOpenFocus({ kind: 'routine', pinned: true })).toBe(false);
+	});
+
 	it('retrieves default day logs and week reflections safely', () => {
 		const chartData = emptyChart();
 		expect(getDayLog(chartData, '2026-09-30')).toEqual({ focus: [], checked: [] });
@@ -286,10 +318,49 @@ describe('companion helpers', () => {
 		expect(activity[1]).toBe(0);
 	});
 
+	it('offsets date keys by whole days', () => {
+		expect(dateKeyOffset(1, new Date(2026, 8, 30))).toBe('2026-10-01');
+		expect(dateKeyOffset(-1, new Date(2026, 0, 1))).toBe('2025-12-31');
+		expect(dateKeyOffset(0, new Date(2026, 9, 1))).toBe('2026-10-01');
+	});
+
 	it('identifies web URLs correctly', () => {
 		expect(isUrl('https://youtube.com/watch?v=123')).toBe(true);
 		expect(isUrl('http://readline.app')).toBe(true);
 		expect(isUrl('chapter 3 to 5')).toBe(false);
 		expect(isUrl('')).toBe(false);
+	});
+
+	it('summarizes year activity per day', () => {
+		const chartData = emptyChart();
+		chartData.days = {
+			'2026-01-02': { focus: ['a0_0'], checked: ['a0_0', 'a1_0'] },
+			'2025-12-31': { focus: ['a2_0'], checked: [] }
+		};
+		const activity = yearActivity(chartData, 2026);
+		expect(activity.size).toBe(1);
+		expect(activity.get('2026-01-02')).toEqual({ focusCount: 1, checkedCount: 2 });
+		expect(yearActivity(chartData, 2025).get('2025-12-31')).toEqual({
+			focusCount: 1,
+			checkedCount: 0
+		});
+	});
+
+	it('computes year stats including best streak', () => {
+		const chartData = emptyChart();
+		chartData.days = {
+			'2026-03-01': { focus: ['a0_0'], checked: ['a0_0'] },
+			'2026-03-02': { focus: ['a0_0'], checked: [] },
+			'2026-03-04': { focus: [], checked: ['a1_0'] }
+		};
+		const stats = yearStats(chartData, 2026);
+		expect(stats.daysWithFocus).toBe(2);
+		expect(stats.checkedActions).toBe(2);
+		expect(stats.bestStreak).toBe(2);
+	});
+
+	it('handles empty years', () => {
+		const stats = yearStats(emptyChart(), 2026);
+		expect(stats).toEqual({ daysWithFocus: 0, checkedActions: 0, bestStreak: 0 });
 	});
 });

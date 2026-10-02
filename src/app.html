@@ -12,7 +12,13 @@
 					root.setAttribute('data-theme', storedTheme);
 				}
 				const storedMode = localStorage.getItem('mandala_view_mode');
-				if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split') {
+				if (
+					storedMode === 'view' ||
+					storedMode === 'edit' ||
+					storedMode === 'split' ||
+					storedMode === 'today' ||
+					storedMode === 'year'
+				) {
 					root.dataset.view = storedMode;
 				}
 				if (localStorage.getItem('mandala_view_scale') === 'large') {

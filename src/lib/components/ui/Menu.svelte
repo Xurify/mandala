@@ -51,7 +51,7 @@
 
 <svelte:window onkeydowncapture={onKey} />
 
-<div class={cn(styles.wrap(), expanded && 'z-[2]', className)} bind:this={root}>
+<div class={cn(styles.wrap(), expanded && 'z-[60]', className)} bind:this={root}>
 	<div class={styles.trigger()}>
 		{#if trigger}
 			{@render trigger({ expanded, toggle })}

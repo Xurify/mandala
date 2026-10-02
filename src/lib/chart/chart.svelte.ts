@@ -38,11 +38,22 @@ import {
 	type ChartLibrary,
 	type ChartSummary
 } from './library.ts';
-import { exampleChart } from './example.ts';
+import { exampleChart, isExampleChart } from './example.ts';
 import { buildChart, type Preset } from './presets/index.ts';
+import {
+	clearBackupHandle,
+	loadBackupHandle,
+	pickBackupDirectory,
+	queryBackupPermission,
+	requestBackupPermission,
+	saveBackupHandle,
+	supportsDirectoryPicker,
+	writeBackupFile
+} from './backup.ts';
 
 export type AppTheme = 'system' | 'light' | 'dark';
-export type ViewMode = 'view' | 'edit' | 'split' | 'today';
+export type ViewMode = 'view' | 'edit' | 'split' | 'today' | 'year';
+export type BackupState = 'off' | 'on' | 'needs-permission';
 export type ViewScale = 'fit' | 'large';
 
 function loadInitialTheme(): AppTheme {
@@ -62,7 +73,13 @@ function loadInitialViewMode(): ViewMode {
 	if (typeof window === 'undefined') return 'view';
 	try {
 		const storedMode = localStorage.getItem('mandala_view_mode');
-		if (storedMode === 'view' || storedMode === 'edit' || storedMode === 'split' || storedMode === 'today') {
+		if (
+			storedMode === 'view' ||
+			storedMode === 'edit' ||
+			storedMode === 'split' ||
+			storedMode === 'today' ||
+			storedMode === 'year'
+		) {
 			return storedMode;
 		}
 		return 'view';
@@ -119,6 +136,11 @@ export class ChartStore {
 
 	#saveTimer: ReturnType<typeof setTimeout> | null = null;
 	#statusTimer: ReturnType<typeof setTimeout> | null = null;
+
+	#backupHandle: FileSystemDirectoryHandle | null = null;
+	backupState: BackupState = $state('off');
+	backupLastAt = $state<number | null>(null);
+	#backupWarned = false;
 
 	filled = $derived(filledCount(this.data));
 	hits = $derived(searchHits(this.data, this.query));
@@ -197,6 +219,7 @@ export class ChartStore {
 				this.say('Your browser blocked saving, so this chart will be lost when you close the page.');
 			}
 		}
+		if (this.backupState === 'on') void this.#writeBackup();
 	}
 
 	save(): void {
@@ -258,6 +281,7 @@ export class ChartStore {
 
 	setActionMeta(key: string, patch: Partial<ActionMeta>): void {
 		setMeta(this.data, key, patch);
+		this.data = { ...this.data };
 		this.save();
 	}
 
@@ -269,13 +293,15 @@ export class ChartStore {
 			done: isDone,
 			doneAt: isDone ? todayKey() : undefined
 		});
+		this.data = { ...this.data };
 		this.save();
 	}
 
 	setFocus(dateKey: string, keys: string[]): void {
 		if (!this.data.days) this.data.days = {};
 		const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-		this.data.days[dateKey] = { ...existing, focus: keys };
+		this.data.days[dateKey] = { ...existing, focus: keys, started: true };
+		this.data = { ...this.data };
 		this.save();
 	}
 
@@ -289,6 +315,7 @@ export class ChartStore {
 				? existing.checked.filter((checkedKey) => checkedKey !== key)
 				: [...existing.checked, key]
 		};
+		this.data = { ...this.data };
 		this.save();
 	}
 
@@ -296,6 +323,7 @@ export class ChartStore {
 		if (!this.data.weeks) this.data.weeks = {};
 		const existing = getWeekReflection(this.data, weekKey);
 		this.data.weeks[weekKey] = { ...existing, ...patch };
+		this.data = { ...this.data };
 		this.save();
 	}
 
@@ -303,6 +331,7 @@ export class ChartStore {
 		if (!this.data.weeks) this.data.weeks = {};
 		const existing = getWeekReflection(this.data, weekKey);
 		this.data.weeks[weekKey] = { ...existing, dismissed: true };
+		this.data = { ...this.data };
 		this.save();
 	}
 
@@ -378,6 +407,22 @@ export class ChartStore {
 			exampleChart(),
 			'Example chart loaded. Edit any cell to make it yours.'
 		);
+	}
+
+	checkForMatchingExample(): { id: string; active: boolean } | null {
+		if (isExampleChart(this.data)) {
+			return { id: this.#library.activeId, active: true };
+		}
+		let best: { id: string; updatedAt: number } | null = null;
+		for (const record of this.#library.charts) {
+			if (record.id === this.#library.activeId) continue;
+			if (!isExampleChart(record.data)) continue;
+			if (!best || record.updatedAt > best.updatedAt) {
+				best = { id: record.id, updatedAt: record.updatedAt };
+			}
+		}
+		if (!best) return null;
+		return { id: best.id, active: false };
 	}
 
 	clearAll(): void {
@@ -484,6 +529,80 @@ export class ChartStore {
 	bumpTheme(): void {
 		this.themeTick += 1;
 	}
+
+	async restoreBackupHandle(): Promise<void> {
+		if (!supportsDirectoryPicker()) return;
+		const handle = await loadBackupHandle();
+		if (!handle) return;
+		this.#backupHandle = handle;
+		const permission = await queryBackupPermission(handle);
+		if (permission === 'granted') {
+			this.backupState = 'on';
+			await this.#writeBackup();
+		} else {
+			this.backupState = 'needs-permission';
+		}
+	}
+
+	async enableBackups(): Promise<void> {
+		try {
+			const handle = await pickBackupDirectory();
+			if (!handle) return;
+			this.#backupHandle = handle;
+			await saveBackupHandle(handle);
+			this.backupState = 'on';
+			await this.#writeBackup();
+			this.say('Backups on. Your charts now save to that folder as you edit.');
+		} catch (error) {
+			if ((error as DOMException)?.name === 'AbortError') return;
+			this.say('Could not open a backup folder here.');
+		}
+	}
+
+	async resumeBackups(): Promise<void> {
+		const handle = this.#backupHandle;
+		if (!handle) return;
+		const permission = await requestBackupPermission(handle);
+		if (permission === 'granted') {
+			this.backupState = 'on';
+			await this.#writeBackup();
+			this.say('Backups resumed.');
+		} else {
+			this.say('Backup permission was not granted.');
+		}
+	}
+
+	async disableBackups(): Promise<void> {
+		this.#backupHandle = null;
+		this.backupState = 'off';
+		this.backupLastAt = null;
+		await clearBackupHandle();
+		this.say('Backups turned off.');
+	}
+
+	async #writeBackup(): Promise<void> {
+		const handle = this.#backupHandle;
+		if (!handle) return;
+		try {
+			await writeBackupFile(handle, JSON.stringify(this.#library));
+			this.backupLastAt = Date.now();
+		} catch (error) {
+			if ((error as DOMException)?.name === 'NotAllowedError') {
+				this.backupState = 'needs-permission';
+				return;
+			}
+			if (!this.#backupWarned) {
+				this.#backupWarned = true;
+				this.say('Backup write failed. Charts still save in this browser.');
+			}
+		}
+	}
 }
 
 export const chart = new ChartStore();
+
+if (typeof document !== 'undefined') {
+	document.documentElement.dataset.view = chart.viewMode;
+	if (chart.viewScale === 'large') document.documentElement.dataset.scale = 'large';
+	else delete document.documentElement.dataset.scale;
+}

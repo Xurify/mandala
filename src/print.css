@@ -171,6 +171,7 @@
 	}
 
 	.cell.goal span {
+		visibility: visible !important;
 		color: #faf8f4 !important;
 		font-weight: 700 !important;
 	}

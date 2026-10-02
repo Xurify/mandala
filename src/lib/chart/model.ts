@@ -33,6 +33,7 @@ export type ActionMeta = {
 export type DayLog = {
 	focus: string[];
 	checked: string[];
+	started?: boolean;
 };
 
 export type WeekReflection = {
@@ -228,7 +229,10 @@ export function parseChart(raw: string): ChartData | null {
 		return {
 			goal: record.goal,
 			pillars: record.pillars as string[],
-			actions: record.actions as string[][]
+			actions: record.actions as string[][],
+			meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
+			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
+			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined
 		};
 	} catch {
 		return null;
@@ -407,12 +411,21 @@ export function exportText(data: ChartData): string {
 	return lines.join('\n');
 }
 
-export function todayKey(): string {
-	const now = new Date();
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, '0');
-	const day = String(now.getDate()).padStart(2, '0');
+export function dateKeyOf(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+export function todayKey(): string {
+	return dateKeyOf(new Date());
+}
+
+export function dateKeyOffset(offset: number, base: Date = new Date()): string {
+	const date = new Date(base);
+	date.setDate(date.getDate() + offset);
+	return dateKeyOf(date);
 }
 
 export function weekStartKey(date: Date = new Date()): string {
@@ -424,6 +437,16 @@ export function weekStartKey(date: Date = new Date()): string {
 	const month = String(monday.getMonth() + 1).padStart(2, '0');
 	const day = String(monday.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+export function isRoutine(meta: ActionMeta | undefined): boolean {
+	return meta?.kind === 'routine';
+}
+
+export function isOpenFocus(meta: ActionMeta | undefined): boolean {
+	if (isRoutine(meta)) return false;
+	if (meta?.kind === 'milestone' && meta.done) return false;
+	return true;
 }
 
 export function getMeta(data: ChartData, key: string): ActionMeta | undefined {
@@ -473,6 +496,50 @@ export function pillarActivityLast7(data: ChartData): number[] {
 		}
 	}
 	return counts;
+}
+
+export type DayActivity = { focusCount: number; checkedCount: number };
+
+export function yearActivity(data: ChartData, year: number): Map<string, DayActivity> {
+	const prefix = `${year}-`;
+	const result = new Map<string, DayActivity>();
+	if (!data.days) return result;
+	for (const [key, log] of Object.entries(data.days)) {
+		if (!key.startsWith(prefix)) continue;
+		result.set(key, { focusCount: log.focus.length, checkedCount: log.checked.length });
+	}
+	return result;
+}
+
+export type YearStats = {
+	daysWithFocus: number;
+	checkedActions: number;
+	bestStreak: number;
+};
+
+export function yearStats(data: ChartData, year: number): YearStats {
+	let daysWithFocus = 0;
+	let checkedActions = 0;
+	let bestStreak = 0;
+	let currentStreak = 0;
+	for (
+		const date = new Date(year, 0, 1);
+		date.getFullYear() === year;
+		date.setDate(date.getDate() + 1)
+	) {
+		const log = data.days?.[dateKeyOf(date)];
+		const hasFocus = (log?.focus.length ?? 0) > 0;
+		const hasChecked = (log?.checked.length ?? 0) > 0;
+		if (hasFocus || hasChecked) {
+			currentStreak += 1;
+			bestStreak = Math.max(bestStreak, currentStreak);
+			if (hasFocus) daysWithFocus += 1;
+			checkedActions += log?.checked.length ?? 0;
+		} else {
+			currentStreak = 0;
+		}
+	}
+	return { daysWithFocus, checkedActions, bestStreak };
 }
 
 export function isUrl(value: string): boolean {

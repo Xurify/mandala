@@ -7,10 +7,14 @@
 		labelOfKey,
 		parseChart,
 		parseText,
+		searchHits,
 		type ChartData
 	} from '$lib/chart/model';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
 	import type { Preset } from '$lib/chart/presets';
+	import { decodeChartShare, isShareHash } from '$lib/chart/share';
+	import { supportsDirectoryPicker } from '$lib/chart/backup';
+	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import BrandMark from './BrandMark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import DraftDialog from './DraftDialog.svelte';
@@ -22,9 +26,14 @@
 	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import TodayView from './TodayView.svelte';
+	import YearView from './YearView.svelte';
+	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
+	import ShortcutsDialog from './ShortcutsDialog.svelte';
+	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 	import Button from './ui/Button.svelte';
+	import IconButton from './ui/IconButton.svelte';
 	import Dock from './ui/Dock.svelte';
 	import DockTab from './ui/DockTab.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -46,12 +55,21 @@
 
 	let isDraggingFile = $state(false);
 	let dragCounter = 0;
-	let isMobile = $state(false);
+	let isMobile = $state(
+		typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let draftOpen = $state(false);
 	let presetOpen = $state(false);
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
+	let shareOpen = $state(false);
+	let incomingShare = $state<ChartData | null>(null);
+	let paletteOpen = $state(false);
+	let paletteQuery = $state('');
+	let shortcutsOpen = $state(false);
+	let modKey = $state('Ctrl');
+	let updateReady = $state(false);
 
 	const shownHits = $derived(chart.hits.slice(0, 10));
 	const extraHits = $derived(Math.max(0, chart.hits.length - 10));
@@ -62,6 +80,7 @@
 
 	onMount(() => {
 		chart.load();
+		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
 		if (chart.theme === 'light' || chart.theme === 'dark') {
 			document.documentElement.setAttribute('data-theme', chart.theme);
 		} else {
@@ -78,9 +97,33 @@
 		};
 		mobileMediaQuery.addEventListener('change', handleMobileChange);
 
+		if (supportsDirectoryPicker()) void chart.restoreBackupHandle();
+
+		if (typeof navigator.serviceWorker !== 'undefined') {
+			navigator.serviceWorker.addEventListener('message', (event) => {
+				const data = event.data as { type?: string } | null;
+				if (data?.type === 'mandala-updated') updateReady = true;
+			});
+		}
+
+		// Opening a share link loads the app with the chart in the hash. A pasted link
+		// in the same tab only fires hashchange, so handle both.
+		const handleShareHash = (): void => {
+			if (!isShareHash(window.location.hash)) return;
+			decodeChartShare(window.location.hash).then((data) => {
+				if (!data) return;
+				incomingShare = data;
+				shareOpen = true;
+				window.history.replaceState(null, '', window.location.pathname + window.location.search);
+			});
+		};
+		handleShareHash();
+		window.addEventListener('hashchange', handleShareHash);
+
 		return () => {
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
+			window.removeEventListener('hashchange', handleShareHash);
 		};
 	});
 
@@ -155,13 +198,15 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
+		const inDialog =
+			(event.target instanceof Element && event.target.closest('dialog') !== null) ||
+			document.querySelector('dialog[open]') !== null;
+		if (inDialog) return;
+
 		const isTyping =
 			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
 
 		if (event.key === 'Escape') {
-			const escapeFromGuide =
-				event.target instanceof Element && event.target.closest('dialog') !== null;
-			if (escapeFromGuide) return;
 			if (chart.query.trim()) {
 				chart.setQuery('');
 			} else if (chart.viewMode === 'edit') {
@@ -187,12 +232,21 @@
 		} else if (event.altKey && event.key === 'ArrowLeft') {
 			event.preventDefault();
 			chart.selectPreviousPillar();
-		} else if (
-			(event.key === '/' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) &&
-			!isTyping
-		) {
+		} else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+			event.preventDefault();
+			paletteOpen = true;
+		} else if (!isTyping && event.key === '?') {
+			event.preventDefault();
+			shortcutsOpen = true;
+		} else if (event.key === '/' && !isTyping) {
 			event.preventDefault();
 			searchInputElement?.focus();
+		} else if (!isTyping && (event.key === 't' || event.key === 'T')) {
+			event.preventDefault();
+			chart.setViewMode('today');
+		} else if (!isTyping && (event.key === 'y' || event.key === 'Y')) {
+			event.preventDefault();
+			chart.setViewMode('year');
 		}
 	}
 
@@ -282,6 +336,85 @@
 	}
 
 
+	function handleBackupMenu(): void {
+		if (chart.backupState === 'needs-permission') void chart.resumeBackups();
+		else if (chart.backupState === 'off') void chart.enableBackups();
+		else void chart.disableBackups();
+	}
+
+	function handleApplyShare(data: ChartData): void {
+		if (chart.importChart(data, 'Shared chart added.')) {
+			incomingShare = null;
+			shareOpen = false;
+		}
+	}
+
+	const backupBadge = $derived(
+		chart.backupLastAt
+			? new Date(chart.backupLastAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+			: undefined
+	);
+
+	const paletteCommands = $derived.by((): CommandItem[] => {
+		const items: CommandItem[] = [
+			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('today') },
+			{ id: 'year', label: 'Go to Year in focus', section: 'Actions', icon: 'clock', run: () => chart.setViewMode('year') },
+			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
+			{ id: 'edit', label: 'Go to Editor', section: 'Actions', icon: 'edit', run: () => chart.setViewMode('edit') }
+		];
+		if (!isMobile) {
+			items.push({ id: 'split', label: 'Go to Split view', section: 'Actions', icon: 'columns', run: () => chart.setViewMode('split') });
+		}
+		items.push(
+			{ id: 'new-chart', label: 'New blank chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
+			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
+			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
+			{ id: 'draft', label: 'Get a prompt', section: 'Actions', icon: 'sparkles', run: () => (draftOpen = true) },
+			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
+			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
+			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
+			{
+				id: 'shortcuts',
+				label: 'Keyboard shortcuts',
+				section: 'Actions',
+				icon: 'keyboard',
+				hint: '?',
+				run: () => (shortcutsOpen = true)
+			},
+			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
+			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
+			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
+		);
+		if (supportsDirectoryPicker()) {
+			items.push({
+				id: 'backup',
+				label:
+					chart.backupState === 'on'
+						? 'Turn off backups'
+						: chart.backupState === 'needs-permission'
+							? 'Resume backups'
+							: 'Keep a backup folder',
+				section: 'Actions',
+				icon: 'folder',
+				run: handleBackupMenu
+			});
+		}
+		for (const key of searchHits(chart.data, paletteQuery).slice(0, 6)) {
+			items.push({
+				id: `hit-${key}`,
+				label: getByKey(chart.data, key).trim() || key,
+				section: 'Your chart',
+				icon: 'file-text',
+				hint: labelOfKey(chart.data, key),
+				run: () => {
+					selectBlock(blockOfKey(key), key);
+					chart.setViewMode('edit');
+				}
+			});
+		}
+		return items;
+	});
+
 	function handleGoHome(event: MouseEvent): void {
 		if (
 			event.defaultPrevented ||
@@ -344,25 +477,43 @@
 					spellcheck="false"
 					value={chart.query}
 					oninput={(event) => chart.setQuery(event.currentTarget.value)}
+				/>					{#if chart.query.trim()}
+						<button
+							type="button"
+							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-['']"
+							aria-label="Clear search"
+							onclick={() => chart.setQuery('')}
+						>
+							<Icon name="close" size={12} strokeWidth={2.2} />
+						</button>
+					{:else}
+						<kbd class="pointer-events-none absolute end-3 top-1/2 min-w-[22px] -translate-y-1/2 rounded-md bg-surface px-1.5 py-px text-center font-sans text-[0.72rem] font-semibold text-muted shadow-card peer-focus:hidden max-[900px]:hidden" aria-hidden="true">/</kbd>
+					{/if}
+				</div>
+
+				<IconButton
+					icon="command"
+					label="Open commands"
+					class="hidden max-[900px]:flex"
+					aria-keyshortcuts="Control+K Meta+K"
+					onclick={() => (paletteOpen = true)}
 				/>
-				{#if chart.query.trim()}
-					<button
-						type="button"
-						class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-['']"
-						aria-label="Clear search"
-						onclick={() => chart.setQuery('')}
-					>
-						<Icon name="close" size={12} strokeWidth={2.2} />
-					</button>
-				{:else}
-					<kbd class="pointer-events-none absolute end-3 top-1/2 min-w-[22px] -translate-y-1/2 rounded-md bg-surface px-1.5 py-px text-center font-sans text-[0.72rem] font-semibold text-muted shadow-card peer-focus:hidden max-[900px]:hidden" aria-hidden="true">/</kbd>
-				{/if}
-			</div>
 
 			<Menu label="More actions">
-				<MenuItem icon="printer" badge="Ctrl+P" onclick={handlePrintChart}>Print chart</MenuItem>
+				<MenuItem icon="command" badge="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
+				<MenuItem icon="printer" badge="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
+				<MenuItem icon="keyboard" badge="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+				{#if supportsDirectoryPicker()}
+					{#if chart.backupState === 'on'}
+						<MenuItem icon="folder" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
+					{:else}
+						<MenuItem icon="folder" onclick={handleBackupMenu}>
+							{chart.backupState === 'needs-permission' ? 'Resume backups' : 'Keep a backup folder'}
+						</MenuItem>
+					{/if}
+				{/if}
 				<MenuDivider />
 				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
 					<span class="text-muted">Theme</span>
@@ -419,6 +570,9 @@
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
+		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
+		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
+		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 	</header>
 
 	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">
@@ -467,7 +621,7 @@
 	<main
 		class={cn(
 			'flex w-full flex-wrap items-start gap-7 print:!m-0 print:!block print:!gap-0 max-[900px]:block',
-			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today') && 'flex-col items-center'
+			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'flex-col items-center'
 		)}
 	>
 		<div class="print-sheet contents">
@@ -483,7 +637,7 @@
 			<div
 				class={cn(
 					'chart min-w-0 @container',
-					(effectiveViewMode === 'edit' || effectiveViewMode === 'today') && 'hidden',
+					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'hidden',
 					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full max-w-none flex-none',
 					effectiveViewMode === 'view' && chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
 					effectiveViewMode === 'view' && chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]',
@@ -491,7 +645,7 @@
 				)}
 			>
 				<MandalaGrid
-					mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' ? 'view' : effectiveViewMode}
+					mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year' ? 'view' : effectiveViewMode}
 					onSelect={selectBlock}
 					onEdit={handleEditBlock}
 				/>
@@ -520,7 +674,33 @@
 		{#if effectiveViewMode === 'today'}
 			<TodayView />
 		{/if}
+		{#if effectiveViewMode === 'year'}
+			<YearView />
+		{/if}
 	</main>
+
+	{#if updateReady}
+		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 print:hidden">
+			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
+				<span>Mandala was updated.</span>
+				<button
+					type="button"
+					class="cursor-pointer rounded-full bg-[color-mix(in_oklch,var(--on-ink)_18%,transparent)] px-3.5 py-1.5 text-[0.82rem] font-semibold hover:bg-[color-mix(in_oklch,var(--on-ink)_30%,transparent)] motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					onclick={() => location.reload()}
+				>
+					Refresh
+				</button>
+				<button
+					type="button"
+					class="flex size-8 cursor-pointer items-center justify-center rounded-full p-0 hover:bg-[color-mix(in_oklch,var(--on-ink)_18%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					aria-label="Dismiss update notice"
+					onclick={() => (updateReady = false)}
+				>
+					<Icon name="close" size={13} />
+				</button>
+			</div>
+		</div>
+	{/if}
 
 	<Dock label="Layout view mode">
 		<DockTab

@@ -110,3 +110,22 @@ export function exampleChart(): ChartData {
 	data.actions = example.actions.map((row) => [...row]);
 	return data;
 }
+
+/** Plan text only. Ticks and notes do not make a chart a different example. */
+export function isExampleChart(data: ChartData): boolean {
+	if (data.goal.trim() !== example.goal) return false;
+	if (data.pillars.length !== example.pillars.length) return false;
+	for (let k = 0; k < example.pillars.length; k++) {
+		if (data.pillars[k]?.trim() !== example.pillars[k]) return false;
+	}
+	if (data.actions.length !== example.actions.length) return false;
+	for (let k = 0; k < example.actions.length; k++) {
+		const row = data.actions[k];
+		const sample = example.actions[k];
+		if (!row || row.length !== sample.length) return false;
+		for (let i = 0; i < sample.length; i++) {
+			if (row[i]?.trim() !== sample[i]) return false;
+		}
+	}
+	return true;
+}

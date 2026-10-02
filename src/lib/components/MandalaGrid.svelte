@@ -2,7 +2,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
-	import { goalTypeMin, largestFittingSize } from './goal-fit';
+	import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
 	import { cn } from './ui/cn';
 
 	let {
@@ -166,6 +166,7 @@
 			element.style.overflow = '';
 			element.style.removeProperty('-webkit-line-clamp');
 			element.style.fontSize = chosen >= max - 0.25 ? '' : `${chosen.toFixed(2)}px`;
+			if (faceIsReady()) element.dataset.fitted = '';
 		};
 
 		const schedule = (): void => {
@@ -173,7 +174,11 @@
 			frame = requestAnimationFrame(apply);
 		};
 
+		apply();
 		schedule();
+		const stopFace = watchFaceSwap(schedule, () => {
+			element.dataset.fitted = '';
+		});
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(cell);
 		const textObserver = new MutationObserver(schedule);
@@ -182,9 +187,11 @@
 		classObserver.observe(cell, { attributes: true, attributeFilter: ['class'] });
 		return () => {
 			cancelAnimationFrame(frame);
+			stopFace();
 			resizeObserver.disconnect();
 			textObserver.disconnect();
 			classObserver.disconnect();
+			delete element.dataset.fitted;
 			element.style.fontSize = '';
 			element.style.display = '';
 			element.style.overflow = '';

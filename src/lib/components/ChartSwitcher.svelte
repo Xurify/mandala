@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
+	import { example } from '$lib/chart/example';
 	import { titleOf, UNTITLED } from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import { exportChartPng } from '$lib/chart/export-image';
+	import { downloadChartJson } from '$lib/chart/backup';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -41,16 +44,69 @@
 		chart.newChart();
 	}
 
+	let exampleOpen = $state(false);
+	let exampleAlreadyOpen = $state(false);
+	let exampleId = $state('');
+
 	function handleExample(): void {
+		const match = chart.checkForMatchingExample();
+		if (!match) {
+			chart.loadExample();
+			return;
+		}
+		exampleAlreadyOpen = match.active;
+		exampleId = match.id;
+		exampleOpen = true;
+	}
+
+	function openExistingExample(): void {
+		exampleOpen = false;
+		if (exampleAlreadyOpen) return;
+		chart.switchChart(exampleId);
+		chart.say('Opened the example chart.');
+	}
+
+	function addExampleCopy(): void {
+		exampleOpen = false;
 		chart.loadExample();
 	}
+
+	let archiveOpen = $state(false);
+	let archiving = $state(false);
+	let archiveTitle = $state('');
+	let archiveFilled = $state(0);
 
 	function handleDelete(): void {
 		const active = chart.charts.find((item) => item.active);
 		if (!active || !chart.canDeleteChart) return;
-		const userConfirmed = window.confirm(`Delete “${active.title}”? This cannot be undone.`);
-		if (!userConfirmed) return;
-		chart.deleteChart(active.id);
+		if (active.filled === 0) {
+			const userConfirmed = window.confirm(`Delete “${active.title}”? This cannot be undone.`);
+			if (!userConfirmed) return;
+			chart.deleteChart(active.id);
+			return;
+		}
+		archiveTitle = active.title;
+		archiveFilled = active.filled;
+		archiveOpen = true;
+	}
+
+	async function handleArchive(withKeepsake: boolean): Promise<void> {
+		const active = chart.charts.find((item) => item.active);
+		if (!active) return;
+		archiving = true;
+		try {
+			if (withKeepsake) {
+				await exportChartPng(chart.data);
+				downloadChartJson(chart.data);
+			}
+			archiveOpen = false;
+			chart.deleteChart(active.id);
+			chart.say('Chart archived.');
+		} catch {
+			chart.say('Could not save the keepsake. Nothing was deleted.');
+		} finally {
+			archiving = false;
+		}
 	}
 
 	function isTypingTarget(target: EventTarget | null): boolean {
@@ -143,9 +199,56 @@
 	<MenuItem icon="grid" badge="N" onclick={handleNew}>New blank chart</MenuItem>
 	<MenuItem icon="target" onclick={handleExample}>Example chart</MenuItem>
 	{#if chart.canDeleteChart}
-		<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete this chart</MenuItem>
+		<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete or archive chart</MenuItem>
 	{/if}
 </Menu>
+
+<Dialog
+	bind:open={archiveOpen}
+	title="Archive chart"
+	description="Save a keepsake of “{archiveTitle}”, then remove it from this device."
+	size="sm"
+>
+	<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
+		This downloads the poster image and a JSON backup before deleting. {archiveFilled} of 73 cells
+		are filled.
+	</p>
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (archiveOpen = false)}>Cancel</Button>
+		<Button variant="soft" disabled={archiving} onclick={() => handleArchive(false)}>
+			Delete without backup
+		</Button>
+		<Button disabled={archiving} onclick={() => handleArchive(true)}>
+			{archiving ? 'Saving…' : 'Save and archive'}
+		</Button>
+	{/snippet}
+</Dialog>
+
+<Dialog
+	bind:open={exampleOpen}
+	title="You already have this example"
+	description={exampleAlreadyOpen
+		? 'This chart is already the example.'
+		: `“${example.goal}” is already saved on this device.`}
+	size="sm"
+>
+	<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
+		{#if exampleAlreadyOpen}
+			Add another copy of “{example.goal}”?
+		{:else}
+			Open that chart, or add another copy.
+		{/if}
+	</p>
+	{#snippet footer()}
+		<Button variant="ghost" onclick={() => (exampleOpen = false)}>Cancel</Button>
+		<Button variant={exampleAlreadyOpen ? 'primary' : 'soft'} onclick={addExampleCopy}>
+			Add another copy
+		</Button>
+		{#if !exampleAlreadyOpen}
+			<Button onclick={openExistingExample}>Open chart</Button>
+		{/if}
+	{/snippet}
+</Dialog>
 
 <Dialog
 	bind:open={renameOpen}

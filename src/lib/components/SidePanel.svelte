@@ -2,7 +2,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
-	import { goalTypeMin, largestFittingSize } from './goal-fit';
+	import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
@@ -147,6 +147,16 @@
 			element.style.color = hide ? 'transparent' : '';
 		};
 
+		const markFitted = (): void => {
+			if (faceIsReady()) {
+				element.dataset.fitted = '';
+				return;
+			}
+			element.removeAttribute('data-clamped');
+			host?.removeAttribute('data-goal-clamped');
+			host?.style.removeProperty('--goal-fit');
+		};
+
 		const apply = (): void => {
 			element.style.fontSize = '';
 			element.style.paddingTop = `${GOAL_PAD_TOP}px`;
@@ -162,6 +172,7 @@
 			if (!Number.isFinite(max) || max <= 0 || element.value.trim() === '') {
 				centerShortText();
 				syncColor();
+				markFitted();
 				return;
 			}
 
@@ -202,6 +213,7 @@
 					}
 				}
 				syncColor();
+				markFitted();
 				return;
 			}
 
@@ -215,6 +227,7 @@
 
 			centerShortText();
 			syncColor();
+			markFitted();
 		};
 
 		const centerShortText = (): void => {
@@ -239,6 +252,9 @@
 		};
 
 		schedule();
+		const stopFace = watchFaceSwap(schedule, () => {
+			element.dataset.fitted = '';
+		});
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(host ?? element);
 		window.addEventListener('resize', schedule);
@@ -248,7 +264,9 @@
 		textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
 		return () => {
 			cancelAnimationFrame(frame);
+			stopFace();
 			resizeObserver.disconnect();
+			delete element.dataset.fitted;
 			textObserver.disconnect();
 			window.removeEventListener('resize', schedule);
 			element.removeEventListener('focus', schedule);
@@ -514,7 +532,7 @@
 								aria-pressed={meta?.pinned}
 							>
 								<Icon name="pin" size={12} />
-								<span>{meta?.pinned ? 'Pinned' : 'Pin to Today'}</span>
+								<span>{meta?.pinned ? 'Pinned' : 'Pin'}</span>
 							</button>
 						{/if}
 						{#if meta?.kind === 'milestone'}

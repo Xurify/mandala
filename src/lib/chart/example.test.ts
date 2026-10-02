@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTION_MAX, GOAL_MAX, PILLAR_MAX } from './draft.ts';
-import { example, exampleChart } from './example.ts';
+import { example, exampleChart, isExampleChart } from './example.ts';
 import { filledCount, getByKey, info } from './model.ts';
 
 describe('example chart', () => {
@@ -30,5 +30,17 @@ describe('example chart', () => {
 			if (cell.type !== 'pillar') continue;
 			expect(getByKey(chart, `p${cell.k}`)).toBe(example.pillars[cell.k]);
 		}
+	});
+
+	it('recognizes the sample even after ticks, and rejects edits', () => {
+		const chart = exampleChart();
+		expect(isExampleChart(chart)).toBe(true);
+		chart.days = { '2026-01-01': { focus: [], checked: ['a00'] } };
+		expect(isExampleChart(chart)).toBe(true);
+		chart.actions[0]![0] = 'Sleep 9 hrs';
+		expect(isExampleChart(chart)).toBe(false);
+		const renamed = exampleChart();
+		renamed.goal = 'a calmer week';
+		expect(isExampleChart(renamed)).toBe(false);
 	});
 });

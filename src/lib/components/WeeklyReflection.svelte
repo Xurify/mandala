@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { HUES, getByKey, pillarActivityLast7, weekStartKey } from '$lib/chart/model';
-	import { arcPath, pillarArc } from '$lib/chart/ring';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
 
 	interface Props {
 		open?: boolean;
@@ -24,23 +24,7 @@
 		}
 	});
 
-	const VIEW = 100;
-	const CENTER = VIEW / 2;
-	const GEOMETRY = { radius: 40, stroke: 8, gap: 5 };
-
-	const ringSegments = $derived(
-		HUES.map((hue, pillarIndex) => {
-			const level = activity[pillarIndex] ?? 0;
-			const { start, end } = pillarArc(pillarIndex, GEOMETRY);
-			const isActive = level > 0;
-			return {
-				hue,
-				track: arcPath(CENTER, CENTER, GEOMETRY.radius, start, end),
-				isActive,
-				level
-			};
-		})
-	);
+	const maxActivity = $derived(Math.max(...activity, 1));
 
 	type MilestoneEntry = {
 		key: string;
@@ -94,8 +78,19 @@
 	});
 
 	let expandedPillarIndex = $state<number | null>(null);
+	let editingKey = $state<string | null>(null);
+
+	function leadOf(actions: { key: string; text: string }[]): { key: string; text: string } | undefined {
+		return actions.find((action) => !chart.metaOf(action.key)?.done) ?? actions[0];
+	}
+
+	function focusField(node: HTMLInputElement): void {
+		node.focus();
+		node.setSelectionRange(node.value.length, node.value.length);
+	}
 
 	function togglePillarExpand(pillarIndex: number): void {
+		editingKey = null;
 		expandedPillarIndex = expandedPillarIndex === pillarIndex ? null : pillarIndex;
 	}
 
@@ -111,36 +106,31 @@
 	}
 </script>
 
-<Dialog bind:open title="Weekly Reflection" description="A calm look back at your progress this week.">
+	<Dialog bind:open title="Weekly reflection" description="A calm look back at your progress this week.">
 	<div class="flex flex-col gap-6">
-		<section class="flex flex-col items-center gap-3">
-			<h3 class="text-[0.82rem] font-bold tracking-wider text-muted uppercase">Pillar Balance</h3>
-			<div class="relative size-[100px]" role="img" aria-label="7-day pillar balance ring">
-				<svg class="block overflow-visible" viewBox="0 0 {VIEW} {VIEW}" width="100" height="100" aria-hidden="true">
-					{#each ringSegments as segment, pillarIndex (pillarIndex)}
-						<path
-							class="fill-none stroke-[8] [stroke-linecap:round] motion-safe:transition-opacity motion-safe:duration-300"
-							d={segment.track}
-							style:stroke="oklch(0.65 0.14 {segment.hue})"
-							style:opacity={segment.isActive ? 1 : 0.18}
-						/>
-					{/each}
-				</svg>
-				<span class="absolute inset-0 flex items-center justify-center text-muted">
-					<Icon name="compass" size={24} />
-				</span>
+		<section class="flex flex-col gap-2">
+			<Eyebrow>Balance</Eyebrow>
+			<div class="flex items-center gap-1.5 py-2" role="img" aria-label="7-day pillar balance">
+				{#each HUES as hue, pillarIndex (pillarIndex)}
+					{@const level = activity[pillarIndex] ?? 0}
+					{@const opacity = level === 0 ? 0.18 : 0.45 + (level / maxActivity) * 0.55}
+					<span
+						class="h-2 flex-1 rounded-full"
+						style:--h={hue}
+						style:background-color="oklch(var(--ring-fill-l) 0.13 var(--h))"
+						style:opacity={opacity}
+					></span>
+				{/each}
 			</div>
-			<p class="text-center text-[0.82rem] text-muted">
-				Glowing slices show pillars you engaged with in the last 7 days.
-			</p>
+			<p class="text-[0.86rem] text-pretty text-muted">Bright bars are pillars you used in the last 7 days.</p>
 		</section>
 
 		<section class="flex flex-col gap-2">
-			<h3 class="text-[0.82rem] font-bold tracking-wider text-muted uppercase">Milestones Closed</h3>
+			<Eyebrow>Closed</Eyebrow>
 			{#if closedMilestones.length > 0}
 				<div class="flex flex-col gap-1.5">
 					{#each closedMilestones as milestone (milestone.key)}
-						<div class="flex items-center gap-2.5 rounded-[14px] bg-sunken px-3.5 py-2.5">
+						<div class="flex min-h-11 items-center gap-2.5 px-3 py-2">
 							<span class="flex size-4 shrink-0 items-center justify-center rounded-full bg-success text-surface" aria-hidden="true">
 								<Icon name="check" size={10} strokeWidth={2.6} />
 							</span>
@@ -150,58 +140,114 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="text-[0.86rem] text-muted italic">Nothing closed this week — that is completely fine.</p>
+				<p class="text-[0.86rem] text-pretty text-muted">Nothing closed this week. That is fine.</p>
 			{/if}
 		</section>
 
 		{#if neglectedPillars.length > 0}
 			<section class="flex flex-col gap-2">
-				<div class="flex items-center justify-between">
-					<h3 class="text-[0.82rem] font-bold tracking-wider text-muted uppercase">Tune Up</h3>
-					<span class="text-[0.76rem] text-muted">Feeling stuck? Swap an action.</span>
-				</div>
-				<div class="flex flex-col gap-2">
+				<Eyebrow>Quiet this week</Eyebrow>
+				<p class="text-[0.86rem] text-pretty text-muted">
+					No actions here in the last 7 days. Rewrite one that isn't working.
+				</p>
+				<div class="flex flex-col">
 					{#each neglectedPillars as pillar (pillar.pillarIndex)}
+						{@const lead = leadOf(pillar.actions)}
+						{@const rest = pillar.actions.filter((action) => action.key !== lead?.key)}
 						{@const isExpanded = expandedPillarIndex === pillar.pillarIndex}
-						<div class="rounded-[16px] bg-sunken p-3">
-							<button
-								type="button"
-								class="flex w-full cursor-pointer items-center justify-between text-left"
-								onclick={() => togglePillarExpand(pillar.pillarIndex)}
-								aria-expanded={isExpanded}
-							>
-								<div class="flex items-center gap-2">
-									<span class="size-2 rounded-full" style:background-color="oklch(0.65 0.14 {HUES[pillar.pillarIndex]})"></span>
-									<span class="text-[0.88rem] font-semibold text-text">{pillar.name}</span>
-								</div>
-								<Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={15} class="text-muted" />
-							</button>
-
-							{#if isExpanded}
-								<div class="mt-3 flex flex-col gap-1.5 border-t border-line pt-2.5">
-									{#each pillar.actions as action (action.key)}
-										<div class="flex items-center gap-2">
+						{#if lead}
+							<div>
+								<div class="flex items-center">
+									{#if editingKey === lead.key}
+										<div class="flex min-w-0 flex-1 items-center gap-3 px-3">
+											<span
+												class="size-3.5 shrink-0 rounded-[4px]"
+												style:--h={HUES[pillar.pillarIndex]}
+												style:background-color="oklch(var(--ring-fill-l) 0.13 var(--h))"
+												aria-hidden="true"
+											></span>
 											<input
 												type="text"
-												class="w-full rounded-[10px] border border-line bg-surface px-2.5 py-1 text-[0.82rem] text-text placeholder:text-muted focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
-												value={action.text}
-												onchange={(event) => chart.setText(action.key, event.currentTarget.value)}
+												class="min-h-11 min-w-0 flex-1 rounded-full border-0 bg-sunken px-4 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+												value={lead.text}
+												aria-label="Rewrite {lead.text}"
+												onblur={() => {
+													if (editingKey === lead.key) editingKey = null;
+												}}
+												onchange={(event) => chart.setText(lead.key, event.currentTarget.value)}
+												{@attach focusField}
 											/>
 										</div>
-									{/each}
+									{:else}
+										<button
+											type="button"
+											class="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-full border-0 bg-transparent px-3 py-1.5 text-left hover:bg-sunken motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+											onclick={() => (editingKey = lead.key)}
+										>
+											<span
+												class="size-3.5 shrink-0 rounded-[4px]"
+												style:--h={HUES[pillar.pillarIndex]}
+												style:background-color="oklch(var(--ring-fill-l) 0.13 var(--h))"
+												aria-hidden="true"
+											></span>
+											<span class="flex min-w-0 flex-col">
+												<span class="truncate text-[0.92rem] font-medium text-text">{lead.text}</span>
+												<span class="truncate text-[0.72rem] text-muted">{pillar.name}</span>
+											</span>
+										</button>
+									{/if}
+									{#if rest.length > 0}
+										<button
+											type="button"
+											class="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+											aria-expanded={isExpanded}
+											aria-label={isExpanded ? `Hide other ${pillar.name} actions` : `Show ${rest.length} other ${pillar.name} actions`}
+											onclick={() => togglePillarExpand(pillar.pillarIndex)}
+										>
+											<Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} size={15} />
+										</button>
+									{/if}
 								</div>
-							{/if}
-						</div>
+
+								{#if isExpanded}
+									<div class="flex flex-col pb-1 pl-9">
+										{#each rest as action (action.key)}
+											{#if editingKey === action.key}
+												<input
+													type="text"
+													class="min-h-11 w-full rounded-full border-0 bg-sunken px-4 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+													value={action.text}
+													aria-label="Rewrite {action.text}"
+													onblur={() => {
+														if (editingKey === action.key) editingKey = null;
+													}}
+													onchange={(event) => chart.setText(action.key, event.currentTarget.value)}
+													{@attach focusField}
+												/>
+											{:else}
+												<button
+													type="button"
+													class="flex min-h-11 w-full cursor-pointer items-center rounded-full border-0 bg-transparent px-4 text-left text-[0.9rem] text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+													onclick={() => (editingKey = action.key)}
+												>
+													{action.text}
+												</button>
+											{/if}
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{/if}
 					{/each}
 				</div>
 			</section>
 		{/if}
 
 		<section class="flex flex-col gap-2">
-			<h3 class="text-[0.82rem] font-bold tracking-wider text-muted uppercase">Reflection Note</h3>
+			<Eyebrow>Note</Eyebrow>
 			<textarea
-				class="min-h-24 w-full resize-none rounded-[16px] border border-line bg-sunken p-3 text-[0.88rem] text-text placeholder:text-muted focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
-				placeholder="What went well? What did you learn this week? (Optional)"
+				class="min-h-24 w-full resize-none rounded-[20px] border-0 bg-sunken px-4 py-3 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
+				placeholder="What happened this week?"
 				bind:value={reflectionNote}
 			></textarea>
 		</section>
