@@ -60,77 +60,62 @@
 		if (!open) find = '';
 	}
 
-	let listMoreBelow = $state(false);
-
-	function fitChartList(node: HTMLElement): () => void {
-		let placed = false;
-		const panel = node.parentElement;
-		// The panel's own overflow would scroll the actions once the list hits its end.
+	function pinMenu(list: HTMLElement): () => void {
+		const panel = list.parentElement;
+		const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
+		// The shared menu scrolls as one piece. This one keeps the actions on screen.
 		if (panel) panel.style.overflowY = 'hidden';
 
-		function setMax(el: HTMLElement, px: number): void {
-			const next = `${px}px`;
-			if (el.style.maxHeight !== next) el.style.maxHeight = next;
-		}
-
 		function place(): void {
-			const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
-			const trigger = panel?.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
-			if (!panel || !foot || !trigger) return;
-
+			if (!panel) return;
+			const trigger = panel.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
+			if (!trigger) return;
 			const dock = document.querySelector<HTMLElement>('[role="tablist"]');
 			const limit = (dock ? dock.getBoundingClientRect().top : window.innerHeight) - 12;
 			const room = Math.min(640, Math.max(220, Math.floor(limit - trigger.getBoundingClientRect().bottom - 8)));
-			setMax(panel, room);
-
-			const cs = getComputedStyle(panel);
-			const pad = Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom);
-			const gap = Number.parseFloat(cs.rowGap) || 0;
-			// The footer's negative margin sits in the panel padding, so it gives that space back to the list.
-			const footMargin = Number.parseFloat(getComputedStyle(foot).marginBottom) || 0;
-			const findBar = panel.querySelector<HTMLElement>('[data-menu-find-bar]');
-			const findH = findBar ? findBar.offsetHeight + gap : 0;
-			const listMax = Math.max(96, Math.floor(room - foot.offsetHeight - footMargin - pad - gap - findH));
-			setMax(node, listMax);
-
-			if (placed) return;
-			placed = true;
-			node.querySelector<HTMLElement>('#switch-active-chart')?.scrollIntoView({ block: 'nearest' });
+			const next = `${room}px`;
+			if (panel.style.maxHeight !== next) panel.style.maxHeight = next;
 		}
 
-		// Edge chrome stays out of the footer's height, but a 1px flicker at the end still reads as a jump.
 		function mark(): void {
-			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
-			const next = listMoreBelow ? leftover > 1 : leftover > 12;
-			if (next !== listMoreBelow) listMoreBelow = next;
+			if (!foot) return;
+			const leftover = list.scrollHeight - list.clientHeight - list.scrollTop;
+			const open = foot.hasAttribute('data-more');
+			const more = open ? leftover > 1 : leftover > 8;
+			if (more === open) return;
+			foot.toggleAttribute('data-more', more);
+			foot.classList.toggle('shadow-edge-up', more);
+		}
+
+		function revealActive(): void {
+			const active = list.querySelector<HTMLElement>('#switch-active-chart');
+			if (!active) return;
+			const listTop = list.getBoundingClientRect().top;
+			const item = active.getBoundingClientRect();
+			if (item.top < listTop) list.scrollTop -= listTop - item.top;
+			else if (item.bottom > listTop + list.clientHeight) {
+				list.scrollTop += item.bottom - (listTop + list.clientHeight);
+			}
 		}
 
 		place();
-		mark();
 		const frame = requestAnimationFrame(() => {
 			place();
+			revealActive();
 			mark();
 		});
-		const observer = new ResizeObserver(() => {
+		const onWindow = () => {
 			place();
 			mark();
-		});
-		const arm = requestAnimationFrame(() => {
-			const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
-			const findBar = panel?.querySelector<HTMLElement>('[data-menu-find-bar]');
-			if (foot) observer.observe(foot);
-			if (findBar) observer.observe(findBar);
-		});
-		window.addEventListener('resize', place);
-		window.addEventListener('scroll', place, { passive: true });
-		node.addEventListener('scroll', mark, { passive: true });
+		};
+		window.addEventListener('resize', onWindow);
+		window.addEventListener('scroll', onWindow, { passive: true });
+		list.addEventListener('scroll', mark, { passive: true });
 		return () => {
 			cancelAnimationFrame(frame);
-			cancelAnimationFrame(arm);
-			observer.disconnect();
-			window.removeEventListener('resize', place);
-			window.removeEventListener('scroll', place);
-			node.removeEventListener('scroll', mark);
+			window.removeEventListener('resize', onWindow);
+			window.removeEventListener('scroll', onWindow);
+			list.removeEventListener('scroll', mark);
 		};
 	}
 
@@ -434,8 +419,8 @@
 	{/if}
 	<div
 		id="chart-switch-list"
-		class="flex min-h-0 flex-col gap-px overflow-y-auto overscroll-contain [overflow-anchor:none]"
-		{@attach fitChartList}
+		class="flex min-h-0 flex-auto flex-col gap-px overflow-y-auto overscroll-none"
+		{@attach pinMenu}
 	>
 		{#if chartRows.length === 0}
 			<p class="m-0 px-3 py-2.5 text-[0.86rem] text-pretty text-muted">No matching chart.</p>
@@ -469,18 +454,14 @@
 		{/each}
 	</div>
 	<div
-		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5 {listMoreBelow
-			? 'shadow-edge-up'
-			: ''}"
+		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5"
 		data-menu-foot
 	>
 		<div
-			class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12 {listMoreBelow ? '' : 'opacity-0'}"
+			class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12 opacity-0 [[data-more]_&]:opacity-100"
 			aria-hidden="true"
 		></div>
-		<div class={listMoreBelow ? 'invisible' : ''} aria-hidden={listMoreBelow}>
-			<MenuDivider />
-		</div>
+		<MenuDivider />
 		<div class="flex gap-px">
 			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New blank chart</MenuItem>
 			<span class="my-2.5 w-px shrink-0 bg-line" aria-hidden="true"></span>
