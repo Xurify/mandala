@@ -2,17 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { emptyChart, exportJson, filledCount, parseChart } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 import {
-	CHART_CAP,
 	cloneChart,
+	daysUntilPurge,
+	deleteFromLibrary,
 	emptyLibrary,
 	flushActive,
+	forgetFromLibrary,
+	formatDeletesIn,
 	formatUpdated,
 	migrateFromV1,
 	newRecord,
 	parseLibrary,
+	purgeDeleted,
+	restoreFromLibrary,
 	summarize,
 	titleOf,
-	UNTITLED
+	TRASH_DAYS,
+	TRASH_MS,
+	UNTITLED,
+	type DeletedRecord
 } from './library.ts';
 
 describe('titleOf', () => {
@@ -125,13 +133,75 @@ describe('summarize', () => {
 	});
 });
 
-describe('caps', () => {
-	it('keeps the documented chart cap', () => {
-		expect(CHART_CAP).toBe(12);
-	});
-
+describe('parseChart round trip', () => {
 	it('parses exported chart JSON back through parseChart', () => {
 		const rec = newRecord(buildChart(getPreset('money')!));
 		expect(parseChart(exportJson(rec.data))).toEqual(rec.data);
+	});
+});
+
+function deletedRecord(goal: string, deletedAt: number): DeletedRecord {
+	const record = newRecord(emptyChart(), deletedAt);
+	record.data.goal = goal;
+	return { ...record, deletedAt };
+}
+
+describe('recently deleted', () => {
+	const now = new Date(2026, 9, 3, 12).getTime();
+
+	it('reads a library saved before deleted charts existed', () => {
+		const library = emptyLibrary();
+		const raw = JSON.stringify({ activeId: library.activeId, charts: library.charts });
+		expect(parseLibrary(raw)?.deleted).toEqual([]);
+	});
+
+	it('keeps a deleted chart for 30 days, then drops it', () => {
+		const fresh = deletedRecord('Keep', now - TRASH_MS + 1);
+		const expired = deletedRecord('Drop', now - TRASH_MS);
+		expect(purgeDeleted([fresh, expired], now).map((item) => item.id)).toEqual([fresh.id]);
+		expect(daysUntilPurge(fresh.deletedAt, now)).toBe(1);
+		expect(daysUntilPurge(now, now)).toBe(TRASH_DAYS);
+		expect(formatDeletesIn(1)).toBe('Deletes in 1 day');
+		expect(formatDeletesIn(12)).toBe('Deletes in 12 days');
+	});
+
+	it('moves the last chart to recently deleted and leaves a blank chart', () => {
+		const library = emptyLibrary();
+		library.charts[0]!.data.goal = 'Only one';
+		const next = deleteFromLibrary(library, library.charts[0]!.id, now);
+		expect(next?.charts).toHaveLength(1);
+		expect(next?.charts[0]?.data.goal).toBe('');
+		expect(next?.activeId).not.toBe(library.activeId);
+		expect(next?.deleted).toHaveLength(1);
+		expect(next?.deleted[0]?.data.goal).toBe('Only one');
+		expect(next?.deleted[0]?.deletedAt).toBe(now);
+	});
+
+	it('restores a deleted chart as the active one', () => {
+		const library = emptyLibrary();
+		const removed = deleteFromLibrary(library, library.activeId, now);
+		expect(removed).not.toBeNull();
+		const restored = restoreFromLibrary(removed!, removed!.deleted[0]!.id, now + 1000);
+		expect(restored?.activeId).toBe(removed!.deleted[0]?.id);
+		expect(restored?.deleted).toEqual([]);
+		expect(restored?.charts).toHaveLength(2);
+	});
+
+	it('removes a deleted chart before the hold ends', () => {
+		const library = emptyLibrary();
+		const removed = deleteFromLibrary(library, library.activeId, now)!;
+		const forgotten = forgetFromLibrary(removed, removed.deleted[0]!.id);
+		expect(forgotten?.deleted).toEqual([]);
+		expect(restoreFromLibrary(forgotten!, removed.deleted[0]!.id, now)).toBeNull();
+	});
+
+	it('skips a broken deleted row and ignores one that is still live', () => {
+		const library = emptyLibrary();
+		const raw = JSON.stringify({
+			activeId: library.activeId,
+			charts: library.charts,
+			deleted: [{ id: 'bad' }, { ...deletedRecord('Gone', now), id: library.activeId }]
+		});
+		expect(parseLibrary(raw)?.deleted).toEqual([]);
 	});
 });

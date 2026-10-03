@@ -25,18 +25,23 @@ import {
   type WeekReflection,
 } from "./model.ts";
 import {
-  CHART_CAP,
   LIBRARY_KEY,
   activeRecord,
   cloneChart,
+  deleteFromLibrary,
   emptyLibrary,
   flushActive,
+  forgetFromLibrary,
   migrateFromV1,
   newRecord,
   parseLibrary,
+  purgeLibrary,
+  restoreFromLibrary,
   summarize,
+  summarizeDeleted,
   type ChartLibrary,
   type ChartSummary,
+  type DeletedSummary,
 } from "./library.ts";
 import {
   fetchRow,
@@ -50,6 +55,7 @@ export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
 const SYNC_STATE_KEY = "mandala-sync-state-v1";
 import { exampleChart, isExampleChart } from "./example.ts";
+import { bindGoalFit } from "$lib/components/goal-fit";
 import { buildChart, type Preset } from "./presets/index.ts";
 import {
   clearBackupHandle,
@@ -120,7 +126,7 @@ function loadInitialLibrary(): ChartLibrary {
     const rawLibrary = localStorage.getItem(LIBRARY_KEY);
     if (rawLibrary) {
       const parsed = parseLibrary(rawLibrary);
-      if (parsed) return parsed;
+      if (parsed) return purgeLibrary(parsed);
     }
     return migrateFromV1(localStorage.getItem(STORAGE_KEY));
   } catch {
@@ -184,10 +190,11 @@ export class ChartStore {
   charts: ChartSummary[] = $derived(
     summarize(this.#library.charts, this.#library.activeId, this.data),
   );
+  deletedCharts: DeletedSummary[] = $derived(
+    summarizeDeleted(this.#library.deleted),
+  );
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
-  canAddChart = $derived(this.#library.charts.length < CHART_CAP);
-  canDeleteChart = $derived(this.#library.charts.length > 1);
 
   todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
@@ -208,7 +215,9 @@ export class ChartStore {
       if (rawLibrary) {
         const parsed = parseLibrary(rawLibrary);
         if (parsed) {
-          this.#adopt(parsed);
+          const next = purgeLibrary(parsed);
+          this.#adopt(next);
+          if (next !== parsed) this.#writeLibrary();
           this.#resumeSync();
           return;
         }
@@ -226,6 +235,12 @@ export class ChartStore {
     this.sel = 4;
     this.query = "";
     this.#adoptShareState();
+    this.#bindGoalFit();
+  }
+
+  #bindGoalFit(): void {
+    if (typeof window === "undefined") return;
+    bindGoalFit(this.data.goal, this.viewMode, this.viewScale, window.innerWidth);
   }
 
   #adoptShareState(): void {
@@ -297,6 +312,28 @@ export class ChartStore {
     if (this.backupState === "on") void this.#writeBackup();
   }
 
+  /** Persist the library without treating the open chart as edited. */
+  #writeLibrary(): void {
+    try {
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(this.#library));
+    } catch {
+      if (!this.saveWarned) {
+        this.saveWarned = true;
+        this.say(
+          "Your browser blocked saving, so this chart will be lost when you close the page.",
+        );
+      }
+    }
+    if (this.backupState === "on") void this.#writeBackup();
+  }
+
+  purgeExpired(): void {
+    const next = purgeLibrary(this.#library);
+    if (next === this.#library) return;
+    this.#library = next;
+    this.#writeLibrary();
+  }
+
   save(): void {
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
     this.#saveTimer = setTimeout(() => this.saveNow(), 300);
@@ -327,6 +364,7 @@ export class ChartStore {
     } catch {
       // storage blocked
     }
+    this.#bindGoalFit();
   }
 
   setViewScale(scale: ViewScale): void {
@@ -338,6 +376,7 @@ export class ChartStore {
     } catch {
       // storage blocked
     }
+    this.#bindGoalFit();
   }
 
   setQuery(value: string): void {
@@ -347,6 +386,7 @@ export class ChartStore {
   setText(key: string, value: string): void {
     setByKey(this.data, key, value);
     this.save();
+    if (key === "g") this.#bindGoalFit();
   }
 
   textOf(key: string): string {
@@ -772,10 +812,6 @@ export class ChartStore {
   }
 
   newChart(): boolean {
-    if (!this.canAddChart) {
-      this.say("Chart limit reached (12). Delete one first.");
-      return false;
-    }
     this.#flush();
     const record = newRecord(emptyChart());
     this.#library.charts = [...this.#library.charts, record];
@@ -788,10 +824,6 @@ export class ChartStore {
   }
 
   duplicateChart(): boolean {
-    if (!this.canAddChart) {
-      this.say("Chart limit reached (12). Delete one first.");
-      return false;
-    }
     this.#flush();
     const record = newRecord(this.data);
     this.#library.charts = [...this.#library.charts, record];
@@ -815,26 +847,40 @@ export class ChartStore {
   }
 
   deleteChart(id: string): void {
-    if (this.#library.charts.length <= 1) {
-      this.data = emptyChart();
-      this.saveNow();
-      this.say("Chart cleared.");
-      return;
-    }
     this.#flush();
-    const remaining = this.#library.charts.filter((chart) => chart.id !== id);
-    if (remaining.length === this.#library.charts.length) return;
-    this.#library.charts = remaining;
-    if (this.#library.activeId === id) {
-      const next = remaining
-        .slice()
-        .sort((a, b) => b.updatedAt - a.updatedAt)[0]!;
-      this.#library.activeId = next.id;
-      this.data = cloneChart(next.data);
+    const next = deleteFromLibrary(this.#library, id);
+    if (!next) return;
+    const activeChanged = next.activeId !== this.#library.activeId;
+    this.#library = next;
+    if (activeChanged) {
+      this.data = cloneChart(activeRecord(next).data);
       this.#resetView();
+      this.#adoptShareState();
+      this.#bindGoalFit();
     }
     this.saveNow();
     this.say("Chart deleted.");
+  }
+
+  restoreChart(id: string): void {
+    this.#flush();
+    const next = restoreFromLibrary(this.#library, id);
+    if (!next) return;
+    this.#library = next;
+    this.data = cloneChart(activeRecord(next).data);
+    this.#resetView();
+    this.#adoptShareState();
+    this.#bindGoalFit();
+    this.saveNow();
+    this.say("Chart restored.");
+  }
+
+  forgetChart(id: string): void {
+    const next = forgetFromLibrary(this.#library, id);
+    if (!next) return;
+    this.#library = next;
+    this.saveNow();
+    this.say("Chart removed.");
   }
 
   #fillOrSpawn(next: ChartData, message: string): boolean {
@@ -844,10 +890,6 @@ export class ChartStore {
       this.saveNow();
       this.say(message);
       return true;
-    }
-    if (!this.canAddChart) {
-      this.say("Chart limit reached (12). Delete one first.");
-      return false;
     }
     this.#flush();
     const record = newRecord(next);
@@ -940,6 +982,7 @@ if (typeof document !== "undefined") {
   if (chart.viewScale === "large")
     document.documentElement.dataset.scale = "large";
   else delete document.documentElement.dataset.scale;
+  bindGoalFit(chart.data.goal, chart.viewMode, chart.viewScale, window.innerWidth);
   requestAnimationFrame(() => {
     document.documentElement.dataset.chartMotion = "";
   });

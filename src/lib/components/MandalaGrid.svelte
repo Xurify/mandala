@@ -11,7 +11,7 @@
 		type ActionMeta,
 		type ChartData
 	} from '$lib/chart/model';
-	import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
+	import { goalTypeMin, largestFittingSize, rememberGoalFit, watchFaceSwap } from './goal-fit';
 	import { cn } from './ui/cn';
 
 	let {
@@ -158,7 +158,6 @@
 
 		const apply = (): void => {
 			const text = element.textContent ?? '';
-			element.style.fontSize = '';
 			element.style.display = '';
 			element.style.overflow = '';
 			element.style.removeProperty('-webkit-line-clamp');
@@ -169,17 +168,13 @@
 				cell.clientHeight - parseFloat(cellStyle.paddingTop) - parseFloat(cellStyle.paddingBottom);
 			if (available <= 0) return;
 
+			// The button carries the design size. The span may already wear the saved size.
+			const max = parseFloat(cellStyle.fontSize);
+			if (!Number.isFinite(max) || max <= 0) return;
+
 			element.style.display = 'block';
 			element.style.overflow = 'visible';
 			element.style.setProperty('-webkit-line-clamp', 'unset');
-
-			const max = parseFloat(getComputedStyle(element).fontSize);
-			if (!Number.isFinite(max) || max <= 0) {
-				element.style.display = '';
-				element.style.overflow = '';
-				element.style.removeProperty('-webkit-line-clamp');
-				return;
-			}
 
 			const min = goalTypeMin(max);
 			const fits = (size: number): boolean => {
@@ -192,8 +187,10 @@
 			element.style.display = '';
 			element.style.overflow = '';
 			element.style.removeProperty('-webkit-line-clamp');
-			element.style.fontSize = chosen >= max - 0.25 ? '' : `${chosen.toFixed(2)}px`;
-			if (faceIsReady()) element.dataset.fitted = '';
+			const used = chosen >= max - 0.25 ? max : chosen;
+			const next = `${used.toFixed(2)}px`;
+			if (element.style.fontSize !== next) element.style.fontSize = next;
+			rememberGoalFit('cell', used);
 		};
 
 		const schedule = (): void => {
@@ -203,9 +200,7 @@
 
 		apply();
 		schedule();
-		const stopFace = watchFaceSwap(schedule, () => {
-			element.dataset.fitted = '';
-		});
+		const stopFace = watchFaceSwap(schedule);
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(cell);
 		const textObserver = new MutationObserver(schedule);
@@ -218,7 +213,6 @@
 			resizeObserver.disconnect();
 			textObserver.disconnect();
 			classObserver.disconnect();
-			delete element.dataset.fitted;
 			element.style.fontSize = '';
 			element.style.display = '';
 			element.style.overflow = '';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
+import { goalFitKey, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
 
 describe('goal type fit', () => {
 	it('keeps the design size when it is already under 11px', () => {
@@ -11,12 +11,11 @@ describe('goal type fit', () => {
 		expect(goalTypeMin(20)).toBeCloseTo(14);
 	});
 
-	it('treats a missing font loader as ready', () => {
-		expect(faceIsReady()).toBe(true);
-		const stop = watchFaceSwap(
-			() => {},
-			() => {}
-		);
+	it('buckets the fit cache by mode, scale, width, and goal', () => {
+		expect(goalFitKey('Run', 'view', 'fit', 1280)).toBe(goalFitKey('Run', 'view', 'fit', 1290));
+		expect(goalFitKey('Run', 'view', 'fit', 1280)).not.toBe(goalFitKey('Run', 'edit', 'fit', 1280));
+		expect(goalFitKey('Run', 'view', 'fit', 1280)).not.toBe(goalFitKey('Ship', 'view', 'fit', 1280));
+		const stop = watchFaceSwap(() => {});
 		stop();
 	});
 

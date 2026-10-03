@@ -6,8 +6,11 @@ import {
 } from './model.ts';
 
 export const LIBRARY_KEY = 'mandala-library-v1';
-export const CHART_CAP = 12;
 export const UNTITLED = 'Untitled';
+export const TRASH_DAYS = 30;
+
+const DAY_MS = 86_400_000;
+export const TRASH_MS = TRASH_DAYS * DAY_MS;
 
 export type ChartRecord = {
 	id: string;
@@ -15,9 +18,17 @@ export type ChartRecord = {
 	data: ChartData;
 };
 
+export type DeletedRecord = {
+	id: string;
+	updatedAt: number;
+	deletedAt: number;
+	data: ChartData;
+};
+
 export type ChartLibrary = {
 	activeId: string;
 	charts: ChartRecord[];
+	deleted: DeletedRecord[];
 };
 
 export type ChartSummary = {
@@ -28,6 +39,14 @@ export type ChartSummary = {
 	active: boolean;
 };
 
+export type DeletedSummary = {
+	id: string;
+	title: string;
+	filled: number;
+	deletedAt: number;
+	daysLeft: number;
+};
+
 export function cloneChart(data: ChartData): ChartData {
 	return parseChart(JSON.stringify(data)) ?? emptyChart();
 }
@@ -36,8 +55,6 @@ export function titleOf(data: ChartData): string {
 	const goal = data.goal.trim();
 	return goal || UNTITLED;
 }
-
-const DAY_MS = 86_400_000;
 
 function startOfLocalDay(ms: number): number {
 	const date = new Date(ms);
@@ -66,6 +83,28 @@ export function formatUpdated(at: number, now = Date.now()): string {
 	return `Updated ${label}`;
 }
 
+/** Whole days left before a deleted chart is removed. `0` means the hold is over. */
+export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
+	const remaining = TRASH_MS - (now - deletedAt);
+	if (remaining <= 0) return 0;
+	return Math.ceil(remaining / DAY_MS);
+}
+
+export function formatDeletesIn(daysLeft: number): string {
+	if (daysLeft <= 1) return 'Deletes in 1 day';
+	return `Deletes in ${daysLeft} days`;
+}
+
+export function purgeDeleted(deleted: DeletedRecord[], now = Date.now()): DeletedRecord[] {
+	return deleted.filter((item) => now - item.deletedAt < TRASH_MS);
+}
+
+export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibrary {
+	const deleted = purgeDeleted(library.deleted, now);
+	if (deleted.length === library.deleted.length) return library;
+	return { ...library, deleted };
+}
+
 export function newId(): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
 		return crypto.randomUUID();
@@ -83,13 +122,13 @@ export function newRecord(data: ChartData, at = Date.now()): ChartRecord {
 
 export function emptyLibrary(): ChartLibrary {
 	const record = newRecord(emptyChart());
-	return { activeId: record.id, charts: [record] };
+	return { activeId: record.id, charts: [record], deleted: [] };
 }
 
 export function migrateFromV1(raw: string | null): ChartLibrary {
 	const data = raw ? (parseChart(raw) ?? emptyChart()) : emptyChart();
 	const record = newRecord(data);
-	return { activeId: record.id, charts: [record] };
+	return { activeId: record.id, charts: [record], deleted: [] };
 }
 
 function chartFromUnknown(value: unknown): ChartData | null {
@@ -119,10 +158,90 @@ export function parseLibrary(raw: string): ChartLibrary | null {
 		const ids = new Set(charts.map((chart) => chart.id));
 		if (ids.size !== charts.length) return null;
 		const activeId = ids.has(record.activeId) ? record.activeId : charts[0]!.id;
-		return { activeId, charts };
+		return { activeId, charts, deleted: parseDeleted(record.deleted, ids) };
 	} catch {
 		return null;
 	}
+}
+
+function deletedFromUnknown(value: unknown): DeletedRecord | null {
+	if (!value || typeof value !== 'object') return null;
+	const row = value as Record<string, unknown>;
+	if (typeof row.id !== 'string' || !row.id) return null;
+	if (typeof row.updatedAt !== 'number' || !Number.isFinite(row.updatedAt)) return null;
+	if (typeof row.deletedAt !== 'number' || !Number.isFinite(row.deletedAt)) return null;
+	const data = chartFromUnknown(row.data);
+	if (!data) return null;
+	return { id: row.id, updatedAt: row.updatedAt, deletedAt: row.deletedAt, data };
+}
+
+function parseDeleted(value: unknown, liveIds: Set<string>): DeletedRecord[] {
+	if (!Array.isArray(value)) return [];
+	const byId = new Map<string, DeletedRecord>();
+	for (const item of value) {
+		const row = deletedFromUnknown(item);
+		if (!row || liveIds.has(row.id)) continue;
+		const previous = byId.get(row.id);
+		if (!previous || row.deletedAt >= previous.deletedAt) byId.set(row.id, row);
+	}
+	return [...byId.values()];
+}
+
+function newestChart(charts: ChartRecord[]): ChartRecord {
+	return charts.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0]!;
+}
+
+/** Move one live chart into recently deleted. The last chart leaves a blank one open. */
+export function deleteFromLibrary(
+	library: ChartLibrary,
+	id: string,
+	now = Date.now()
+): ChartLibrary | null {
+	const target = library.charts.find((chart) => chart.id === id);
+	if (!target) return null;
+	const remaining = library.charts.filter((chart) => chart.id !== id);
+	const removed: DeletedRecord = {
+		id: target.id,
+		updatedAt: target.updatedAt,
+		deletedAt: now,
+		data: cloneChart(target.data)
+	};
+	const deleted = purgeDeleted(
+		[removed, ...library.deleted.filter((item) => item.id !== id)],
+		now
+	);
+	if (remaining.length === 0) {
+		const blank = newRecord(emptyChart(), now);
+		return { activeId: blank.id, charts: [blank], deleted };
+	}
+	const activeId = library.activeId === id ? newestChart(remaining).id : library.activeId;
+	return { activeId, charts: remaining, deleted };
+}
+
+/** Put a deleted chart back into the live library and make it active. */
+export function restoreFromLibrary(
+	library: ChartLibrary,
+	id: string,
+	now = Date.now()
+): ChartLibrary | null {
+	const item = library.deleted.find((row) => row.id === id);
+	if (!item || now - item.deletedAt >= TRASH_MS) return null;
+	const record: ChartRecord = {
+		id: item.id,
+		updatedAt: now,
+		data: cloneChart(item.data)
+	};
+	return {
+		activeId: record.id,
+		charts: [...library.charts, record],
+		deleted: library.deleted.filter((row) => row.id !== id)
+	};
+}
+
+/** Drop a deleted chart before the 30-day hold ends. */
+export function forgetFromLibrary(library: ChartLibrary, id: string): ChartLibrary | null {
+	if (!library.deleted.some((row) => row.id === id)) return null;
+	return { ...library, deleted: library.deleted.filter((row) => row.id !== id) };
 }
 
 export function activeRecord(library: ChartLibrary): ChartRecord {
@@ -149,6 +268,19 @@ export function summarize(
 		return b.updatedAt - a.updatedAt;
 	});
 	return rows;
+}
+
+export function summarizeDeleted(deleted: DeletedRecord[], now = Date.now()): DeletedSummary[] {
+	return purgeDeleted(deleted, now)
+		.slice()
+		.sort((a, b) => b.deletedAt - a.deletedAt)
+		.map((item) => ({
+			id: item.id,
+			title: titleOf(item.data),
+			filled: filledCount(item.data),
+			deletedAt: item.deletedAt,
+			daysLeft: daysUntilPurge(item.deletedAt, now)
+		}));
 }
 
 export function flushActive(

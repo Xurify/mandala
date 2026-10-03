@@ -49,7 +49,6 @@
 	let shaking = $state(false);
 	let cursor = $state<number[]>(Array(8).fill(0));
 	let flipDirection = $state<1 | -1>(1);
-	let expanded = $state<number | null>(null);
 	let drag = $state<Drag | null>(null);
 	let swallowClick = false;
 
@@ -88,7 +87,6 @@
 	const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five'];
 	const maxWord = $derived(COUNT_WORDS[max] ?? String(max));
 	const SLOT_TILT = [-1.6, 1.1, -0.6, 0.9, -1.2];
-	const FAN_TILT = [-1.1, 0.8, -0.5, 1, -0.9, 0.6, -0.4, 0.7];
 
 	function toggle(key: string): void {
 		if (swallowClick) return;
@@ -234,32 +232,6 @@
 		else return;
 		event.preventDefault();
 	}
-
-	function spread(pillarIndex: number): void {
-		expanded = pillarIndex;
-	}
-
-	function stack(): void {
-		const pillarIndex = expanded;
-		expanded = null;
-		requestAnimationFrame(() => root?.querySelector<HTMLElement>(`[data-spread="${pillarIndex}"]`)?.focus());
-	}
-
-	// Escape inside a Dialog would otherwise close the whole dialog.
-	const stackOnEscape: Attachment<HTMLElement> = (node) => {
-		const onKey = (event: KeyboardEvent): void => {
-			if (event.key !== 'Escape') return;
-			event.preventDefault();
-			event.stopPropagation();
-			stack();
-		};
-		node.addEventListener('keydown', onKey);
-		return () => node.removeEventListener('keydown', onKey);
-	};
-
-	const focusFirstCard: Attachment<HTMLElement> = (node) => {
-		node.querySelector<HTMLElement>('[data-card]')?.focus({ preventScroll: true });
-	};
 
 	function suggest(): void {
 		const activity = pillarActivityLast7(chart.data);
@@ -437,92 +409,7 @@
 		>
 			{#each decks as group (group.pillarIndex)}
 				{@const top = group.top}
-				<li class="@container relative min-w-0 self-start pb-3" style:--h={HUES[group.pillarIndex]}>
-					{#if expanded === group.pillarIndex}
-						<div
-							class="flex flex-col gap-2"
-							role="group"
-							aria-label="All {group.pillarName} actions"
-							{@attach stackOnEscape}
-						>
-							<button
-								type="button"
-								class={cn(
-									'flex h-9 w-fit max-w-full cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-1 text-left',
-									focusRing
-								)}
-								onclick={stack}
-								aria-expanded="true"
-								aria-label="Stack {group.pillarName}"
-							>
-								<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
-								<span class="min-w-0 truncate text-[0.82rem] font-semibold">{group.pillarName}</span>
-								<span class="flex shrink-0 items-center gap-1 text-[0.76rem] font-medium text-muted">
-									<span class="hidden @[11rem]:inline">Stack</span>
-									<Icon name="minimize" size={12} />
-								</span>
-							</button>
-							<div {@attach focusFirstCard}>
-								{#each group.actions as entry, index (entry.key)}
-									{@const slotNumber = selected.indexOf(entry.key)}
-									<div
-										class="peer/peel relative -mt-3 first:mt-0 motion-safe:transition-[margin-top] motion-safe:duration-200 motion-safe:ease-ui can-hover:peer-hover/peel:mt-1"
-										style:z-index={index + 1}
-									>
-										{#if slotNumber >= 0}
-											<button
-												type="button"
-												data-card
-												class={cn(
-													'flex min-h-[88px] w-full cursor-pointer items-start gap-2 rounded-[22px] border-0 bg-ink p-3 text-left text-on-ink shadow-float origin-top rotate-[var(--tilt)] motion-safe:animate-fan-in motion-safe:transition-[rotate,translate,box-shadow,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:rotate-0 active:scale-[0.97]',
-													focusRing
-												)}
-												style:--tilt="{FAN_TILT[index % FAN_TILT.length]}deg"
-												style:--peel="-{index * 44}px"
-												style:animation-delay="{index * 35}ms"
-												onclick={() => toggle(entry.key)}
-												aria-pressed="true"
-												aria-label="Remove {entry.text}"
-											>
-												<span
-													class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-on-ink text-[0.7rem] leading-none font-semibold text-ink tabular-nums"
-													aria-hidden="true"
-												>
-													<span class="translate-y-px">{slotNumber + 1}</span>
-												</span>
-												<span class="line-clamp-3 font-serif text-[1.02rem] leading-[1.15] font-[500] text-pretty">{entry.text}</span>
-											</button>
-										{:else}
-											<button
-												type="button"
-												data-card
-												class={cn(
-													'pillar-action flex min-h-[88px] w-full cursor-grab items-start rounded-[22px] border-0 p-3 text-left text-text shadow-card origin-top rotate-[var(--tilt)] motion-safe:animate-fan-in motion-safe:transition-[rotate,translate,box-shadow,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:rotate-0 can-hover:hover:shadow-float active:scale-[0.97]',
-													drag?.entry.key === entry.key && 'invisible',
-													grab,
-													focusRing
-												)}
-												style:--tilt="{FAN_TILT[index % FAN_TILT.length]}deg"
-												style:--peel="-{index * 44}px"
-												style:animation-delay="{index * 35}ms"
-												onclick={() => toggle(entry.key)}
-												aria-pressed="false"
-												aria-label="Add {entry.text}"
-												{@attach draggable(entry)}
-											>
-												<span class="flex items-start gap-1.5">
-													{#if entry.meta?.pinned}
-														<Icon name="pin" size={12} class="mt-1 shrink-0 text-muted" />
-													{/if}
-													<span class="line-clamp-3 font-serif text-[1.02rem] leading-[1.15] font-[500] text-pretty">{entry.text}</span>
-												</span>
-											</button>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						</div>
-					{:else}
+				<li class="relative min-w-0 pb-3" style:--h={HUES[group.pillarIndex]}>
 						{#if group.deck.length > 2}
 							<span
 								class="pillar-action absolute inset-x-0 top-0 bottom-3 origin-bottom rotate-[-4deg] rounded-[22px] opacity-50 shadow-card"
@@ -551,27 +438,23 @@
 										)}
 										onclick={() => toggle(top.key)}
 										onkeydown={(event) => onCardKey(event, group.pillarIndex)}
-										aria-label="Add {top.text}"
-										aria-keyshortcuts="ArrowLeft ArrowRight"
+										aria-label={group.deck.length > 1
+											? `Add ${top.text}, ${group.at + 1} of ${group.deck.length}`
+											: `Add ${top.text}`}
+										aria-keyshortcuts={group.deck.length > 1 ? 'ArrowLeft ArrowRight' : undefined}
 										{@attach draggable(top)}
 									>
 										{@render face(top)}
 									</button>
 								{/key}
-								<button
-									type="button"
-									data-spread={group.pillarIndex}
-									class={cn(
-										'absolute bottom-3.5 left-2.5 flex h-8 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2 text-[0.76rem] text-muted tabular-nums motion-safe:transition-colors can-hover:hover:bg-surface can-hover:hover:text-text',
-										focusRing
-									)}
-									onclick={() => spread(group.pillarIndex)}
-									aria-expanded="false"
-									aria-label="Show all {group.actions.length} {group.pillarName} actions"
-								>
-									<Icon name="maximize" size={12} />
-									{group.at + 1} / {group.deck.length}
-								</button>
+								{#if group.deck.length > 1}
+									<span
+										class="pointer-events-none absolute bottom-4 left-4 text-[0.76rem] text-muted tabular-nums"
+										aria-hidden="true"
+									>
+										{group.at + 1} / {group.deck.length}
+									</span>
+								{/if}
 								{#if group.deck.length > 1}
 									<button
 										type="button"
@@ -596,26 +479,11 @@
 									></span>
 									<span class="truncate text-[0.82rem] font-semibold">{group.pillarName}</span>
 								</span>
-								{#if group.actions.length > 0}
-									<button
-										type="button"
-										data-spread={group.pillarIndex}
-										class={cn(
-											'-ml-2 flex h-8 w-fit cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2 text-[0.88rem] text-muted motion-safe:transition-colors can-hover:hover:bg-surface can-hover:hover:text-text',
-											focusRing
-										)}
-										onclick={() => spread(group.pillarIndex)}
-										aria-expanded="false"
-									>
-										All in your day
-										<Icon name="maximize" size={12} />
-									</button>
-								{:else}
-									<span class="text-[0.88rem]">Nothing open</span>
-								{/if}
+								<span class="text-[0.88rem]">
+									{group.actions.length > 0 ? 'All in your day' : 'Nothing open'}
+								</span>
 							</div>
 						{/if}
-					{/if}
 				</li>
 			{/each}
 		</ul>

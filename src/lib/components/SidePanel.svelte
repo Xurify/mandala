@@ -2,7 +2,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
-	import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
+	import { goalTypeMin, largestFittingSize, rememberGoalFit, watchFaceSwap } from './goal-fit';
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
@@ -154,14 +154,14 @@
 			element.style.color = hide ? 'transparent' : '';
 		};
 
-		const markFitted = (): void => {
-			if (faceIsReady()) {
-				element.dataset.fitted = '';
-				return;
-			}
-			element.removeAttribute('data-clamped');
-			host?.removeAttribute('data-goal-clamped');
-			host?.style.removeProperty('--goal-fit');
+		const designSize = (): number => {
+			const root = document.documentElement;
+			const saved = root.style.getPropertyValue('--goal-field-size');
+			root.style.removeProperty('--goal-field-size');
+			element.style.fontSize = '';
+			const max = parseFloat(getComputedStyle(element).fontSize);
+			if (saved) root.style.setProperty('--goal-field-size', saved);
+			return max;
 		};
 
 		const apply = (): void => {
@@ -175,11 +175,10 @@
 				return;
 			}
 
-			const max = parseFloat(getComputedStyle(element).fontSize);
+			const max = designSize();
 			if (!Number.isFinite(max) || max <= 0 || element.value.trim() === '') {
 				centerShortText();
 				syncColor();
-				markFitted();
 				return;
 			}
 
@@ -190,7 +189,10 @@
 			};
 			const chosen = largestFittingSize(min, max, fits);
 			const clamped = !fits(min);
-			element.style.fontSize = chosen >= max - 0.25 ? '' : `${chosen.toFixed(2)}px`;
+			const used = chosen >= max - 0.25 ? max : chosen;
+			const next = `${used.toFixed(2)}px`;
+			if (element.style.fontSize !== next) element.style.fontSize = next;
+			rememberGoalFit('field', used);
 
 			if (clamped) {
 				element.style.paddingTop = `${GOAL_PAD_TOP}px`;
@@ -220,7 +222,6 @@
 					}
 				}
 				syncColor();
-				markFitted();
 				return;
 			}
 
@@ -234,7 +235,6 @@
 
 			centerShortText();
 			syncColor();
-			markFitted();
 		};
 
 		const centerShortText = (): void => {
@@ -258,10 +258,9 @@
 			});
 		};
 
+		apply();
 		schedule();
-		const stopFace = watchFaceSwap(schedule, () => {
-			element.dataset.fitted = '';
-		});
+		const stopFace = watchFaceSwap(schedule);
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(host ?? element);
 		window.addEventListener('resize', schedule);
@@ -273,7 +272,6 @@
 			cancelAnimationFrame(frame);
 			stopFace();
 			resizeObserver.disconnect();
-			delete element.dataset.fitted;
 			textObserver.disconnect();
 			window.removeEventListener('resize', schedule);
 			element.removeEventListener('focus', schedule);

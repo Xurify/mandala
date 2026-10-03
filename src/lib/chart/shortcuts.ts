@@ -37,7 +37,7 @@ const GROUPS: readonly { title: string; items: readonly ShortcutDef[] }[] = [
 			{ label: 'Rename', keys: ['R'] },
 			{ label: 'Duplicate', keys: ['D'] },
 			{ label: 'New blank chart', keys: ['N'] },
-			{ label: 'Delete or archive', keys: ['Del'] }
+			{ label: 'Delete chart', keys: ['Del'] }
 		]
 	},
 	{

@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { example } from '$lib/chart/example';
-	import { formatUpdated, titleOf, UNTITLED } from '$lib/chart/library';
+	import { formatDeletesIn, formatUpdated, titleOf, UNTITLED } from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
-	import { exportChartPng } from '$lib/chart/export-image';
-	import { downloadChartJson } from '$lib/chart/backup';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -73,42 +71,38 @@
 		chart.loadExample();
 	}
 
-	let archiveOpen = $state(false);
-	let archiving = $state(false);
-	let archiveTitle = $state('');
-	let archiveFilled = $state(0);
+	let deleteOpen = $state(false);
+	let deletedOpen = $state(false);
+	let confirmingId = $state('');
+
+	const activeChart = $derived(chart.charts.find((item) => item.active));
 
 	function handleDelete(): void {
-		const active = chart.charts.find((item) => item.active);
-		if (!active || !chart.canDeleteChart) return;
-		if (active.filled === 0) {
-			const userConfirmed = window.confirm(`Delete “${active.title}”? This cannot be undone.`);
-			if (!userConfirmed) return;
-			chart.deleteChart(active.id);
-			return;
-		}
-		archiveTitle = active.title;
-		archiveFilled = active.filled;
-		archiveOpen = true;
+		if (!activeChart) return;
+		deleteOpen = true;
 	}
 
-	async function handleArchive(withKeepsake: boolean): Promise<void> {
-		const active = chart.charts.find((item) => item.active);
+	function confirmDelete(): void {
+		const active = activeChart;
 		if (!active) return;
-		archiving = true;
-		try {
-			if (withKeepsake) {
-				await exportChartPng(chart.data);
-				downloadChartJson(chart.data);
-			}
-			archiveOpen = false;
-			chart.deleteChart(active.id);
-			chart.say('Chart archived.');
-		} catch {
-			chart.say('Could not save the keepsake. Nothing was deleted.');
-		} finally {
-			archiving = false;
-		}
+		deleteOpen = false;
+		chart.deleteChart(active.id);
+	}
+
+	function openDeleted(): void {
+		chart.purgeExpired();
+		confirmingId = '';
+		deletedOpen = true;
+	}
+
+	function restoreDeleted(id: string): void {
+		chart.restoreChart(id);
+		confirmingId = '';
+	}
+
+	function forgetDeleted(id: string): void {
+		chart.forgetChart(id);
+		confirmingId = '';
 	}
 
 	function isTypingTarget(target: EventTarget | null): boolean {
@@ -199,37 +193,95 @@
 		</MenuItem>
 	{/each}
 	<MenuDivider />
+	<MenuItem
+		icon="clock"
+		badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
+		onclick={openDeleted}
+	>
+		Recently deleted
+	</MenuItem>
 	<MenuItem icon="edit" badge="R" onclick={openRename}>Rename chart</MenuItem>
 	<MenuItem icon="copy" badge="D" onclick={handleDuplicate}>Duplicate chart</MenuItem>
 	<MenuItem icon="grid" badge="N" onclick={handleNew}>New blank chart</MenuItem>
 	<MenuItem icon="target" onclick={handleExample}>Example chart</MenuItem>
-	{#if chart.canDeleteChart}
-		<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete or archive chart</MenuItem>
-	{/if}
+	<MenuDivider />
+	<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete chart</MenuItem>
 </Menu>
 {#if updatedLabel}
 	<p class="m-0 mt-1 text-[0.86rem] text-muted">{updatedLabel}</p>
 {/if}
 
 <Dialog
-	bind:open={archiveOpen}
-	title="Archive chart"
-	description="Save a keepsake of “{archiveTitle}”, then remove it from this device."
+	bind:open={deleteOpen}
+	title="Delete this chart?"
+	description={activeChart
+		? `“${activeChart.title}” moves to recently deleted for 30 days.`
+		: 'This chart moves to recently deleted for 30 days.'}
 	size="sm"
 >
 	<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
-		This downloads the poster image and a JSON backup before deleting. {archiveFilled} of 73 cells
-		are filled.
+		{#if chart.chartCount === 1}
+			A blank chart stays open.
+		{:else}
+			Restore it anytime in those 30 days.
+		{/if}
 	</p>
 	{#snippet footer()}
-		<Button variant="ghost" onclick={() => (archiveOpen = false)}>Cancel</Button>
-		<Button variant="soft" disabled={archiving} onclick={() => handleArchive(false)}>
-			Delete
-		</Button>
-		<Button disabled={archiving} onclick={() => handleArchive(true)}>
-			{archiving ? 'Saving…' : 'Save and archive'}
-		</Button>
+		<Button variant="ghost" onclick={() => (deleteOpen = false)}>Cancel</Button>
+		<Button onclick={confirmDelete}>Delete</Button>
 	{/snippet}
+</Dialog>
+
+<Dialog
+	bind:open={deletedOpen}
+	title="Recently deleted"
+	description="Deleted charts stay here for 30 days."
+>
+	{#if chart.deletedCharts.length === 0}
+		<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
+			Nothing here yet. Delete a chart from the menu, and you can restore it from this list.
+		</p>
+	{:else}
+		<ul class="m-0 flex list-none flex-col gap-2 p-0">
+			{#each chart.deletedCharts as item (item.id)}
+				<li class="flex flex-col gap-3 py-2 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
+					<div class="min-w-0">
+						<p class="m-0 truncate font-medium text-text">{item.title}</p>
+						<p class="m-0 mt-0.5 text-[0.86rem] text-muted">
+							{item.filled} of 73 · {formatDeletesIn(item.daysLeft)}
+						</p>
+					</div>
+					{#if confirmingId === item.id}
+						<p class="m-0 text-[0.86rem] leading-[1.4] text-pretty text-muted">
+							Remove “{item.title}” from this device?
+						</p>
+						<div class="flex flex-wrap justify-end gap-2">
+							<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (confirmingId = '')}>
+								Cancel
+							</Button>
+							<Button size="sm" class="coarse:min-h-11" onclick={() => forgetDeleted(item.id)}>
+								Delete
+							</Button>
+						</div>
+					{:else}
+						<div class="flex flex-wrap justify-end gap-2">
+							<Button
+								variant="ghost"
+								size="sm"
+								class="coarse:min-h-11"
+								onclick={() => (confirmingId = item.id)}
+							>
+								Delete now
+							</Button>
+							<Button variant="soft" size="sm" class="coarse:min-h-11" onclick={() => restoreDeleted(item.id)}>
+								Restore
+							</Button>
+						</div>
+					{/if}
+				</li>
+			{/each}
+		</ul>
+	{/if}
 </Dialog>
 
 <Dialog
