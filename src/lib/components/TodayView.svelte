@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { getByKey, isOpenFocus, isRoutine, isUrl, todayKey, dateKeyOffset } from '$lib/chart/model';
+	import { HUES, getByKey, isOpenFocus, isRoutine, isUrl, todayKey, dateKeyOffset } from '$lib/chart/model';
 	import type { ActionMeta } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
@@ -101,6 +101,8 @@
 		}
 		return keys;
 	});
+
+	const checkedCount = $derived(trackedKeys.filter((key) => chart.todayLog.checked.includes(key)).length);
 
 	const allDone = $derived(
 		trackedKeys.length > 0 &&
@@ -209,7 +211,7 @@
 				/>
 			{/if}
 		</span>
-		<span class="flex min-w-0 flex-col gap-0.5">
+		<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 			<span
 				class={cn(
 					'text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
@@ -234,12 +236,23 @@
 				</span>
 			{/if}
 		</span>
+		<span
+			class={cn(
+				'pip size-2 shrink-0 rounded-full motion-safe:transition-opacity motion-safe:duration-200',
+				entry.meta?.note && 'mt-1.5',
+				isChecked && 'opacity-40'
+			)}
+			style:--pip-h={HUES[entry.pillarIndex]}
+			title={entry.pillarName}
+			aria-hidden="true"
+		></span>
+		<span class="sr-only">, {entry.pillarName}</span>
 	</button>
 {/snippet}
 
 <div
 	class={cn(
-		'mx-auto w-full px-4 py-6 max-[900px]:px-3 max-[900px]:py-4',
+		'mx-auto w-full px-4 py-6 max-[900px]:px-0 max-[900px]:py-2',
 		picking && !closed ? 'max-w-[1040px]' : 'max-w-[620px]'
 	)}
 >
@@ -333,32 +346,18 @@
 				</button>
 			{/if}
 		</div>
-	{:else}
-	<div class={picking ? 'mb-7 max-[900px]:mb-5' : 'mb-5'}>
-		<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
-		<h2
-			class={cn(
-				'm-0 font-serif font-[480] tracking-[-0.02em] text-balance text-text',
-				picking
-					? 'text-[2.3rem] leading-[1.05] tracking-[-0.03em] max-[900px]:text-[1.8rem]'
-					: 'text-[1.7rem] leading-[1.15] max-[900px]:text-[1.45rem]'
-			)}
-		>
-			{heading}
-		</h2>
-		{#if picking}
+	{:else if picking}
+		<div class="mb-7 max-[900px]:mb-5">
+			<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
+			<h2
+				class="m-0 font-serif text-[2.3rem] leading-[1.05] font-[480] tracking-[-0.03em] text-balance text-text max-[900px]:text-[1.8rem]"
+			>
+				{heading}
+			</h2>
 			<p class="m-0 mt-2 max-w-[52ch] text-[1rem] text-pretty text-muted">
 				Three actions from your chart, small enough to finish today.
 			</p>
-		{/if}
-	</div>
-
-	{#if allActions.length === 0}
-		<p class="mb-4 text-[0.88rem] text-pretty text-muted">Add actions on the chart first.</p>
-		<div class="flex justify-center">
-			<Button onclick={() => chart.setViewMode('view')}>Open the chart</Button>
 		</div>
-	{:else if !confirmed && pickable.length > 0}
 		{#if habits.length > 0}
 			<section class="mb-6 max-w-[620px]" aria-label="Habits">
 				<Eyebrow class="mb-1">Habits</Eyebrow>
@@ -377,42 +376,66 @@
 			{/snippet}
 		</FocusPicker>
 	{:else}
-		<div class="mb-6 flex flex-col gap-0.5">
-			{#if habits.length > 0 && focusEntries.length > 0}
-				<Eyebrow class="mb-1 px-3">Habits</Eyebrow>
-			{/if}
-			{#each habits as entry (entry.key)}
-				{@render checkRow(entry)}
-			{/each}
-			{#if habits.length > 0 && focusEntries.length > 0}
-				<Eyebrow class="mt-3 mb-1 px-3">One-time</Eyebrow>
-			{/if}
-			{#each focusEntries as entry (entry.key)}
-				{@render checkRow(entry)}
-			{/each}
-			{#if habits.length === 0 && focusEntries.length === 0}
-				<p class="px-3 py-4 text-[0.88rem] text-pretty text-muted">Those one-time actions are done.</p>
-			{/if}
-		</div>
-
-		<div class="flex flex-col items-center gap-3">
-			<Button variant="ghost" icon="moon" onclick={openPlanning}>
-				Plan tomorrow
-				{#if tomorrowPlannedCount > 0}
-					<span class="tabular-nums">· {tomorrowPlannedCount} set</span>
+		<section
+			class="mx-auto mt-2 w-full max-w-[520px] rounded-[28px] bg-surface p-2 shadow-card max-[900px]:mt-0 max-[900px]:rounded-3xl"
+			aria-labelledby="today-title"
+		>
+			<header class="flex items-end justify-between gap-4 px-4 pt-4 pb-3">
+				<div class="min-w-0">
+					<Eyebrow class="mb-1.5">{dayLabel}</Eyebrow>
+					<h2
+						id="today-title"
+						class="m-0 font-serif text-[1.6rem] leading-[1.1] font-[480] tracking-[-0.02em] text-balance text-text max-[900px]:text-[1.4rem]"
+					>
+						{heading}
+					</h2>
+				</div>
+				{#if trackedKeys.length > 0}
+					<p class="m-0 shrink-0 pb-1 text-[0.84rem] text-muted tabular-nums">
+						<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
+					</p>
 				{/if}
-			</Button>
-			{#if pickable.length > 0}
-				<button
-					type="button"
-					class="cursor-pointer rounded-full border-0 bg-transparent px-3 py-2 text-[0.82rem] font-medium text-muted hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-					onclick={adjust}
-				>
-					Adjust
-				</button>
+			</header>
+
+			{#if allActions.length === 0}
+				<div class="flex flex-col items-start gap-4 px-4 pt-1 pb-4">
+					<p class="m-0 text-[0.92rem] text-pretty text-muted">Add actions on the chart first.</p>
+					<Button onclick={() => chart.setViewMode('view')}>Open the chart</Button>
+				</div>
+			{:else}
+				<div class="flex flex-col gap-0.5 pb-1">
+					{#if habits.length > 0 && focusEntries.length > 0}
+						<Eyebrow class="mt-1 mb-1 px-3">Habits</Eyebrow>
+					{/if}
+					{#each habits as entry (entry.key)}
+						{@render checkRow(entry)}
+					{/each}
+					{#if habits.length > 0 && focusEntries.length > 0}
+						<Eyebrow class="mt-3 mb-1 px-3">One-time</Eyebrow>
+					{/if}
+					{#each focusEntries as entry (entry.key)}
+						{@render checkRow(entry)}
+					{/each}
+					{#if habits.length === 0 && focusEntries.length === 0}
+						<p class="m-0 px-3 py-3 text-[0.92rem] text-pretty text-muted">Those one-time actions are done.</p>
+					{/if}
+				</div>
+
+				<div class="mt-2 flex items-center justify-between gap-2">
+					{#if pickable.length > 0}
+						<Button variant="ghost" size="sm" icon="refresh" onclick={adjust}>Adjust</Button>
+					{:else}
+						<span></span>
+					{/if}
+					<Button variant="ghost" size="sm" icon="moon" onclick={openPlanning}>
+						Plan tomorrow
+						{#if tomorrowPlannedCount > 0}
+							<span class="tabular-nums">· {tomorrowPlannedCount} set</span>
+						{/if}
+					</Button>
+				</div>
 			{/if}
-		</div>
-	{/if}
+		</section>
 	{/if}
 
 	<WeeklyReflection bind:open={reflectionOpen} />

@@ -543,13 +543,16 @@
 			<div class="min-w-0">
 				<Eyebrow class="mb-2">Your chart</Eyebrow>
 				<ChartSwitcher />
-				<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
-					<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-					<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Get a prompt</Button>
-					<MethodGuide />
-				</div>
+				{#if effectiveViewMode !== 'today'}
+					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
+						<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
+						<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Get a prompt</Button>
+						<MethodGuide />
+					</div>
+				{/if}
 			</div>
 
+			{#if effectiveViewMode !== 'today'}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
 				<ProgressRing size={isMobile ? 56 : 76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
@@ -571,6 +574,7 @@
 					</div>
 				</dl>
 			</div>
+			{/if}
 		</div>
 
 		<DraftDialog bind:open={draftOpen} onapply={handleApplyDraft} />
