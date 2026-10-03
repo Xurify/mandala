@@ -599,11 +599,7 @@
 
 	{#if effectiveViewMode === 'view'}
 		<div
-			class={cn(
-				'chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end',
-				chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
-				chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]'
-			)}
+			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
 		>
 			<span class="text-[0.84rem] text-muted max-[900px]:hidden">Double-click a cell to edit its block</span>
 			<SegmentedControl
@@ -638,9 +634,7 @@
 				class={cn(
 					'chart min-w-0 @container',
 					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'hidden',
-					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full max-w-none flex-none',
-					effectiveViewMode === 'view' && chart.viewScale === 'fit' && 'max-w-[min(940px,calc(100vh-180px),100%)]',
-					effectiveViewMode === 'view' && chart.viewScale === 'large' && 'max-w-[min(1120px,100%)]',
+					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full flex-none',
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
 			>
@@ -659,7 +653,9 @@
 					effectiveViewMode === 'split' && 'min-w-[320px] max-w-[520px] flex-[1_1_380px]'
 				)}
 			>
-				<SidePanel />
+				{#key chart.activeId}
+					<SidePanel />
+				{/key}
 				<textarea
 					class={cn(
 						'mt-3.5 hidden min-h-40 w-full rounded-[20px] border-0 bg-surface p-3.5 font-sans text-[0.85rem] text-text shadow-card',
@@ -672,7 +668,10 @@
 			</div>
 		{/if}
 		{#if effectiveViewMode === 'today'}
-			<TodayView />
+			<!-- Picks live in the view until "Start my day". Remount per chart so they don't follow the switch. -->
+			{#key chart.activeId}
+				<TodayView />
+			{/key}
 		{/if}
 		{#if effectiveViewMode === 'year'}
 			<YearView />

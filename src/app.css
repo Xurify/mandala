@@ -446,9 +446,29 @@
 	color-scheme: dark;
 }
 
-/* Applied from the head script before hydration, so a saved Large scale does not resize cell text after paint. */
+/* Registered so Fit and Large blend. max-width of mixed min() cannot.
+   data-scale is set from the head script before hydration, so a saved Large scale does not resize after paint.
+   data-chart-motion turns the blend on after first paint, so that first size does not ease in. */
+@property --chart-grow {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 0;
+}
+
+.chart-frame {
+	--chart-fit: min(940px, calc(100vh - 180px), 100%);
+	--chart-large: min(1120px, 100%);
+	max-width: calc(var(--chart-fit) + (var(--chart-large) - var(--chart-fit)) * var(--chart-grow));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html[data-chart-motion] .chart-frame {
+		transition: --chart-grow 380ms cubic-bezier(0.4, 0, 0.15, 1);
+	}
+}
+
 html[data-scale='large']:is([data-view='view'], :not([data-view])) .chart-frame {
-	max-width: min(1120px, 100%);
+	--chart-grow: 1;
 }
 
 html {
