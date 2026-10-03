@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { example } from '$lib/chart/example';
-	import { titleOf, UNTITLED } from '$lib/chart/library';
+	import { formatUpdated, titleOf, UNTITLED } from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
 	import { exportChartPng } from '$lib/chart/export-image';
 	import { downloadChartJson } from '$lib/chart/backup';
@@ -13,6 +13,8 @@
 	import MenuItem from './ui/MenuItem.svelte';
 
 	const activeTitle = $derived(titleOf(chart.data));
+	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
+	const updatedLabel = $derived(activeUpdated === undefined ? '' : formatUpdated(activeUpdated));
 
 	let renameOpen = $state(false);
 	let name = $state('');
@@ -190,7 +192,10 @@
 			{#if !item.active}
 				<span class="inline-block size-4 shrink-0" aria-hidden="true"></span>
 			{/if}
-			<span class="inline-block max-w-[28ch] truncate">{item.title}</span>
+			<span class="flex min-w-0 flex-col gap-px">
+				<span class="max-w-[28ch] truncate">{item.title}</span>
+				<span class="text-[0.72rem] leading-tight font-normal text-muted">{formatUpdated(item.updatedAt)}</span>
+			</span>
 		</MenuItem>
 	{/each}
 	<MenuDivider />
@@ -202,6 +207,9 @@
 		<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete or archive chart</MenuItem>
 	{/if}
 </Menu>
+{#if updatedLabel}
+	<p class="m-0 mt-1 text-[0.86rem] text-muted">{updatedLabel}</p>
+{/if}
 
 <Dialog
 	bind:open={archiveOpen}

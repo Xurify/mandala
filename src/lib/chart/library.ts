@@ -37,6 +37,35 @@ export function titleOf(data: ChartData): string {
 	return goal || UNTITLED;
 }
 
+const DAY_MS = 86_400_000;
+
+function startOfLocalDay(ms: number): number {
+	const date = new Date(ms);
+	return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function clockLabel(ms: number): string {
+	return new Date(ms)
+		.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+		.replace(' AM', ' am')
+		.replace(' PM', ' pm');
+}
+
+/** When a chart was last saved. Today and yesterday include the time. `now` is injectable for tests. */
+export function formatUpdated(at: number, now = Date.now()): string {
+	const days = Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS);
+	if (days === 0) return `Updated ${clockLabel(at)}`;
+	if (days === 1) return `Updated yesterday at ${clockLabel(at)}`;
+	const date = new Date(at);
+	const sameYear = date.getFullYear() === new Date(now).getFullYear();
+	const label = date.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		...(sameYear ? {} : { year: 'numeric' })
+	});
+	return `Updated ${label}`;
+}
+
 export function newId(): string {
 	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
 		return crypto.randomUUID();

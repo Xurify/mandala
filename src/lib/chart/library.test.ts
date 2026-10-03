@@ -6,6 +6,7 @@ import {
 	cloneChart,
 	emptyLibrary,
 	flushActive,
+	formatUpdated,
 	migrateFromV1,
 	newRecord,
 	parseLibrary,
@@ -20,6 +21,20 @@ describe('titleOf', () => {
 		expect(titleOf(data)).toBe(UNTITLED);
 		data.goal = '  Learn Slovak  ';
 		expect(titleOf(data)).toBe('Learn Slovak');
+	});
+});
+
+describe('formatUpdated', () => {
+	const now = new Date(2026, 9, 2, 22, 57).getTime();
+
+	it('uses a clock for today and yesterday, then a short date', () => {
+		expect(formatUpdated(now, now)).toBe('Updated 10:57 pm');
+		expect(formatUpdated(new Date(2026, 9, 2, 0, 1).getTime(), now)).toBe('Updated 12:01 am');
+		expect(formatUpdated(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe(
+			'Updated yesterday at 11:59 pm'
+		);
+		expect(formatUpdated(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Updated Sep 15');
+		expect(formatUpdated(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Updated Dec 31, 2025');
 	});
 });
 

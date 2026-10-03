@@ -26,6 +26,8 @@ Feature screens and `src/lib/components/ui/` both use Tailwind utilities (`tv` +
 
 **3. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because `src/print.css` selects them.
 
+Preflight is off. A raw `<button>` or text field without `border-0` and an explicit background shows the browser face. Two to four exclusive options are `SegmentedControl`, not a hand-rolled pill group. A text field copies the rename input in `ChartSwitcher.svelte`. See `DESIGN.md` → Native chrome.
+
 **4. New CSS goes in `src/app.css` only for tokens or a shared `@utility`.** Chart print goes in `src/print.css` (imported from `app.css`). Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
 
 **5. State.** Read and mutate through the `chart` singleton (`$lib/chart/chart.svelte.ts`). Derived UI state uses `$derived`, not `$effect`. Local UI state uses `$state` in the component.

@@ -36,7 +36,7 @@ Workflow:
 
 - Each of the eight pillars shows a face-up top card with a `1 / 8` counter. The other cards are a flip (next arrow, ArrowLeft/ArrowRight) or a spread (expand) away.
 - Stacked layers behind the top card say "there's more" without words. Fan them with small opposite rotations (`rotate-[3deg]`, `rotate-[-4deg]`), not offsets.
-- An expanded group takes a full row (`col-span-full`). Use `grid-flow-dense` on the parent so the other groups reflow instead of leaving holes.
+- Spreading a deck fans its cards inside that cell. Other pillars stay in the grid. Tap a card to add it. Tap Stack, or Escape, to close. The fan does not take a full row.
 
 ## 3. Put the destination on top
 

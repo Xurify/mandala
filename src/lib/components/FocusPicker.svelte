@@ -88,6 +88,7 @@
 	const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five'];
 	const maxWord = $derived(COUNT_WORDS[max] ?? String(max));
 	const SLOT_TILT = [-1.6, 1.1, -0.6, 0.9, -1.2];
+	const FAN_TILT = [-1.1, 0.8, -0.5, 1, -0.9, 0.6, -0.4, 0.7];
 
 	function toggle(key: string): void {
 		if (swallowClick) return;
@@ -257,7 +258,7 @@
 	};
 
 	const focusFirstCard: Attachment<HTMLElement> = (node) => {
-		node.querySelector<HTMLElement>('[data-card]')?.focus();
+		node.querySelector<HTMLElement>('[data-card]')?.focus({ preventScroll: true });
 	};
 
 	function suggest(): void {
@@ -430,81 +431,96 @@
 
 		<ul
 			class={cn(
-				'm-0 grid list-none grid-flow-dense grid-cols-2 gap-x-3 gap-y-5 p-0 @min-[720px]:grid-cols-4',
+				'm-0 grid list-none grid-cols-2 items-start gap-x-3 gap-y-5 p-0 @min-[720px]:grid-cols-4',
 				inset && 'px-2'
 			)}
 		>
 			{#each decks as group (group.pillarIndex)}
 				{@const top = group.top}
-				<li
-					class={cn('relative min-w-0', expanded === group.pillarIndex ? 'col-span-full' : 'pb-3')}
-					style:--h={HUES[group.pillarIndex]}
-				>
+				<li class="@container relative min-w-0 self-start pb-3" style:--h={HUES[group.pillarIndex]}>
 					{#if expanded === group.pillarIndex}
 						<div
-							class="flex flex-col gap-4 rounded-[28px] bg-sunken p-4 motion-safe:animate-pop-in @min-[720px]:p-5"
+							class="flex flex-col gap-2"
 							role="group"
 							aria-label="All {group.pillarName} actions"
 							{@attach stackOnEscape}
 						>
-							<div class="flex items-center gap-3">
-								<span class="pip size-3 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
-								<div class="min-w-0 flex-1">
-									<p class="m-0 truncate font-serif text-[1.25rem] leading-tight font-[500]">{group.pillarName}</p>
-									<p class="m-0 text-[0.82rem] text-muted">
-										{group.deck.length} open{group.actions.length > group.deck.length
-											? `, ${group.actions.length - group.deck.length} in your day`
-											: ''}
-									</p>
-								</div>
-								<Button variant="ghost" size="sm" icon="minimize" onclick={stack}>Stack</Button>
-							</div>
-							<ul class="m-0 grid list-none grid-cols-2 gap-3 p-0 @min-[720px]:grid-cols-4" {@attach focusFirstCard}>
+							<button
+								type="button"
+								class={cn(
+									'flex h-9 w-fit max-w-full cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-1 text-left',
+									focusRing
+								)}
+								onclick={stack}
+								aria-expanded="true"
+								aria-label="Stack {group.pillarName}"
+							>
+								<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
+								<span class="min-w-0 truncate text-[0.82rem] font-semibold">{group.pillarName}</span>
+								<span class="flex shrink-0 items-center gap-1 text-[0.76rem] font-medium text-muted">
+									<span class="hidden @[11rem]:inline">Stack</span>
+									<Icon name="minimize" size={12} />
+								</span>
+							</button>
+							<div {@attach focusFirstCard}>
 								{#each group.actions as entry, index (entry.key)}
 									{@const slotNumber = selected.indexOf(entry.key)}
-									<li class="min-w-0 motion-safe:animate-deal-in" style:animation-delay="{index * 35}ms">
+									<div
+										class="peer/peel relative -mt-3 first:mt-0 motion-safe:transition-[margin-top] motion-safe:duration-200 motion-safe:ease-ui can-hover:peer-hover/peel:mt-1"
+										style:z-index={index + 1}
+									>
 										{#if slotNumber >= 0}
 											<button
 												type="button"
 												data-card
 												class={cn(
-													'flex min-h-[132px] w-full cursor-pointer flex-col gap-3 rounded-[22px] border-0 bg-ink p-4 text-left text-on-ink shadow-float motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-ui active:scale-[0.97]',
+													'flex min-h-[88px] w-full cursor-pointer items-start gap-2 rounded-[22px] border-0 bg-ink p-3 text-left text-on-ink shadow-float origin-top rotate-[var(--tilt)] motion-safe:animate-fan-in motion-safe:transition-[rotate,translate,box-shadow,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:rotate-0 active:scale-[0.97]',
 													focusRing
 												)}
+												style:--tilt="{FAN_TILT[index % FAN_TILT.length]}deg"
+												style:--peel="-{index * 44}px"
+												style:animation-delay="{index * 35}ms"
 												onclick={() => toggle(entry.key)}
 												aria-pressed="true"
 												aria-label="Remove {entry.text}"
 											>
-												<span class="flex items-center gap-2">
-													<span
-														class="flex size-6 shrink-0 items-center justify-center rounded-full bg-on-ink text-[0.74rem] font-semibold text-ink tabular-nums"
-														aria-hidden="true">{slotNumber + 1}</span
-													>
-													<span class="text-[0.82rem] font-semibold opacity-75">In your day</span>
+												<span
+													class="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-on-ink text-[0.7rem] leading-none font-semibold text-ink tabular-nums"
+													aria-hidden="true"
+												>
+													<span class="translate-y-px">{slotNumber + 1}</span>
 												</span>
-												<span class="line-clamp-4 font-serif text-[1.12rem] leading-[1.18] font-[500] text-pretty">{entry.text}</span>
+												<span class="line-clamp-3 font-serif text-[1.02rem] leading-[1.15] font-[500] text-pretty">{entry.text}</span>
 											</button>
 										{:else}
 											<button
 												type="button"
 												data-card
 												class={cn(
-													'pillar-action flex min-h-[132px] w-full cursor-grab flex-col gap-3 rounded-[22px] border-0 p-4 text-left text-text shadow-card motion-safe:transition-[translate,box-shadow,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:shadow-float active:scale-[0.97]',
+													'pillar-action flex min-h-[88px] w-full cursor-grab items-start rounded-[22px] border-0 p-3 text-left text-text shadow-card origin-top rotate-[var(--tilt)] motion-safe:animate-fan-in motion-safe:transition-[rotate,translate,box-shadow,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:rotate-0 can-hover:hover:shadow-float active:scale-[0.97]',
 													drag?.entry.key === entry.key && 'invisible',
 													grab,
 													focusRing
 												)}
+												style:--tilt="{FAN_TILT[index % FAN_TILT.length]}deg"
+												style:--peel="-{index * 44}px"
+												style:animation-delay="{index * 35}ms"
 												onclick={() => toggle(entry.key)}
 												aria-pressed="false"
 												aria-label="Add {entry.text}"
 												{@attach draggable(entry)}
 											>
-												{@render face(entry, false)}
+												<span class="flex items-start gap-1.5">
+													{#if entry.meta?.pinned}
+														<Icon name="pin" size={12} class="mt-1 shrink-0 text-muted" />
+													{/if}
+													<span class="line-clamp-3 font-serif text-[1.02rem] leading-[1.15] font-[500] text-pretty">{entry.text}</span>
+												</span>
 											</button>
 										{/if}
-									</li>
+									</div>
 								{/each}
-							</ul>
+							</div>
 						</div>
 					{:else}
 						{#if group.deck.length > 2}

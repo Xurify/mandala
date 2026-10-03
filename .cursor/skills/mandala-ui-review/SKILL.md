@@ -16,6 +16,7 @@ Run through every item; fix before reporting.
 
 **System**
 - [ ] Primitives from `src/lib/components/ui/`. Feature screens pass layout classes only. No raw hex/rgb, no component `<style>`
+- [ ] No raw `<button>` or text field left on the browser face. Primitive, or `border-0` plus an explicit background. Two to four exclusive options are `SegmentedControl`
 - [ ] Pillar hues used only for pillars; chrome is paper and ink
 - [ ] Separation by tone/shadow, not borders
 - [ ] Pill radius on every pressable control

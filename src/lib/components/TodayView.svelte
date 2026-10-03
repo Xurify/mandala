@@ -178,7 +178,7 @@
 	}
 
 	const rowClass =
-		'group flex w-full min-h-11 cursor-pointer items-start gap-3.5 rounded-full border-0 bg-transparent px-3 py-2.5 text-left motion-safe:transition-colors motion-safe:duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+		'group flex w-full min-h-11 cursor-pointer items-center gap-3.5 rounded-full border-0 bg-transparent px-3 py-2.5 text-left leading-none motion-safe:transition-colors motion-safe:duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 </script>
 
 {#snippet checkRow(entry: ActionEntry)}
@@ -186,13 +186,13 @@
 	{@const justChecked = justCheckedKey === entry.key}
 	<button
 		type="button"
-		class={rowClass}
+		class={cn(rowClass, entry.meta?.note ? 'items-start' : 'items-center')}
 		onclick={() => toggleChecked(entry.key)}
 		aria-pressed={isChecked}
 	>
 		<span
 			class={cn(
-				'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[background-color,border-color] motion-safe:duration-150',
+				'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[background-color,border-color] motion-safe:duration-150',
 				isChecked
 					? 'border-success bg-success text-surface'
 					: 'border-line bg-transparent group-hover:border-muted',
@@ -212,11 +212,11 @@
 		<span class="flex min-w-0 flex-col gap-0.5">
 			<span
 				class={cn(
-					'text-[0.95rem] font-medium leading-snug motion-safe:transition-colors motion-safe:duration-200',
+					'text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
 					isChecked && 'text-muted line-through'
 				)}>{entry.text}</span>
 			{#if entry.meta?.note}
-				<span class="text-[0.78rem] text-muted">
+				<span class="text-[0.78rem] leading-snug text-muted">
 					{#if isUrl(entry.meta.note)}
 						<a
 							href={entry.meta.note}

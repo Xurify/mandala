@@ -8,7 +8,7 @@ Mandala is a local-first goal chart (Mandala method): one goal in the center, ei
 
 - SvelteKit 2 + **Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`, snippets, `{@attach}`). No stores from `svelte/store`, no `export let`, no `on:click`.
 - TypeScript strict. Package manager and runner: **bun**.
-- Styling: tokens, base reset, and pillar utilities live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Chart print lives in `src/print.css`, imported from `app.css`. Tailwind v4 utilities everywhere else, preflight off. Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
+- Styling: tokens, base reset, and pillar utilities live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Chart print lives in `src/print.css`, imported from `app.css`. Tailwind v4 utilities everywhere else, preflight off. A raw `<button>` or text field keeps the browser border and gray face unless it is a primitive or sets `border-0` and an explicit background (`DESIGN.md` → Native chrome). Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
 - Fonts: `@fontsource-variable/source-sans-3` only, imported in `src/routes/+layout.svelte`. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
 - PWA: `src/service-worker.ts` + `static/manifest.webmanifest`. Deployed on Vercel.
 

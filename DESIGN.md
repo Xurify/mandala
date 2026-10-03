@@ -82,6 +82,15 @@ Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-cap
 
 Primitives live in `src/lib/components/ui/` (`Button`, `IconButton`, `SegmentedControl`, `Menu`, `Dialog`, `Dock`, `Toast`, `Notice`, `Eyebrow`, `Card`). They own color, radius, and type. Feature screens pass layout classes only. Preview at `/dev/ui`.
 
+### Native chrome
+
+Tailwind preflight is off. A raw `<button>`, `<input>`, `<textarea>`, or `<select>` keeps the browser border, background, and button face unless the classes replace them. In dark mode that face is a gray inset control inside our pill. Treat that as a bug.
+
+- A pressable control is a primitive: `Button`, `IconButton`, `SegmentedControl`, `DockTab`, or `MenuItem`. Do not draw a new pill out of raw `<button>` elements.
+- Two to four options that apply immediately are a `SegmentedControl`. The selected option is the surface thumb, not an ink fill.
+- A text field copies the rename field in `ChartSwitcher.svelte`: `h-[42px]`, `rounded-full`, `border-0`, `bg-sunken`, `hover:bg-sunken-hover`, focus swaps to `bg-surface` with `shadow-[0_0_0_1.5px_var(--ink)]`. `border-0` is required even when the field is not a primitive.
+- A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native and use `accent-ink`.
+
 ### Buttons
 
 | Component | When |
@@ -145,6 +154,7 @@ Short, warm, plain. Sentence case everywhere. Say what happens, not what the fea
 | Do | Don't |
 | --- | --- |
 | Reuse `Button` variants | Invent a new button style in a component `<style>` |
+| Use a primitive, or `border-0` plus an explicit background | Leave a raw button or input on the browser's border and gray face |
 | Separate with tone and `--shadow-sm` | Wrap things in `1px solid` borders |
 | Use one primary `Button` per view | Put two ink buttons side by side |
 | Use pillar hues only for pillars | Tint a button or badge with a pillar hue |
