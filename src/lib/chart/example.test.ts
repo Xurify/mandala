@@ -6,7 +6,7 @@ import { filledCount, getByKey, info } from './model.ts';
 describe('example chart', () => {
 	it('fills every cell of the organized-life sample', () => {
 		const chart = exampleChart();
-		expect(chart.goal).toBe('more organized life');
+		expect(chart.goal).toBe('More organized life');
 		expect(filledCount(chart)).toBe(73);
 		expect(chart.pillars).toEqual([...example.pillars]);
 

@@ -1,21 +1,43 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { cellKey, describe, HUES, idx, info } from '$lib/chart/model';
+	import {
+		cellKey,
+		describe,
+		getByKey,
+		HUES,
+		idx,
+		info,
+		type ActionMeta,
+		type ChartData
+	} from '$lib/chart/model';
 	import { faceIsReady, goalTypeMin, largestFittingSize, watchFaceSwap } from './goal-fit';
 	import { cn } from './ui/cn';
 
 	let {
 		mode = 'split',
+		// A read-only grid can be driven by plain data (shared chart page) instead
+		// of the singleton store.
+		source = null,
 		onSelect,
 		onEdit
 	}: {
 		mode?: 'view' | 'edit' | 'split';
-		onSelect: (blockIndex: number, targetKey?: string) => void;
+		source?: ChartData | null;
+		onSelect?: (blockIndex: number, targetKey?: string, cellIndex?: number) => void;
 		onEdit?: (blockIndex: number, targetKey?: string) => void;
 	} = $props();
 
 	const view = $derived(mode === 'view');
+	const data = $derived(source ?? chart.data);
+
+	function textOf(key: string): string {
+		return getByKey(data, key);
+	}
+
+	function metaOf(key: string): ActionMeta | undefined {
+		return data.meta?.[key];
+	}
 
 	function hue(blockIndex: number, cellIndex: number): number | undefined {
 		const cellInformation = info(blockIndex, cellIndex);
@@ -35,19 +57,20 @@
 
 	function cellClass(blockIndex: number, cellIndex: number): string {
 		const key = cellKey(blockIndex, cellIndex);
-		const text = chart.textOf(key);
-		const hasText = text.trim() !== '';
-		const query = chart.query.trim().toLowerCase();
+		const text = textOf(key);
+		const query = source ? '' : chart.query.trim().toLowerCase();
 		const hit = query !== '' && text.toLowerCase().includes(query);
 		const cellInformation = info(blockIndex, cellIndex);
 		const type = cellInformation.type;
-		const meta = chart.metaOf(key);
+		const meta = metaOf(key);
 		const isMilestoneDone = type === 'action' && meta?.kind === 'milestone' && Boolean(meta?.done);
 		const highlighted =
+			!source &&
 			chart.hoveredColorIndex !== null &&
 			((type === 'goal' && chart.hoveredColorIndex === -1) ||
 				(type !== 'goal' && cellInformation.k === chart.hoveredColorIndex));
-		const placeholder = !hasText;
+		const placeholder = text.trim() === '';
+		const hasText = !placeholder;
 
 		return cn(
 			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
@@ -75,8 +98,12 @@
 			placeholder &&
 				type === 'pillar' &&
 				'before:text-[0.88em] before:font-medium before:opacity-50 before:content-[attr(data-placeholder)]',
-			hasText &&
-				"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden",
+				hasText &&
+				// Compact mode swaps words for dots below 480px container width —
+				// only where a side panel shows the words. Read-only grids keep text.
+				(!source &&
+					"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden") ||
+				(source && 'filled'),
 			hasText ? 'filled' : 'empty',
 			hit && 'hit shadow-[inset_0_0_0_2px_var(--ink)]',
 			query !== '' && !hit && 'dim opacity-[0.18]',
@@ -85,7 +112,7 @@
 	}
 
 	function blockClass(blockIndex: number): string {
-		const selected = chart.sel === blockIndex;
+		const selected = !source && chart.sel === blockIndex;
 		const highlighted = isBlockHighlighted(blockIndex);
 		return cn(
 			'block !grid grid-cols-3 bg-surface shadow-card motion-safe:transition-shadow motion-safe:duration-[180ms]',
@@ -100,25 +127,25 @@
 	}
 
 	function isBlockHighlighted(blockIndex: number): boolean {
-		if (chart.hoveredColorIndex === null) return false;
+		if (source || chart.hoveredColorIndex === null) return false;
 		if (blockIndex === 4) return chart.hoveredColorIndex === -1;
 		return idx(blockIndex) === chart.hoveredColorIndex;
 	}
 
 	function handlePointerEnter(blockIndex: number, cellIndex: number, event: PointerEvent): void {
-		if (event.pointerType === 'touch') return;
+		if (source || event.pointerType === 'touch') return;
 		const cellInformation = info(blockIndex, cellIndex);
 		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
 	}
 
 	function handlePointerLeave(event: PointerEvent): void {
-		if (event.pointerType === 'touch') return;
+		if (source || event.pointerType === 'touch') return;
 		chart.hoveredColorIndex = null;
 	}
 
 	function aria(blockIndex: number, cellIndex: number): string {
 		const key = cellKey(blockIndex, cellIndex);
-		const text = chart.textOf(key).trim();
+		const text = textOf(key).trim();
 		return `${describe(blockIndex, cellIndex)}: ${text || 'empty'}`;
 	}
 
@@ -202,7 +229,9 @@
 
 <div
 	class={cn(
-		'mandala grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1',
+		// Container for the cells' cqw-based type so the grid works anywhere,
+		// including read-only pages that have no @container ancestor.
+		'mandala @container grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1',
 		view ? 'aspect-square gap-2.5' : 'gap-1.5'
 	)}
 >
@@ -211,14 +240,14 @@
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}
 				{@const cellInformation = info(blockIndex, cellIndex)}
 				{@const key = cellKey(blockIndex, cellIndex)}
-				{@const meta = chart.metaOf(key)}
+				{@const meta = metaOf(key)}
 				<button
 					type="button"
 					class={cellClass(blockIndex, cellIndex)}
 					style:--h={hue(blockIndex, cellIndex)}
 					aria-label={aria(blockIndex, cellIndex)}
 					data-placeholder={cellPlaceholder(blockIndex, cellIndex)}
-					onclick={() => onSelect(blockIndex, key)}
+					onclick={() => onSelect?.(blockIndex, key, cellIndex)}
 					ondblclick={() => onEdit?.(blockIndex, key)}
 					onpointerenter={(event) => handlePointerEnter(blockIndex, cellIndex, event)}
 					onpointerleave={handlePointerLeave}
@@ -237,11 +266,12 @@
 					{/if}
 					<span
 						class={cn(
-							'w-full hyphens-manual wrap-break-word @max-[480px]:hidden',
+							'w-full hyphens-manual wrap-break-word',
+							!source && '@max-[480px]:hidden',
 							view ? 'line-clamp-5' : 'line-clamp-4'
 						)}
 						{@attach cellInformation.type === 'goal' ? fitGoalText : undefined}
-						>{chart.textOf(key)}</span
+						>{textOf(key)}</span
 					>
 				</button>
 			{/each}

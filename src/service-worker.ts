@@ -5,7 +5,7 @@
 
 import { build, files, version } from '$service-worker';
 
-const self = globalThis.self as ServiceWorkerGlobalScope;
+const self = globalThis.self as unknown as ServiceWorkerGlobalScope;
 const CACHE = `mandala-shell-${version}`;
 const ASSETS = [...build, ...files];
 
@@ -18,10 +18,17 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches.keys().then(async (keys) => {
+			// An old shell means this activation is a real update, not a first install.
+			const hadOldCache = keys.some((key) => key !== CACHE);
 			for (const key of keys) {
 				if (key !== CACHE) await caches.delete(key);
 			}
 			await self.clients.claim();
+			if (!hadOldCache) return;
+			const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			for (const client of clientList) {
+				client.postMessage({ type: 'mandala-updated' });
+			}
 		})
 	);
 });

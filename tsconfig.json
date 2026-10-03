@@ -10,8 +10,11 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"moduleResolution": "bundler"
-	}
+		"moduleResolution": "bundler",
+		// @cloudflare/workers-types is global; only the sync worker (sync/tsconfig.json) wants it.
+		"types": []
+	},
+	"exclude": ["sync"]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

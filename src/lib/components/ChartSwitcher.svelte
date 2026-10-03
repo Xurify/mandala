@@ -158,7 +158,7 @@
 <Menu class="max-w-full" align="start" label="Switch chart">
 	{#snippet trigger({ expanded, toggle })}
 		<button
-			class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
+			class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-text focus-visible:outline-none max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
 			type="button"
 			aria-haspopup="menu"
 			aria-expanded={expanded}
@@ -168,7 +168,7 @@
 		>
 			<span class="line-clamp-2">
 				{activeTitle}<span
-					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full bg-sunken align-middle text-text motion-safe:transition-colors motion-safe:duration-150 group-hover:bg-sunken-hover group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full bg-sunken align-middle text-text motion-safe:transition-colors motion-safe:duration-150 group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
 				>
 				<Icon
 					name="chevron-down"
@@ -216,7 +216,7 @@
 	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (archiveOpen = false)}>Cancel</Button>
 		<Button variant="soft" disabled={archiving} onclick={() => handleArchive(false)}>
-			Delete without backup
+			Delete
 		</Button>
 		<Button disabled={archiving} onclick={() => handleArchive(true)}>
 			{archiving ? 'Saving…' : 'Save and archive'}

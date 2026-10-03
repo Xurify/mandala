@@ -9,6 +9,13 @@
 	import { cn } from './ui/cn';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Notice from './ui/Notice.svelte';
+	import SegmentedControl from './ui/SegmentedControl.svelte';
+
+	const actionKinds = [
+		{ value: 'standard', label: 'Standard' },
+		{ value: 'routine', label: 'Routine' },
+		{ value: 'milestone', label: 'Milestone' }
+	];
 
 	const textareaElements: (HTMLTextAreaElement | null)[] = $state(Array(9).fill(null));
 	let activePulseIndex: number | null = $state(null);
@@ -287,7 +294,7 @@
 		<button
 			type="button"
 			role="tab"
-			class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-sunken px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
+			class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-sunken px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-none active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
 			aria-selected={chart.sel === 4}
 			onclick={() => chart.selectGoal()}
 			aria-label="Center goal and core vision"
@@ -306,7 +313,7 @@
 					type="button"
 					role="tab"
 					class={cn(
-						'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[background-color,box-shadow,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
+						'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[background-color,box-shadow,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] focus-visible:outline-none active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
 						!isFilled && !isSelected && 'dot-fill',
 						isFilled && !isSelected && 'pillar-cell text-on-p',
 						!isSelected && 'can-hover:hover:pillar-cell can-hover:hover:text-on-p',
@@ -331,7 +338,7 @@
 		<div class="inline-flex shrink-0 gap-0.5">
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Previous section"
 				onclick={() => chart.selectPreviousPillar()}
 			>
@@ -339,7 +346,7 @@
 			</button>
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Next section"
 				onclick={() => chart.selectNextPillar()}
 			>
@@ -480,86 +487,57 @@
 		{@const meta = chart.metaOf(activeActionKey)}
 		{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
 		{#if actionHasText}
-			<div class="mt-4 rounded-[20px] bg-sunken p-3.5 shadow-press max-[900px]:rounded-[16px] max-[900px]:p-3">
+			<div class="mt-4 flex flex-col gap-2.5">
 				<div class="flex flex-wrap items-center justify-between gap-2">
-					<div class="flex items-center gap-2">
-						<span class="text-[0.76rem] font-bold tracking-wider text-muted uppercase">
-							Action {idx(effectiveCellIndex) + 1}
-						</span>
-						<div class="inline-flex rounded-full bg-surface p-0.5 shadow-seg" role="group" aria-label="Action type">
-							<button
-								type="button"
-								class={cn(
-									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
-									!meta?.kind ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
-								)}
-								onclick={() => chart.setActionMeta(activeActionKey, { kind: undefined })}
-							>
-								Standard
-							</button>
-							<button
-								type="button"
-								class={cn(
-									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
-									meta?.kind === 'routine' ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
-								)}
-								onclick={() => chart.setActionMeta(activeActionKey, { kind: 'routine' })}
-							>
-								Routine
-							</button>
-							<button
-								type="button"
-								class={cn(
-									'cursor-pointer rounded-full px-2.5 py-1 text-[0.76rem] font-semibold motion-safe:transition-colors',
-									meta?.kind === 'milestone' ? 'bg-ink text-on-ink shadow-sm' : 'text-muted hover:text-text'
-								)}
-								onclick={() => chart.setActionMeta(activeActionKey, { kind: 'milestone' })}
-							>
-								Milestone
-							</button>
-						</div>
+					<div class="flex flex-wrap items-center gap-2.5">
+						<Eyebrow>Action {idx(effectiveCellIndex) + 1}</Eyebrow>
+						<SegmentedControl
+							size="sm"
+							label="Action type"
+							options={actionKinds}
+							value={meta?.kind ?? 'standard'}
+							onchange={(value) => {
+								chart.setActionMeta(activeActionKey, {
+									kind: value === 'routine' || value === 'milestone' ? value : undefined
+								});
+							}}
+						/>
 					</div>
 
 					<div class="flex items-center gap-1.5">
 						{#if meta?.kind === 'routine'}
-							<button
-								type="button"
-								class={cn(
-									'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[0.76rem] font-medium motion-safe:transition-colors',
-									meta?.pinned ? 'bg-ink text-on-ink shadow-sm' : 'border border-line bg-surface text-muted hover:text-text'
-								)}
+							<Button
+								size="sm"
+								variant={meta?.pinned ? 'soft' : 'ghost'}
+								icon="pin"
+								aria-pressed={Boolean(meta?.pinned)}
 								onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
-								aria-pressed={meta?.pinned}
 							>
-								<Icon name="pin" size={12} />
-								<span>{meta?.pinned ? 'Pinned' : 'Pin'}</span>
-							</button>
+								{meta?.pinned ? 'Pinned' : 'Pin'}
+							</Button>
 						{/if}
 						{#if meta?.kind === 'milestone'}
-							<button
-								type="button"
-								class={cn(
-									'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[0.76rem] font-medium motion-safe:transition-colors',
-									meta?.done ? 'bg-success text-surface shadow-sm' : 'border border-line bg-surface text-muted hover:text-text'
-								)}
+							<Button
+								size="sm"
+								variant={meta?.done ? 'soft' : 'ghost'}
+								icon="check"
+								aria-pressed={Boolean(meta?.done)}
 								onclick={() => chart.toggleDone(activeActionKey)}
-								aria-pressed={meta?.done}
 							>
-								<Icon name="check" size={12} strokeWidth={2.4} />
-								<span>{meta?.done ? 'Completed' : 'Mark done'}</span>
-							</button>
+								{meta?.done ? 'Completed' : 'Mark done'}
+							</Button>
 						{/if}
 					</div>
 				</div>
 
-				<div class="mt-2.5 flex items-center gap-2">
+				<div class="flex items-center gap-2">
 					<div class="relative flex-1">
-						<span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted">
-							<Icon name="link" size={13} />
+						<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
+							<Icon name="link" size={16} />
 						</span>
 						<input
 							type="text"
-							class="w-full rounded-[14px] border-0 bg-surface py-1.5 pr-3 pl-8 text-[0.82rem] text-text placeholder:text-muted focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
+							class="h-[42px] w-full rounded-full border-0 bg-sunken pr-4 pl-10 font-sans text-base text-text placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
 							placeholder="Add link or note (e.g. YouTube, article, chapter)..."
 							value={meta?.note ?? ''}
 							oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
@@ -570,7 +548,7 @@
 							href={meta.note}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-surface text-muted shadow-sm hover:text-text motion-safe:transition-colors"
+							class="inline-flex size-[42px] shrink-0 items-center justify-center rounded-full bg-sunken text-muted hover:bg-sunken-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 							title="Open link in new tab"
 							aria-label="Open link in new tab"
 						>
@@ -589,7 +567,7 @@
 		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
 			<button
 				type="button"
-				class="cursor-pointer text-muted underline underline-offset-2 hover:text-text"
+				class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
 				onclick={() => (haradaOpen = true)}
 			>
 				Open Harada 4 Perspectives guide

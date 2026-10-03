@@ -92,6 +92,8 @@
 	--color-surface: var(--surface);
 	--color-sunken: var(--sunken);
 	--color-sunken-hover: var(--sunken-hover);
+	--color-soft: var(--soft);
+	--color-soft-hover: var(--soft-hover);
 	--color-text: var(--text);
 	--color-muted: var(--muted);
 	--color-line: var(--line);
@@ -363,6 +365,7 @@
 	--ring-track-l: 0.915;
 	--ring-fill-l: 0.66;
 	--soft: var(--sunken);
+	--soft-hover: var(--sunken-hover);
 	--shadow-sm: 0 1px 2px oklch(0.3 0.03 60 / 0.06), 0 0 0 1px oklch(0.3 0.03 60 / 0.055);
 	--shadow-md: 0 18px 40px -16px oklch(0.3 0.04 60 / 0.28), 0 0 0 1px oklch(0.3 0.03 60 / 0.06);
 	--scroll-thumb: oklch(0.5 0.02 65 / 0.32);
@@ -403,6 +406,8 @@
 		--dot-fg-l: 0.86;
 		--ring-track-l: 0.3;
 		--ring-fill-l: 0.72;
+		--soft: oklch(0.36 0.012 65);
+		--soft-hover: oklch(0.42 0.014 65);
 		--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
 		--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
 		--scroll-thumb: oklch(0.75 0.02 75 / 0.3);
@@ -439,6 +444,8 @@
 	--dot-fg-l: 0.86;
 	--ring-track-l: 0.3;
 	--ring-fill-l: 0.72;
+	--soft: oklch(0.36 0.012 65);
+	--soft-hover: oklch(0.42 0.014 65);
 	--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
 	--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
 	--scroll-thumb: oklch(0.75 0.02 75 / 0.3);

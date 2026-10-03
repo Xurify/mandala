@@ -4,7 +4,7 @@ type Eight<T> = readonly [T, T, T, T, T, T, T, T];
 
 /** Read-only sample. Pillar order is grid order: TL, T, TR, L, R, BL, B, BR. */
 export const example = {
-	goal: 'more organized life',
+	goal: 'More organized life',
 	pillars: [
 		'Health',
 		'Career',

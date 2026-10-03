@@ -480,7 +480,7 @@
 				/>					{#if chart.query.trim()}
 						<button
 							type="button"
-							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-['']"
+							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
 							aria-label="Clear search"
 							onclick={() => chart.setQuery('')}
 						>
@@ -582,7 +582,7 @@
 		{#each shownHits as key (key)}
 			<button
 				type="button"
-				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 bg-surface px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card motion-safe:transition-colors motion-safe:duration-[120ms] hover:bg-sunken"
+				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 bg-surface px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card motion-safe:transition-colors motion-safe:duration-[120ms] hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
 				onclick={() => {
 					selectBlock(blockOfKey(key), key);
 					chart.setViewMode('edit');

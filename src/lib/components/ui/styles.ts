@@ -3,12 +3,12 @@ import { tv } from 'tailwind-variants';
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
 export const button = tv({
-	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 ${focus}`,
+	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
 		variant: {
-			primary: 'bg-ink text-on-ink shadow-press hover:bg-ink-hover',
-			soft: 'bg-sunken text-text hover:bg-sunken-hover',
-			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text'
+			primary: 'bg-ink text-on-ink shadow-press hover:bg-ink-hover focus-visible:bg-ink-hover',
+			soft: 'bg-soft text-text hover:bg-soft-hover focus-visible:bg-soft-hover',
+			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text dark:hover:bg-soft dark:focus-visible:bg-soft'
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]',
@@ -24,8 +24,8 @@ export const iconButton = tv({
 
 export const segmented = tv({
 	slots: {
-		group: 'inline-flex w-fit gap-0.5 self-start rounded-full bg-sunken p-[3px]',
-		option: `inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent font-sans font-[560] text-muted transition-[background-color,color,box-shadow,transform] duration-150 ease-ui hover:text-text active:scale-[0.96] aria-pressed:bg-surface aria-pressed:text-text aria-pressed:shadow-seg ${focus}`
+		group: 'relative inline-flex w-fit gap-0.5 self-start rounded-full bg-sunken p-[3px]',
+		option: `relative z-[1] inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent font-sans font-[560] text-muted transition-[color,transform] duration-150 ease-ui hover:text-text active:scale-[0.96] aria-pressed:text-text ${focus}`
 	},
 	variants: {
 		size: {
