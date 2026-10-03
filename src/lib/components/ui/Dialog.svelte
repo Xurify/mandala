@@ -12,6 +12,7 @@
 		children: Snippet;
 		footer?: Snippet;
 		class?: string;
+		oncancel?: (event: Event) => void;
 	};
 
 	let {
@@ -21,7 +22,8 @@
 		size = 'md',
 		children,
 		footer,
-		class: className
+		class: className,
+		oncancel
 	}: Props = $props();
 
 	let el = $state<HTMLDialogElement | null>(null);
@@ -31,8 +33,11 @@
 	$effect(() => {
 		const node = el;
 		if (!node) return;
-		if (open && !node.open) node.showModal();
-		else if (!open && node.open) node.close();
+		if (open && !node.open) {
+			node.showModal();
+			// First control is Close. Focusing it paints a ring on open.
+			node.focus({ preventScroll: true });
+		} else if (!open && node.open) node.close();
 	});
 
 	function onDialogClick(event: MouseEvent): void {
@@ -42,9 +47,11 @@
 
 <dialog
 	bind:this={el}
+	tabindex="-1"
 	class={cn(styles.panel(), className)}
 	aria-labelledby={uid}
 	onclick={onDialogClick}
+	oncancel={(event) => oncancel?.(event)}
 	onclose={() => (open = false)}
 >
 	<div class={styles.sheet()}>

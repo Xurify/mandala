@@ -1,8 +1,17 @@
 <script lang="ts">
+	import { exampleChart } from '$lib/chart/example';
 	import { chart } from '$lib/chart/chart.svelte';
+	import { HUES, POS } from '$lib/chart/model';
 	import BrandMark from '$lib/components/BrandMark.svelte';
+	import CommandPalette, { type CommandItem } from '$lib/components/CommandPalette.svelte';
+	import DaySeal from '$lib/components/DaySeal.svelte';
+	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import MandalaGrid from '$lib/components/MandalaGrid.svelte';
+	import ProgressRing from '$lib/components/ProgressRing.svelte';
+	import ShortcutsDialog from '$lib/components/ShortcutsDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Card from '$lib/components/ui/Card.svelte';
+	import { cn } from '$lib/components/ui/cn';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Dock from '$lib/components/ui/Dock.svelte';
 	import DockTab from '$lib/components/ui/DockTab.svelte';
@@ -13,6 +22,7 @@
 	import MenuItem from '$lib/components/ui/MenuItem.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import { dock, menu, toast } from '$lib/components/ui/styles';
 
 	const themes = [
 		{ value: 'system', label: 'Auto', icon: 'monitor' as const },
@@ -25,14 +35,161 @@
 		{ value: 'large', label: 'Large', icon: 'maximize' as const }
 	];
 
+	const actionKinds = [
+		{ value: 'standard', label: 'Standard' },
+		{ value: 'routine', label: 'Routine' },
+		{ value: 'milestone', label: 'Milestone' }
+	];
+
+	const iconSet = {
+		search: true,
+		close: true,
+		'chevron-down': true,
+		'chevron-left': true,
+		'chevron-right': true,
+		'arrow-right': true,
+		'arrow-left': true,
+		target: true,
+		grid: true,
+		edit: true,
+		type: true,
+		printer: true,
+		image: true,
+		download: true,
+		upload: true,
+		copy: true,
+		'file-text': true,
+		clipboard: true,
+		trash: true,
+		sparkles: true,
+		undo: true,
+		sun: true,
+		moon: true,
+		monitor: true,
+		check: true,
+		compass: true,
+		list: true,
+		eye: true,
+		columns: true,
+		maximize: true,
+		minimize: true,
+		info: true,
+		more: true,
+		calendar: true,
+		pin: true,
+		link: true,
+		refresh: true,
+		folder: true,
+		command: true,
+		keyboard: true,
+		clock: true,
+		plus: true
+	} satisfies Record<IconName, true>;
+
+	const iconNames = Object.keys(iconSet) as IconName[];
+
+	const surfaces = [
+		{ name: 'bg', swatch: 'bg-bg' },
+		{ name: 'surface', swatch: 'bg-surface' },
+		{ name: 'sunken', swatch: 'bg-sunken' },
+		{ name: 'sunken-hover', swatch: 'bg-sunken-hover' },
+		{ name: 'soft', swatch: 'bg-soft' },
+		{ name: 'soft-hover', swatch: 'bg-soft-hover' },
+		{ name: 'ink', swatch: 'bg-ink' },
+		{ name: 'ink-hover', swatch: 'bg-ink-hover' },
+		{ name: 'on-ink', swatch: 'bg-on-ink' },
+		{ name: 'text', swatch: 'bg-text' },
+		{ name: 'muted', swatch: 'bg-muted' },
+		{ name: 'line', swatch: 'bg-line' },
+		{ name: 'success', swatch: 'bg-success' },
+		{ name: 'danger', swatch: 'bg-danger' },
+		{ name: 'danger-wash', swatch: 'bg-danger-wash' },
+		{ name: 'goal', swatch: 'bg-goal' }
+	];
+
+	const catalog = [
+		['type', 'Type'],
+		['surfaces', 'Surfaces'],
+		['buttons', 'Buttons'],
+		['icon-buttons', 'Icon buttons'],
+		['fields', 'Fields'],
+		['segmented', 'Segmented'],
+		['menus', 'Menus'],
+		['dialogs', 'Dialogs'],
+		['feedback', 'Feedback'],
+		['brand', 'Brand'],
+		['chart', 'Chart'],
+		['icons', 'Icons']
+	] as const;
+
+	const field =
+		'h-[42px] w-full rounded-full border-0 bg-sunken px-4 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40';
+
+	const link =
+		'cursor-pointer self-start border-0 bg-transparent px-0.5 py-1 font-sans text-[0.88rem] font-[560] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+
+	const cell =
+		'cell relative flex aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 px-1 text-center font-sans text-[13px] leading-[1.2] focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink';
+
+	const sample = exampleChart();
+	const menuPanel = menu({ align: 'start' }).panel();
+	const toastOn = toast({ on: true });
+	const dockBar = dock().bar();
+
+	const commands: CommandItem[] = [
+		{
+			id: 'print',
+			label: 'Print chart',
+			section: 'Actions',
+			icon: 'printer',
+			hint: 'Ctrl+P',
+			run: () => chart.say('Printed')
+		},
+		{
+			id: 'export',
+			label: 'Export poster',
+			section: 'Actions',
+			icon: 'image',
+			hint: '.png',
+			run: () => chart.say('Poster exported')
+		},
+		{
+			id: 'clear',
+			label: 'Clear chart',
+			section: 'Actions',
+			icon: 'trash',
+			tone: 'danger',
+			run: () => chart.say('Chart cleared')
+		},
+		{
+			id: 'health',
+			label: 'Health',
+			section: 'Your chart',
+			icon: 'target',
+			hint: 'Pillar',
+			run: () => chart.say('Opened Health')
+		}
+	];
+
 	let scale = $state('fit');
+	let kind = $state('routine');
 	let view = $state('edit');
+	let dockView = $state('edit');
 	let dialogOpen = $state(false);
+	let guideOpen = $state(false);
+	let shortcutsOpen = $state(false);
+	let paletteOpen = $state(false);
+	let pinned = $state(true);
+	let name = $state('Morning chart');
+	let query = $state('walk');
+	let reply = $state('');
+	let keepUpdated = $state(true);
+	let preset = $state('health');
+	let sealPlay = $state(0);
 
 	function setTheme(next: string): void {
 		if (next === 'system' || next === 'light' || next === 'dark') chart.setTheme(next);
 	}
-
 </script>
 
 <svelte:head>
@@ -58,8 +215,8 @@
 				</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Every variant, on the same tokens as the app. Product screens still get one primary action.
-				Delete this route when you don't want the catalog.
+				Every variant and state, on the same tokens as the app. Product screens still get one primary
+				action. Delete this route when you don't want the catalog.
 			</p>
 		</div>
 		<SegmentedControl
@@ -71,12 +228,86 @@
 		/>
 	</header>
 
-	<Card class="flex flex-col gap-4">
+	<nav class="flex flex-wrap gap-x-4 gap-y-1" aria-label="Catalog">
+		{#each catalog as [id, label] (id)}
+			<a class={link} href="#{id}">{label}</a>
+		{/each}
+	</nav>
+
+	<Card id="type" class="flex scroll-mt-6 flex-col gap-5">
+		<Eyebrow>Type</Eyebrow>
+		<div class="flex max-w-[62ch] flex-col gap-3">
+			<p class="m-0 font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-balance">
+				Chart title
+			</p>
+			<h2 class="m-0 font-serif text-[1.6rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance">
+				Dialog heading
+			</h2>
+			<p class="m-0 text-[0.95rem] text-pretty">
+				Body copy stays near a rem, with pretty wrapping, and runs no wider than about 62 characters.
+			</p>
+			<p class="m-0 text-pretty text-muted">Lede and helper text use the muted ink.</p>
+			<p class="m-0 text-[0.88rem] text-danger" role="alert">That reply was not a chart.</p>
+			<p class="m-0 text-[0.88rem] text-success">Goal is set.</p>
+		</div>
+		<dl class="m-0 flex flex-wrap gap-8">
+			<div>
+				<dt class="text-[0.86rem] text-muted">Actions</dt>
+				<dd class="m-0 text-[1.35rem] font-[620] tabular-nums">24<span class="font-medium text-muted">/64</span></dd>
+			</div>
+			<div>
+				<dt class="text-[0.86rem] text-muted">Pillars</dt>
+				<dd class="m-0 text-[1.35rem] font-[620] text-success tabular-nums">8<span class="font-medium text-success">/8</span></dd>
+			</div>
+		</dl>
+		<div class="flex flex-wrap items-center gap-2">
+			<kbd class="rounded-md bg-sunken px-2 py-0.5 text-center font-sans text-[0.75rem] font-semibold text-muted">Ctrl</kbd>
+			<kbd class="rounded-md bg-sunken px-2 py-0.5 text-center font-sans text-[0.75rem] font-semibold text-muted">K</kbd>
+			<span class="text-[0.8rem] text-muted">opens commands</span>
+		</div>
+	</Card>
+
+	<Card id="surfaces" class="flex scroll-mt-6 flex-col gap-5">
+		<Eyebrow>Surfaces</Eyebrow>
+		<div class="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-x-3 gap-y-4">
+			{#each surfaces as surface (surface.name)}
+				<div class="flex flex-col items-center gap-1.5">
+					<div class={cn('h-14 w-full rounded-2xl shadow-card', surface.swatch)}></div>
+					<span class="text-center text-[0.75rem] leading-none text-muted">{surface.name}</span>
+				</div>
+			{/each}
+		</div>
+		<div class="flex flex-wrap items-center gap-2.5">
+			{#each HUES as hue, pillar (hue)}
+				<span
+					class="pillar-dot size-9 rounded-full"
+					style:--h={hue}
+					title="Pillar {pillar + 1}"
+				></span>
+			{/each}
+		</div>
+		<div class="flex flex-wrap items-center gap-4">
+			<div class="flex h-20 w-40 items-center justify-center rounded-[22px] bg-bg text-[0.82rem] text-muted shadow-card">
+				Card
+			</div>
+			<div class="flex h-20 w-40 items-center justify-center rounded-[22px] bg-bg text-[0.82rem] text-muted shadow-float">
+				Float
+			</div>
+			<div
+				class="inline-flex h-[42px] items-center justify-center rounded-full bg-ink px-[18px] text-[0.9rem] font-[560] text-on-ink shadow-press"
+			>
+				Press
+			</div>
+		</div>
+	</Card>
+
+	<Card id="buttons" class="flex scroll-mt-6 flex-col gap-4">
 		<Eyebrow>Button</Eyebrow>
 		<div class="flex flex-wrap items-center gap-3">
 			<Button icon="list">Start from a preset</Button>
 			<Button variant="soft" icon="sparkles">Get a prompt</Button>
 			<Button variant="ghost" icon="info">How it works</Button>
+			<Button variant="danger" icon="trash">Clear chart</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			<Button size="sm">Use this chart</Button>
@@ -84,55 +315,303 @@
 			<Button size="sm" variant="ghost">Not now</Button>
 			<Button size="sm" variant="danger">Delete now</Button>
 		</div>
-	</Card>
-
-	<Card class="flex flex-col gap-4">
-		<Eyebrow>Icon button</Eyebrow>
-		<div class="flex items-center gap-2">
-			<IconButton icon="close" label="Close" />
-			<IconButton icon="more" label="More actions" />
-			<Menu align="start" label="More actions">
-				<MenuItem icon="printer" badge="Ctrl+P" onclick={() => chart.say('Printed')}>
-					Print chart
-				</MenuItem>
-				<MenuItem icon="image" badge=".png" onclick={() => chart.say('Poster exported')}>
-					Export poster
-				</MenuItem>
-				<MenuDivider />
-				<MenuItem icon="trash" tone="danger" onclick={() => (dialogOpen = true)}>
-					Clear chart
-				</MenuItem>
-			</Menu>
+		<div class="flex flex-wrap items-center gap-3">
+			<Button disabled>Start from a preset</Button>
+			<Button variant="soft" disabled>Get a prompt</Button>
+			<Button variant="ghost" disabled>How it works</Button>
+			<Button variant="danger" disabled>Clear chart</Button>
+		</div>
+		<div class="flex flex-wrap items-center gap-3">
+			<Button
+				size="sm"
+				variant={pinned ? 'soft' : 'ghost'}
+				icon="pin"
+				aria-pressed={pinned}
+				onclick={() => (pinned = !pinned)}
+			>
+				{pinned ? 'Pinned' : 'Pin'}
+			</Button>
+			<Button href="#icons" variant="ghost" icon="grid">Icon set</Button>
+			<Button class="w-full max-w-[320px]">Open the chart</Button>
 		</div>
 	</Card>
 
-	<Card class="flex flex-col gap-4">
+	<Card id="icon-buttons" class="flex scroll-mt-6 flex-col gap-4">
+		<Eyebrow>Icon button</Eyebrow>
+		<div class="flex flex-wrap items-center gap-2">
+			<IconButton icon="close" label="Close" />
+			<IconButton icon="more" label="More actions" />
+			<IconButton icon="search" label="Search" />
+			<IconButton icon="undo" label="Undo" />
+			<IconButton icon="printer" label="Print" />
+			<IconButton icon="trash" label="Delete" disabled />
+		</div>
+	</Card>
+
+	<Card id="fields" class="flex scroll-mt-6 flex-col gap-5">
+		<Eyebrow>Fields</Eyebrow>
+		<div class="grid gap-4 md:grid-cols-2">
+			<label class="flex flex-col gap-1.5">
+				<span class="text-[0.82rem] font-semibold">Chart name</span>
+				<input class={field} type="text" bind:value={name} spellcheck="false" />
+			</label>
+			<label class="flex flex-col gap-1.5">
+				<span class="text-[0.82rem] font-semibold">Disabled</span>
+				<input class={field} type="text" value="Locked title" disabled />
+			</label>
+		</div>
+		<label class="flex max-w-[340px] flex-col gap-1.5">
+			<span class="text-[0.82rem] font-semibold">Search</span>
+			<span class="relative">
+				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
+					<Icon name="search" size={16} />
+				</span>
+				<input
+					class={cn(field, 'ps-[42px] pe-10 [&::-webkit-search-cancel-button]:hidden')}
+					type="search"
+					placeholder="Search your chart"
+					aria-label="Search the chart"
+					autocomplete="off"
+					spellcheck="false"
+					bind:value={query}
+				/>
+				{#if query.trim()}
+					<button
+						type="button"
+						class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+						aria-label="Clear search"
+						onclick={() => (query = '')}
+					>
+						<Icon name="close" size={12} />
+					</button>
+				{/if}
+			</span>
+		</label>
+		<label class="flex flex-col gap-1.5">
+			<span class="text-[0.82rem] font-semibold">Paste the reply</span>
+			<textarea
+				class="min-h-24 resize-y rounded-2xl border-0 bg-sunken px-3.5 py-3 font-sans text-[0.95rem] leading-[1.45] text-text placeholder:text-muted focus-visible:bg-surface focus-visible:shadow-[0_0_0_1.5px_var(--ink)] focus-visible:outline-none"
+				rows="3"
+				placeholder="Paste the JSON when it comes back"
+				bind:value={reply}
+			></textarea>
+		</label>
+		<label class="flex max-w-md cursor-pointer items-center justify-between gap-3 text-[0.9rem]">
+			<span>
+				Keep the page up to date
+				<span class="block text-[0.78rem] text-muted">Publishes after edits.</span>
+			</span>
+			<input class="size-4 shrink-0 cursor-pointer accent-ink" type="checkbox" bind:checked={keepUpdated} />
+		</label>
+		<fieldset class="m-0 grid max-w-xl grid-cols-2 gap-2 border-0 p-0 max-[640px]:grid-cols-1">
+			<legend class="sr-only">Choose a preset</legend>
+			<label
+				class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] bg-sunken px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 hover:bg-sunken-hover has-checked:bg-surface has-checked:shadow-[0_0_0_2px_var(--ink)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
+			>
+				<input class="mt-[3px] shrink-0 accent-ink" type="radio" name="catalog-preset" value="health" bind:group={preset} />
+				<span class="flex min-w-0 flex-col gap-0.5">
+					<span class="text-[0.92rem] font-[620]">Health first</span>
+					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">Sleep, food, and a daily walk.</span>
+				</span>
+			</label>
+			<label
+				class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] bg-sunken px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 hover:bg-sunken-hover has-checked:bg-surface has-checked:shadow-[0_0_0_2px_var(--ink)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
+			>
+				<input class="mt-[3px] shrink-0 accent-ink" type="radio" name="catalog-preset" value="blank" bind:group={preset} />
+				<span class="flex min-w-0 flex-col gap-0.5">
+					<span class="text-[0.92rem] font-[620]">Blank chart</span>
+					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">One goal, empty pillars.</span>
+				</span>
+			</label>
+		</fieldset>
+		<button class={link} type="button" onclick={() => chart.say('Paste opened')}>Paste a reply</button>
+	</Card>
+
+	<Card id="segmented" class="flex scroll-mt-6 flex-col gap-4">
 		<Eyebrow>Segmented control</Eyebrow>
 		<SegmentedControl label="Chart scale" options={scales} bind:value={scale} />
+		<SegmentedControl size="sm" label="Action type" options={actionKinds} bind:value={kind} />
 	</Card>
 
-	<Card class="flex flex-col gap-4">
-		<Eyebrow>Notice</Eyebrow>
-		<Notice>
-			A notification or guidance note for your chart.
-			{#snippet action()}
-				<Button size="sm" onclick={() => chart.say('Action confirmed')}>Action</Button>
-			{/snippet}
-		</Notice>
+	<Card id="menus" class="flex scroll-mt-6 flex-col gap-4">
+		<Eyebrow>Menu</Eyebrow>
+		<div class="flex flex-wrap items-start gap-6">
+			<div class={cn(menuPanel, 'relative top-auto w-[min(340px,100%)]')} role="menu" aria-label="Chart list">
+				<MenuItem icon="check" active badge="12/73">
+					<span class="flex min-w-0 flex-col gap-px">
+						<span class="max-w-[28ch] truncate">Morning chart</span>
+						<span class="text-[0.72rem] leading-tight font-normal text-muted">Updated today</span>
+					</span>
+				</MenuItem>
+				<MenuItem icon="grid" badge="3/73">
+					<span class="max-w-[28ch] truncate">Blank chart</span>
+				</MenuItem>
+				<MenuDivider />
+				<MenuItem icon="edit" badge="R">Rename chart</MenuItem>
+				<MenuItem icon="copy" badge="D" onclick={() => chart.say('Chart duplicated')}>Duplicate chart</MenuItem>
+				<MenuItem icon="plus">New blank chart</MenuItem>
+				<MenuDivider />
+				<MenuItem icon="trash" tone="danger" badge="Del" onclick={() => (dialogOpen = true)}>
+					Delete chart
+				</MenuItem>
+			</div>
+			<div class="flex flex-wrap items-center gap-3">
+				<Menu align="start" label="More actions">
+					<MenuItem icon="printer" badge="Ctrl+P" onclick={() => chart.say('Printed')}>Print chart</MenuItem>
+					<MenuItem icon="image" badge=".png" onclick={() => chart.say('Poster exported')}>
+						Export poster
+					</MenuItem>
+					<MenuItem icon="command" badge="Ctrl+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
+					<MenuDivider />
+					<MenuItem icon="trash" tone="danger" onclick={() => (dialogOpen = true)}>Clear chart</MenuItem>
+				</Menu>
+				<Menu align="end" label="Chart actions">
+					{#snippet trigger({ expanded, toggle })}
+						<Button
+							variant="soft"
+							icon="chevron-down"
+							aria-haspopup="menu"
+							aria-expanded={expanded}
+							onclick={toggle}
+						>
+							Chart actions
+						</Button>
+					{/snippet}
+					<MenuItem icon="upload">Import chart</MenuItem>
+					<MenuItem icon="keyboard" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+					<MenuDivider />
+					<MenuItem icon="folder" tone="danger">Turn off backups</MenuItem>
+				</Menu>
+			</div>
+		</div>
 	</Card>
 
-	<Card class="flex flex-col gap-4">
-		<Eyebrow pip="goal">Center goal</Eyebrow>
-		<Eyebrow pip={0}>Pillar 1 · top left</Eyebrow>
-		<Eyebrow pip={4}>Pillar 5 · right</Eyebrow>
-		<p class="m-0 max-w-[62ch] text-pretty text-muted">
-			Eyebrows stay sans, uppercase, and quiet. The pip uses the pillar hue. The goal pip is ink.
-		</p>
+	<Card id="dialogs" class="flex scroll-mt-6 flex-col gap-4">
+		<Eyebrow>Dialog</Eyebrow>
+		<div class="flex flex-wrap items-center gap-3">
+			<Button variant="soft" onclick={() => (dialogOpen = true)}>Small dialog</Button>
+			<Button variant="soft" onclick={() => (guideOpen = true)}>Dialog with description</Button>
+			<Button variant="ghost" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</Button>
+			<Button variant="ghost" icon="command" onclick={() => (paletteOpen = true)}>Commands</Button>
+		</div>
 	</Card>
 
-	<Card class="flex flex-wrap items-center gap-3">
-		<Button variant="soft" onclick={() => (dialogOpen = true)}>Open a dialog</Button>
-		<Button variant="ghost" onclick={() => chart.say('Copied as text')}>Show a toast</Button>
+	<div id="feedback" class="flex scroll-mt-6 flex-col gap-8">
+		<Card class="flex flex-col gap-4">
+			<Eyebrow>Notice</Eyebrow>
+			<Notice>
+				Eight pillars are named. The actions are still open.
+				{#snippet action()}
+					<Button size="sm" onclick={() => chart.say('Action confirmed')}>Write actions</Button>
+				{/snippet}
+			</Notice>
+			<Notice>
+				This chart stays on this device.
+				{#snippet action()}
+					<Button size="sm" variant="soft" onclick={() => chart.say('Guide opened')}>How it works</Button>
+				{/snippet}
+			</Notice>
+			<Notice>A quiet note with no action.</Notice>
+		</Card>
+
+		<Card class="flex flex-col gap-4">
+			<Eyebrow>Eyebrow</Eyebrow>
+			<div class="flex flex-col gap-2">
+				<Eyebrow>Design system</Eyebrow>
+				<Eyebrow pip="goal">Center goal</Eyebrow>
+				{#each POS as place, pillar (place)}
+					<Eyebrow pip={pillar}>Pillar {pillar + 1} · {place}</Eyebrow>
+				{/each}
+			</div>
+		</Card>
+
+		<Card class="flex flex-col gap-4">
+			<Eyebrow>Toast</Eyebrow>
+			<div class={toastOn}>Copied as text</div>
+			<div>
+				<Button variant="ghost" onclick={() => chart.say('Copied as text')}>Show a live toast</Button>
+			</div>
+		</Card>
+
+		<Card class="flex flex-col gap-4">
+			<Eyebrow>Dock</Eyebrow>
+			<div class={cn(dockBar, 'relative w-fit')} role="tablist" aria-label="Dock specimen">
+				<DockTab icon="grid" selected={dockView === 'view'} onclick={() => (dockView = 'view')}>Chart</DockTab>
+				<DockTab icon="edit" selected={dockView === 'edit'} onclick={() => (dockView = 'edit')}>Edit</DockTab>
+				<DockTab icon="columns" selected={dockView === 'split'} onclick={() => (dockView = 'split')}>Split</DockTab>
+			</div>
+			<p class="m-0 text-[0.88rem] text-pretty text-muted">
+				The live dock stays fixed at the bottom of this page. The bar above is the same tabs, in the flow.
+			</p>
+		</Card>
+	</div>
+
+	<Card id="brand" class="flex scroll-mt-6 flex-col gap-5">
+		<Eyebrow>Brand</Eyebrow>
+		<div class="flex flex-wrap items-end gap-8">
+			<div class="flex items-center gap-2.5">
+				<BrandMark />
+				<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
+			</div>
+			<ProgressRing size={56} />
+			<ProgressRing size={76} />
+			<DaySeal class="size-24" moved={[0, 2, 5]} label="Three pillars moved" />
+			{#key sealPlay}
+				<DaySeal class="size-28" play moved={[0, 1, 2, 3, 4, 5]} label="Day sealed, six pillars" />
+			{/key}
+		</div>
+		<div>
+			<Button size="sm" variant="soft" onclick={() => (sealPlay += 1)}>Replay seal</Button>
+		</div>
+	</Card>
+
+	<Card id="chart" class="flex scroll-mt-6 flex-col gap-5">
+		<Eyebrow>Chart cells</Eyebrow>
+		<div class="grid max-w-md grid-cols-4 gap-2">
+			<button
+				type="button"
+				aria-label="Empty goal"
+				class={cn(cell, "goal rounded-[28%] bg-goal font-serif text-[15px] font-[560] text-goal-fg before:font-medium before:opacity-60 before:content-['Your_goal']")}
+			></button>
+			<button
+				type="button"
+				class={cn(cell, 'pillar pillar-cell rounded-[28%] font-[620] text-on-p')}
+				style:--h={HUES[0]}
+			>
+				Health
+			</button>
+			<button
+				type="button"
+				class={cn(cell, 'action pillar-action rounded-[11px] text-text')}
+				style:--h={HUES[1]}
+			>
+				Walk
+			</button>
+			<button
+				type="button"
+				class={cn(cell, 'action pillar-action rounded-[11px] text-muted line-through opacity-60')}
+				style:--h={HUES[3]}
+			>
+				Done
+			</button>
+		</div>
+		<div class="max-w-[520px]">
+			<MandalaGrid mode="view" source={sample} />
+		</div>
+	</Card>
+
+	<Card id="icons" class="flex scroll-mt-6 flex-col gap-4">
+		<Eyebrow>Icons</Eyebrow>
+		<ul class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(7.25rem,1fr))] gap-2 p-0">
+			{#each iconNames as name (name)}
+				<li>
+					<div class="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-2xl bg-sunken px-2 py-3 text-text">
+						<Icon {name} size={18} />
+						<span class="max-w-full truncate text-[0.72rem] text-muted">{name}</span>
+					</div>
+				</li>
+			{/each}
+		</ul>
 	</Card>
 </div>
 
@@ -141,6 +620,7 @@
 	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (dialogOpen = false)}>Cancel</Button>
 		<Button
+			variant="danger"
 			onclick={() => {
 				dialogOpen = false;
 				chart.say('Chart cleared');
@@ -148,6 +628,19 @@
 		>
 	{/snippet}
 </Dialog>
+
+<Dialog
+	bind:open={guideOpen}
+	title="The Mandala method"
+	description="One goal in the center, eight pillars around it, eight actions on each pillar."
+>
+	<p class="m-0 text-pretty text-muted">
+		Write the goal once. Name the pillars. Then fill the actions you can actually do. Review the chart. You do not redraw it every morning.
+	</p>
+</Dialog>
+
+<ShortcutsDialog bind:open={shortcutsOpen} />
+<CommandPalette bind:open={paletteOpen} {commands} />
 
 <Dock label="Layout view mode">
 	<DockTab icon="grid" selected={view === 'view'} onclick={() => (view = 'view')}>Chart</DockTab>

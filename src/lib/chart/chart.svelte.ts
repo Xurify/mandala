@@ -31,18 +31,26 @@ import {
   deleteFromLibrary,
   emptyLibrary,
   flushActive,
-  forgetFromLibrary,
+  forgetManyFromLibrary,
   migrateFromV1,
   newRecord,
   parseLibrary,
   purgeLibrary,
-  restoreFromLibrary,
+  restoreManyFromLibrary,
   summarize,
   summarizeDeleted,
+  titleOf,
+  TRASH_MS,
   type ChartLibrary,
   type ChartSummary,
   type DeletedSummary,
 } from "./library.ts";
+import {
+  batchSubject,
+  burstToast,
+  nextSlipBurst,
+  type SlipBurst,
+} from "./toast.ts";
 import {
   fetchRow,
   publishChart,
@@ -148,6 +156,14 @@ export class ChartStore {
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
   status = $state("");
+  /** Quiet label above a named toast. Empty for a one-line note. */
+  statusKicker = $state("");
+  /** The thing the action was about, shown as the slip's title. */
+  statusSubject = $state("");
+  /** Repeats of the same action while the toast is up. 0 means a one-off message. */
+  statusCount = $state(0);
+  /** Bumps when a new slip lands, not when a burst's count ticks. */
+  statusToken = $state(0);
   exportFallback = $state("");
   saveWarned = $state(false);
   themeTick = $state(0);
@@ -156,6 +172,7 @@ export class ChartStore {
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
   #statusTimer: ReturnType<typeof setTimeout> | null = null;
+  #burst: SlipBurst | null = null;
 
   #backupHandle: FileSystemDirectoryHandle | null = null;
   backupState: BackupState = $state("off");
@@ -343,11 +360,62 @@ export class ChartStore {
   }
 
   say(message: string, keep = false): void {
+    if (keep) {
+      this.#burst = null;
+      this.statusKicker = "";
+      this.statusSubject = "";
+      this.#showStatus(message, true, 0, true);
+      return;
+    }
+    const next = nextSlipBurst(this.#heldBurst(), message, message);
+    this.#burst = next;
+    this.statusKicker = "";
+    this.statusSubject = "";
+    this.#showStatus(message, false, next.count, next.count === 1);
+  }
+
+  /** Named slip. Repeats of the same action while it is up stamp the count. */
+  note(kicker: string, subject: string, amount = 1, mixedBatch = false): void {
+    this.#applyNote(this.#heldBurst(), kicker, subject, amount, mixedBatch);
+  }
+
+  #heldBurst(): SlipBurst | null {
+    if (!this.#burst || this.status.length === 0) return null;
+    return this.#burst;
+  }
+
+  /** `held` is the burst from before a save, so a storage warning cannot reset the count. */
+  #applyNote(
+    held: SlipBurst | null,
+    kicker: string,
+    subject: string,
+    amount: number,
+    mixedBatch: boolean,
+  ): void {
+    const next = nextSlipBurst(held, kicker, subject, amount, mixedBatch);
+    this.#burst = next;
+    this.statusKicker = kicker;
+    this.statusSubject = next.subject;
+    this.#showStatus(
+      burstToast(kicker, next.subject, next.count, next.mixed),
+      false,
+      next.count,
+      !held || held.key !== kicker,
+    );
+  }
+
+  #showStatus(message: string, keep: boolean, count: number, fresh: boolean): void {
     this.status = message;
+    this.statusCount = count;
+    if (fresh) this.statusToken += 1;
     if (this.#statusTimer) clearTimeout(this.#statusTimer);
     if (!keep) {
       this.#statusTimer = setTimeout(() => {
         this.status = "";
+        this.statusKicker = "";
+        this.statusSubject = "";
+        this.statusCount = 0;
+        this.#burst = null;
       }, 5000);
     }
   }
@@ -795,9 +863,11 @@ export class ChartStore {
   }
 
   clearAll(): void {
+    const title = titleOf(this.data);
+    const held = this.#heldBurst();
     this.data = emptyChart();
     this.saveNow();
-    this.say("Chart cleared.");
+    this.#applyNote(held, "Cleared", title, 1, false);
   }
 
   importChart(importedData: ChartData, message = "Chart imported."): boolean {
@@ -818,8 +888,9 @@ export class ChartStore {
     this.#library.activeId = record.id;
     this.data = emptyChart();
     this.#resetView();
+    const held = this.#heldBurst();
     this.saveNow();
-    this.say("New chart.");
+    this.#applyNote(held, "New", titleOf(this.data), 1, false);
     return true;
   }
 
@@ -830,8 +901,10 @@ export class ChartStore {
     this.#library.activeId = record.id;
     this.data = cloneChart(record.data);
     this.#resetView();
+    const title = titleOf(this.data);
+    const held = this.#heldBurst();
     this.saveNow();
-    this.say("Chart duplicated.");
+    this.#applyNote(held, "Duplicated", title, 1, false);
     return true;
   }
 
@@ -848,6 +921,8 @@ export class ChartStore {
 
   deleteChart(id: string): void {
     this.#flush();
+    const doomed = this.#library.charts.find((item) => item.id === id);
+    const title = doomed ? titleOf(doomed.data) : titleOf(this.data);
     const next = deleteFromLibrary(this.#library, id);
     if (!next) return;
     const activeChanged = next.activeId !== this.#library.activeId;
@@ -858,29 +933,53 @@ export class ChartStore {
       this.#adoptShareState();
       this.#bindGoalFit();
     }
+    const held = this.#heldBurst();
     this.saveNow();
-    this.say("Chart deleted.");
+    this.#applyNote(held, "Deleted", title, 1, false);
   }
 
   restoreChart(id: string): void {
+    this.restoreCharts([id]);
+  }
+
+  restoreCharts(ids: string[]): void {
+    if (ids.length === 0) return;
     this.#flush();
-    const next = restoreFromLibrary(this.#library, id);
-    if (!next) return;
+    const now = Date.now();
+    const want = new Set(ids);
+    const titles = this.#library.deleted
+      .filter((row) => want.has(row.id) && now - row.deletedAt < TRASH_MS)
+      .map((row) => titleOf(row.data));
+    const next = restoreManyFromLibrary(this.#library, ids, now);
+    if (!next || titles.length === 0) return;
+    const batch = batchSubject(titles);
+    const held = this.#heldBurst();
     this.#library = next;
     this.data = cloneChart(activeRecord(next).data);
     this.#resetView();
     this.#adoptShareState();
     this.#bindGoalFit();
     this.saveNow();
-    this.say("Chart restored.");
+    this.#applyNote(held, "Restored", batch.subject, titles.length, batch.mixed);
   }
 
   forgetChart(id: string): void {
-    const next = forgetFromLibrary(this.#library, id);
-    if (!next) return;
+    this.forgetCharts([id]);
+  }
+
+  forgetCharts(ids: string[]): void {
+    if (ids.length === 0) return;
+    const want = new Set(ids);
+    const titles = this.#library.deleted
+      .filter((row) => want.has(row.id))
+      .map((row) => titleOf(row.data));
+    const next = forgetManyFromLibrary(this.#library, ids);
+    if (!next || titles.length === 0) return;
+    const batch = batchSubject(titles);
+    const held = this.#heldBurst();
     this.#library = next;
     this.saveNow();
-    this.say("Chart removed.");
+    this.#applyNote(held, "Removed", batch.subject, titles.length, batch.mixed);
   }
 
   #fillOrSpawn(next: ChartData, message: string): boolean {

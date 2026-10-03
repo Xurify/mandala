@@ -8,6 +8,8 @@ import {
 	emptyLibrary,
 	flushActive,
 	forgetFromLibrary,
+	forgetManyFromLibrary,
+	formatDeleted,
 	formatDeletesIn,
 	formatUpdated,
 	migrateFromV1,
@@ -15,6 +17,7 @@ import {
 	parseLibrary,
 	purgeDeleted,
 	restoreFromLibrary,
+	restoreManyFromLibrary,
 	summarize,
 	titleOf,
 	TRASH_DAYS,
@@ -43,6 +46,20 @@ describe('formatUpdated', () => {
 		);
 		expect(formatUpdated(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Updated Sep 15');
 		expect(formatUpdated(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Updated Dec 31, 2025');
+	});
+});
+
+describe('formatDeleted', () => {
+	const now = new Date(2026, 9, 2, 22, 57).getTime();
+
+	it('uses a clock for today and yesterday, then a short date', () => {
+		expect(formatDeleted(now, now)).toBe('Deleted 10:57 pm');
+		expect(formatDeleted(new Date(2026, 9, 2, 0, 1).getTime(), now)).toBe('Deleted 12:01 am');
+		expect(formatDeleted(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe(
+			'Deleted yesterday at 11:59 pm'
+		);
+		expect(formatDeleted(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Deleted Sep 15');
+		expect(formatDeleted(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Deleted Dec 31, 2025');
 	});
 });
 
@@ -185,6 +202,35 @@ describe('recently deleted', () => {
 		expect(restored?.activeId).toBe(removed!.deleted[0]?.id);
 		expect(restored?.deleted).toEqual([]);
 		expect(restored?.charts).toHaveLength(2);
+	});
+
+	it('restores several charts and opens the newest', () => {
+		const library = emptyLibrary();
+		library.deleted = [
+			deletedRecord('Older', now - 5_000),
+			deletedRecord('Newer', now - 1_000),
+			deletedRecord('Stay', now)
+		];
+		const ids = library.deleted.slice(0, 2).map((row) => row.id);
+		const restored = restoreManyFromLibrary(library, ids, now + 1000);
+		expect(restored?.deleted.map((row) => row.data.goal)).toEqual(['Stay']);
+		expect(restored?.charts.map((row) => row.data.goal)).toContain('Older');
+		expect(restored?.charts.map((row) => row.data.goal)).toContain('Newer');
+		expect(restored?.activeId).toBe(library.deleted[1]?.id);
+		expect(restoreManyFromLibrary(library, ['missing'], now)).toBeNull();
+	});
+
+	it('removes several deleted charts and leaves the rest', () => {
+		const library = emptyLibrary();
+		library.deleted = [
+			deletedRecord('One', now),
+			deletedRecord('Two', now - 1_000),
+			deletedRecord('Keep', now - 2_000)
+		];
+		const ids = library.deleted.slice(0, 2).map((row) => row.id);
+		const forgotten = forgetManyFromLibrary(library, ids);
+		expect(forgotten?.deleted.map((row) => row.data.goal)).toEqual(['Keep']);
+		expect(forgetManyFromLibrary(library, ['missing'])).toBeNull();
 	});
 
 	it('removes a deleted chart before the hold ends', () => {

@@ -83,6 +83,21 @@ export function formatUpdated(at: number, now = Date.now()): string {
 	return `Updated ${label}`;
 }
 
+/** When a chart was deleted. Today and yesterday include the time. `now` is injectable for tests. */
+export function formatDeleted(at: number, now = Date.now()): string {
+	const days = Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS);
+	if (days === 0) return `Deleted ${clockLabel(at)}`;
+	if (days === 1) return `Deleted yesterday at ${clockLabel(at)}`;
+	const date = new Date(at);
+	const sameYear = date.getFullYear() === new Date(now).getFullYear();
+	const label = date.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		...(sameYear ? {} : { year: 'numeric' })
+	});
+	return `Deleted ${label}`;
+}
+
 /** Whole days left before a deleted chart is removed. `0` means the hold is over. */
 export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 	const remaining = TRASH_MS - (now - deletedAt);
@@ -240,8 +255,43 @@ export function restoreFromLibrary(
 
 /** Drop a deleted chart before the 30-day hold ends. */
 export function forgetFromLibrary(library: ChartLibrary, id: string): ChartLibrary | null {
-	if (!library.deleted.some((row) => row.id === id)) return null;
-	return { ...library, deleted: library.deleted.filter((row) => row.id !== id) };
+	return forgetManyFromLibrary(library, [id]);
+}
+
+/** Put deleted charts back. The newest one becomes the open chart. */
+export function restoreManyFromLibrary(
+	library: ChartLibrary,
+	ids: readonly string[],
+	now = Date.now()
+): ChartLibrary | null {
+	const want = new Set(ids);
+	const rows = library.deleted
+		.filter((row) => want.has(row.id) && now - row.deletedAt < TRASH_MS)
+		.slice()
+		.sort((a, b) => a.deletedAt - b.deletedAt);
+	if (rows.length === 0) return null;
+	const records: ChartRecord[] = rows.map((item) => ({
+		id: item.id,
+		updatedAt: now,
+		data: cloneChart(item.data)
+	}));
+	const drop = new Set(records.map((row) => row.id));
+	const newest = records[records.length - 1]!;
+	return {
+		activeId: newest.id,
+		charts: [...library.charts, ...records],
+		deleted: library.deleted.filter((row) => !drop.has(row.id))
+	};
+}
+
+/** Drop several deleted charts before the hold ends. */
+export function forgetManyFromLibrary(
+	library: ChartLibrary,
+	ids: readonly string[]
+): ChartLibrary | null {
+	const drop = new Set(ids);
+	if (!library.deleted.some((row) => drop.has(row.id))) return null;
+	return { ...library, deleted: library.deleted.filter((row) => !drop.has(row.id)) };
 }
 
 export function activeRecord(library: ChartLibrary): ChartRecord {

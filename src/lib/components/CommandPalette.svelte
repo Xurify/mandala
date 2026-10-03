@@ -9,12 +9,14 @@
 		section: CommandSection;
 		icon?: IconName;
 		hint?: string;
+		tone?: 'danger';
 		run: () => void;
 	};
 </script>
 
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { cn } from './ui/cn';
 
 	interface Props {
 		open?: boolean;
@@ -137,14 +139,21 @@
 					id="cmd-{item.id}"
 					role="option"
 					aria-selected={index === active}
-					class="flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 px-3.5 text-left font-sans text-[0.9rem] text-text motion-safe:transition-colors motion-safe:duration-150 {index === active
-						? 'bg-sunken'
-						: 'bg-transparent'} focus-visible:bg-sunken focus-visible:outline-none"
+					class={cn(
+						'flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3.5 text-left font-sans text-[0.9rem] motion-safe:transition-colors motion-safe:duration-150 focus-visible:outline-none',
+						item.tone === 'danger'
+							? 'text-danger focus-visible:bg-danger-wash aria-selected:bg-danger-wash'
+							: 'text-text focus-visible:bg-sunken aria-selected:bg-sunken'
+					)}
 					onclick={() => choose(item)}
 					onpointerenter={() => (active = index)}
 				>
 					{#if item.icon}
-						<Icon name={item.icon} size={16} class="shrink-0 text-muted" />
+						<Icon
+							name={item.icon}
+							size={16}
+							class={item.tone === 'danger' ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}
+						/>
 					{/if}
 					<span class="min-w-0 flex-1 truncate">{item.label}</span>
 					{#if item.hint}

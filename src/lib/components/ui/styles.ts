@@ -3,7 +3,7 @@ import { tv } from 'tailwind-variants';
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
 export const button = tv({
-	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
+	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
 		variant: {
 			primary: 'bg-ink text-on-ink shadow-press hover:bg-ink-hover focus-visible:bg-ink-hover',
@@ -21,7 +21,7 @@ export const button = tv({
 });
 
 export const iconButton = tv({
-	base: `relative inline-flex size-[42px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-text transition-[background-color,transform] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] ${focus}`
+	base: `relative inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent p-0 text-text transition-[background-color,transform] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] ${focus}`
 });
 
 export const segmented = tv({
@@ -87,7 +87,7 @@ export const dialog = tv({
 		head: 'flex items-start justify-between gap-3 pt-[22px] pr-4 pb-2.5 pl-[26px]',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
-		body: 'min-h-0 flex-1 overflow-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
+		body: 'min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
 		foot: 'flex items-center justify-end gap-2 px-[26px] pb-[22px]'
 	},
@@ -116,14 +116,14 @@ export const dockTab = tv({
 });
 
 export const toast = tv({
-	base: 'pointer-events-none max-w-[min(520px,100%)] rounded-[18px] bg-ink text-center text-[0.88rem] font-medium text-pretty text-on-ink shadow-float transition-[opacity,transform] duration-200 ease-ui',
+	base: 'w-max max-w-full rounded-[20px] bg-surface px-3.5 py-3 text-left text-[0.92rem] font-medium text-pretty text-text shadow-float',
 	variants: {
 		on: {
-			true: 'translate-y-0 scale-100 px-[18px] py-2.5 opacity-100',
-			false: 'translate-y-2 scale-[0.98] p-0 opacity-0'
+			true: '',
+			false: 'opacity-0'
 		}
 	},
-	defaultVariants: { on: false }
+	defaultVariants: { on: true }
 });
 
 export const notice = tv({

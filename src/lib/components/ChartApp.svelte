@@ -33,6 +33,7 @@
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 	import Button from './ui/Button.svelte';
+	import Dialog from './ui/Dialog.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import Dock from './ui/Dock.svelte';
 	import DockTab from './ui/DockTab.svelte';
@@ -66,6 +67,7 @@
 	let shareOpen = $state(false);
 	let incomingShare = $state<ChartData | null>(null);
 	let paletteOpen = $state(false);
+	let clearOpen = $state(false);
 	let paletteQuery = $state('');
 	let shortcutsOpen = $state(false);
 	let modKey = $state('Ctrl');
@@ -172,12 +174,15 @@
 	}
 
 	function handleClearChart() {
-		if (chart.dirty) {
-			const userConfirmed = window.confirm(
-				'Are you sure you want to clear your chart? This action cannot be undone.'
-			);
-			if (!userConfirmed) return;
+		if (!chart.dirty) {
+			chart.clearAll();
+			return;
 		}
+		clearOpen = true;
+	}
+
+	function confirmClear(): void {
+		clearOpen = false;
 		chart.clearAll();
 	}
 
@@ -396,6 +401,7 @@
 							: 'Keep a backup folder',
 				section: 'Actions',
 				icon: 'folder',
+				tone: chart.backupState === 'on' ? 'danger' : undefined,
 				run: handleBackupMenu
 			});
 		}
@@ -572,6 +578,20 @@
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
+		<Dialog
+			bind:open={clearOpen}
+			title="Clear this chart?"
+			description="The goal, pillars, and actions on this chart go away."
+			size="sm"
+		>
+			<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
+				They do not go to recently deleted.
+			</p>
+			{#snippet footer()}
+				<Button variant="ghost" onclick={() => (clearOpen = false)}>Cancel</Button>
+				<Button variant="danger" onclick={confirmClear}>Clear chart</Button>
+			{/snippet}
+		</Dialog>
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 	</header>
 
@@ -684,14 +704,14 @@
 				<span>Mandala was updated.</span>
 				<button
 					type="button"
-					class="cursor-pointer rounded-full bg-[color-mix(in_oklch,var(--on-ink)_18%,transparent)] px-3.5 py-1.5 text-[0.82rem] font-semibold hover:bg-[color-mix(in_oklch,var(--on-ink)_30%,transparent)] motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="inline-flex min-h-[34px] cursor-pointer appearance-none items-center rounded-full border-0 bg-on-ink px-3.5 font-sans text-[0.82rem] font-[560] text-ink shadow-press hover:bg-[color-mix(in_oklch,var(--ink)_14%,var(--on-ink))] motion-safe:transition-[background-color,transform] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
 					onclick={() => location.reload()}
 				>
 					Refresh
 				</button>
 				<button
 					type="button"
-					class="flex size-8 cursor-pointer items-center justify-center rounded-full p-0 hover:bg-[color-mix(in_oklch,var(--on-ink)_18%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="inline-flex size-[34px] cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent p-0 text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_14%,transparent)] motion-safe:transition-[background-color,transform] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
 					aria-label="Dismiss update notice"
 					onclick={() => (updateReady = false)}
 				>
