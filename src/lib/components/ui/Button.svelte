@@ -6,7 +6,7 @@
 	import { button } from './styles';
 
 	type Props = Omit<HTMLButtonAttributes, 'class'> & {
-		variant?: 'primary' | 'soft' | 'ghost';
+		variant?: 'primary' | 'soft' | 'ghost' | 'danger';
 		size?: 'md' | 'sm';
 		icon?: IconName;
 		href?: string;

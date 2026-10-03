@@ -231,7 +231,7 @@
 							Updated {new Date(chart.shareUpdatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
 						{/if}
 					</span>
-					<Button size="sm" variant="ghost" disabled={chart.shareBusy} onclick={handleStopSharing}>Stop sharing</Button>
+					<Button size="sm" variant="danger" disabled={chart.shareBusy} onclick={handleStopSharing}>Stop sharing</Button>
 				</div>
 			</div>
 		{/if}

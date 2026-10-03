@@ -507,7 +507,7 @@
 				<MenuItem icon="keyboard" badge="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
-						<MenuItem icon="folder" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
+						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
 					{:else}
 						<MenuItem icon="folder" onclick={handleBackupMenu}>
 							{chart.backupState === 'needs-permission' ? 'Resume backups' : 'Keep a backup folder'}

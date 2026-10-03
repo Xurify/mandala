@@ -114,7 +114,7 @@
 			<Button variant="soft" onclick={push}>Push now</Button>
 			{#if chart.syncEnabled}
 				<Button variant="ghost" onclick={() => chart.pullSync()}>Pull now</Button>
-				<Button variant="ghost" onclick={() => chart.disableSync()}>Turn off</Button>
+				<Button variant="danger" onclick={() => chart.disableSync()}>Turn off</Button>
 			{/if}
 		</div>
 		<p class="m-0 text-[0.84rem] tabular-nums text-muted">
@@ -128,7 +128,7 @@
 			<Button onclick={publish}>{secretFor(shareId) ? 'Update share' : 'Publish current chart'}</Button>
 			{#if shareId}
 				<Button variant="ghost" onclick={check}>Check link</Button>
-				<Button variant="ghost" onclick={stopSharing}>Stop sharing</Button>
+				<Button variant="danger" onclick={stopSharing}>Stop sharing</Button>
 			{/if}
 		</div>
 		{#if shareId}

@@ -82,6 +82,7 @@
 			<Button size="sm">Use this chart</Button>
 			<Button size="sm" variant="soft">Cancel</Button>
 			<Button size="sm" variant="ghost">Not now</Button>
+			<Button size="sm" variant="danger">Delete now</Button>
 		</div>
 	</Card>
 

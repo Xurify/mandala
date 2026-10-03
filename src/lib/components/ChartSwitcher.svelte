@@ -259,14 +259,19 @@
 							<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (confirmingId = '')}>
 								Cancel
 							</Button>
-							<Button size="sm" class="coarse:min-h-11" onclick={() => forgetDeleted(item.id)}>
+							<Button
+								variant="danger"
+								size="sm"
+								class="coarse:min-h-11"
+								onclick={() => forgetDeleted(item.id)}
+							>
 								Delete
 							</Button>
 						</div>
 					{:else}
 						<div class="flex flex-wrap justify-end gap-2">
 							<Button
-								variant="ghost"
+								variant="danger"
 								size="sm"
 								class="coarse:min-h-11"
 								onclick={() => (confirmingId = item.id)}

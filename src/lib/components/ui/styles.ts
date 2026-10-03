@@ -8,7 +8,9 @@ export const button = tv({
 		variant: {
 			primary: 'bg-ink text-on-ink shadow-press hover:bg-ink-hover focus-visible:bg-ink-hover',
 			soft: 'bg-soft text-text hover:bg-soft-hover focus-visible:bg-soft-hover',
-			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text dark:hover:bg-soft dark:focus-visible:bg-soft'
+			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text dark:hover:bg-soft dark:focus-visible:bg-soft',
+			danger:
+				'bg-transparent text-danger hover:bg-danger-wash focus-visible:bg-danger-wash'
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]',
