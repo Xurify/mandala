@@ -68,34 +68,56 @@ function clockLabel(ms: number): string {
 		.replace(' PM', ' pm');
 }
 
-/** When a chart was last saved. Today and yesterday include the time. `now` is injectable for tests. */
-export function formatUpdated(at: number, now = Date.now()): string {
-	const days = Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS);
-	if (days === 0) return `Updated ${clockLabel(at)}`;
-	if (days === 1) return `Updated yesterday at ${clockLabel(at)}`;
+function daysAgo(at: number, now: number): number {
+	return Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS);
+}
+
+function shortDate(at: number, now: number): string {
 	const date = new Date(at);
 	const sameYear = date.getFullYear() === new Date(now).getFullYear();
-	const label = date.toLocaleDateString('en-US', {
+	return date.toLocaleDateString('en-US', {
 		month: 'short',
 		day: 'numeric',
 		...(sameYear ? {} : { year: 'numeric' })
 	});
-	return `Updated ${label}`;
+}
+
+/** When a chart was last saved. Today and yesterday include the time. `now` is injectable for tests. */
+export function formatUpdated(at: number, now = Date.now()): string {
+	const days = daysAgo(at, now);
+	if (days === 0) return `Updated ${clockLabel(at)}`;
+	if (days === 1) return `Updated yesterday at ${clockLabel(at)}`;
+	return `Updated ${shortDate(at, now)}`;
 }
 
 /** When a chart was deleted. Today and yesterday include the time. `now` is injectable for tests. */
 export function formatDeleted(at: number, now = Date.now()): string {
-	const days = Math.round((startOfLocalDay(now) - startOfLocalDay(at)) / DAY_MS);
+	const days = daysAgo(at, now);
 	if (days === 0) return `Deleted ${clockLabel(at)}`;
 	if (days === 1) return `Deleted yesterday at ${clockLabel(at)}`;
-	const date = new Date(at);
-	const sameYear = date.getFullYear() === new Date(now).getFullYear();
-	const label = date.toLocaleDateString('en-US', {
-		month: 'short',
-		day: 'numeric',
-		...(sameYear ? {} : { year: 'numeric' })
-	});
-	return `Deleted ${label}`;
+	return `Deleted ${shortDate(at, now)}`;
+}
+
+/** Day heading in the trash list. Today, yesterday, or a short date. */
+export function deletedDayLabel(at: number, now = Date.now()): string {
+	const days = daysAgo(at, now);
+	if (days <= 0) return 'Today';
+	if (days === 1) return 'Yesterday';
+	return shortDate(at, now);
+}
+
+/** Clock time in the trash list, so copies that share a name can be told apart. */
+export function deletedClock(at: number): string {
+	return clockLabel(at);
+}
+
+/** Short relative time for list rows. Before today it falls back to the clock; the day heading carries the date. */
+export function formatAgo(at: number, now = Date.now()): string {
+	const minutes = Math.floor((now - at) / 60_000);
+	if (minutes < 1) return 'Just now';
+	if (minutes < 60) return `${minutes} min ago`;
+	if (daysAgo(at, now) === 0) return `${Math.floor(minutes / 60)} h ago`;
+	return clockLabel(at);
 }
 
 /** Whole days left before a deleted chart is removed. `0` means the hold is over. */
@@ -108,6 +130,12 @@ export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 export function formatDeletesIn(daysLeft: number): string {
 	if (daysLeft <= 1) return 'Deletes in 1 day';
 	return `Deletes in ${daysLeft} days`;
+}
+
+/** Short hold remaining. The dialog subtitle already states the 30-day rule. */
+export function formatDaysLeft(daysLeft: number): string {
+	if (daysLeft <= 1) return '1 day left';
+	return `${daysLeft} days left`;
 }
 
 export function purgeDeleted(deleted: DeletedRecord[], now = Date.now()): DeletedRecord[] {

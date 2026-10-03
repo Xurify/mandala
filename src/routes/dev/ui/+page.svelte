@@ -22,7 +22,8 @@
 	import MenuItem from '$lib/components/ui/MenuItem.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { dock, menu, toast } from '$lib/components/ui/styles';
+	import { dock, menu } from '$lib/components/ui/styles';
+	import ToastLab from './ToastLab.svelte';
 
 	const themes = [
 		{ value: 'system', label: 'Auto', icon: 'monitor' as const },
@@ -98,6 +99,9 @@
 		{ name: 'ink', swatch: 'bg-ink' },
 		{ name: 'ink-hover', swatch: 'bg-ink-hover' },
 		{ name: 'on-ink', swatch: 'bg-on-ink' },
+		{ name: 'accent', swatch: 'bg-accent' },
+		{ name: 'accent-hover', swatch: 'bg-accent-hover' },
+		{ name: 'on-accent', swatch: 'bg-on-accent' },
 		{ name: 'text', swatch: 'bg-text' },
 		{ name: 'muted', swatch: 'bg-muted' },
 		{ name: 'line', swatch: 'bg-line' },
@@ -107,9 +111,199 @@
 		{ name: 'goal', swatch: 'bg-goal' }
 	];
 
+	type AccentStop = { accent: string; hover: string; fg?: string };
+
+	type AccentOption = {
+		id: string;
+		name: string;
+		note: string;
+		group: string;
+		light: AccentStop;
+		dark: AccentStop;
+		applied?: boolean;
+		css?: string;
+	};
+
+	const accentOptions: AccentOption[] = [
+		{
+			id: 'coffee',
+			name: 'Coffee',
+			group: 'Brown',
+			note: 'Hue 80, 20° from the gold pillar. Deepest brown.',
+			light: { accent: 'oklch(0.38 0.073 80)', hover: 'oklch(0.44 0.079 80)' },
+			dark: { accent: 'oklch(0.52 0.068 80)', hover: 'oklch(0.54 0.068 80)' }
+		},
+		{
+			id: 'walnut',
+			name: 'Walnut',
+			group: 'Brown',
+			note: 'Same hue, more color. Reads as wood.',
+			light: { accent: 'oklch(0.42 0.08 80)', hover: 'oklch(0.48 0.086 80)' },
+			dark: { accent: 'oklch(0.52 0.075 80)', hover: 'oklch(0.54 0.075 80)' }
+		},
+		{
+			id: 'taupe',
+			name: 'Taupe',
+			group: 'Brown',
+			note: 'Same hue, quieter. The sand brown.',
+			light: { accent: 'oklch(0.42 0.054 80)', hover: 'oklch(0.48 0.058 80)' },
+			dark: { accent: 'oklch(0.52 0.049 80)', hover: 'oklch(0.54 0.049 80)' }
+		},
+		{
+			id: 'bark',
+			name: 'Bark',
+			group: 'Brown',
+			note: 'Lighter brown. Cream label still clears.',
+			light: { accent: 'oklch(0.46 0.059 80)', hover: 'oklch(0.52 0.064 80)' },
+			dark: { accent: 'oklch(0.52 0.054 80)', hover: 'oklch(0.54 0.054 80)' }
+		},
+		{
+			id: 'honey',
+			name: 'Honey',
+			group: 'Brown',
+			note: 'Brightest brown. Closest in feel to the gold pillar.',
+			light: { accent: 'oklch(0.48 0.092 80)', hover: 'oklch(0.54 0.099 80)' },
+			dark: { accent: 'oklch(0.52 0.087 80)', hover: 'oklch(0.54 0.087 80)' }
+		},
+		{
+			id: 'khaki',
+			name: 'Khaki',
+			group: 'Brown',
+			note: 'Hue 84, 16° from the yellow-green pillar. Brown toward sap.',
+			light: { accent: 'oklch(0.42 0.079 84)', hover: 'oklch(0.48 0.085 84)' },
+			dark: { accent: 'oklch(0.52 0.074 84)', hover: 'oklch(0.54 0.074 84)' }
+		},
+		{
+			id: 'sap',
+			name: 'Sap',
+			group: 'Green',
+			note: 'Hue 125, 25° from the yellow-green pillar. Sat best last round.',
+			light: { accent: 'oklch(0.42 0.09 125)', hover: 'oklch(0.48 0.1 125)' },
+			dark: { accent: 'oklch(0.53 0.07 125)', hover: 'oklch(0.55 0.07 125)' }
+		},
+		{
+			id: 'sap-deep',
+			name: 'Deep sap',
+			group: 'Green',
+			note: 'Same hue as sap, darker.',
+			light: { accent: 'oklch(0.38 0.088 125)', hover: 'oklch(0.44 0.095 125)' },
+			dark: { accent: 'oklch(0.51 0.083 125)', hover: 'oklch(0.53 0.083 125)' }
+		},
+		{
+			id: 'moss',
+			name: 'Moss',
+			group: 'Green',
+			note: 'Hue 118, 18° from the yellow-green pillar.',
+			light: { accent: 'oklch(0.38 0.082 118)', hover: 'oklch(0.44 0.089 118)' },
+			dark: { accent: 'oklch(0.51 0.077 118)', hover: 'oklch(0.53 0.077 118)' }
+		},
+		{
+			id: 'olive',
+			name: 'Olive',
+			group: 'Green',
+			note: 'Hue 122, 22° from the yellow-green pillar.',
+			light: { accent: 'oklch(0.42 0.094 122)', hover: 'oklch(0.48 0.102 122)' },
+			dark: { accent: 'oklch(0.51 0.089 122)', hover: 'oklch(0.53 0.089 122)' }
+		},
+		{
+			id: 'grove',
+			name: 'Grove',
+			group: 'Green',
+			note: 'Hue 116, 16° from the yellow-green pillar. Gray olive.',
+			light: { accent: 'oklch(0.42 0.06 116)', hover: 'oklch(0.48 0.065 116)' },
+			dark: { accent: 'oklch(0.51 0.055 116)', hover: 'oklch(0.53 0.055 116)' }
+		},
+		{
+			id: 'fern',
+			name: 'Fern',
+			group: 'Green',
+			note: 'Hue 128, 22° from the green pillar. Darker than leaf.',
+			light: { accent: 'oklch(0.38 0.092 128)', hover: 'oklch(0.44 0.099 128)' },
+			dark: { accent: 'oklch(0.51 0.087 128)', hover: 'oklch(0.53 0.087 128)' }
+		},
+		{
+			id: 'leaf',
+			name: 'Leaf',
+			group: 'Green',
+			note: 'Hue 132, 18° from the green pillar. Brightest green.',
+			light: { accent: 'oklch(0.48 0.123 132)', hover: 'oklch(0.54 0.133 132)' },
+			dark: { accent: 'oklch(0.51 0.118 132)', hover: 'oklch(0.53 0.118 132)' }
+		},
+		{
+			id: 'field',
+			name: 'Field',
+			group: 'Green',
+			note: 'Sap’s hue, lighter. More leaf than moss.',
+			light: { accent: 'oklch(0.48 0.111 125)', hover: 'oklch(0.54 0.12 125)' },
+			dark: { accent: 'oklch(0.51 0.106 125)', hover: 'oklch(0.53 0.106 125)' }
+		},
+		{
+			id: 'pine',
+			name: 'Pine',
+			group: 'Teal',
+			note: 'Hue 166, 16° from the green pillar. Deeper teal.',
+			light: { accent: 'oklch(0.38 0.073 166)', hover: 'oklch(0.44 0.079 166)' },
+			dark: { accent: 'oklch(0.51 0.068 166)', hover: 'oklch(0.53 0.068 166)' }
+		},
+		{
+			id: 'creek',
+			name: 'Creek',
+			group: 'Teal',
+			note: 'Hue 168, 18° from the green pillar.',
+			light: { accent: 'oklch(0.42 0.078 168)', hover: 'oklch(0.48 0.084 168)' },
+			dark: { accent: 'oklch(0.51 0.073 168)', hover: 'oklch(0.53 0.073 168)' }
+		},
+		{
+			id: 'tide',
+			name: 'Tide',
+			group: 'Teal',
+			note: 'Hue 170, 20° from the green pillar. Teal light enough to see.',
+			light: { accent: 'oklch(0.48 0.088 170)', hover: 'oklch(0.54 0.095 170)' },
+			dark: { accent: 'oklch(0.51 0.083 170)', hover: 'oklch(0.53 0.083 170)' }
+		},
+		{
+			id: 'teal',
+			name: 'Teal',
+			group: 'Teal',
+			note: 'Hue 172, 22° from the green pillar.',
+			light: { accent: 'oklch(0.4 0.075 172)', hover: 'oklch(0.46 0.078 172)' },
+			dark: { accent: 'oklch(0.52 0.06 172)', hover: 'oklch(0.54 0.065 172)' }
+		},
+		{
+			id: 'ink',
+			name: 'Ink',
+			group: 'In the app',
+			note: 'What main uses. The accent is the ink token.',
+			light: { accent: 'oklch(0.24 0.012 60)', hover: 'oklch(0.33 0.014 60)' },
+			dark: {
+				accent: 'oklch(0.95 0.008 85)',
+				hover: 'oklch(0.88 0.01 85)',
+				fg: 'oklch(0.2 0.01 65)'
+			},
+			applied: true,
+			css: ['--accent: var(--ink);', '--accent-hover: var(--ink-hover);', '--on-accent: var(--on-ink);'].join('\n')
+		}
+	];
+
+	const accentGroups = [...new Set(accentOptions.map((option) => option.group))];
+
+	function accentCss(option: AccentOption): string {
+		if (option.css) return option.css;
+		return [
+			'/* :root */',
+			`--accent: ${option.light.accent};`,
+			`--accent-hover: ${option.light.hover};`,
+			'',
+			'/* both dark blocks in src/app.css */',
+			`--accent: ${option.dark.accent};`,
+			`--accent-hover: ${option.dark.hover};`
+		].join('\n');
+	}
+
 	const catalog = [
 		['type', 'Type'],
 		['surfaces', 'Surfaces'],
+		['accent', 'Accent'],
 		['buttons', 'Buttons'],
 		['icon-buttons', 'Icon buttons'],
 		['fields', 'Fields'],
@@ -117,6 +311,7 @@
 		['menus', 'Menus'],
 		['dialogs', 'Dialogs'],
 		['feedback', 'Feedback'],
+		['toasts', 'Toasts'],
 		['brand', 'Brand'],
 		['chart', 'Chart'],
 		['icons', 'Icons']
@@ -133,7 +328,6 @@
 
 	const sample = exampleChart();
 	const menuPanel = menu({ align: 'start' }).panel();
-	const toastOn = toast({ on: true });
 	const dockBar = dock().bar();
 
 	const commands: CommandItem[] = [
@@ -186,9 +380,54 @@
 	let keepUpdated = $state(true);
 	let preset = $state('health');
 	let sealPlay = $state(0);
+	let accentId = $state('sap');
+	let copiedId = $state('');
+	let copyTimer = 0;
 
 	function setTheme(next: string): void {
 		if (next === 'system' || next === 'light' || next === 'dark') chart.setTheme(next);
+	}
+
+	$effect(() => {
+		const option = accentOptions.find((item) => item.id === accentId);
+		const theme = chart.theme;
+		const media = window.matchMedia('(prefers-color-scheme: dark)');
+		const apply = () => {
+			if (!option) return;
+			const dark = theme === 'dark' || (theme !== 'light' && media.matches);
+			const stop = dark ? option.dark : option.light;
+			document.documentElement.style.setProperty('--accent', option.id === 'ink' ? 'var(--ink)' : stop.accent);
+			document.documentElement.style.setProperty(
+				'--accent-hover',
+				option.id === 'ink' ? 'var(--ink-hover)' : stop.hover
+			);
+			document.documentElement.style.setProperty(
+				'--on-accent',
+				option.id === 'ink' ? 'var(--on-ink)' : 'oklch(0.985 0.006 85)'
+			);
+		};
+		apply();
+		media.addEventListener('change', apply);
+		return () => {
+			media.removeEventListener('change', apply);
+			document.documentElement.style.removeProperty('--accent');
+			document.documentElement.style.removeProperty('--accent-hover');
+			document.documentElement.style.removeProperty('--on-accent');
+		};
+	});
+
+	async function copyAccent(option: AccentOption): Promise<void> {
+		try {
+			await navigator.clipboard.writeText(accentCss(option));
+			copiedId = option.id;
+			window.clearTimeout(copyTimer);
+			copyTimer = window.setTimeout(() => {
+				copiedId = '';
+			}, 1600);
+			chart.say('Copied accent CSS');
+		} catch {
+			copiedId = '';
+		}
 	}
 </script>
 
@@ -298,6 +537,76 @@
 			>
 				Press
 			</div>
+		</div>
+	</Card>
+
+	<Card id="accent" class="flex scroll-mt-6 flex-col gap-4">
+		<Eyebrow>Accent</Eyebrow>
+		<p class="m-0 max-w-[68ch] text-pretty text-muted">
+			Sap sat best of the last set. These are browns, olives, and teals in the gaps the pillars leave open. Pick one
+			to preview it here. Copy the CSS into <span class="text-text">src/app.css</span>: light pair in
+			<span class="text-text">:root</span>, dark pair in both dark blocks. Every option clears 4.5:1 for the cream
+			label, including hover.
+		</p>
+		<div class="flex flex-col gap-6" role="group" aria-label="Accent variations">
+			{#each accentGroups as group (group)}
+				<section class="flex flex-col gap-3">
+					<h2 class="m-0 text-[0.95rem] font-[620]">{group}</h2>
+					<div class="grid grid-cols-1 gap-3 min-[900px]:grid-cols-3">
+			{#each accentOptions.filter((option) => option.group === group) as option (option.id)}
+				<div
+					class={cn(
+						'flex flex-col gap-3 rounded-[22px] p-4',
+						accentId === option.id ? 'bg-surface shadow-[0_0_0_1.5px_var(--ink)]' : 'bg-sunken'
+					)}
+				>
+					<button
+						type="button"
+						class="flex cursor-pointer flex-col gap-3 border-0 bg-transparent p-0 text-left text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+						aria-pressed={accentId === option.id}
+						onclick={() => (accentId = option.id)}
+					>
+						<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+							<span class="text-[1rem] font-[620]">{option.name}</span>
+							{#if option.applied}
+								<span class="text-[0.75rem] font-semibold tracking-[0.08em] text-muted uppercase">In the app</span>
+							{/if}
+						</span>
+						<span class="text-[0.88rem] text-pretty text-muted">{option.note}</span>
+						<span class="flex flex-wrap gap-2">
+							<span
+								class="inline-flex h-9 min-w-[5.5rem] items-center justify-center rounded-full px-3 text-[0.8rem] font-[560]"
+								style:background={option.light.accent}
+								style:color={option.light.fg ?? 'oklch(0.985 0.006 85)'}
+							>
+								Light
+							</span>
+							<span
+								class="inline-flex h-9 min-w-[5.5rem] items-center justify-center rounded-full px-3 text-[0.8rem] font-[560]"
+								style:background={option.dark.accent}
+								style:color={option.dark.fg ?? 'oklch(0.985 0.006 85)'}
+							>
+								Dark
+							</span>
+						</span>
+					</button>
+					<Button
+						size="sm"
+						variant="ghost"
+						icon="copy"
+						onclick={() => void copyAccent(option)}
+					>
+						{copiedId === option.id ? 'Copied' : 'Copy CSS'}
+					</Button>
+				</div>
+						{/each}
+					</div>
+				</section>
+			{/each}
+		</div>
+		<div class="flex flex-wrap items-center gap-3">
+			<Button icon="list">Start from a preset</Button>
+			<Button variant="soft" icon="sparkles">Get a prompt</Button>
 		</div>
 	</Card>
 
@@ -525,12 +834,22 @@
 			</div>
 		</Card>
 
-		<Card class="flex flex-col gap-4">
-			<Eyebrow>Toast</Eyebrow>
-			<div class={toastOn}>Copied as text</div>
-			<div>
-				<Button variant="ghost" onclick={() => chart.say('Copied as text')}>Show a live toast</Button>
+		<Card id="toasts" class="flex scroll-mt-6 flex-col gap-4">
+			<div class="flex flex-wrap items-end justify-between gap-3">
+				<div class="flex max-w-[62ch] flex-col gap-1.5">
+					<Eyebrow>Toast lab</Eyebrow>
+					<p class="m-0 text-pretty text-muted">
+						Three takes on the same moments, each above a dock. Play the story, or fire one action at a time.
+					</p>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					<Button size="sm" variant="ghost" onclick={() => chart.say('Copied as text')}>Live note</Button>
+					<Button size="sm" variant="ghost" onclick={() => chart.note('Duplicated', 'Morning chart')}>
+						Live repeat
+					</Button>
+				</div>
 			</div>
+			<ToastLab />
 		</Card>
 
 		<Card class="flex flex-col gap-4">

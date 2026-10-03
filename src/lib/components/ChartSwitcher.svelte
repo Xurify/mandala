@@ -1,11 +1,24 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { example } from '$lib/chart/example';
-	import { formatDeleted, formatDeletesIn, formatUpdated, titleOf, UNTITLED } from '$lib/chart/library';
+	import {
+		deletedClock,
+		deletedDayLabel,
+		formatAgo,
+		formatDaysLeft,
+		formatUpdated,
+		titleOf,
+		TRASH_DAYS,
+		UNTITLED,
+		type ChartSummary,
+		type DeletedSummary
+	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
 	import MenuItem from './ui/MenuItem.svelte';
@@ -13,6 +26,113 @@
 	const activeTitle = $derived(titleOf(chart.data));
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
 	const updatedLabel = $derived(activeUpdated === undefined ? '' : formatUpdated(activeUpdated));
+
+	let find = $state('');
+	const showFind = $derived(chart.charts.length > 8);
+
+	const chartRows = $derived.by(() => {
+		const q = showFind ? find.trim().toLowerCase() : '';
+		const rows = chart.charts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
+		if (!q) return rows;
+		return rows.filter((item) =>
+			`${item.title} ${deletedDayLabel(item.updatedAt)} ${deletedClock(item.updatedAt)}`
+				.toLowerCase()
+				.includes(q)
+		);
+	});
+
+	const chartGroups = $derived.by(() => {
+		const groups: { label: string; items: ChartSummary[] }[] = [];
+		for (const item of chartRows) {
+			const label = deletedDayLabel(item.updatedAt);
+			const last = groups.at(-1);
+			if (last && last.label === label) last.items.push(item);
+			else groups.push({ label, items: [item] });
+		}
+		return groups;
+	});
+
+	let menuOpen = $state(false);
+	let now = $state(Date.now());
+
+	function onMenu(open: boolean): void {
+		menuOpen = open;
+		if (!open) find = '';
+	}
+
+	let listMoreBelow = $state(false);
+
+	function fitChartList(node: HTMLElement): () => void {
+		let placed = false;
+		const panel = node.parentElement;
+		// The panel's own overflow would scroll the actions once the list hits its end.
+		if (panel) panel.style.overflowY = 'hidden';
+
+		function setMax(el: HTMLElement, px: number): void {
+			const next = `${px}px`;
+			if (el.style.maxHeight !== next) el.style.maxHeight = next;
+		}
+
+		function place(): void {
+			const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
+			const trigger = panel?.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
+			if (!panel || !foot || !trigger) return;
+
+			const dock = document.querySelector<HTMLElement>('[role="tablist"]');
+			const limit = (dock ? dock.getBoundingClientRect().top : window.innerHeight) - 12;
+			const room = Math.min(640, Math.max(220, Math.floor(limit - trigger.getBoundingClientRect().bottom - 8)));
+			setMax(panel, room);
+
+			const cs = getComputedStyle(panel);
+			const pad = Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom);
+			const gap = Number.parseFloat(cs.rowGap) || 0;
+			// The footer's negative margin sits in the panel padding, so it gives that space back to the list.
+			const footMargin = Number.parseFloat(getComputedStyle(foot).marginBottom) || 0;
+			const findBar = panel.querySelector<HTMLElement>('[data-menu-find-bar]');
+			const findH = findBar ? findBar.offsetHeight + gap : 0;
+			const listMax = Math.max(96, Math.floor(room - foot.offsetHeight - footMargin - pad - gap - findH));
+			setMax(node, listMax);
+
+			if (placed) return;
+			placed = true;
+			node.querySelector<HTMLElement>('#switch-active-chart')?.scrollIntoView({ block: 'nearest' });
+		}
+
+		// Edge chrome stays out of the footer's height, but a 1px flicker at the end still reads as a jump.
+		function mark(): void {
+			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
+			const next = listMoreBelow ? leftover > 1 : leftover > 12;
+			if (next !== listMoreBelow) listMoreBelow = next;
+		}
+
+		place();
+		mark();
+		const frame = requestAnimationFrame(() => {
+			place();
+			mark();
+		});
+		const observer = new ResizeObserver(() => {
+			place();
+			mark();
+		});
+		const arm = requestAnimationFrame(() => {
+			const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
+			const findBar = panel?.querySelector<HTMLElement>('[data-menu-find-bar]');
+			if (foot) observer.observe(foot);
+			if (findBar) observer.observe(findBar);
+		});
+		window.addEventListener('resize', place);
+		window.addEventListener('scroll', place, { passive: true });
+		node.addEventListener('scroll', mark, { passive: true });
+		return () => {
+			cancelAnimationFrame(frame);
+			cancelAnimationFrame(arm);
+			observer.disconnect();
+			window.removeEventListener('resize', place);
+			window.removeEventListener('scroll', place);
+			node.removeEventListener('scroll', mark);
+		};
+	}
 
 	let renameOpen = $state(false);
 	let name = $state('');
@@ -81,13 +201,27 @@
 	const allPicked = $derived(
 		chart.deletedCharts.length > 0 && pickedItems.length === chart.deletedCharts.length
 	);
-	const deletedDescription = $derived(
-		!confirming
-			? 'Deleted charts stay here for 30 days.'
-			: pickedItems.length === 1
-				? `Remove “${pickedItems[0]?.title}” from this device?`
-				: `Remove ${pickedItems.length} charts from this device?`
-	);
+	// The subtitle already states the 30-day hold. A row only repeats it near the end.
+	const SOON_DAYS = 7;
+	function groupDeleted(items: DeletedSummary[]): { label: string; items: DeletedSummary[] }[] {
+		const groups: { label: string; items: DeletedSummary[] }[] = [];
+		for (const item of items) {
+			const label = deletedDayLabel(item.deletedAt);
+			const last = groups.at(-1);
+			if (last && last.label === label) last.items.push(item);
+			else groups.push({ label, items: [item] });
+		}
+		return groups;
+	}
+
+	const deletedGroups = $derived(groupDeleted(chart.deletedCharts));
+
+	$effect(() => {
+		if (!menuOpen && !deletedOpen) return;
+		now = Date.now();
+		const timer = setInterval(() => (now = Date.now()), 30_000);
+		return () => clearInterval(timer);
+	});
 
 	const activeChart = $derived(chart.charts.find((item) => item.active));
 
@@ -233,7 +367,12 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<Menu class="max-w-full" align="start" label="Switch chart">
+<Menu
+	class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]"
+	align="start"
+	label="Switch chart"
+	onopenchange={onMenu}
+>
 	{#snippet trigger({ expanded, toggle })}
 		<button
 			class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-text focus-visible:outline-none max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
@@ -258,36 +397,109 @@
 			</span>
 		</button>
 	{/snippet}
-	{#each chart.charts as item (item.id)}
-		<MenuItem
-			icon={item.active ? 'check' : undefined}
-			active={item.active}
-			badge="{item.filled}/73"
-			onclick={() => handleSelect(item.id)}
-		>
-			{#if !item.active}
-				<span class="inline-block size-4 shrink-0" aria-hidden="true"></span>
-			{/if}
-			<span class="flex min-w-0 flex-col gap-px">
-				<span class="max-w-[28ch] truncate">{item.title}</span>
-				<span class="text-[0.72rem] leading-tight font-normal text-muted">{formatUpdated(item.updatedAt)}</span>
-			</span>
-		</MenuItem>
-	{/each}
-	<MenuDivider />
-	<MenuItem
-		icon="clock"
-		badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
-		onclick={openDeleted}
+	{#if showFind}
+		<div data-menu-find-bar class="shrink-0 px-1 pt-0.5 pb-1.5">
+			<div class="relative">
+				<span
+					class="pointer-events-none absolute start-3.5 top-1/2 flex -translate-y-1/2 text-muted"
+					aria-hidden="true"
+				>
+					<Icon name="search" size={16} />
+				</span>
+				<input
+					data-menu-find
+					class="h-[42px] w-full rounded-full border-0 bg-sunken ps-10 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none {find
+						? 'pe-10'
+						: 'pe-4'}"
+					type="text"
+					placeholder="Find a chart"
+					aria-label="Find a chart"
+					aria-controls="chart-switch-list"
+					autocomplete="off"
+					spellcheck="false"
+					bind:value={find}
+				/>
+				{#if find}
+					<button
+						type="button"
+						class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+						aria-label="Clear search"
+						onclick={() => (find = '')}
+					>
+						<Icon name="close" size={12} strokeWidth={2.2} />
+					</button>
+				{/if}
+			</div>
+		</div>
+	{/if}
+	<div
+		id="chart-switch-list"
+		class="flex min-h-0 flex-col gap-px overflow-y-auto overscroll-contain [overflow-anchor:none]"
+		{@attach fitChartList}
 	>
-		Recently deleted
-	</MenuItem>
-	<MenuItem icon="edit" badge="R" onclick={openRename}>Rename chart</MenuItem>
-	<MenuItem icon="copy" badge="D" onclick={handleDuplicate}>Duplicate chart</MenuItem>
-	<MenuItem icon="grid" badge="N" onclick={handleNew}>New blank chart</MenuItem>
-	<MenuItem icon="target" onclick={handleExample}>Example chart</MenuItem>
-	<MenuDivider />
-	<MenuItem icon="trash" tone="danger" badge="Del" onclick={handleDelete}>Delete chart</MenuItem>
+		{#if chartRows.length === 0}
+			<p class="m-0 px-3 py-2.5 text-[0.86rem] text-pretty text-muted">No matching chart.</p>
+		{/if}
+		{#each chartGroups as group, groupIndex (group.label + groupIndex)}
+			<div role="group" aria-label={group.label}>
+				{#if chartGroups.length > 1 || group.label !== 'Today'}
+					<Eyebrow class="px-3 pt-2 pb-1">{group.label}</Eyebrow>
+				{/if}
+				{#each group.items as item (item.id)}
+					<MenuItem
+						id={item.active ? 'switch-active-chart' : undefined}
+						active={item.active}
+						onclick={() => handleSelect(item.id)}
+					>
+						<FillRing filled={item.filled} />
+						<span class="min-w-0 flex-1 truncate" title={item.title}>
+							{item.title}<span class="sr-only">, {item.filled} of 73, updated {deletedClock(item.updatedAt)}</span>
+						</span>
+						<span class="shrink-0 text-[0.8rem] font-normal tabular-nums text-muted" aria-hidden="true">
+							{formatAgo(item.updatedAt, now)}
+						</span>
+						<span class="flex w-4 shrink-0 justify-end text-text" aria-hidden="true">
+							{#if item.active}
+								<Icon name="check" size={16} strokeWidth={2.2} />
+							{/if}
+						</span>
+					</MenuItem>
+				{/each}
+			</div>
+		{/each}
+	</div>
+	<div
+		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5 {listMoreBelow
+			? 'shadow-edge-up'
+			: ''}"
+		data-menu-foot
+	>
+		<div
+			class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12 {listMoreBelow ? '' : 'opacity-0'}"
+			aria-hidden="true"
+		></div>
+		<div class={listMoreBelow ? 'invisible' : ''} aria-hidden={listMoreBelow}>
+			<MenuDivider />
+		</div>
+		<div class="flex gap-px">
+			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New blank chart</MenuItem>
+			<span class="my-2.5 w-px shrink-0 bg-line" aria-hidden="true"></span>
+			<MenuItem icon="target" class="w-auto shrink-0" onclick={handleExample}>
+				Example<span class="sr-only"> chart</span>
+			</MenuItem>
+		</div>
+		<MenuItem icon="edit" shortcut="R" onclick={openRename}>Rename chart</MenuItem>
+		<MenuItem icon="copy" shortcut="D" onclick={handleDuplicate}>Duplicate chart</MenuItem>
+		<MenuDivider />
+		<MenuItem
+			icon="clock"
+			badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
+			onclick={openDeleted}
+		>
+			Recently deleted
+		</MenuItem>
+		<MenuItem icon="trash" tone="danger" shortcut="Del" onclick={handleDelete}>Delete chart</MenuItem>
+	</div>
 </Menu>
 {#if updatedLabel}
 	<p class="m-0 mt-1 text-[0.86rem] text-muted">{updatedLabel}</p>
@@ -296,76 +508,107 @@
 <Dialog
 	bind:open={deleteOpen}
 	title="Delete this chart?"
-	description={activeChart
-		? `“${activeChart.title}” moves to recently deleted for 30 days.`
-		: 'This chart moves to recently deleted for 30 days.'}
+	description={chart.chartCount === 1
+		? `Moves to recently deleted for ${TRASH_DAYS} days. A blank chart stays open.`
+		: `Moves to recently deleted for ${TRASH_DAYS} days.`}
 	size="sm"
 >
-	<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
-		{#if chart.chartCount === 1}
-			A blank chart stays open.
-		{:else}
-			Restore it anytime in those 30 days.
-		{/if}
-	</p>
+	<div class="flex min-h-[48px] items-center gap-3 rounded-[16px] bg-sunken px-3.5 py-2">
+		<FillRing filled={activeChart?.filled ?? 0} />
+		<span class="min-w-0 flex-1 truncate text-[0.95rem] font-medium text-text">
+			{activeChart?.title ?? UNTITLED}
+		</span>
+		<span class="shrink-0 text-[0.8rem] tabular-nums text-muted">{activeChart?.filled ?? 0} of 73</span>
+	</div>
 	{#snippet footer()}
-		<Button variant="ghost" onclick={() => (deleteOpen = false)}>Cancel</Button>
-		<Button onclick={confirmDelete}>Delete</Button>
+		<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (deleteOpen = false)}>Cancel</Button>
+		<Button size="sm" class="coarse:min-h-11" onclick={confirmDelete}>Delete chart</Button>
 	{/snippet}
 </Dialog>
 
-{#snippet pickMark(state: 'on' | 'off' | 'mixed')}
+{#snippet pickMark(on: boolean)}
 	<span
-		class="grid size-[22px] shrink-0 place-items-center rounded-full {state === 'off'
-			? 'bg-sunken group-hover:bg-surface group-focus-visible:bg-surface'
-			: 'bg-ink text-on-ink'}"
+		class="flex size-4 shrink-0 items-center justify-center rounded-[5px] motion-safe:transition-colors motion-safe:duration-150 {on
+			? 'bg-ink text-on-ink'
+			: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
 		aria-hidden="true"
 	>
-		{#if state === 'on'}
-			<Icon name="check" size={13} strokeWidth={2.6} />
-		{:else if state === 'mixed'}
-			<span class="block h-0.5 w-2.5 rounded-full bg-on-ink"></span>
+		{#if on}
+			<svg class="block" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+				<path
+					d="M3.45 8.95 6.2 11.7 12.45 5.35"
+					stroke="currentColor"
+					stroke-width="2.25"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				/>
+			</svg>
 		{/if}
 	</span>
 {/snippet}
 
 {#snippet deletedFooter()}
-	{#if confirming}
-		<Button id="forget-cancel" variant="ghost" class="coarse:min-h-11" onclick={cancelForget}>
-			Cancel
-		</Button>
-		<Button variant="danger" class="coarse:min-h-11" onclick={forgetDeleted}>Delete</Button>
-	{:else}
-		<Button
-			id="deleted-remove"
-			variant="danger"
-			class="coarse:min-h-11"
-			disabled={pickedItems.length === 0}
-			aria-label={pickedItems.length === 1
-				? `Remove ${pickedItems[0]?.title} from this device`
-				: `Remove ${pickedItems.length} charts from this device`}
-			onclick={askForget}
-		>
-			{pickedItems.length > 1 ? `Delete ${pickedItems.length}` : 'Delete now'}
-		</Button>
-		<Button
-			id="deleted-restore"
-			class="coarse:min-h-11"
-			disabled={pickedItems.length === 0}
-			aria-label={pickedItems.length === 1
-				? `Restore ${pickedItems[0]?.title}`
-				: `Restore ${pickedItems.length} charts`}
-			onclick={restoreDeleted}
-		>
-			{pickedItems.length > 1 ? `Restore ${pickedItems.length}` : 'Restore'}
-		</Button>
-	{/if}
+	{@const count = pickedItems.length}
+	<div class="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-3">
+		{#if confirming}
+			<div class="me-auto min-w-0" role="status">
+				<p class="m-0 text-[0.92rem] font-medium text-text">
+					{count === 1 ? 'Delete this chart for good?' : `Delete ${count} charts for good?`}
+				</p>
+				<p class="m-0 text-[0.8rem] text-muted">You can't restore {count === 1 ? 'it' : 'them'} after this.</p>
+			</div>
+			<Button id="forget-cancel" variant="ghost" size="sm" class="coarse:min-h-11" onclick={cancelForget}>
+				Cancel
+			</Button>
+			<Button variant="danger" size="sm" icon="trash" class="coarse:min-h-11" onclick={forgetDeleted}>
+				{count > 1 ? `Delete ${count}` : 'Delete'}
+			</Button>
+		{:else}
+			<div class="me-auto flex items-center gap-1">
+				{#if chart.deletedCharts.length > 1}
+					<Button variant="ghost" size="sm" class="-ms-3.5 coarse:min-h-11" onclick={toggleAllDeleted}>
+						{allPicked ? 'Clear' : 'Select all'}
+					</Button>
+				{/if}
+				<p class="m-0 text-[0.84rem] text-muted tabular-nums">
+					{count === 0 ? 'None selected' : `${count} selected`}
+				</p>
+			</div>
+			<Button
+				id="deleted-remove"
+				variant="danger"
+				size="sm"
+				icon="trash"
+				class="coarse:min-h-11"
+				disabled={count === 0}
+				aria-label={count === 1
+					? `Delete ${pickedItems[0]?.title} for good`
+					: `Delete ${count} charts for good`}
+				onclick={askForget}
+			>
+				{count > 1 ? `Delete ${count}` : 'Delete'}
+			</Button>
+			<Button
+				id="deleted-restore"
+				size="sm"
+				icon="undo"
+				class="coarse:min-h-11"
+				disabled={pickedItems.length === 0}
+				aria-label={pickedItems.length === 1
+					? `Restore ${pickedItems[0]?.title}`
+					: `Restore ${pickedItems.length} charts`}
+				onclick={restoreDeleted}
+			>
+				{pickedItems.length > 1 ? `Restore ${pickedItems.length}` : 'Restore'}
+			</Button>
+		{/if}
+	</div>
 {/snippet}
 
 <Dialog
 	bind:open={deletedOpen}
 	title="Recently deleted"
-	description={deletedDescription}
+	description="Deleted charts stay here for {TRASH_DAYS} days."
 	footer={chart.deletedCharts.length > 0 ? deletedFooter : undefined}
 	oncancel={holdForget}
 >
@@ -374,48 +617,44 @@
 			Nothing here yet. Delete a chart from the menu, and you can restore it from this list.
 		</p>
 	{:else}
-		<ul class="-mx-1.5 m-0 flex list-none flex-col gap-px p-0">
-			{#if chart.deletedCharts.length > 1}
-				<li>
-					<button
-						type="button"
-						class="group flex w-full min-h-[42px] cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start text-[0.9rem] font-medium text-text select-none hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-checked:bg-sunken coarse:min-h-[46px]"
-						role="checkbox"
-						aria-checked={allPicked ? 'true' : pickedItems.length > 0 ? 'mixed' : 'false'}
-						onclick={toggleAllDeleted}
-					>
-						{@render pickMark(allPicked ? 'on' : pickedItems.length > 0 ? 'mixed' : 'off')}
-						{allPicked ? 'Clear selection' : 'Select all'}
-					</button>
-				</li>
-			{/if}
-			{#each chart.deletedCharts as item (item.id)}
-				<li>
-					<button
-						type="button"
-						class="group flex w-full min-h-[42px] cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start select-none hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-checked:bg-sunken coarse:min-h-[46px]"
-						role="checkbox"
-						aria-checked={picked.includes(item.id)}
-						onclick={(event) => toggleDeleted(item.id, event.shiftKey)}
-					>
-						{@render pickMark(picked.includes(item.id) ? 'on' : 'off')}
-						<span class="flex min-w-0 flex-1 flex-col gap-px">
-							<span class="text-[0.9rem] font-medium text-pretty text-text">{item.title}</span>
-							<span class="text-[0.72rem] leading-tight font-normal text-muted">
-								{item.filled} of 73 · {formatDeleted(item.deletedAt)}
-							</span>
-						</span>
-						<span
-							class="shrink-0 rounded-[7px] px-[7px] py-px text-[0.72rem] font-[560] whitespace-nowrap text-muted tabular-nums {picked.includes(item.id)
-								? 'bg-surface'
-								: 'bg-sunken group-hover:bg-surface group-focus-visible:bg-surface'}"
-						>
-							{formatDeletesIn(item.daysLeft)}
-						</span>
-					</button>
-				</li>
+		<div class="-mx-2.5">
+			{#each deletedGroups as group, groupIndex (group.label)}
+				<section class={groupIndex === 0 ? '' : 'mt-3'} aria-label={group.label}>
+					<Eyebrow class="px-3 pb-1">{group.label}</Eyebrow>
+					<ul class="m-0 flex list-none flex-col gap-px p-0">
+						{#each group.items as item (item.id)}
+							{@const on = picked.includes(item.id)}
+							<li>
+								<button
+									type="button"
+									class="group flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3 py-1.5 text-start select-none motion-safe:transition-[background-color,opacity] motion-safe:duration-150 hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-checked:bg-sunken coarse:min-h-12 {confirming &&
+									!on
+										? 'opacity-40'
+										: ''}"
+									role="checkbox"
+									aria-checked={on}
+									aria-label="{item.title}. {item.filled} of 73. Deleted {deletedDayLabel(item.deletedAt)} at {deletedClock(item.deletedAt)}{item.daysLeft <= SOON_DAYS ? `. ${formatDaysLeft(item.daysLeft)}` : ''}"
+									onclick={(event) => toggleDeleted(item.id, event.shiftKey)}
+								>
+									{@render pickMark(on)}
+									<FillRing filled={item.filled} />
+									<span class="min-w-0 flex-1 truncate text-[0.92rem] font-medium text-text">{item.title}</span>
+									{#if item.daysLeft <= SOON_DAYS}
+										<span class="shrink-0 text-[0.8rem] font-[560] tabular-nums text-danger">
+											{formatDaysLeft(item.daysLeft)}
+										</span>
+									{:else}
+										<span class="shrink-0 text-[0.8rem] tabular-nums text-muted">
+											{formatAgo(item.deletedAt, now)}
+										</span>
+									{/if}
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</section>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </Dialog>
 
@@ -423,17 +662,13 @@
 	bind:open={exampleOpen}
 	title="You already have this example"
 	description={exampleAlreadyOpen
-		? 'This chart is already the example.'
-		: `“${example.goal}” is already saved on this device.`}
+		? 'Add another copy of this chart?'
+		: 'Open that chart, or add another copy.'}
 	size="sm"
 >
-	<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
-		{#if exampleAlreadyOpen}
-			Add another copy of “{example.goal}”?
-		{:else}
-			Open that chart, or add another copy.
-		{/if}
-	</p>
+	<div class="flex min-h-[52px] items-center rounded-[16px] bg-sunken px-3 py-2">
+		<span class="block truncate text-[0.95rem] font-medium text-text">{example.goal}</span>
+	</div>
 	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (exampleOpen = false)}>Cancel</Button>
 		<Button variant={exampleAlreadyOpen ? 'primary' : 'soft'} onclick={addExampleCopy}>

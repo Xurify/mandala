@@ -9,6 +9,10 @@ import {
 	flushActive,
 	forgetFromLibrary,
 	forgetManyFromLibrary,
+	deletedClock,
+	deletedDayLabel,
+	formatAgo,
+	formatDaysLeft,
 	formatDeleted,
 	formatDeletesIn,
 	formatUpdated,
@@ -60,6 +64,35 @@ describe('formatDeleted', () => {
 		);
 		expect(formatDeleted(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Deleted Sep 15');
 		expect(formatDeleted(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Deleted Dec 31, 2025');
+	});
+});
+
+describe('trash list labels', () => {
+	const now = new Date(2026, 9, 2, 22, 57).getTime();
+
+	it('splits the day from the clock', () => {
+		expect(deletedDayLabel(now, now)).toBe('Today');
+		expect(deletedClock(now)).toBe('10:57 pm');
+		expect(deletedDayLabel(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe('Yesterday');
+		expect(deletedClock(new Date(2026, 9, 1, 23, 59).getTime())).toBe('11:59 pm');
+		expect(deletedDayLabel(new Date(2026, 8, 15, 15, 4).getTime(), now)).toBe('Sep 15');
+		expect(deletedDayLabel(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Dec 31, 2025');
+	});
+
+	it('gives rows a relative time today and a clock before that', () => {
+		expect(formatAgo(now, now)).toBe('Just now');
+		expect(formatAgo(now + 5_000, now)).toBe('Just now');
+		expect(formatAgo(now - 59_000, now)).toBe('Just now');
+		expect(formatAgo(now - 4 * 60_000, now)).toBe('4 min ago');
+		expect(formatAgo(now - 59 * 60_000, now)).toBe('59 min ago');
+		expect(formatAgo(new Date(2026, 9, 2, 19, 50).getTime(), now)).toBe('3 h ago');
+		expect(formatAgo(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe('11:59 pm');
+	});
+
+	it('shortens the hold when a row is about to expire', () => {
+		expect(formatDaysLeft(1)).toBe('1 day left');
+		expect(formatDaysLeft(0)).toBe('1 day left');
+		expect(formatDaysLeft(6)).toBe('6 days left');
 	});
 });
 

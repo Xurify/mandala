@@ -27,8 +27,35 @@
 	}: Props = $props();
 
 	let el = $state<HTMLDialogElement | null>(null);
+	let moreAbove = $state(false);
+	let moreBelow = $state(false);
 	const uid = $props.id();
 	const styles = $derived(dialog({ size, footer: Boolean(footer) }));
+
+	function watchScroll(node: HTMLElement): () => void {
+		const update = () => {
+			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
+			moreAbove = node.scrollTop > 8;
+			moreBelow = leftover > 24;
+		};
+		update();
+		node.addEventListener('scroll', update, { passive: true });
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		for (const child of node.children) observer.observe(child);
+		const mutations = new MutationObserver(() => {
+			for (const child of node.children) observer.observe(child);
+			update();
+		});
+		mutations.observe(node, { childList: true });
+		const frame = requestAnimationFrame(update);
+		return () => {
+			cancelAnimationFrame(frame);
+			node.removeEventListener('scroll', update);
+			observer.disconnect();
+			mutations.disconnect();
+		};
+	}
 
 	$effect(() => {
 		const node = el;
@@ -55,7 +82,10 @@
 	onclose={() => (open = false)}
 >
 	<div class={styles.sheet()}>
-		<div class={styles.head()}>
+		<div class={cn(styles.head(), moreAbove && 'shadow-edge-down')}>
+			{#if moreAbove}
+				<div class="edge-fade-down pointer-events-none absolute inset-x-0 top-full h-10" aria-hidden="true"></div>
+			{/if}
 			<div class="min-w-0">
 				<h2 id={uid} class={styles.title()}>{title}</h2>
 				{#if description}
@@ -64,11 +94,14 @@
 			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
-		<div class={styles.body()}>
+		<div class={styles.body()} {@attach watchScroll}>
 			{@render children()}
 		</div>
 		{#if footer}
-			<div class={styles.foot()}>
+			<div class={cn(styles.foot(), moreBelow && 'shadow-edge-up')}>
+				{#if moreBelow}
+					<div class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-14" aria-hidden="true"></div>
+				{/if}
 				{@render footer()}
 			</div>
 		{/if}

@@ -45,6 +45,103 @@ export function nextSlipBurst(
 	};
 }
 
+export const SLIP_MS = 5000;
+export const SLIP_UNDO_MS = 8000;
+export const SLIP_CAP = 1;
+
+export type Slip = {
+	id: number;
+	key: string;
+	kicker: string;
+	subject: string;
+	count: number;
+	mixed: boolean;
+	until: number;
+	/** Deleted chart ids the slip can put back. */
+	undo: string[];
+};
+
+/**
+ * One slip at a time. A repeat of the showing action merges into it and restarts its clock.
+ * A different action replaces it.
+ */
+export function placeSlip(
+	pile: readonly Slip[],
+	now: number,
+	nextId: number,
+	input: {
+		key: string;
+		kicker: string;
+		subject: string;
+		amount?: number;
+		mixedBatch?: boolean;
+		keep?: boolean;
+		undo?: string[];
+	}
+): { pile: Slip[]; nextId: number } {
+	const amount = input.amount ?? 1;
+	const mixedBatch = input.mixedBatch ?? false;
+	const undo = input.undo ?? [];
+	const life = undo.length > 0 ? SLIP_UNDO_MS : SLIP_MS;
+	if (input.keep) {
+		const slip = freshSlip(nextId, now, input.key, input.kicker, input.subject, amount, mixedBatch, undo);
+		slip.until = Number.POSITIVE_INFINITY;
+		return { pile: [slip], nextId: nextId + 1 };
+	}
+	const live = pile.filter((slip) => slip.until > now && slip.until < Number.POSITIVE_INFINITY);
+	const existing = live.find((slip) => slip.key === input.key);
+	if (existing) {
+		const burst = nextSlipBurst(
+			{
+				key: existing.key,
+				subject: existing.subject,
+				count: existing.count,
+				mixed: existing.mixed
+			},
+			input.key,
+			input.subject,
+			amount,
+			mixedBatch
+		);
+		const updated: Slip = {
+			...existing,
+			subject: burst.subject,
+			count: burst.count,
+			mixed: burst.mixed,
+			undo: [...existing.undo, ...undo],
+			until: now + (existing.undo.length > 0 || undo.length > 0 ? SLIP_UNDO_MS : SLIP_MS)
+		};
+		const rest = live.filter((slip) => slip.id !== existing.id);
+		return { pile: [...rest, updated].slice(-SLIP_CAP), nextId };
+	}
+	const created = freshSlip(nextId, now, input.key, input.kicker, input.subject, amount, mixedBatch, undo);
+	created.until = now + life;
+	return { pile: [...live, created].slice(-SLIP_CAP), nextId: nextId + 1 };
+}
+
+function freshSlip(
+	id: number,
+	now: number,
+	key: string,
+	kicker: string,
+	subject: string,
+	amount: number,
+	mixedBatch: boolean,
+	undo: string[]
+): Slip {
+	const burst = nextSlipBurst(null, key, subject, amount, mixedBatch);
+	return {
+		id,
+		key,
+		kicker,
+		subject: burst.subject,
+		count: burst.count,
+		mixed: burst.mixed,
+		until: now + SLIP_MS,
+		undo: [...undo]
+	};
+}
+
 /** One shared title, or a mixed batch. */
 export function batchSubject(titles: readonly string[]): { subject: string; mixed: boolean } {
 	const names = titles.map((title) => title.trim() || UNTITLED);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchSubject, burstToast, nextSlipBurst, type SlipBurst } from './toast.ts';
+import { batchSubject, burstToast, nextSlipBurst, placeSlip, SLIP_MS, SLIP_UNDO_MS, type SlipBurst } from './toast.ts';
 
 function step(previous: SlipBurst | null, key: string, subject: string, amount = 1, mixedBatch = false) {
 	return nextSlipBurst(previous, key, subject, amount, mixedBatch);
@@ -80,5 +80,60 @@ describe('toast burst', () => {
 	it('one shared title is not mixed', () => {
 		expect(batchSubject(['Health', 'Health'])).toEqual({ subject: 'Health', mixed: false });
 		expect(batchSubject(['  '])).toEqual({ subject: 'Untitled', mixed: false });
+	});
+});
+
+describe('toast slip', () => {
+	const now = 1_000;
+
+	it('a new action replaces the showing one', () => {
+		const first = placeSlip([], now, 1, { key: 'Deleted', kicker: 'Deleted', subject: 'More organized life' });
+		const placed = placeSlip(first.pile, now + 1_000, first.nextId, {
+			key: 'Duplicated',
+			kicker: 'Duplicated',
+			subject: 'More organized life'
+		});
+		expect(placed.pile.map((slip) => slip.kicker)).toEqual(['Duplicated']);
+		expect(placed.pile[0]?.until).toBe(now + 1_000 + SLIP_MS);
+	});
+
+	it('a repeat merges and restarts the clock', () => {
+		const first = placeSlip([], now, 1, { key: 'Duplicated', kicker: 'Duplicated', subject: 'Life' });
+		const placed = placeSlip(first.pile, now + 800, first.nextId, {
+			key: 'Duplicated',
+			kicker: 'Duplicated',
+			subject: 'Life'
+		});
+		expect(placed.pile).toHaveLength(1);
+		expect(placed.pile[0]?.count).toBe(2);
+		expect(placed.pile[0]?.until).toBe(now + 800 + SLIP_MS);
+	});
+
+	it('repeated deletes collect every id to undo and stay up longer', () => {
+		const first = placeSlip([], now, 1, { key: 'Deleted', kicker: 'Deleted', subject: 'Life', undo: ['a'] });
+		expect(first.pile[0]?.until).toBe(now + SLIP_UNDO_MS);
+		const placed = placeSlip(first.pile, now + 500, first.nextId, {
+			key: 'Deleted',
+			kicker: 'Deleted',
+			subject: 'Life',
+			undo: ['b']
+		});
+		expect(placed.pile[0]?.undo).toEqual(['a', 'b']);
+		expect(placed.pile[0]?.count).toBe(2);
+	});
+
+	it('a plain note has nothing to undo', () => {
+		const placed = placeSlip([], now, 1, { key: 'Copied', kicker: '', subject: 'Copied' });
+		expect(placed.pile[0]?.undo).toEqual([]);
+	});
+
+	it('drops a slip whose time is up', () => {
+		const first = placeSlip([], now, 1, { key: 'Deleted', kicker: 'Deleted', subject: 'Life' });
+		const placed = placeSlip(first.pile, now + SLIP_MS, first.nextId, {
+			key: 'Duplicated',
+			kicker: 'Duplicated',
+			subject: 'Life'
+		});
+		expect(placed.pile.map((slip) => slip.kicker)).toEqual(['Duplicated']);
 	});
 });

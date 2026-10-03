@@ -9,8 +9,10 @@
 		children: Snippet;
 		icon?: IconName;
 		badge?: string;
+		shortcut?: string;
 		tone?: 'default' | 'danger';
 		active?: boolean;
+		id?: string;
 		class?: string;
 		onclick?: (event: MouseEvent) => void;
 	};
@@ -19,8 +21,10 @@
 		children,
 		icon,
 		badge,
+		shortcut,
 		tone = 'default',
 		active = false,
+		id,
 		class: className,
 		onclick
 	}: Props = $props();
@@ -34,7 +38,14 @@
 	}
 </script>
 
-<button type="button" role="menuitem" class={cn(styles.base(), className)} onclick={onClick}>
+<button
+	type="button"
+	role="menuitem"
+	{id}
+	class={cn(styles.base(), className)}
+	aria-current={active ? 'true' : undefined}
+	onclick={onClick}
+>
 	<span class={styles.main()}>
 		{#if icon}
 			<Icon name={icon} size={16} class={styles.icon()} />
@@ -43,5 +54,8 @@
 	</span>
 	{#if badge}
 		<span class={styles.badge()}>{badge}</span>
+	{/if}
+	{#if shortcut}
+		<kbd class={cn(styles.badge(), 'coarse:hidden')}>{shortcut}</kbd>
 	{/if}
 </button>

@@ -30,6 +30,8 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	let listElement = $state<HTMLUListElement | null>(null);
 	let active = $state(0);
+	let moreAbove = $state(false);
+	let moreBelow = $state(false);
 
 	const filtered = $derived.by((): CommandItem[] => {
 		const needle = query.trim().toLowerCase();
@@ -73,6 +75,23 @@
 		item.run();
 	}
 
+	function watchList(node: HTMLElement): () => void {
+		const update = () => {
+			moreAbove = node.scrollTop > 8;
+			moreBelow = node.scrollHeight - node.clientHeight - node.scrollTop > 24;
+		};
+		update();
+		node.addEventListener('scroll', update, { passive: true });
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		const frame = requestAnimationFrame(update);
+		return () => {
+			cancelAnimationFrame(frame);
+			node.removeEventListener('scroll', update);
+			observer.disconnect();
+		};
+	}
+
 	function onInputKeydown(event: KeyboardEvent): void {
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
@@ -96,7 +115,10 @@
 	}}
 	onclose={() => (open = false)}
 >
-	<div class="flex shrink-0 items-center gap-3 border-b border-line px-6">
+	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6 {moreAbove ? 'shadow-edge-down' : ''}">
+		{#if moreAbove}
+			<div class="edge-fade-down pointer-events-none absolute inset-x-0 top-full h-10" aria-hidden="true"></div>
+		{/if}
 		<span class="text-muted" aria-hidden="true">
 			<Icon name="command" size={16} />
 		</span>
@@ -122,6 +144,7 @@
 		class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
 		role="listbox"
 		aria-label="Commands"
+		{@attach watchList}
 	>
 		{#each filtered as item, index (item.id)}
 			{@const showHeader = index === 0 || filtered[index - 1]!.section !== item.section}
@@ -166,7 +189,10 @@
 		{/each}
 	</ul>
 
-	<div class="flex shrink-0 items-center gap-4 border-t border-line px-6 py-2.5 text-[0.74rem] text-muted" aria-hidden="true">
+	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted {moreBelow ? 'shadow-edge-up' : ''}" aria-hidden="true">
+		{#if moreBelow}
+			<div class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12" aria-hidden="true"></div>
+		{/if}
 		<span><kbd class="font-semibold">↑↓</kbd> navigate</span>
 		<span><kbd class="font-semibold">↵</kbd> run</span>
 		<span><kbd class="font-semibold">esc</kbd> close</span>

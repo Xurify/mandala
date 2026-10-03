@@ -6,7 +6,7 @@ export const button = tv({
 	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
 		variant: {
-			primary: 'bg-ink text-on-ink shadow-press hover:bg-ink-hover focus-visible:bg-ink-hover',
+			primary: 'bg-accent text-on-accent shadow-press hover:bg-accent-hover focus-visible:bg-accent-hover',
 			soft: 'bg-soft text-text hover:bg-soft-hover focus-visible:bg-soft-hover',
 			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text dark:hover:bg-soft dark:focus-visible:bg-soft',
 			danger:
@@ -58,10 +58,9 @@ export const menu = tv({
 export const menuItem = tv({
 	slots: {
 		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
-		main: 'inline-flex min-w-0 items-center gap-3',
+		main: 'flex min-w-0 flex-1 items-center gap-3',
 		icon: 'shrink-0 text-muted',
-		badge:
-			'shrink-0 rounded-[7px] bg-sunken px-[7px] py-px text-[0.72rem] font-[560] text-muted tabular-nums group-hover:bg-surface group-focus-visible:bg-surface'
+		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums'
 	},
 	variants: {
 		tone: {
@@ -72,7 +71,7 @@ export const menuItem = tv({
 			}
 		},
 		active: {
-			true: { base: 'bg-sunken', badge: 'bg-surface' },
+			true: { base: 'bg-sunken' },
 			false: {}
 		}
 	},
@@ -82,14 +81,14 @@ export const menuItem = tv({
 export const dialog = tv({
 	slots: {
 		panel:
-			'm-auto overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
-		sheet: 'flex min-h-0 max-h-full flex-col overflow-hidden',
-		head: 'flex items-start justify-between gap-3 pt-[22px] pr-4 pb-2.5 pl-[26px]',
+			'm-auto h-fit overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
+		sheet: 'flex min-h-0 w-full max-h-full flex-col overflow-hidden',
+		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-2.5 pl-[26px]',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
-		body: 'min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
+		body: 'relative z-0 min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
-		foot: 'flex items-center justify-end gap-2 px-[26px] pb-[22px]'
+		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pb-[22px]'
 	},
 	variants: {
 		size: {
@@ -97,7 +96,7 @@ export const dialog = tv({
 			sm: { panel: 'w-[min(34rem,calc(100vw-32px))] max-h-[min(80dvh,660px)]' }
 		},
 		footer: {
-			true: { body: 'pb-3' },
+			true: { body: 'pb-4' },
 			false: {}
 		}
 	},
@@ -112,18 +111,28 @@ export const dock = tv({
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[background-color,color,transform] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink max-[900px]:px-[22px] ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[background-color,color,transform] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] ${focus}`
 });
 
 export const toast = tv({
-	base: 'w-max max-w-full rounded-[20px] bg-surface px-3.5 py-3 text-left text-[0.92rem] font-medium text-pretty text-text shadow-float',
+	slots: {
+		root: 'group relative w-max max-w-full',
+		slip: 'relative flex items-center gap-3 rounded-[22px] bg-surface py-2.5 pr-3 pl-2.5 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
+		sheet:
+			'absolute inset-0 rounded-[22px] bg-surface shadow-card [translate:var(--sheet)] [rotate:var(--tilt)] motion-safe:transition-[translate,rotate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:[translate:var(--fan)] can-hover:motion-safe:group-hover:[rotate:var(--tilt-fan)]',
+		mark: 'block size-10 shrink-0 overflow-visible',
+		text: 'min-w-0 flex-1',
+		words: 'm-0 text-pretty line-clamp-2 can-hover:group-hover:line-clamp-none',
+		count:
+			'm-0 grid h-8 min-w-8 shrink-0 place-items-center rounded-full bg-sunken px-2 text-[0.9rem] leading-none font-[620] tracking-[-0.02em] tabular-nums motion-safe:animate-toast-tick'
+	},
 	variants: {
-		on: {
-			true: '',
-			false: 'opacity-0'
+		named: {
+			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.015em]' },
+			false: { words: 'text-[0.94rem] leading-[1.35] font-medium' }
 		}
 	},
-	defaultVariants: { on: true }
+	defaultVariants: { named: true }
 });
 
 export const notice = tv({

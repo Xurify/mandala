@@ -48,8 +48,9 @@ import {
 import {
   batchSubject,
   burstToast,
-  nextSlipBurst,
-  type SlipBurst,
+  placeSlip,
+  SLIP_MS,
+  type Slip,
 } from "./toast.ts";
 import {
   fetchRow,
@@ -156,14 +157,14 @@ export class ChartStore {
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
   status = $state("");
-  /** Quiet label above a named toast. Empty for a one-line note. */
+  /** Quiet label above the front slip. Empty for a one-line note. */
   statusKicker = $state("");
-  /** The thing the action was about, shown as the slip's title. */
+  /** The thing the front slip is about. */
   statusSubject = $state("");
-  /** Repeats of the same action while the toast is up. 0 means a one-off message. */
+  /** Repeats of the front slip's action. */
   statusCount = $state(0);
-  /** Bumps when a new slip lands, not when a burst's count ticks. */
-  statusToken = $state(0);
+  /** Slips still on the clock. Newest is last. */
+  slips: Slip[] = $state([]);
   exportFallback = $state("");
   saveWarned = $state(false);
   themeTick = $state(0);
@@ -172,7 +173,9 @@ export class ChartStore {
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
   #statusTimer: ReturnType<typeof setTimeout> | null = null;
-  #burst: SlipBurst | null = null;
+  #slipSeq = 1;
+  #toastsHeld = false;
+  #toastPauseAt = 0;
 
   #backupHandle: FileSystemDirectoryHandle | null = null;
   backupState: BackupState = $state("off");
@@ -360,64 +363,125 @@ export class ChartStore {
   }
 
   say(message: string, keep = false): void {
-    if (keep) {
-      this.#burst = null;
-      this.statusKicker = "";
-      this.statusSubject = "";
-      this.#showStatus(message, true, 0, true);
+    this.#place({
+      key: message,
+      kicker: "",
+      subject: message,
+      keep,
+    });
+  }
+
+  /** Named slip. Repeats of the same action while it is still in the pile stamp the count. */
+  note(kicker: string, subject: string, amount = 1, mixedBatch = false): void {
+    this.#applyNote(this.#copySlips(), kicker, subject, amount, mixedBatch);
+  }
+
+  /** Put back what the showing slip deleted. */
+  undoSlip(): void {
+    const front = this.slips.at(-1);
+    if (!front || front.undo.length === 0) return;
+    const ids = front.undo;
+    this.slips = this.slips.filter((slip) => slip.id !== front.id);
+    this.restoreCharts(ids);
+  }
+
+  /** Pause every slip's clock while the pointer is on the pile. */
+  holdToasts(held: boolean): void {
+    if (held === this.#toastsHeld) return;
+    const now = Date.now();
+    if (held) {
+      this.#toastsHeld = true;
+      this.#toastPauseAt = now;
+      if (this.#statusTimer) clearTimeout(this.#statusTimer);
+      this.#statusTimer = null;
       return;
     }
-    const next = nextSlipBurst(this.#heldBurst(), message, message);
-    this.#burst = next;
-    this.statusKicker = "";
-    this.statusSubject = "";
-    this.#showStatus(message, false, next.count, next.count === 1);
+    const paused = now - this.#toastPauseAt;
+    this.#toastsHeld = false;
+    this.slips = this.slips.map((slip) =>
+      slip.until === Number.POSITIVE_INFINITY
+        ? slip
+        : { ...slip, until: slip.until + paused },
+    );
+    this.#dropExpired();
   }
 
-  /** Named slip. Repeats of the same action while it is up stamp the count. */
-  note(kicker: string, subject: string, amount = 1, mixedBatch = false): void {
-    this.#applyNote(this.#heldBurst(), kicker, subject, amount, mixedBatch);
+  #copySlips(): Slip[] {
+    return this.slips.map((slip) => ({ ...slip }));
   }
 
-  #heldBurst(): SlipBurst | null {
-    if (!this.#burst || this.status.length === 0) return null;
-    return this.#burst;
-  }
-
-  /** `held` is the burst from before a save, so a storage warning cannot reset the count. */
+  /** `held` is the pile from before a save, so a storage warning cannot reset the count. */
   #applyNote(
-    held: SlipBurst | null,
+    held: Slip[],
     kicker: string,
     subject: string,
     amount: number,
     mixedBatch: boolean,
+    undo: string[] = [],
   ): void {
-    const next = nextSlipBurst(held, kicker, subject, amount, mixedBatch);
-    this.#burst = next;
-    this.statusKicker = kicker;
-    this.statusSubject = next.subject;
-    this.#showStatus(
-      burstToast(kicker, next.subject, next.count, next.mixed),
-      false,
-      next.count,
-      !held || held.key !== kicker,
-    );
+    this.slips = held;
+    this.#place({
+      key: kicker,
+      kicker,
+      subject,
+      amount,
+      mixedBatch,
+      undo,
+    });
   }
 
-  #showStatus(message: string, keep: boolean, count: number, fresh: boolean): void {
-    this.status = message;
-    this.statusCount = count;
-    if (fresh) this.statusToken += 1;
-    if (this.#statusTimer) clearTimeout(this.#statusTimer);
-    if (!keep) {
-      this.#statusTimer = setTimeout(() => {
-        this.status = "";
-        this.statusKicker = "";
-        this.statusSubject = "";
-        this.statusCount = 0;
-        this.#burst = null;
-      }, 5000);
+  #place(input: {
+    key: string;
+    kicker: string;
+    subject: string;
+    amount?: number;
+    mixedBatch?: boolean;
+    keep?: boolean;
+    undo?: string[];
+  }): void {
+    const placed = placeSlip(this.slips, Date.now(), this.#slipSeq, input);
+    this.slips = placed.pile;
+    this.#slipSeq = placed.nextId;
+    this.#syncFront();
+    this.#armToastTimer();
+  }
+
+  #syncFront(): void {
+    const front = this.slips.at(-1);
+    if (!front) {
+      this.status = "";
+      this.statusKicker = "";
+      this.statusSubject = "";
+      this.statusCount = 0;
+      return;
     }
+    this.statusKicker = front.kicker;
+    this.statusSubject = front.kicker ? front.subject : "";
+    this.statusCount = front.count;
+    this.status = front.kicker
+      ? burstToast(front.kicker, front.subject, front.count, front.mixed)
+      : front.subject;
+  }
+
+  #armToastTimer(): void {
+    if (this.#statusTimer) clearTimeout(this.#statusTimer);
+    this.#statusTimer = null;
+    if (this.#toastsHeld) return;
+    const finite = this.slips.filter(
+      (slip) => slip.until < Number.POSITIVE_INFINITY,
+    );
+    if (finite.length === 0) return;
+    const next = Math.min(...finite.map((slip) => slip.until));
+    const wait = Math.max(0, next - Date.now());
+    this.#statusTimer = setTimeout(() => this.#dropExpired(), wait);
+  }
+
+  #dropExpired(): void {
+    if (this.#toastsHeld) return;
+    const now = Date.now();
+    this.slips = this.slips.filter((slip) => slip.until > now);
+    this.#syncFront();
+    this.#armToastTimer();
   }
 
   select(blockIndex: number): void {
@@ -864,7 +928,7 @@ export class ChartStore {
 
   clearAll(): void {
     const title = titleOf(this.data);
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.data = emptyChart();
     this.saveNow();
     this.#applyNote(held, "Cleared", title, 1, false);
@@ -888,7 +952,7 @@ export class ChartStore {
     this.#library.activeId = record.id;
     this.data = emptyChart();
     this.#resetView();
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.saveNow();
     this.#applyNote(held, "New", titleOf(this.data), 1, false);
     return true;
@@ -902,7 +966,7 @@ export class ChartStore {
     this.data = cloneChart(record.data);
     this.#resetView();
     const title = titleOf(this.data);
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.saveNow();
     this.#applyNote(held, "Duplicated", title, 1, false);
     return true;
@@ -933,9 +997,9 @@ export class ChartStore {
       this.#adoptShareState();
       this.#bindGoalFit();
     }
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.saveNow();
-    this.#applyNote(held, "Deleted", title, 1, false);
+    this.#applyNote(held, "Deleted", title, 1, false, [id]);
   }
 
   restoreChart(id: string): void {
@@ -953,7 +1017,7 @@ export class ChartStore {
     const next = restoreManyFromLibrary(this.#library, ids, now);
     if (!next || titles.length === 0) return;
     const batch = batchSubject(titles);
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.#library = next;
     this.data = cloneChart(activeRecord(next).data);
     this.#resetView();
@@ -976,7 +1040,7 @@ export class ChartStore {
     const next = forgetManyFromLibrary(this.#library, ids);
     if (!next || titles.length === 0) return;
     const batch = batchSubject(titles);
-    const held = this.#heldBurst();
+    const held = this.#copySlips();
     this.#library = next;
     this.saveNow();
     this.#applyNote(held, "Removed", batch.subject, titles.length, batch.mixed);

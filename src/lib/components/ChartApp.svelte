@@ -14,6 +14,7 @@
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
+	import { titleOf } from '$lib/chart/library';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import BrandMark from './BrandMark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
@@ -506,11 +507,11 @@
 				/>
 
 			<Menu label="More actions">
-				<MenuItem icon="command" badge="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
-				<MenuItem icon="printer" badge="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
+				<MenuItem icon="command" shortcut="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
+				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
-				<MenuItem icon="keyboard" badge="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -581,12 +582,17 @@
 		<Dialog
 			bind:open={clearOpen}
 			title="Clear this chart?"
-			description="The goal, pillars, and actions on this chart go away."
+			description="The goal, pillars, and actions go away. They do not go to recently deleted."
 			size="sm"
 		>
-			<p class="m-0 text-[0.9rem] leading-[1.45] text-pretty text-muted">
-				They do not go to recently deleted.
-			</p>
+			<div class="flex min-h-[52px] items-center rounded-[16px] bg-sunken px-3 py-2">
+				<span class="min-w-0">
+					<span class="block truncate text-[0.95rem] font-medium text-text">{titleOf(chart.data)}</span>
+					<span class="mt-0.5 block text-[0.72rem] leading-tight text-muted tabular-nums">
+						{chart.filled} of 73
+					</span>
+				</span>
+			</div>
 			{#snippet footer()}
 				<Button variant="ghost" onclick={() => (clearOpen = false)}>Cancel</Button>
 				<Button variant="danger" onclick={confirmClear}>Clear chart</Button>
