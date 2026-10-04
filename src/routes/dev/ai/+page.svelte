@@ -2,7 +2,8 @@
 	import { onMount } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { coachFixtures } from '$lib/chart/coach-fixtures';
-	import { scoreChart, scoreReply, summarizeScores } from '$lib/chart/coach-score';
+	import { coachHoldout } from '$lib/chart/coach-holdout';
+	import { chartReport, scoreChart, scoreReply, summarizeScores } from '$lib/chart/coach-score';
 	import { briefToUserMessage } from '$lib/chart/draft';
 	import { exampleChart } from '$lib/chart/example';
 	import {
@@ -24,6 +25,7 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import { textArea, textField } from '$lib/components/ui/styles';
 
 	type Coach = typeof import('$lib/chart/coach.browser');
 	type Scenario = 'example' | 'half' | 'flawed' | 'empty';
@@ -40,10 +42,8 @@
 		{ value: 'empty', label: 'Empty' }
 	];
 	const moods: HelperMood[] = ['idle', 'listening', 'thinking', 'happy', 'puzzled'];
-	const field =
-		'h-[42px] w-full min-w-0 rounded-full border-0 bg-sunken px-4 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none';
-	const area =
-		'w-full resize-y rounded-2xl border-0 bg-sunken px-3.5 py-3 font-sans text-[0.9rem] leading-[1.45] text-text focus-visible:bg-surface focus-visible:shadow-[0_0_0_1.5px_var(--ink)] focus-visible:outline-none';
+	const field = textField;
+	const area = textArea;
 	const pre =
 		'm-0 max-h-64 overflow-auto rounded-2xl bg-sunken px-3.5 py-3 font-mono text-[0.76rem] leading-[1.5] whitespace-pre-wrap text-text';
 
@@ -172,6 +172,53 @@
 	let question = $state('Which pillar should I start with?');
 	let reply = $state('');
 
+	let candidate = $state('0');
+	type HoldoutRow = {
+		model: string;
+		direction: string;
+		filled: number;
+		faults: number;
+		copies: number;
+		constraint: boolean;
+		seconds: number;
+	};
+	let holdoutRows = $state<HoldoutRow[]>([]);
+	let holdoutNote = $state('');
+
+	async function scoreHoldout(count: number): Promise<void> {
+		if (!coach || running) return;
+		const choice = coach.COACH_CANDIDATES[Number(candidate)];
+		if (!choice) return;
+		running = 'holdout';
+		holdoutNote = '';
+		const started = performance.now();
+		try {
+			await coach.selectCoachModel(choice.id, choice.thinking);
+			loaded = coach.coachLoaded();
+			const briefs = coachHoldout.slice(0, count);
+			for (const brief of briefs) {
+				const mark = performance.now();
+				const result = await coach.proposeChart(brief);
+				const report = result.chart
+					? chartReport(result.chart, brief.constraint)
+					: { filled: 0, faults: 1, copies: 0, constraint: false };
+				const row: HoldoutRow = {
+					model: choice.label,
+					direction: brief.direction,
+					...report,
+					seconds: Math.round((performance.now() - mark) / 1000)
+				};
+				holdoutRows = [...holdoutRows.filter((seen) => !(seen.model === row.model && seen.direction === row.direction)), row];
+			}
+		} catch (error) {
+			holdoutNote = error instanceof Error ? error.message : 'The run stopped.';
+		} finally {
+			elapsed = { ...elapsed, holdout: Math.round(performance.now() - started) };
+			loaded = coach.coachLoaded();
+			running = null;
+		}
+	}
+
 	let probe = $state('Plan my week');
 	let pasted = $state('');
 	const fixtureSummary = summarizeScores(coachFixtures.map((fixture) => fixture.reply));
@@ -242,7 +289,7 @@
 		</div>
 		<dl class="m-0 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 text-[0.88rem]">
 			<div><dt class="text-muted">WebGPU</dt><dd class="m-0 font-[620]">{webgpu === null ? 'Checking' : webgpu ? 'Available' : 'Not available'}</dd></div>
-			<div><dt class="text-muted">Model</dt><dd class="m-0 font-[620] break-all">{coach?.COACH_MODEL_ID ?? '…'}</dd></div>
+			<div><dt class="text-muted">Model</dt><dd class="m-0 font-[620] break-all">{coach?.coachModel() ?? '…'}</dd></div>
 			<div><dt class="text-muted">State</dt><dd class="m-0 font-[620]">{loaded ? 'In memory' : running ? `Running: ${running}` : 'Not loaded'}</dd></div>
 			<div><dt class="text-muted">Load time</dt><dd class="m-0 font-[620] tabular-nums">{seconds('load') || '—'}</dd></div>
 		</dl>
@@ -251,6 +298,30 @@
 			{#if load?.detail}<span class="tabular-nums"> · {load.detail}</span>{/if}
 			{#if load?.ratio != null}<span class="tabular-nums"> · {Math.round(load.ratio * 100)}%</span>{/if}
 		</p>
+	</Card>
+
+	<Card class="flex flex-col gap-4">
+		<Eyebrow>Holdout</Eyebrow>
+		<p class="m-0 text-[0.88rem] text-pretty text-muted">
+			Same practice briefs, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
+		</p>
+		<div class="flex flex-wrap items-end gap-3">
+			<label class="flex min-w-52 flex-1 flex-col gap-1.5">
+				<span class="text-[0.82rem] font-semibold">Model</span>
+				<select class={field} bind:value={candidate} disabled={running !== null} aria-label="Model to score">
+					{#each coach?.COACH_CANDIDATES ?? [] as choice, index (choice.label)}
+						<option value={String(index)}>{choice.label}</option>
+					{/each}
+				</select>
+			</label>
+			<Button size="sm" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(8)}>
+				{running === 'holdout' ? 'Scoring' : 'Score 8'}
+			</Button>
+			<Button size="sm" variant="soft" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
+			<span class="text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
+		</div>
+		{#if holdoutNote}<p class="m-0 text-[0.88rem] text-danger" role="alert">{holdoutNote}</p>{/if}
+		<pre class={pre}>{holdoutRows.map((row) => `${row.model} · ${row.direction} · ${row.filled}/64 · faults ${row.faults} · copies ${row.copies} · constraint ${row.constraint ? 'yes' : 'no'} · ${row.seconds}s`).join('\n') || 'Nothing scored yet.'}</pre>
 	</Card>
 
 	<Card class="flex flex-col gap-4">

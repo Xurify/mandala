@@ -120,7 +120,11 @@ describe('facts, faults, and the prompts', () => {
 	it('keeps the good lines and names the bad ones', () => {
 		const round = keptLines('1. Shoes by the door\n2. Work hard\n3. Easy runs\n4. Shoes by the door', 4, { max: 48, kind: 'action', pillar: 'Easy runs' });
 		expect(round.kept).toEqual(['Shoes by the door']);
-		expect(round.rejected.map((item) => item.reason)).toEqual(['Hard to tick. Say what you do on a day.', 'Says the pillar again.', 'Same as another action here.']);
+		expect(round.rejected.map((item) => item.reason)).toEqual([
+			'This cannot be ticked. Write the session, not the wish.',
+			'This repeats the pillar. Write what makes it happen.',
+			'Same afternoon as another action on the chart.'
+		]);
 	});
 
 	it('puts the person and a worked example into the action prompt', () => {
@@ -134,7 +138,7 @@ describe('facts, faults, and the prompts', () => {
 
 	it('asks for a behaviour and does not hand the failure back', () => {
 		const data = sample();
-		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'Hard to tick. Say what you do on a day.', code: 'untickable' });
+		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'This cannot be ticked. Write the session, not the wish.', code: 'untickable' });
 		const joined = messages.map((message) => message.content).join('\n');
 		expect(joined).toContain('Block 25 minutes after lunch');
 		expect(joined).not.toContain('Hard to tick');
@@ -181,6 +185,18 @@ describe('reviewChart', () => {
 
 	it('is quiet on a clean chart', () => {
 		expect(reviewChart(sample())).toEqual([]);
+	});
+
+	it('flags a near copy on another pillar and keeps distinct actions', () => {
+		const copied = sample();
+		copied.actions[0]![0] = 'Knee brace';
+		copied.actions[1]![0] = 'Apply a knee brace';
+		expect(reviewChart(copied, 10).some((finding) => finding.key === 'a1_0' && finding.code === 'repeated')).toBe(true);
+
+		const distinct = sample();
+		distinct.actions[0]![0] = 'Shoes by the door';
+		distinct.actions[0]![1] = 'On the calendar every Sunday';
+		expect(reviewChart(distinct).some((finding) => finding.code === 'repeated')).toBe(false);
 	});
 });
 
@@ -230,6 +246,10 @@ describe('describeCoachProgress', () => {
 			ratio: 0.15,
 			detail: '120 MB'
 		});
+	});
+
+	it('ignores a progress report that is not text', () => {
+		expect(describeCoachProgress({ text: 'Loading.' } as unknown as string).label).toBe('');
 	});
 
 	it('keeps ordinary status lines as they are', () => {

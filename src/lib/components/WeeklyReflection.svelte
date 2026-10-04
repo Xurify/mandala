@@ -5,6 +5,8 @@
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
+	import { cn } from './ui/cn';
+	import { textArea, textField } from './ui/styles';
 
 	interface Props {
 		open?: boolean;
@@ -168,7 +170,7 @@
 											></span>
 											<input
 												type="text"
-												class="min-h-11 min-w-0 flex-1 rounded-full border-0 bg-sunken px-4 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+												class={cn(textField, 'min-w-0 flex-1 text-[0.9rem]')}
 												value={lead.text}
 												aria-label="Rewrite {lead.text}"
 												onblur={() => {
@@ -215,7 +217,7 @@
 											{#if editingKey === action.key}
 												<input
 													type="text"
-													class="min-h-11 w-full rounded-full border-0 bg-sunken px-4 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+													class={cn(textField, 'text-[0.9rem]')}
 													value={action.text}
 													aria-label="Rewrite {action.text}"
 													onblur={() => {
@@ -246,7 +248,7 @@
 		<section class="flex flex-col gap-2">
 			<Eyebrow>Note</Eyebrow>
 			<textarea
-				class="min-h-24 w-full resize-none rounded-[20px] border-0 bg-sunken px-4 py-3 text-[0.9rem] text-text placeholder:text-muted focus:bg-surface focus:shadow-[0_0_0_2px_var(--ink)] focus:outline-none"
+				class={cn(textArea, 'min-h-24 resize-none')}
 				placeholder="What happened this week?"
 				bind:value={reflectionNote}
 			></textarea>

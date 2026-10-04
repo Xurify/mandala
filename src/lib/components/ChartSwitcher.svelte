@@ -22,6 +22,8 @@
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
 	import MenuItem from './ui/MenuItem.svelte';
+	import { cn } from './ui/cn';
+	import { fieldInk, textField } from './ui/styles';
 
 	const activeTitle = $derived(titleOf(chart.data));
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
@@ -395,9 +397,7 @@
 				</span>
 				<input
 					data-menu-find
-					class="h-[42px] w-full rounded-full border-0 bg-sunken ps-10 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none {find
-						? 'pe-10'
-						: 'pe-4'}"
+					class={cn(fieldInk, 'ps-10', find ? 'pe-10' : 'pe-4')}
 					type="text"
 					placeholder="Find a chart"
 					aria-label="Find a chart"
@@ -455,13 +455,9 @@
 		{/each}
 	</div>
 	<div
-		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5"
+		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui"
 		data-menu-foot
 	>
-		<div
-			class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12 opacity-0 [[data-more]_&]:opacity-100"
-			aria-hidden="true"
-		></div>
 		<MenuDivider />
 		<div class="flex gap-px">
 			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New blank chart</MenuItem>
@@ -673,7 +669,7 @@
 			<span class="sr-only">Chart name</span>
 			<input
 				bind:this={nameField}
-				class="h-[42px] w-full rounded-full border-0 bg-sunken px-4 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+				class={textField}
 				type="text"
 				placeholder={UNTITLED}
 				maxlength={TEXT_MAX}

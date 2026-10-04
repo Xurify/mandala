@@ -78,7 +78,7 @@
 	function watchList(node: HTMLElement): () => void {
 		const update = () => {
 			moreAbove = node.scrollTop > 8;
-			moreBelow = node.scrollHeight - node.clientHeight - node.scrollTop > 24;
+			moreBelow = node.scrollHeight - node.clientHeight - node.scrollTop > 8;
 		};
 		update();
 		node.addEventListener('scroll', update, { passive: true });
@@ -115,10 +115,7 @@
 	}}
 	onclose={() => (open = false)}
 >
-	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6 {moreAbove ? 'shadow-edge-down' : ''}">
-		{#if moreAbove}
-			<div class="edge-fade-down pointer-events-none absolute inset-x-0 top-full h-10" aria-hidden="true"></div>
-		{/if}
+	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreAbove ? 'shadow-edge-down' : ''}">
 		<span class="text-muted" aria-hidden="true">
 			<Icon name="command" size={16} />
 		</span>
@@ -141,6 +138,7 @@
 	<ul
 		bind:this={listElement}
 		id="command-list"
+		data-dialog-scroll
 		class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
 		role="listbox"
 		aria-label="Commands"
@@ -189,10 +187,7 @@
 		{/each}
 	</ul>
 
-	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted {moreBelow ? 'shadow-edge-up' : ''}" aria-hidden="true">
-		{#if moreBelow}
-			<div class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-12" aria-hidden="true"></div>
-		{/if}
+	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreBelow ? 'shadow-edge-up' : ''}" aria-hidden="true">
 		<span><kbd class="font-semibold">↑↓</kbd> navigate</span>
 		<span><kbd class="font-semibold">↵</kbd> run</span>
 		<span><kbd class="font-semibold">esc</kbd> close</span>

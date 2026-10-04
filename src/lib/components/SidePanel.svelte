@@ -7,6 +7,7 @@
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
+	import { fieldInk } from './ui/styles';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
@@ -535,7 +536,7 @@
 						</span>
 						<input
 							type="text"
-							class="h-[42px] w-full rounded-full border-0 bg-sunken pr-4 pl-10 font-sans text-base text-text placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+							class={cn(fieldInk, 'pr-4 pl-10')}
 							placeholder="Add link or note (e.g. YouTube, article, chapter)..."
 							value={meta?.note ?? ''}
 							oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}

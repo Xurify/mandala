@@ -3,6 +3,8 @@
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Icon from './Icon.svelte';
+	import { cn } from './ui/cn';
+	import { textArea } from './ui/styles';
 
 	interface Props {
 		open?: boolean;
@@ -179,7 +181,7 @@
 			</div>
 
 			<textarea
-				class="h-48 w-full resize-y rounded-[20px] border-0 bg-sunken px-4 py-3 font-sans text-[0.88rem] leading-[1.5] text-text placeholder:text-muted/60 focus-visible:bg-surface focus-visible:shadow-[0_0_0_2px_var(--ink)] focus-visible:outline-none"
+				class={cn(textArea, 'h-48 text-[0.88rem] leading-[1.5]')}
 				placeholder={`Goal: Launch your side project\n\nPillar 1: Product validation\n  - Interview 20 prospective users\n  - Build a landing page\n\nPillar 2: Rapid prototyping\n  - Build MVP in 2 weeks`}
 				bind:value={rawText}
 				spellcheck="false"

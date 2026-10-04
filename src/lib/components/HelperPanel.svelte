@@ -6,6 +6,7 @@
 	import Button from './ui/Button.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { cn } from './ui/cn';
+	import { textField } from './ui/styles';
 
 	interface Props {
 		helper: HelperStore;
@@ -16,8 +17,7 @@
 
 	let { helper, onclose, autofocus = false, class: className }: Props = $props();
 
-	const field =
-		'h-[42px] min-w-0 flex-1 rounded-full border-0 bg-sunken px-4 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none';
+	const field = cn(textField, 'min-w-0 flex-1');
 	const link =
 		'cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[560] text-muted underline decoration-line underline-offset-4 hover:text-text hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
@@ -26,6 +26,12 @@
 	let scroller: HTMLDivElement | null = $state(null);
 
 	const chips = $derived(helper.chips);
+	const isThinking = $derived(
+		Boolean(
+			helper.progress?.label?.startsWith('Thinking') ||
+				(helper.busy && (!helper.progress?.label || helper.progress.label.startsWith('Thinking')))
+		)
+	);
 
 	$effect(() => {
 		void helper.messages.length;
@@ -201,8 +207,19 @@
 		<HelperFace mood={helper.mood} size={46} />
 		<div class="min-w-0 flex-1">
 			<h2 class="m-0 text-[1.05rem] leading-tight font-[620]">Bindu</h2>
-			<p class="m-0 truncate text-[0.8rem] text-muted" role="status">
-				{helper.progress?.label || (helper.busy ? 'Thinking.' : helper.modelReady ? 'Ready, on this device' : 'Lives in this browser')}
+			<p class="m-0 truncate text-[0.8rem] text-muted" role="status" aria-label={isThinking ? 'Thinking...' : undefined}>
+				{#if isThinking}
+					<span class="inline-flex items-center">
+						Thinking
+						<span class="ms-1 inline-flex items-center gap-[3px]" aria-hidden="true">
+							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce"></span>
+							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce" style:animation-delay="160ms"></span>
+							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce" style:animation-delay="320ms"></span>
+						</span>
+					</span>
+				{:else}
+					{helper.progress?.label || (helper.modelReady ? 'Ready, on this device' : 'Lives in this browser')}
+				{/if}
 			</p>
 			{#if helper.progress?.ratio != null}
 				{@const percent = Math.round(helper.progress.ratio * 100)}

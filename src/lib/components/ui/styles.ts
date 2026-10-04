@@ -2,6 +2,13 @@ import { tv } from 'tailwind-variants';
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 
+export const fieldInk = 'field-ink h-[42px] w-full rounded-full text-base';
+
+export const textField = `${fieldInk} px-4`;
+
+export const textArea =
+	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45]';
+
 export const button = tv({
 	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
@@ -82,17 +89,17 @@ export const dialog = tv({
 	slots: {
 		panel:
 			'm-auto h-fit overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
-		sheet: 'flex min-h-0 w-full max-h-full flex-col overflow-hidden',
-		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-2.5 pl-[26px]',
+		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-hidden',
+		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px] motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
 		body: 'relative z-0 min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
-		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pb-[22px]'
+		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pt-2 pb-[22px] motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui'
 	},
 	variants: {
 		size: {
-			md: { panel: 'w-[min(38rem,calc(100vw-32px))] max-h-[min(86dvh,740px)]' },
+			md: { panel: 'w-[min(38rem,calc(100vw-32px))] max-h-[min(88dvh,780px)]' },
 			sm: { panel: 'w-[min(34rem,calc(100vw-32px))] max-h-[min(80dvh,660px)]' }
 		},
 		footer: {

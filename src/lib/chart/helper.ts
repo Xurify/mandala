@@ -1,4 +1,4 @@
-import { norm, restated, UNCONTROLLED, UNTICKABLE } from './coach-score.ts';
+import { nearCopy, norm, restated, UNCONTROLLED, UNTICKABLE } from './coach-score.ts';
 import {
 	ACTION_MAX,
 	briefToUserMessage,
@@ -140,6 +140,7 @@ export function pillarsMessages(brief: CoachBrief): ChatMessage[] {
 				'You are a Mandala Method coach.',
 				'The goal is one line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
 				'Each pillar is something this person does, two to four words. A follower count, a grade, or a finish time is not a pillar.',
+				'A constraint in the brief is a condition on the work, not eight products.',
 				'Return only this JSON: {"goal":"...","pillars":["...", 8 strings]}.'
 			].join('\n')
 		},
@@ -162,7 +163,7 @@ export function goalAndPillars(raw: string): { goal: string; pillars: string[] }
 	for (const item of record.pillars) {
 		const pillar = typeof item === 'string' ? cleanLine(item) : '';
 		if (!pillar || pillar.length > PILLAR_MAX) continue;
-		if (!pillars.some((seen) => norm(seen) === norm(pillar))) pillars.push(pillar);
+		if (!pillars.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) pillars.push(pillar);
 	}
 	return pillars.length >= 8 ? { goal, pillars: pillars.slice(0, 8) } : null;
 }
@@ -186,7 +187,8 @@ function clampRatio(ratio: number | null | undefined): number | null {
 
 /** Turn a web-llm progress line into a short status. `ratio` wins over the percent buried in the text. */
 export function describeCoachProgress(text: string, ratio?: number | null): CoachLoad {
-	const cleaned = text.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
+	const source = typeof text === 'string' ? text : '';
+	const cleaned = source.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
 	const reported = clampRatio(ratio);
 	const fromText = cleaned.match(/(\d+(?:\.\d+)?)\s*%\s*completed/i);
 	const measured = reported ?? (fromText ? clampRatio(Number(fromText[1]) / 100) : null);
@@ -216,7 +218,7 @@ export function fillPillarsMessages(data: ChartData, count: number, facts = '', 
 	return [
 		{
 			role: 'system',
-			content: `You name pillars for a Mandala chart. A pillar is one driver of the goal. ${CELL_RULES} Two to four words. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
+			content: `You name pillars for a Mandala chart. A pillar is one driver of the goal. ${CELL_RULES} Two to four words. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
 		},
 		{
 			role: 'user',
@@ -282,21 +284,21 @@ export function lineFault(
 ): { code: HelperFinding['code']; reason: string } | null {
 	const value = text.trim();
 	if (!value) return null;
-	if (UNCONTROLLED.test(value)) return { code: 'uncontrolled', reason: 'A result, not something you do.' };
+	if (UNCONTROLLED.test(value)) return { code: 'uncontrolled', reason: 'A result you cannot do. Write the step that gets you there.' };
 	if (UNTICKABLE.test(value)) {
 		return options.kind === 'pillar'
-			? { code: 'untickable', reason: 'Hard to tick. Name what you do.' }
-			: { code: 'untickable', reason: 'Hard to tick. Say what you do on a day.' };
+			? { code: 'untickable', reason: 'This cannot be ticked. Name the thing you do.' }
+			: { code: 'untickable', reason: 'This cannot be ticked. Write the session, not the wish.' };
 	}
-	if (options.kind === 'action' && options.pillar && restated(options.pillar, value)) return { code: 'restated', reason: 'Says the pillar again.' };
-	if (options.siblings?.some((seen) => norm(seen) === norm(value))) {
-		return { code: 'repeated', reason: options.kind === 'pillar' ? 'Same as one already named.' : 'Same as another action here.' };
+	if (options.kind === 'action' && options.pillar && restated(options.pillar, value)) return { code: 'restated', reason: 'This repeats the pillar. Write what makes it happen.' };
+	if (options.siblings?.some((seen) => norm(seen) === norm(value) || nearCopy(seen, value))) {
+		return { code: 'repeated', reason: options.kind === 'pillar' ? 'Same as a pillar you already have.' : 'Same afternoon as another action on the chart.' };
 	}
-	if (options.kind === 'action' && !/\s/.test(value)) return { code: 'vague', reason: 'One word. Say what you do and how often.' };
+	if (options.kind === 'action' && !/\s/.test(value)) return { code: 'vague', reason: 'Too thin. Say what you do, and when.' };
 	if (value.length > options.max) {
 		return options.kind === 'pillar'
-			? { code: 'long', reason: 'Long for a pillar. Two or three words.' }
-			: { code: 'long', reason: 'Long for one cell. Shorten it.' };
+			? { code: 'long', reason: 'Too long for a pillar. Two to four words.' }
+			: { code: 'long', reason: 'Too long for one cell. Three to seven words.' };
 	}
 	return null;
 }
@@ -325,23 +327,25 @@ export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
 	const add = (finding: HelperFinding) => {
 		if (!findings.some((seen) => seen.key === finding.key)) findings.push(finding);
 	};
+	const namedPillars: string[] = [];
 	data.pillars.forEach((pillar, pillarIndex) => {
 		const key = `p${pillarIndex}`;
 		const text = pillar.trim();
 		if (!text) return;
-		const fault = lineFault(text, { max: PILLAR_MAX, kind: 'pillar' });
+		const fault = lineFault(text, { max: PILLAR_MAX, kind: 'pillar', siblings: namedPillars });
 		if (fault) add({ key, text, ...fault });
+		namedPillars.push(text);
 	});
+	const seenActions: string[] = [];
 	data.actions.forEach((row, pillarIndex) => {
 		const pillar = data.pillars[pillarIndex] ?? '';
-		const siblings: string[] = [];
 		row.forEach((action, actionIndex) => {
 			const key = actionKey(pillarIndex, actionIndex);
 			const text = action.trim();
 			if (!text) return;
-			const fault = lineFault(text, { max: ACTION_MAX, kind: 'action', pillar, siblings });
+			const fault = lineFault(text, { max: ACTION_MAX, kind: 'action', pillar, siblings: seenActions });
 			if (fault) add({ key, text, ...fault });
-			siblings.push(text);
+			seenActions.push(text);
 		});
 	});
 	return findings.slice(0, limit);
@@ -500,14 +504,14 @@ export function askMessages(data: ChartData, question: string): ChatMessage[] {
 }
 
 export function greetingFor(data: ChartData): string {
-	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me what you want to grow into, and I'll sketch a whole chart with you.";
+	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me the direction, and I'll sketch the chart with you.";
 	const plan = fillPlan(data);
-	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still has ${plan.empty.length} open pillars. Want me to suggest some?`;
+	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still needs ${plan.empty.length} pillars. Want me to suggest some?`;
 	if (plan?.kind === 'actions') {
 		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
-		return `Hi again. ${name} has ${plan.empty.length} empty actions. I can fill them, or we can plan the week.`;
+		return `Hi again. ${name} still has ${plan.empty.length} empty actions. I can fill them, or we can plan the week.`;
 	}
-	return "Hi again. Your chart is full. I can review it, pick this week's actions, or choose today's three.";
+	return "Hi again. The chart is full. I can review it, plan the week, or pick today's three.";
 }
 
 export type HelperChip = { job: HelperJob; label: string };

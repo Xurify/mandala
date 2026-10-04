@@ -107,25 +107,36 @@
 		</figcaption>
 	</figure>
 	<p class="mb-2.5">
-		A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it as a
-		plan and keep it. You do not redraw it every day.
+		A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it once, as a
+		plan, and keep it. You do not redraw it every day.
 	</p>
 
 	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How it’s built</h3>
 	<ol class="mb-2.5 list-decimal space-y-1.5 ps-5">
-		<li>Write your main goal in the center cell of the center block.</li>
-		<li>Fill the eight cells around it with the themes that would get you there.</li>
-		<li>Copy each theme into the center of one surrounding block.</li>
-		<li>Around each theme, write eight concrete actions or habits. That is 64 actions.</li>
+		<li>Write one goal in the center.</li>
+		<li>Around it, name the eight pillars that would make that goal happen.</li>
+		<li>Copy each pillar into the center of its own block.</li>
+		<li>Around each pillar, write eight concrete actions or habits. That is 64.</li>
 	</ol>
 	<p class="mb-2.5">
-		The point is to break a vague ambition into themes, and the themes into things you can
-		actually do. Empty cells show gaps in the plan.
+		Empty cells are holes in the plan. Leave them empty until you know what belongs there.
 	</p>
 	<p class="mb-2.5">
-		One chart is one direction. Keep a separate chart for each real aim — Slovak, Russian, a
-		project — and switch between them. Do not cram two lives into one center.
+		One chart is one direction. Keep a separate chart for each real aim, and switch between them.
 	</p>
+
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Two tests</h3>
+	<p class="mb-2.5">Every pillar and every action has to pass both.</p>
+	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
+		<li>
+			<strong>You can tick it.</strong> Done, or not done. “Study for 20 minutes” passes. “Do better”
+			fails, because it never ends.
+		</li>
+		<li>
+			<strong>It is yours to do.</strong> “Post one video on Tuesday” passes. “Get a million views”
+			fails. A grade or a finish time can sit in the center. It does not belong in a pillar or an action.
+		</li>
+	</ul>
 
 	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How often you use it</h3>
 	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
@@ -133,18 +144,17 @@
 			<strong>Setup.</strong> Once, usually in a single sitting. It often takes a few revisions.
 		</li>
 		<li>
-			<strong>Review.</strong> Weekly, monthly, or quarterly. Cross off what has become a habit,
-			swap actions that are not working, and adjust themes when priorities shift.
+			<strong>Review.</strong> Weekly, monthly, or quarterly. Retire what is now a habit, swap actions
+			that are not happening, and move a pillar when the drivers of the goal have changed.
 		</li>
 		<li>
-			<strong>Day to day.</strong> Leave the grid alone. Pull one or a few actions into your
-			normal to-do list or habit tracker. The chart is the map. The daily list is the route for
-			that day.
+			<strong>Day to day.</strong> Leave the grid alone. Pull a few actions onto a normal list. The
+			chart is the map. The list is the day.
 		</li>
 	</ul>
 	<p class="mb-2.5">
-		A single 3×3 is the smaller form of the same idea, for working through one theme. It is not a
-		daily rewrite of the full chart.
+		A single 3×3 is the smaller form, for working one pillar. It is not a daily rewrite of the full
+		chart.
 	</p>
 
 	<h3 class="mt-5.5 mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Ohtani’s sheet</h3>
@@ -164,7 +174,7 @@
 			rel="noopener noreferrer"
 			>Sports Nippon<span class="sr-only"> (opens in a new tab)</span></a
 		>
-		printed the handwritten sheet in 2013. The eight themes were body building, control,
+		printed the handwritten sheet in 2013. The eight pillars were body building, control,
 		sharpness, 160 km/h, breaking balls, mental strength, character, and luck.
 	</p>
 	<p class="mb-0 text-muted">

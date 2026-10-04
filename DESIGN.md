@@ -103,7 +103,7 @@ Tailwind preflight is off. A raw `<button>`, `<input>`, `<textarea>`, or `<selec
 
 - A pressable control is a primitive: `Button`, `IconButton`, `SegmentedControl`, `DockTab`, or `MenuItem`. Do not draw a new pill out of raw `<button>` elements.
 - Two to four options that apply immediately are a `SegmentedControl`. The selected option is the surface thumb, not an ink fill.
-- A text field copies the rename field in `ChartSwitcher.svelte`: `h-[42px]`, `rounded-full`, `border-0`, `bg-sunken`, `hover:bg-sunken-hover`, focus swaps to `bg-surface` with `shadow-[0_0_0_1.5px_var(--ink)]`. `border-0` is required even when the field is not a primitive.
+- A text field uses `textField` from `src/lib/components/ui/styles.ts`. A longer note uses `textArea`. Both are the `field-ink` utility: resting fill `--sunken`, hover deepens to `--sunken-hover` and draws an ink hairline at 16%, focus lifts to `--surface` with a 1px ink ring at 42% and a 4px ink wash at 9%. No browser outline. Callers add width and icon insets (`ps-10`) on top. Chart cells are not `field-ink`; their focus ring stays a solid ink stroke so the selected cell reads in the grid.
 - A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native and use `accent-ink`.
 
 ### Buttons
@@ -157,9 +157,11 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI.
 
+**Bindu** is the on-device chart helper ("Talk to Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label.
+
 ## Accessibility
 
-- Visible focus: `outline: 2px solid var(--ink); outline-offset: 2px` on buttons, menu items, dock tabs, fields, and cells.
+- Visible focus: `outline: 2px solid var(--ink); outline-offset: 2px` on buttons, menu items, dock tabs, and cells. Text fields use the `field-ink` halo instead of that outline.
 - Hit targets ≥42px (≥44px on coarse pointers, handled by the `pointer: coarse` block).
 - Text contrast ≥4.5:1 in both themes; `--muted` on `--sunken` is the tightest pair, so check it when adjusting.
 - Every icon-only control has `aria-label`; toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.

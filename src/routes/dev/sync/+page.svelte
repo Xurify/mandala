@@ -6,6 +6,7 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
+	import { textField } from '$lib/components/ui/styles';
 
 	// Dev-only harness for the two sync surfaces. Device sync needs the API's
 	// database: set TURSO_DATABASE_URL (a file: URL works locally). Publishing
@@ -103,7 +104,7 @@
 			<label class="flex min-w-[12rem] flex-1 flex-col gap-1.5">
 				<span class="text-[0.84rem] font-[560]">Sync key</span>
 				<input
-					class="h-[42px] w-full rounded-full border-0 bg-sunken px-4 font-sans text-base font-normal text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none"
+					class={textField}
 					type="text"
 					autocomplete="off"
 					spellcheck="false"

@@ -34,6 +34,7 @@
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
+	import { fieldInk } from './ui/styles';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import IconButton from './ui/IconButton.svelte';
@@ -469,7 +470,7 @@
 				</span>
 				<input
 					bind:this={searchInputElement}
-					class="peer h-[42px] w-full rounded-full border-0 bg-sunken ps-[42px] pe-10 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none focus-visible:bg-surface focus-visible:shadow-[0_0_0_1.5px_var(--ink)] focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+					class={cn(fieldInk, 'peer ps-[42px] pe-10 [&::-webkit-search-cancel-button]:hidden')}
 					type="search"
 					placeholder="Search your chart"
 					aria-label="Search the chart"

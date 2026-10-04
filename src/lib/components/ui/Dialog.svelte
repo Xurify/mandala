@@ -36,7 +36,7 @@
 		const update = () => {
 			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
 			moreAbove = node.scrollTop > 8;
-			moreBelow = leftover > 24;
+			moreBelow = leftover > 8;
 		};
 		update();
 		node.addEventListener('scroll', update, { passive: true });
@@ -83,9 +83,6 @@
 >
 	<div class={styles.sheet()}>
 		<div class={cn(styles.head(), moreAbove && 'shadow-edge-down')}>
-			{#if moreAbove}
-				<div class="edge-fade-down pointer-events-none absolute inset-x-0 top-full h-10" aria-hidden="true"></div>
-			{/if}
 			<div class="min-w-0">
 				<h2 id={uid} class={styles.title()}>{title}</h2>
 				{#if description}
@@ -94,14 +91,11 @@
 			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
-		<div class={styles.body()} {@attach watchScroll}>
+		<div class={styles.body()} data-dialog-scroll {@attach watchScroll}>
 			{@render children()}
 		</div>
 		{#if footer}
 			<div class={cn(styles.foot(), moreBelow && 'shadow-edge-up')}>
-				{#if moreBelow}
-					<div class="edge-fade-up pointer-events-none absolute inset-x-0 bottom-full h-14" aria-hidden="true"></div>
-				{/if}
 				{@render footer()}
 			</div>
 		{/if}

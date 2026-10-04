@@ -22,7 +22,7 @@
 	import MenuItem from '$lib/components/ui/MenuItem.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { dock, menu } from '$lib/components/ui/styles';
+	import { dock, fieldInk, menu, textArea, textField } from '$lib/components/ui/styles';
 	import ToastLab from './ToastLab.svelte';
 
 	const themes = [
@@ -317,8 +317,7 @@
 		['icons', 'Icons']
 	] as const;
 
-	const field =
-		'h-[42px] w-full rounded-full border-0 bg-sunken px-4 font-sans text-base text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted hover:bg-sunken-hover focus:bg-surface focus:shadow-[0_0_0_1.5px_var(--ink)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40';
+	const field = textField;
 
 	const link =
 		'cursor-pointer self-start border-0 bg-transparent px-0.5 py-1 font-sans text-[0.88rem] font-[560] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
@@ -676,7 +675,7 @@
 					<Icon name="search" size={16} />
 				</span>
 				<input
-					class={cn(field, 'ps-[42px] pe-10 [&::-webkit-search-cancel-button]:hidden')}
+					class={cn(fieldInk, 'ps-[42px] pe-10 [&::-webkit-search-cancel-button]:hidden')}
 					type="search"
 					placeholder="Search your chart"
 					aria-label="Search the chart"
@@ -699,7 +698,7 @@
 		<label class="flex flex-col gap-1.5">
 			<span class="text-[0.82rem] font-semibold">Paste the reply</span>
 			<textarea
-				class="min-h-24 resize-y rounded-2xl border-0 bg-sunken px-3.5 py-3 font-sans text-[0.95rem] leading-[1.45] text-text placeholder:text-muted focus-visible:bg-surface focus-visible:shadow-[0_0_0_1.5px_var(--ink)] focus-visible:outline-none"
+				class={cn(textArea, 'min-h-24 text-[0.95rem]')}
 				rows="3"
 				placeholder="Paste the JSON when it comes back"
 				bind:value={reply}
@@ -715,18 +714,42 @@
 		<fieldset class="m-0 grid max-w-xl grid-cols-2 gap-2 border-0 p-0 max-[640px]:grid-cols-1">
 			<legend class="sr-only">Choose a preset</legend>
 			<label
-				class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] bg-sunken px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 hover:bg-sunken-hover has-checked:bg-surface has-checked:shadow-[0_0_0_2px_var(--ink)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
+				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'health'
+					? 'bg-surface shadow-card'
+					: 'bg-sunken hover:bg-sunken-hover'}"
 			>
-				<input class="mt-[3px] shrink-0 accent-ink" type="radio" name="catalog-preset" value="health" bind:group={preset} />
+				<input class="sr-only" type="radio" name="catalog-preset" value="health" bind:group={preset} />
+				<span
+					class="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-150 {preset === 'health'
+						? 'bg-ink text-on-ink'
+						: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
+					aria-hidden="true"
+				>
+					{#if preset === 'health'}
+						<span class="size-1.5 rounded-full bg-surface"></span>
+					{/if}
+				</span>
 				<span class="flex min-w-0 flex-col gap-0.5">
 					<span class="text-[0.92rem] font-[620]">Health first</span>
 					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">Sleep, food, and a daily walk.</span>
 				</span>
 			</label>
 			<label
-				class="flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] bg-sunken px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 hover:bg-sunken-hover has-checked:bg-surface has-checked:shadow-[0_0_0_2px_var(--ink)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
+				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'blank'
+					? 'bg-surface shadow-card'
+					: 'bg-sunken hover:bg-sunken-hover'}"
 			>
-				<input class="mt-[3px] shrink-0 accent-ink" type="radio" name="catalog-preset" value="blank" bind:group={preset} />
+				<input class="sr-only" type="radio" name="catalog-preset" value="blank" bind:group={preset} />
+				<span
+					class="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-150 {preset === 'blank'
+						? 'bg-ink text-on-ink'
+						: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
+					aria-hidden="true"
+				>
+					{#if preset === 'blank'}
+						<span class="size-1.5 rounded-full bg-surface"></span>
+					{/if}
+				</span>
 				<span class="flex min-w-0 flex-col gap-0.5">
 					<span class="text-[0.92rem] font-[620]">Blank chart</span>
 					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">One goal, empty pillars.</span>
