@@ -13,12 +13,14 @@ import {
 	helpChips,
 	intentOf,
 	isHelpRequest,
+	isPillarActionRequest,
 	offerChips,
 	pillarMentioned,
 	reviewChart,
 	suggestToday,
 	suggestWeek,
 	textOfKey,
+	type ChatMessage,
 	type CoachLoad,
 	type HelperChip,
 	type HelperFinding,
@@ -85,6 +87,19 @@ function persistModelConsent(): void {
 		// Private mode keeps the consent for this session only.
 		return;
 	}
+}
+
+function conversationHistory(messages: readonly HelperMessage[], maxTurns = 8): ChatMessage[] {
+	const history: ChatMessage[] = [];
+	for (const message of messages.slice(-maxTurns)) {
+		const content = message.text.trim();
+		if (!content) continue;
+		history.push({
+			role: message.from === 'you' ? 'user' : 'assistant',
+			content
+		});
+	}
+	return history;
 }
 
 export class HelperStore {
@@ -183,6 +198,7 @@ export class HelperStore {
 	async send(raw: string): Promise<void> {
 		const text = raw.trim();
 		if (!text || this.busy) return;
+		const history = conversationHistory(this.messages, 8);
 		this.#push({ from: 'you', text: text.length > 600 ? `${text.slice(0, 600)}…` : text });
 		this.#trouble = false;
 
@@ -232,7 +248,7 @@ export class HelperStore {
 			return;
 		}
 		const mentioned = pillarMentioned(text, data);
-		if (mentioned !== null) {
+		if (mentioned !== null && isPillarActionRequest(text)) {
 			const name = (data.pillars[mentioned] ?? '').trim();
 			const empty = (data.actions[mentioned] ?? []).filter((action) => !action.trim()).length;
 			if (empty > 0) {
@@ -240,10 +256,10 @@ export class HelperStore {
 				this.#say(`${name} still has ${empty} empty ${empty === 1 ? 'action' : 'actions'}.`);
 				return;
 			}
-			this.#say(`Those lines are already on ${name}.`);
+			this.#say(`${name} is already full. We can review its actions or pick one for today.`);
 			return;
 		}
-		await this.#withModel(() => this.#answer(text));
+		await this.#withModel(() => this.#answer(text, history));
 	}
 
 	async start(job: HelperJob, pillar?: number): Promise<void> {
@@ -438,9 +454,9 @@ export class HelperStore {
 		this.#say('Here is how I would put them.', { kind: 'cells', edits });
 	}
 
-	async #answer(question: string): Promise<void> {
+	async #answer(question: string, history: readonly ChatMessage[] = []): Promise<void> {
 		const coach = await loadCoachModule();
-		const reply = await coach.answer(this.#target.data(), question);
+		const reply = await coach.answer(this.#target.data(), question, history);
 		if (!reply) return this.#fail('I am not sure. Try asking another way.');
 		this.#say(reply);
 	}

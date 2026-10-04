@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import { cn } from './ui/cn';
@@ -12,18 +11,68 @@
 
 	let { open = $bindable(false) }: Props = $props();
 
+	type PerspectiveId = 'tangibleSelf' | 'tangibleOthers' | 'intangibleSelf' | 'intangibleOthers';
+
+	interface PerspectiveDefinition {
+		id: PerspectiveId;
+		label: string;
+		sublabel: string;
+		placeholder: string;
+		chartColorClass: string;
+	}
+
+	const perspectives: PerspectiveDefinition[] = [
+		{
+			id: 'tangibleSelf',
+			label: 'What you practice',
+			sublabel: 'What skill or routine will you do?',
+			placeholder: 'e.g. Practice speaking for 15 minutes',
+			chartColorClass: 'bg-chart-1'
+		},
+		{
+			id: 'tangibleOthers',
+			label: 'Who it is for',
+			sublabel: 'What will other people see you do?',
+			placeholder: 'e.g. Talk with a partner for 20 minutes',
+			chartColorClass: 'bg-chart-2'
+		},
+		{
+			id: 'intangibleSelf',
+			label: 'How you keep going',
+			sublabel: 'What helps you continue when it is hard?',
+			placeholder: 'e.g. Write one thing that went well after each try',
+			chartColorClass: 'bg-chart-3'
+		},
+		{
+			id: 'intangibleOthers',
+			label: 'Who you show up for',
+			sublabel: 'Who do you want to spend time with?',
+			placeholder: 'e.g. Call one friend on Sunday',
+			chartColorClass: 'bg-chart-4'
+		}
+	];
+
 	let currentStep = $state<1 | 2 | 3>(1);
 	let audience = $state<'self' | 'both'>('self');
 
-	let tangibleSelf = $state('');
-	let tangibleOthers = $state('');
-	let intangibleSelf = $state('');
-	let intangibleOthers = $state('');
+	let rawNotes = $state<Record<PerspectiveId, string>>({
+		tangibleSelf: '',
+		tangibleOthers: '',
+		intangibleSelf: '',
+		intangibleOthers: ''
+	});
 
-	let suggestionTangibleSelf = $state('');
-	let suggestionTangibleOthers = $state('');
-	let suggestionIntangibleSelf = $state('');
-	let suggestionIntangibleOthers = $state('');
+	let suggestions = $state<Record<PerspectiveId, string>>({
+		tangibleSelf: '',
+		tangibleOthers: '',
+		intangibleSelf: '',
+		intangibleOthers: ''
+	});
+
+	const filledPerspectives = $derived(
+		perspectives.filter((perspective) => rawNotes[perspective.id].trim().length > 0)
+	);
+	const hasAnyNotes = $derived(filledPerspectives.length > 0);
 
 	function extractPillarName(input: string, fallback: string): string {
 		const trimmed = input.trim();
@@ -38,24 +87,33 @@
 	}
 
 	function goToStep3(): void {
-		suggestionTangibleSelf = extractPillarName(tangibleSelf, '');
-		suggestionTangibleOthers = extractPillarName(tangibleOthers, '');
-		suggestionIntangibleSelf = extractPillarName(intangibleSelf, '');
-		suggestionIntangibleOthers = extractPillarName(intangibleOthers, '');
+		for (const perspective of perspectives) {
+			suggestions[perspective.id] = extractPillarName(rawNotes[perspective.id], '');
+		}
 		currentStep = 3;
 	}
 
 	function handleApply(): void {
-		const suggestions = [
-			suggestionTangibleSelf.trim(),
-			suggestionTangibleOthers.trim(),
-			suggestionIntangibleSelf.trim(),
-			suggestionIntangibleOthers.trim()
-		];
+		const nonEmpty = filledPerspectives
+			.map((perspective) => suggestions[perspective.id].trim())
+			.filter((candidate) => candidate.length > 0);
 
-		suggestions.forEach((suggestion, index) => {
-			if (suggestion) {
-				chart.setText(`p${index}`, suggestion);
+		if (nonEmpty.length === 0) {
+			open = false;
+			return;
+		}
+
+		const emptySlots: number[] = [];
+		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+			if (!chart.data.pillars[pillarIndex]?.trim()) {
+				emptySlots.push(pillarIndex);
+			}
+		}
+
+		nonEmpty.forEach((suggestion, index) => {
+			const targetIndex = emptySlots[index] ?? index;
+			if (targetIndex < 8) {
+				chart.setText(`p${targetIndex}`, suggestion);
 			}
 		});
 
@@ -65,7 +123,7 @@
 			// storage blocked
 		}
 
-		chart.say('Added the pillars.');
+		chart.say(nonEmpty.length === 1 ? 'Added 1 pillar.' : `Added ${nonEmpty.length} pillars.`);
 		open = false;
 		currentStep = 1;
 	}
@@ -120,105 +178,42 @@
 			</p>
 
 			<div class="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
-				<div class="flex flex-col gap-1.5">
-					<div class="flex items-center gap-1.5">
-						<span class="size-2 rounded-full bg-chart-1"></span>
-						<span class="text-[0.78rem] font-bold text-text">What you practice</span>
+				{#each perspectives as perspective (perspective.id)}
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1.5">
+							<span class={cn('size-2 rounded-full', perspective.chartColorClass)}></span>
+							<span class="text-[0.78rem] font-bold text-text">{perspective.label}</span>
+						</div>
+						<p class="text-[0.74rem] text-muted">{perspective.sublabel}</p>
+						<textarea
+							class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
+							placeholder={perspective.placeholder}
+							bind:value={rawNotes[perspective.id]}
+						></textarea>
 					</div>
-					<p class="text-[0.74rem] text-muted">What skill or routine will you do?</p>
-					<textarea
-						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Practice speaking for 15 minutes"
-						bind:value={tangibleSelf}
-					></textarea>
-				</div>
-
-				<div class="flex flex-col gap-1.5">
-					<div class="flex items-center gap-1.5">
-						<span class="size-2 rounded-full bg-chart-2"></span>
-						<span class="text-[0.78rem] font-bold text-text">Who it is for</span>
-					</div>
-					<p class="text-[0.74rem] text-muted">What will other people see you do?</p>
-					<textarea
-						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Talk with a partner for 20 minutes"
-						bind:value={tangibleOthers}
-					></textarea>
-				</div>
-
-				<div class="flex flex-col gap-1.5">
-					<div class="flex items-center gap-1.5">
-						<span class="size-2 rounded-full bg-chart-3"></span>
-						<span class="text-[0.78rem] font-bold text-text">How you keep going</span>
-					</div>
-					<p class="text-[0.74rem] text-muted">What helps you continue when it is hard?</p>
-					<textarea
-						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Write one thing that went well after each try"
-						bind:value={intangibleSelf}
-					></textarea>
-				</div>
-
-				<div class="flex flex-col gap-1.5">
-					<div class="flex items-center gap-1.5">
-						<span class="size-2 rounded-full bg-chart-4"></span>
-						<span class="text-[0.78rem] font-bold text-text">Who you show up for</span>
-					</div>
-					<p class="text-[0.74rem] text-muted">Who do you want to spend time with?</p>
-					<textarea
-						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Call one friend on Sunday"
-						bind:value={intangibleOthers}
-					></textarea>
-				</div>
+				{/each}
 			</div>
 		</div>
 	{:else}
 		<div class="flex flex-col gap-4">
 			<p class="text-[0.84rem] text-muted">
-				Four pillar names from what you wrote. Edit any of them, then add them to the chart.
+				{filledPerspectives.length === 1
+					? '1 pillar name from what you wrote. Edit it, then add it to the chart.'
+					: `${filledPerspectives.length} pillar names from what you wrote. Edit any of them, then add them to the chart.`}
 			</p>
 
 			<div class="flex flex-col gap-3">
-				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted">Pillar 1 · What you practice</span>
-					<input
-						type="text"
-						class={cn(textField, 'text-[0.88rem] font-medium')}
-						placeholder="Pillar name"
-						bind:value={suggestionTangibleSelf}
-					/>
-				</div>
-
-				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted">Pillar 2 · Who it is for</span>
-					<input
-						type="text"
-						class={cn(textField, 'text-[0.88rem] font-medium')}
-						placeholder="Pillar name"
-						bind:value={suggestionTangibleOthers}
-					/>
-				</div>
-
-				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted">Pillar 3 · How you keep going</span>
-					<input
-						type="text"
-						class={cn(textField, 'text-[0.88rem] font-medium')}
-						placeholder="Pillar name"
-						bind:value={suggestionIntangibleSelf}
-					/>
-				</div>
-
-				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted">Pillar 4 · Who you show up for</span>
-					<input
-						type="text"
-						class={cn(textField, 'text-[0.88rem] font-medium')}
-						placeholder="Pillar name"
-						bind:value={suggestionIntangibleOthers}
-					/>
-				</div>
+				{#each filledPerspectives as perspective, index (perspective.id)}
+					<div class="flex flex-col gap-1">
+						<span class="text-[0.74rem] font-bold text-muted">Pillar {index + 1} · {perspective.label}</span>
+						<input
+							type="text"
+							class={cn(textField, 'text-[0.88rem] font-medium')}
+							placeholder="Pillar name"
+							bind:value={suggestions[perspective.id]}
+						/>
+					</div>
+				{/each}
 			</div>
 		</div>
 	{/if}
@@ -230,7 +225,7 @@
 				<Button variant="primary" onclick={goToStep2}>Continue →</Button>
 			{:else if currentStep === 2}
 				<Button variant="ghost" onclick={() => (currentStep = 1)}>← Back</Button>
-				<Button variant="primary" onclick={goToStep3}>See pillar ideas</Button>
+				<Button variant="primary" disabled={!hasAnyNotes} onclick={goToStep3}>See pillar ideas</Button>
 			{:else}
 				<Button variant="ghost" onclick={() => (currentStep = 2)}>← Back</Button>
 				<Button variant="primary" onclick={handleApply}>Add to chart</Button>

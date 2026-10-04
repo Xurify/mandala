@@ -10,14 +10,15 @@ export const textArea =
 	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45]';
 
 export const button = tv({
-	base: `inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 py-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,scale] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
+	base: `relative isolate inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 bg-transparent py-0 font-sans font-[560] [font-synthesis:none] tracking-[-0.005em] whitespace-nowrap no-underline transition-[color,scale] duration-150 ease-ui scale-100 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-full before:transition-[background-color] before:duration-150 before:ease-ui`,
 	variants: {
 		variant: {
-			primary: 'bg-accent text-on-accent shadow-press hover:bg-accent-hover focus-visible:bg-accent-hover',
-			soft: 'bg-soft text-text hover:bg-soft-hover focus-visible:bg-soft-hover',
-			ghost: 'bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text dark:hover:bg-soft dark:focus-visible:bg-soft',
-			danger:
-				'bg-transparent text-danger hover:bg-danger-wash focus-visible:bg-danger-wash'
+			primary:
+				'text-on-accent before:bg-accent before:shadow-press hover:before:bg-accent-hover focus-visible:before:bg-accent-hover',
+			soft: 'text-text before:bg-soft hover:before:bg-soft-hover focus-visible:before:bg-soft-hover',
+			ghost:
+				'text-muted hover:text-text focus-visible:text-text before:bg-transparent hover:before:bg-sunken focus-visible:before:bg-sunken dark:hover:before:bg-soft dark:focus-visible:before:bg-soft',
+			danger: 'text-danger hover:before:bg-danger-wash focus-visible:before:bg-danger-wash'
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]/none',

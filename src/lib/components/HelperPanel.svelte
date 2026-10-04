@@ -83,7 +83,7 @@
 		const card = message.card;
 		if (!card) return '';
 		if (card.kind === 'chart') return 'Use this chart';
-		if (card.kind === 'cells') return card.edits.length === 1 ? 'Use it' : 'Use these';
+		if (card.kind === 'cells') return card.edits.length === 1 ? 'Change this line' : 'Change these lines';
 		if (card.kind === 'picks') return card.scope === 'today' ? "Pick today's three" : 'Plan this week';
 		if (card.kind === 'findings') return 'Rewrite them';
 		if (card.kind === 'download') return 'Download';

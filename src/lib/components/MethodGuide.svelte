@@ -119,7 +119,7 @@
 		<li>Around each pillar, write eight concrete actions or habits. That is 64.</li>
 	</ol>
 	<p class="mb-2.5">
-		Empty cells are holes in the plan. Leave them empty until you know what belongs there.
+		Empty lines are holes in the plan. Leave them empty until you know what belongs there.
 	</p>
 	<p class="mb-2.5">
 		One chart is one direction. Keep a separate chart for each real aim, and switch between them.
@@ -129,7 +129,7 @@
 	<p class="mb-2.5">Every pillar and every action has to pass both.</p>
 	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
 		<li>
-			<strong>You can tick it.</strong> Done, or not done. “Study for 20 minutes” passes. “Do better”
+			<strong>It can be marked done.</strong> Done, or not done. “Study for 20 minutes” passes. “Do better”
 			fails, because it never ends.
 		</li>
 		<li>

@@ -380,7 +380,7 @@
 		<div class="mb-4">
 			<Notice>
 				{#snippet children()}
-					Want help naming the pillars?
+					Suggest pillars for this goal?
 				{/snippet}
 				{#snippet action()}
 					<Button size="sm" variant="soft" onclick={() => (haradaOpen = true)}>
@@ -569,7 +569,7 @@
 				class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
 				onclick={() => (haradaOpen = true)}
 			>
-				Help naming the pillars
+				Suggest pillars
 			</button>
 		</li>
 	</ul>

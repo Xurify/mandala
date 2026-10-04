@@ -231,9 +231,9 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	return null;
 }
 
-export async function answer(data: ChartData, question: string): Promise<string> {
+export async function answer(data: ChartData, question: string, history: readonly ChatMessage[] = []): Promise<string> {
 	onProgress('Thinking.');
-	return (await complete(askMessages(data, question), { maxTokens: 120, temperature: 0.6 })).trim();
+	return (await complete(askMessages(data, question, history), { maxTokens: 180, temperature: 0.6 })).trim();
 }
 
 /** Goal and eight pillars, with the actions still empty. */

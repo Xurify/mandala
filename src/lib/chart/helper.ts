@@ -53,14 +53,24 @@ export function chartAnswersFromText(direction: string, extra: string): ChartAns
 	return answers;
 }
 
+const TODAY_COMMAND = /\b(?:pick\s+today(?:'s)?(?:\s+three)?|today(?:'s)?\s+three|three\s+for\s+today)\b/i;
+const WEEK_COMMAND = /\b(?:plan\s+(?:this\s+|the\s+)?week|this\s+week's\s+plan|picks?\s+for\s+the\s+week)\b/i;
+const REVIEW_COMMAND =
+	/\b(?:review(?:\s+(?:my|this|the))?\s+chart|check(?:\s+(?:my|this|the))?\s+chart|tighten(?:\s+(?:my|this|the))?\s+chart|audit(?:\s+(?:my|this|the))?\s+chart|feedback\s+on\s+(?:my|this|the)\s+chart)\b/i;
+const FILL_COMMAND = /\b(?:fill(?:\s+(?:the|all|my))?\s+(?:blanks?|empty|missing)|finish\s+the\s+chart|suggest\s+pillars)\b/i;
+const DRAFT_COMMAND =
+	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over)\b/i;
+const QUESTION_PATTERNS = /\?$|^(?:how|why|what|when|where|who|which|can you explain|could you explain|is it|are there|tell me about)\b/i;
+
 export function intentOf(text: string): HelperIntent {
 	if (parseDraftText(text)) return 'chart';
-	const value = text.toLowerCase();
-	if (/\b(today|tonight|this morning|three for)\b/.test(value)) return 'today';
-	if (/\b(this week|week|weekly)\b/.test(value)) return 'week';
-	if (/\b(review|check|weak|tighten|improve|critique|feedback)\b/.test(value)) return 'review';
-	if (/\b(fill|blank|blanks|empty|missing|finish the)\b/.test(value)) return 'fill';
-	if (/\b(new chart|start a chart|draft|from scratch|write a chart|make a chart|start over)\b/.test(value)) return 'draft';
+	const trimmed = text.trim();
+	if (QUESTION_PATTERNS.test(trimmed)) return 'ask';
+	if (TODAY_COMMAND.test(trimmed)) return 'today';
+	if (WEEK_COMMAND.test(trimmed)) return 'week';
+	if (REVIEW_COMMAND.test(trimmed)) return 'review';
+	if (FILL_COMMAND.test(trimmed)) return 'fill';
+	if (DRAFT_COMMAND.test(trimmed)) return 'draft';
 	return 'ask';
 }
 
@@ -73,12 +83,17 @@ export function isHelpRequest(text: string): boolean {
 }
 
 const AIM_FRAME =
-	/^(?:please\s+)?(?:can you help me\s+|could you help me\s+|help me\s+|i want to\s+|i wanna\s+|i'd like to\s+|i would like to\s+|i need to\s+|i want\s+)(.+)$/i;
+	/^(?:please\s+)?(?:can you help me\s+|could you help me\s+|help me\s+|i want to\s+|i wanna\s+|i'd like to\s+|i would like to\s+|i need to\s+|i want\s+|i am thinking of\s+|i'm thinking of\s+|i am thinking about\s+|i'm thinking about\s+|thinking of\s+|thinking about\s+|my goal is to\s+|my goal is\s+|let's make a chart for\s+|make a chart for\s+|can we make a chart for\s+|can we start a chart for\s+|start a chart for\s+|let's go with\s+|let's do\s+|i'll go with\s+|i will go with\s+|i choose\s+|i pick\s+)(.+)$/i;
+
+const COMPARISON_OR_INDECISION =
+	/\b(?:which|and\/or|\bor\b|should i|decide between|choose between|not sure which|versus|vs\.?)\b/i;
 
 /** A new direction, when the line is not already a job and is not the current goal. */
 export function aimOf(text: string, data: ChartData): string | null {
 	if (intentOf(text) !== 'ask' || isHelpRequest(text)) return null;
-	const match = text.replace(/\s+/g, ' ').trim().match(AIM_FRAME);
+	const trimmed = text.replace(/\s+/g, ' ').trim();
+	if (COMPARISON_OR_INDECISION.test(trimmed)) return null;
+	const match = trimmed.match(AIM_FRAME);
 	if (!match?.[1]) return null;
 	const aim = match[1]
 		.replace(/[,.]?\s+but\b[\s\S]*$/i, '')
@@ -89,6 +104,12 @@ export function aimOf(text: string, data: ChartData): string | null {
 	const goal = data.goal.trim();
 	if (goal && norm(aim) === norm(goal)) return null;
 	return aim;
+}
+
+const PILLAR_ACTION_FRAME = /\b(?:fill|finish|complete|write|suggest\s+actions?\s+for|work\s+on|focus\s+on)\b/i;
+
+export function isPillarActionRequest(text: string): boolean {
+	return PILLAR_ACTION_FRAME.test(text);
 }
 
 function escapeRegExp(value: string): string {
@@ -534,19 +555,31 @@ export function chartContext(data: ChartData): string {
 	return lines.join('\n');
 }
 
-export function askMessages(data: ChartData, question: string): ChatMessage[] {
+export function askMessages(data: ChartData, question: string, history: readonly ChatMessage[] = []): ChatMessage[] {
+	const hasGoal = filled(data.goal);
+	const contextLines = hasGoal
+		? ['Current chart (reference context when relevant):', chartContext(data)]
+		: ['The current chart has no goal set.'];
+
+	const systemPrompt = [
+		'You are Bindu, a calm, grounded companion inside Mandala, a goal chart app based on the Mandala Method (one center goal, eight pillars, eight actions each).',
+		'Voice and tone: Short, warm, plain words. Two to three sentences. No emoji, no bullet lists unless asked, no empty cheerleading or motivational clichés (like "Stay consistent and you\'ll succeed").',
+		'Mandala Method principles:',
+		'- One chart holds one center goal. If someone is weighing multiple different goals (such as two different languages or unrelated projects), explain that each chart focuses on one direction to keep focus clear, and advise picking one primary goal per chart or creating separate charts for each.',
+		'- Day to day: People pick three actions for today across different pillars. They do not try to tackle all eight pillars every day.',
+		'- Pillars are the eight drivers that make the goal happen. Actions are tickable behaviors the person directly controls (calendar and control tests).',
+		'Conversational guidelines:',
+		'- If the user asks about their current chart, actions, or progress, use the reference chart below.',
+		'- If the user wants to brainstorm, explore a new ambition, or decide between goals, discuss it thoughtfully. Never say a topic is "outside the chart\'s scope" or that you can only talk about the current chart.',
+		'- When they settle on a goal or want to start fresh, invite them to sketch or start a new chart.',
+		'',
+		...contextLines
+	].join('\n');
+
 	return [
-		{
-			role: 'system',
-			content: [
-				'You are Bindu, a calm helper inside Mandala, a goal chart: one goal, eight pillars, eight actions each.',
-				'Answer in two short sentences, in plain words, about this chart. No lists, no emoji, no offer to help in general.',
-				'Do not invent actions that are not already on the chart. If they need something written, the app will offer that. You only talk.',
-				'',
-				chartContext(data)
-			].join('\n')
-		},
-		{ role: 'user', content: question.slice(0, 400) }
+		{ role: 'system', content: systemPrompt },
+		...history,
+		{ role: 'user', content: question.slice(0, 600) }
 	];
 }
 
@@ -588,13 +621,13 @@ export function chipsFor(data: ChartData, preferredPillar: number | null = null)
 		chips.push(jobChip('week', 'Plan this week'));
 		chips.push(jobChip('today', "Pick today's three"));
 	}
-	chips.push(jobChip('draft', 'New chart'));
+	chips.push(jobChip('draft', 'Start a chart'));
 	return chips;
 }
 
 export function offerChips(): HelperChip[] {
 	return [
-		{ label: 'Sketch this chart', act: { kind: 'sketch' } },
+		{ label: 'Sketch the new one', act: { kind: 'sketch' } },
 		{ label: 'Stay on this chart', act: { kind: 'dismiss' } }
 	];
 }
@@ -604,8 +637,8 @@ export function helpChips(): HelperChip[] {
 }
 
 export function extraChips(sketch: boolean): HelperChip[] {
-	const chips: HelperChip[] = [{ label: 'Go', act: { kind: 'send', text: 'go' } }];
-	if (sketch) chips.push({ label: 'Try again', act: { kind: 'sketch' } });
+	const chips: HelperChip[] = [{ label: 'Write the actions', act: { kind: 'send', text: 'go' } }];
+	if (sketch) chips.push({ label: 'Rename the pillars', act: { kind: 'sketch' } });
 	return chips;
 }
 

@@ -147,7 +147,7 @@ describe('facts, faults, and the prompts', () => {
 
 	it('asks for a behaviour and does not hand the failure back', () => {
 		const data = sample();
-		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'This cannot be ticked. Write the session, not the wish.', code: 'untickable' });
+		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'This cannot be marked done. Write the session, not the wish.', code: 'untickable' });
 		const joined = messages.map((message) => message.content).join('\n');
 		expect(joined).toContain('Block 25 minutes after lunch');
 		expect(joined).not.toContain('Hard to tick');
@@ -307,10 +307,10 @@ describe('pillarMentioned', () => {
 
 describe('turn chips', () => {
 	it('offers sketch or stay, help on a full chart, and go after a sketch', () => {
-		expect(offerChips().map((chip) => chip.label)).toEqual(['Sketch this chart', 'Stay on this chart']);
+		expect(offerChips().map((chip) => chip.label)).toEqual(['Sketch the new one', 'Stay on this chart']);
 		expect(helpChips().map(chipJob)).toEqual(['today', 'review']);
-		expect(extraChips(true).map((chip) => chip.label)).toEqual(['Go', 'Try again']);
-		expect(extraChips(false).map((chip) => chip.label)).toEqual(['Go']);
+		expect(extraChips(true).map((chip) => chip.label)).toEqual(['Write the actions', 'Rename the pillars']);
+		expect(extraChips(false).map((chip) => chip.label)).toEqual(['Write the actions']);
 	});
 });
 
