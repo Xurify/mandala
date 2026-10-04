@@ -15,6 +15,7 @@ import {
 	helpChips,
 	intentOf,
 	isHelpRequest,
+	isPillarActionRequest,
 	keptLines,
 	lineFault,
 	offerChips,
@@ -70,6 +71,14 @@ describe('intentOf', () => {
 	it('spots a pasted chart', () => {
 		const data = sample();
 		expect(intentOf(JSON.stringify({ goal: data.goal, pillars: data.pillars, actions: data.actions }))).toBe('chart');
+	});
+
+	it('does not hijack conversational questions containing keywords', () => {
+		expect(intentOf('Why did you pick this for today?')).toBe('ask');
+		expect(intentOf('How do I review a chart?')).toBe('ask');
+		expect(intentOf('What if a pillar is weak?')).toBe('ask');
+		expect(intentOf('How should I plan my week?')).toBe('ask');
+		expect(intentOf('I was sick last week')).toBe('ask');
 	});
 });
 
@@ -288,6 +297,19 @@ describe('aimOf', () => {
 		expect(aimOf('I want to learn Slovak, but I am not sure how', sample())).toBe('learn Slovak');
 	});
 
+	it('recognizes various phrasing for new directions', () => {
+		expect(aimOf("I'm thinking of learning Slovak", sample())).toBe('learning Slovak');
+		expect(aimOf('Thinking about learning Slovak', sample())).toBe('learning Slovak');
+		expect(aimOf("Let's go with Slovak", sample())).toBe('Slovak');
+		expect(aimOf('My goal is to learn Slovak', sample())).toBe('learn Slovak');
+	});
+
+	it('leaves comparison and indecision for conversational exploration', () => {
+		expect(aimOf("I am thinking of learning Slovak and/or Russian, but I'm not sure which goal to pick", sample())).toBeNull();
+		expect(aimOf('Should I learn Slovak or Russian?', sample())).toBeNull();
+		expect(aimOf('Not sure whether to pick Slovak or Russian', sample())).toBeNull();
+	});
+
 	it('leaves a question about the chart, and a bare ask for help', () => {
 		expect(aimOf('Why does a pillar need eight actions?', sample())).toBeNull();
 		expect(isHelpRequest('Can you help me?')).toBe(true);
@@ -296,6 +318,16 @@ describe('aimOf', () => {
 
 	it('does not repeat the current goal', () => {
 		expect(aimOf('I want to finish a half marathon this October', sample())).toBeNull();
+	});
+});
+
+describe('isPillarActionRequest', () => {
+	it('identifies explicit action requests vs conversational questions', () => {
+		expect(isPillarActionRequest('Fill Sleep')).toBe(true);
+		expect(isPillarActionRequest('Suggest actions for Easy runs')).toBe(true);
+		expect(isPillarActionRequest('Work on Strength')).toBe(true);
+		expect(isPillarActionRequest('How do I practice the long run?')).toBe(false);
+		expect(isPillarActionRequest('How much sleep do you recommend?')).toBe(false);
 	});
 });
 
@@ -330,5 +362,19 @@ describe('cell prompts', () => {
 		expect(actions).not.toContain('three to seven');
 		expect(actions).toContain('listen to spanish for 15 minutes');
 		expect(askMessages(sample(), 'hello').map((message) => message.content).join('\n').toLowerCase()).not.toContain('fill the blanks');
+	});
+
+	it('includes reference context and multi-turn history in askMessages', () => {
+		const history = [
+			{ role: 'user' as const, content: 'What is Slovak?' },
+			{ role: 'assistant' as const, content: 'A Slavic language.' }
+		];
+		const messages = askMessages(sample(), 'Should I learn it?', history);
+		expect(messages[0]?.role).toBe('system');
+		expect(messages[0]?.content).toContain('Mandala Method');
+		expect(messages[0]?.content).toContain('Current chart');
+		expect(messages[1]).toEqual(history[0]);
+		expect(messages[2]).toEqual(history[1]);
+		expect(messages[3]?.content).toBe('Should I learn it?');
 	});
 });

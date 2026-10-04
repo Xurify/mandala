@@ -35,12 +35,12 @@ export type FillPlan = { kind: 'pillars'; empty: number[] } | { kind: 'actions';
 
 export const DRAFT_QUESTIONS = [
 	'What is the goal? One line is enough.',
-	'Anything that would change the plan? A date, how much time you have. Or say go.'
+	'Anything that would change the plan? A date, how much time you have, or write the actions.'
 ] as const;
 
 const TIMELINE =
 	/\b(?:by|before|within|in)\s+((?:\d+|a|one|two|three|six|twelve)\s+(?:days?|weeks?|months?|years?)|(?:the end of )?(?:january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|fall|winter|next year|the year)(?:\s+\d{4})?|\d{4})\b/i;
-const SKIP = /^(go|skip|no|nope|nothing|none|just write it|write it|that's it|thats it|-)\.?$/i;
+const SKIP = /^(go|skip|no|nope|nothing|none|just write it|write it|that's it|thats it|write the actions|-)\.?$/i;
 
 export function chartAnswersFromText(direction: string, extra: string): ChartAnswers {
 	const answers = emptyChartAnswers();
@@ -567,11 +567,11 @@ export function askMessages(data: ChartData, question: string, history: readonly
 		'Mandala Method principles:',
 		'- One chart holds one center goal. If someone is weighing multiple different goals (such as two different languages or unrelated projects), explain that each chart focuses on one direction to keep focus clear, and advise picking one primary goal per chart or creating separate charts for each.',
 		'- Day to day: People pick three actions for today across different pillars. They do not try to tackle all eight pillars every day.',
-		'- Pillars are the eight drivers that make the goal happen. Actions are tickable behaviors the person directly controls (calendar and control tests).',
+		'- Pillars are the eight drivers that make the goal happen. Actions are behaviors the person directly controls that can be marked done (calendar and control tests).',
 		'Conversational guidelines:',
 		'- If the user asks about their current chart, actions, or progress, use the reference chart below.',
 		'- If the user wants to brainstorm, explore a new ambition, or decide between goals, discuss it thoughtfully. Never say a topic is "outside the chart\'s scope" or that you can only talk about the current chart.',
-		'- When they settle on a goal or want to start fresh, invite them to sketch or start a new chart.',
+		'- When they settle on a goal or want to start fresh, invite them to sketch or start a chart.',
 		'',
 		...contextLines
 	].join('\n');

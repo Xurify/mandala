@@ -156,7 +156,7 @@ export class HelperStore {
 
 	get placeholder(): string {
 		if (this.step === 'direction') return 'Run a half marathon, learn Spanish…';
-		if (this.step === 'extra') return 'A date, how much time you have, or say go';
+		if (this.step === 'extra') return 'A date, how much time you have, or write the actions';
 		return 'Ask, or say what you need';
 	}
 
