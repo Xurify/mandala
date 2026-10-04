@@ -5,95 +5,95 @@ export const career: Preset = {
 	title: 'Career',
 	goal: 'Land a senior role in your field within 9 months',
 	pillars: [
-		'Core skills',
-		'Portfolio',
+		'Senior skills',
+		'Proof of work',
 		'Visibility',
 		'Network',
-		'Mentors',
 		'Interview prep',
 		'Applications',
+		'Goodwill',
 		'Energy'
 	],
 	actions: [
 		[
-			'Block 45 minutes of skill work daily',
-			'Finish one tutorial chapter this week',
-			'Write notes after each practice block',
-			'Redo one weak exercise on Sunday',
-			'Watch one talk in your field weekly',
-			'Build a tiny demo for the new skill',
-			'Ask a peer to review one artefact',
-			'List 3 skill gaps after Friday'
+			'Block 45 minutes of skill work 4 days a week',
+			'Ask your manager what senior means here',
+			'Lead one project end to end this quarter',
+			'Write a one-page plan before a big decision',
+			'Pair with a junior colleague every week',
+			'Run one meeting with a written agenda',
+			'Read one book on your craft each month',
+			'List 3 skill gaps from senior job ads'
 		],
 		[
-			'Add one case to the portfolio this month',
-			'Write the problem in 3 lines',
-			'Ship a screenshot of the latest piece',
-			'Update the homepage this Sunday',
-			'Cut one stale project this month',
-			'Write a 1-line result under each piece',
-			'Ask two people to read the site',
-			'Fix broken links before Friday'
+			'Write up one project as a case study a month',
+			'Open each case with the problem in 3 lines',
+			'Add a measured result under each project',
+			'Save a screenshot or sample of each piece',
+			'Cut projects older than 5 years',
+			'Update your résumé the day a project ships',
+			'Ask two peers to read your portfolio',
+			'Collect one quote from a colleague a month'
 		],
 		[
-			'Publish one short post this week',
-			'Comment on 3 posts in your field',
-			'Speak for 5 minutes at the next meetup',
-			'Share a work note on Thursday',
-			'Update your public profile this month',
-			'Write a thread from one shipped piece',
-			'Reply to 5 comments the same day',
-			'List 2 topics for next month’s posts'
+			'Publish one short post every 2 weeks',
+			'Comment on 3 posts in your field weekly',
+			'Give a 5-minute talk at a meetup',
+			'Share one work note with your team monthly',
+			'Rewrite your public profile headline',
+			'Answer one question in a forum each week',
+			'Reply to comments within a day',
+			'Volunteer to present at the team review'
 		],
 		[
-			'Ask one senior peer for 20 minutes this week',
-			'Send 3 follow-up notes after events',
-			'Attend one meetup this month',
-			'Introduce two people who should meet',
-			'Keep a list of 12 people to stay close to',
-			'Coffee with one former colleague monthly',
-			'Reply to a hello within 24 hours',
-			'Write thank-you notes the same evening'
-		],
-		[
-			'Name two people you would ask for advice',
-			'Send one mentor request this month',
+			'Ask one senior peer for 20 minutes a week',
+			'Name 2 people you would ask for advice',
 			'Prepare 3 questions before each chat',
-			'Write 5 lines after every mentor call',
-			'Book the next call before you hang up',
-			'Share one win with your mentor monthly',
-			'Ask for one intro after a useful chat',
-			'Review mentor notes every Sunday'
+			'Follow up within 2 days after each chat',
+			'Attend one industry event a month',
+			'Have coffee with a former colleague monthly',
+			'Keep a list of 20 people in your field',
+			'Ask for one intro at the end of a good chat'
 		],
 		[
 			'Write 8 stories from past work',
-			'Time a 2-minute pitch this week',
-			'Record one mock answer on Thursday',
-			'List 10 likely questions tonight',
-			'Practice with a friend this weekend',
-			'Read your stories out loud twice',
-			'Note 3 questions you will ask them',
-			'Revise weak answers on Sunday'
+			'Shape each story as problem, action, result',
+			'List 10 likely questions for your level',
+			'Time a 2-minute pitch about yourself',
+			'Record one mock answer a week',
+			'Do a mock interview with a friend monthly',
+			'Prepare 3 questions to ask each company',
+			'Rewrite your weakest answer each week'
 		],
 		[
-			'Send 3 applications every Friday',
-			'Keep a tracker of every role you send',
-			'Tailor the first paragraph each time',
-			'Set aside 90 minutes on Tuesday',
-			'Ask a peer to read one letter',
+			'Shortlist 5 roles each week',
+			'Send 3 tailored applications every Friday',
+			'Track every role in one spreadsheet',
+			'Rewrite the first paragraph for each role',
+			'Ask for a referral on one role a week',
 			'Follow up 7 days after you apply',
-			'Stop after 5 roles if none fit',
-			'Shortlist 8 roles on Sunday night'
+			'Block 90 minutes on Tuesday to apply',
+			'Review replies monthly and adjust your résumé'
 		],
 		[
-			'Stop work at the time you set',
-			'Walk 15 minutes after a deep block',
-			'Sleep 7 hours before an interview day',
-			'Keep one evening meeting-free',
-			'Eat lunch away from the desk',
-			'Skip extra applications after 9 p.m.',
-			'Book one rest morning this month',
-			'Write a shutdown list at 5:30'
+			'Introduce two people who should meet',
+			'Thank one person for their help each week',
+			'Write a recommendation for a colleague',
+			'Pass a job lead on to someone else',
+			'Review a peer’s work the day they ask',
+			'Congratulate one person on a new role',
+			'Send a thank-you note after each interview',
+			'Answer every recruiter, even with a no'
+		],
+		[
+			'Stop work by 6 p.m. on weekdays',
+			'Write a shutdown list at 5:30',
+			'Walk 15 minutes after lunch',
+			'Sleep 7 hours before an interview',
+			'Keep one weeknight free of job search',
+			'Take one full day off each month',
+			'Eat lunch away from your desk',
+			'Cap the job search at 5 hours a week'
 		]
 	]
 };

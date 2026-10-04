@@ -1,12 +1,14 @@
 import { emptyChart, type ChartData } from '../model.ts';
 import { career } from './career.ts';
 import { fitness } from './fitness.ts';
-import { habits } from './habits.ts';
 import { health } from './health.ts';
 import { language } from './language.ts';
 import { money } from './money.ts';
+import { music } from './music.ts';
 import { relationships } from './relationships.ts';
 import { sideProject } from './side-project.ts';
+import { study } from './study.ts';
+import { writing } from './writing.ts';
 
 export type Eight<T> = readonly [T, T, T, T, T, T, T, T];
 
@@ -15,10 +17,12 @@ export type PresetId =
 	| 'fitness'
 	| 'career'
 	| 'money'
-	| 'habits'
+	| 'study'
 	| 'side-project'
 	| 'health'
-	| 'relationships';
+	| 'relationships'
+	| 'writing'
+	| 'music';
 
 export type Preset = {
 	id: PresetId;
@@ -35,10 +39,12 @@ export const PRESETS: readonly Preset[] = [
 	fitness,
 	career,
 	money,
-	habits,
+	study,
 	sideProject,
 	health,
-	relationships
+	relationships,
+	writing,
+	music
 ];
 
 export function listPresets(): readonly PresetSummary[] {

@@ -7,8 +7,8 @@ export const relationships: Preset = {
 	pillars: [
 		'Family',
 		'Close friends',
-		'Partner or dating',
-		'New people',
+		'Partner',
+		'New friends',
 		'Community',
 		'Staying in touch',
 		'Listening',
@@ -16,84 +16,84 @@ export const relationships: Preset = {
 	],
 	actions: [
 		[
-			'Call a family member on Sunday',
-			'Put one family meal on the calendar',
-			'Send a photo from your week',
-			'Visit in person once this month',
-			'Write a short note, not only a text',
-			'Ask how their week actually went',
-			'Remember one date that matters',
-			'Help with one practical task this month'
+			'Call a parent or sibling every Sunday',
+			'Put one family meal on the calendar monthly',
+			'Send a photo from your week on Fridays',
+			'Visit in person once a month',
+			'Mail a handwritten note this month',
+			'Ask about one thing they mentioned last time',
+			'Help with one practical task a month',
+			'Plan one family outing this season'
 		],
 		[
-			'Put one friend dinner on the calendar',
-			'Text a friend a specific day, not soon',
-			'Walk with a friend this week',
-			'Reply to a delayed message today',
+			'Book a dinner with a friend every week',
+			'Suggest a specific day, not “soon”',
+			'Walk with a friend on Saturday mornings',
+			'Show up for one thing a friend cares about',
+			'Keep a list of 6 friends to see in turn',
+			'Make the next plan before you part',
 			'Share one honest update, not a highlight',
-			'Show up for one thing they care about',
-			'Keep a list of 6 friends to see',
-			'Make the next plan before you leave'
+			'Start a standing monthly game night'
 		],
 		[
-			'Plan one date or quiet evening weekly',
-			'Put phones away for 30 minutes',
-			'Ask one open question after dinner',
-			'Write a short note they will find',
-			'Book the next outing before the week ends',
-			'Do one small kindness without being asked',
-			'Say the thing you appreciated today',
-			'Protect one evening from extra plans'
+			'Plan one date night a week',
+			'Put phones away at dinner',
+			'Ask one open question at dinner',
+			'Leave a short note for them to find',
+			'Do one of their chores unasked',
+			'Say one thing you appreciated each day',
+			'Book a weekend away this season',
+			'Talk through the week every Sunday night'
 		],
 		[
-			'Speak first at one gathering this month',
-			'Ask someone’s name and use it',
-			'Go to one event you would usually skip',
+			'Go to one event you’d usually skip',
+			'Use a new person’s name twice as you talk',
 			'Follow up within 2 days after you meet',
-			'Invite one new person for coffee',
-			'Join a group that meets twice a month',
-			'Stay 15 minutes longer than feels easy',
-			'Write 3 names from people you met'
+			'Invite one new person for coffee a month',
+			'Join a class or club that meets weekly',
+			'Stay 15 minutes after the event ends',
+			'Write down names and one detail after events',
+			'Say yes to the next invite you get'
 		],
 		[
-			'Attend one regular meetup this month',
-			'Volunteer for a 2-hour shift',
-			'Learn two names at the next session',
+			'Attend one regular meetup a month',
+			'Volunteer for a 2-hour shift monthly',
 			'Offer to help set up or pack down',
-			'Bring one person with you once',
-			'Read the group note before you go',
-			'Stay for the informal bit after',
-			'Put the next date on the calendar'
+			'Bring a friend along once',
+			'Greet your neighbors by name',
+			'Join a neighborhood group chat',
+			'Go to the same local café every week',
+			'Put the next session on the calendar'
 		],
 		[
-			'Send 3 short check-ins on Friday',
-			'Reply the same day when you can',
-			'Keep birthdays on a paper list',
-			'Voice note instead of a delayed text',
-			'Reach out to one quiet friend monthly',
-			'Update your address book this month',
-			'Write when you will next talk',
-			'Do not leave chats on read overnight'
+			'Send 3 short check-ins every Friday',
+			'Reply to messages within a day',
+			'Keep birthdays in a calendar with reminders',
+			'Send a voice note instead of a late text',
+			'Reconnect with one old friend a month',
+			'Video call a far-away friend monthly',
+			'Update your contacts this month',
+			'Note when you’ll talk next after each call'
 		],
 		[
-			'Let them finish before you answer',
+			'Put the phone face down when they talk',
 			'Repeat back one thing you heard',
-			'Ask a second question, not advice',
-			'Put the phone face down while they talk',
-			'Notice their tone, not only the words',
-			'Sit somewhere quiet for hard talks',
-			'Write what they asked you to remember',
-			'Check you understood before you leave'
+			'Ask a follow-up question before advice',
+			'Ask, “Do you want advice or an ear?”',
+			'Pick a quiet place for hard talks',
+			'Note what they asked you to remember',
+			'Follow up on it within a week',
+			'Sum up their view before giving yours'
 		],
 		[
 			'Invite two people over this month',
 			'Pick a simple meal, not a feast',
 			'Send the time and address 3 days ahead',
 			'Set the table before they arrive',
-			'Ask each guest one question you prepared',
-			'Play quiet music, keep lights warm',
-			'Walk someone to the door at the end',
-			'Send a thank-you the next morning'
+			'Prepare one question for each guest',
+			'Introduce guests who haven’t met',
+			'Walk each guest to the door',
+			'Text a thank-you the next morning'
 		]
 	]
 };

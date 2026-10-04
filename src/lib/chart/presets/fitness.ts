@@ -3,97 +3,97 @@ import type { Preset } from './index.ts';
 export const fitness: Preset = {
 	id: 'fitness',
 	title: 'Fitness',
-	goal: 'Run a half marathon in under 2:00 by October',
+	goal: 'Run a half marathon in under 2:00 within 16 weeks',
 	pillars: [
 		'Training plan',
-		'Speed',
-		'Endurance',
+		'Easy miles',
+		'Long runs',
+		'Speed work',
+		'Strength',
 		'Recovery',
-		'Nutrition',
-		'Gear',
-		'Mindset',
-		'Schedule'
+		'Fuel',
+		'Race day'
 	],
 	actions: [
 		[
 			'Print a 16-week plan',
+			'Put the week’s four runs on the calendar',
 			'Log every run the same day',
-			'Run four days this week',
-			'Copy next week onto the plan',
-			'Tick finished runs on Sunday',
-			'Open the plan before you leave',
-			'Reschedule a miss within 2 days',
-			'Keep Wednesday slower than Tuesday'
+			'Reschedule a missed run within 2 days',
+			'Cut weekly distance by a third every 4th week',
+			'Tell a friend your run days for the week',
+			'Lay out run kit the night before',
+			'Check progress with a 10K in week 8'
 		],
 		[
-			'Run 6×400 m on Tuesday',
-			'Run a 20-minute tempo Thursday',
-			"Do 6 strides after Friday's run",
-			'Check 5:41/km before speed work',
-			'Enter a 10K for week 8',
-			'Stop the session if form breaks',
-			"Write Tuesday's splits in the log",
-			'Warm up 10 minutes before intervals'
+			'Run 3 easy runs a week at 6:30/km or slower',
+			'Run Thursday and Saturday before 9 a.m.',
+			'Add 5 minutes to one easy run each week',
+			'Finish easy runs with 4 relaxed strides',
+			'Run one easy run a week on a soft trail',
+			'Walk the first 5 minutes as a warm-up',
+			'Wear a heart-rate strap on one easy run',
+			'Swap a missed run for a 20-minute jog'
 		],
 		[
-			"Add 1 km to Sunday's long run",
-			'Shorten the long run every 4th week',
-			'Take a gel on runs over 14 km',
-			'Complete one 18 km long run',
-			'Check you can talk at km 5',
+			'Add 1 km to Sunday’s long run',
+			'Build the long run to 18 km by week 13',
+			'Run the last 3 km of a long run at race pace',
+			'Plan a long-run route with water stops',
 			'Start the long run before 9 a.m.',
-			'Walk 5 minutes after the long run',
-			'Build Sunday to 90 minutes'
+			'Run one long run on the race course',
+			'Walk 10 minutes after each long run',
+			'Run one long run a month with a friend'
 		],
 		[
-			'Sleep 7 hours before a run day',
-			'Stretch 10 minutes after each run',
+			'Run 6×400 m on Tuesdays in odd weeks',
+			'Run a 20-minute tempo on even Tuesdays',
+			'Warm up 10 minutes before every workout',
+			'Run 3 km at race pace, 5:40/km',
+			'Write each workout’s splits in the log',
+			'Cool down 10 minutes after each workout',
+			'Run 6×1-minute hill repeats in week 5',
+			'Add one 400 every 2 weeks'
+		],
+		[
+			'Do 20 minutes of strength twice a week',
+			'Do 3 sets of single-leg squats',
+			'Do calf raises while you brush your teeth',
+			'Hold a 1-minute plank after easy runs',
+			'Do glute bridges before Tuesday’s workout',
+			'Book one session with a physio or coach',
+			'Do 5 minutes of hip mobility at night',
+			'Drop strength to once a week in the taper'
+		],
+		[
 			'Take Monday fully off',
+			'Be in bed by 10:30 before workouts',
 			'Foam-roll 10 minutes twice a week',
-			'Lights out by 10:30 on run nights',
-			'Legs up for 10 minutes after Sunday',
-			'Skip speed work after a short night',
-			'Nap 20 minutes after the long run'
+			'Stretch calves and hips after each run',
+			'Legs up the wall 10 minutes after Sunday',
+			'Run easy, not hard, after a short night',
+			'Rate soreness 1–5 in the log after runs',
+			'Book a sports massage in week 10'
 		],
 		[
-			'Eat protein at breakfast',
-			'Drink a glass of water each meal',
-			'Test one gel on each long run',
-			'Eat extra carbs two days pre-race',
-			'Eat within 30 minutes after Sunday',
-			'Pack the run snack the night before',
-			'Rehearse race breakfast on a Sunday',
-			'Eat nothing new on race morning'
+			'Eat protein at breakfast on run days',
+			'Drink 500 ml of water before long runs',
+			'Test one gel flavor on each long run',
+			'Take a gel every 40 minutes past the hour',
+			'Eat within 30 minutes of a long run',
+			'Rehearse race breakfast before a long run',
+			'Eat extra carbs 2 days before the race',
+			'Pack run snacks the night before'
 		],
 		[
-			'Get fitted for shoes this month',
-			'Log shoe kilometres after each run',
-			'Replace shoes at 600 km',
-			'Charge the watch on Sunday night',
-			'Pack the race bag the night before',
-			'Pin the bib on the night before',
+			'Register for the race this week',
+			'Get fitted for shoes by week 2',
+			'Log shoe kilometers and replace at 600',
 			'Wear the race outfit on a long run',
-			'Set the watch screen to pace'
-		],
-		[
-			'Read the goal out loud on Sunday',
-			'Picture the race for 5 minutes',
-			'Write a rain-day plan on Saturday',
-			'Write one win in the log on Sunday',
-			'Read your splits before you start',
-			'Review this chart for 10 minutes',
-			'Write one line after each run',
-			'Stick the goal on the fridge'
-		],
-		[
-			'Block the four runs this Sunday',
-			"Lay tomorrow's kit out tonight",
-			'Register for the October race',
-			'Text a friend your Sunday plan',
-			'Set an alarm for each run day',
-			'Protect the Tuesday slot from meetings',
-			'Leave 15 minutes early on Tuesday',
-			'Put race morning on the calendar'
+			'Write a pacing plan for each 5 km',
+			'Pack the bag and pin the bib 2 nights out',
+			'Write a rain-day plan the week before',
+			'Map the route to the start line'
 		]
 	]
 };

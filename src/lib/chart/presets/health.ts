@@ -3,97 +3,97 @@ import type { Preset } from './index.ts';
 export const health: Preset = {
 	id: 'health',
 	title: 'Health',
-	goal: 'Sleep 7 hours, eat well, and feel calmer within 6 months',
+	goal: 'Have steady energy all day within 6 months',
 	pillars: [
 		'Sleep',
+		'Morning light',
 		'Meals',
-		'Hydration',
 		'Movement',
+		'Caffeine and alcohol',
 		'Stress',
-		'Screens',
 		'Checkups',
-		'Wind-down'
+		'Evening screens'
 	],
 	actions: [
 		[
 			'Lights out by 11 on weeknights',
 			'Wake within 30 minutes of the same time',
-			'Keep the room dark and cool',
-			'No caffeine after 2 p.m.',
-			'Leave the phone outside the bedroom',
-			'Get up if you cannot sleep after 20 minutes',
-			'Note bedtime in a paper log',
-			'Protect 8 hours in bed before a work day'
+			'Buy blackout curtains or a sleep mask',
+			'Set the bedroom to about 65°F at night',
+			'Get up if you’re awake 20 minutes, then return',
+			'Write bed and wake times in a log',
+			'Set a wind-down alarm for 10:15',
+			'Keep naps under 20 minutes, before 3 p.m.'
 		],
 		[
-			'Eat breakfast sitting down',
-			'Put a vegetable on the lunch plate',
-			'Cook 2 simple dinners this week',
-			'Shop with a written list on Sunday',
-			'Eat fruit before you open snacks',
-			'Plate food in the kitchen, not the sofa',
-			'Stop eating 2 hours before bed',
-			'Pack tomorrow’s lunch tonight'
+			'Go outside within an hour of waking',
+			'Take a 10-minute walk before work',
+			'Open the blinds as soon as you get up',
+			'Eat breakfast by a window',
+			'Take one call a day while walking outside',
+			'Move your desk next to a window',
+			'Spend lunch outside 3 days a week',
+			'Use a light lamp on dark winter mornings'
 		],
 		[
-			'Fill a bottle after you wake',
-			'Drink a glass with each meal',
-			'Keep a cup on the desk you use',
-			'Tick 6 glasses on a paper strip',
-			'Take a bottle when you leave home',
-			'Drink water before a second coffee',
-			'Refill at lunch without fail',
-			'Empty the bottle before dinner'
+			'Eat breakfast with protein',
+			'Put a vegetable on lunch and dinner plates',
+			'Cook 3 simple dinners a week',
+			'Shop from a written list each weekend',
+			'Pack tomorrow’s lunch the night before',
+			'Keep fruit and nuts at your desk',
+			'Finish dinner 2 hours before bed',
+			'Drink a glass of water with each meal'
 		],
 		[
 			'Walk 20 minutes after lunch',
-			'Stand and stretch each hour',
-			'Take the stairs for 3 floors',
+			'Stand and stretch once an hour at work',
+			'Do a 15-minute strength video twice a week',
+			'Take the stairs up to 3 floors',
 			'Walk a short loop after dinner',
-			'Stretch 8 minutes before bed',
-			'Park farther and walk the rest',
-			'Do 10 slow squats while the kettle boils',
-			'Put shoes by the door at night'
+			'Get off one stop early and walk',
+			'Walk 7,000 steps on weekdays',
+			'Book one active plan each weekend'
+		],
+		[
+			'Have your last coffee before 1 p.m.',
+			'Cap coffee at 2 cups a day',
+			'Skip energy drinks for 30 days',
+			'Keep 4 alcohol-free nights a week',
+			'Stop alcohol 3 hours before bed',
+			'Alternate each drink with water when out',
+			'Track coffee and drinks on a paper strip',
+			'Stock herbal tea for evenings'
 		],
 		[
 			'Breathe slowly for 4 minutes at noon',
-			'Write 3 worries, then close the page',
-			'Step outside for 5 minutes when tense',
-			'Name one thing you can drop this week',
-			'Call a friend instead of scrolling',
-			'Sit quietly before you answer mail',
-			'Leave one meeting-free hour daily',
-			'Stop work at the time you wrote down'
+			'Write down worries, then close the notebook',
+			'Step outside for 5 minutes after hard meetings',
+			'Drop one commitment this month',
+			'Call a friend once a week',
+			'Keep one hour a day free of meetings',
+			'Stop work by 6 p.m. on weekdays',
+			'Book one thing to look forward to monthly'
+		],
+		[
+			'Book a physical this month',
+			'Ask about checking iron, B12, and thyroid',
+			'List symptoms and questions the night before',
+			'Bring a current medicine list',
+			'Book the dentist if it’s been a year',
+			'Book an eye exam this year',
+			'Keep results in one folder',
+			'Put the next checkup on the calendar'
 		],
 		[
 			'No screens in the last 45 minutes',
-			'Charge devices in another room',
-			'Turn off one extra notification tonight',
-			'Use greyscale after 9 p.m.',
-			'Leave the phone in a drawer at meals',
-			'Set an app timer for 30 minutes',
-			'Keep one evening with no video',
-			'Check mail at 3 set times only'
-		],
-		[
-			'Book a checkup this month',
-			'Write the date on the calendar',
-			'List questions the night before',
-			'Bring a current medicine list',
-			'Book the dentist if it is overdue',
-			'Pick up any forms the same week',
-			'Put results in one folder',
-			'Set a reminder for the next visit'
-		],
-		[
-			'Dim lights after dinner',
-			'Read paper pages for 10 minutes',
-			'Make tea and sit without a screen',
-			'Stretch on the floor before bed',
-			'Write tomorrow’s first task only',
-			'Wash up so morning is clear',
-			'Play quiet audio or none at all',
-			'Start the wind-down at a set clock time'
+			'Charge your phone outside the bedroom',
+			'Turn on grayscale after 9 p.m.',
+			'Turn off all but 5 app notifications',
+			'Set a 30-minute app limit after dinner',
+			'Read 10 paper pages before bed',
+			'Keep one evening a week with no shows',
+			'Wake to an alarm clock, not the phone'
 		]
 	]
 };

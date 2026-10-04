@@ -15,10 +15,12 @@ const PRESET_IDS: PresetId[] = [
 	'fitness',
 	'career',
 	'money',
-	'habits',
+	'study',
 	'side-project',
 	'health',
-	'relationships'
+	'relationships',
+	'writing',
+	'music'
 ];
 
 const LANGUAGE_LOCK =
@@ -29,9 +31,9 @@ function allActions(preset: (typeof PRESETS)[number]): string[] {
 }
 
 describe('presets', () => {
-	it('registers eight unique ids in the declared order', () => {
+	it('registers unique ids in the declared order', () => {
 		expect(PRESETS.map((preset) => preset.id)).toEqual(PRESET_IDS);
-		expect(new Set(PRESETS.map((preset) => preset.id)).size).toBe(8);
+		expect(new Set(PRESETS.map((preset) => preset.id)).size).toBe(PRESET_IDS.length);
 		expect(listPresets().map((summary) => summary.id)).toEqual(PRESET_IDS);
 	});
 

@@ -5,95 +5,95 @@ export const money: Preset = {
 	title: 'Money',
 	goal: 'Build a 3-month emergency fund within 12 months',
 	pillars: [
+		'Target',
 		'Budget',
-		'Spending',
-		'Savings',
-		'Debt',
-		'Income',
-		'Accounts',
-		'Bills',
-		'Money habits'
+		'Auto-save',
+		'Spending leaks',
+		'Fixed bills',
+		'Extra income',
+		'Windfalls',
+		'Weekly check-in'
 	],
 	actions: [
 		[
-			'Write next month’s budget on Sunday',
+			'Add up one month of essential costs',
+			'Multiply by 3 and write the target down',
+			'Split the target into 12 monthly amounts',
+			'Decide what counts as an emergency',
+			'Draw a progress bar and fill it in monthly',
+			'Recheck the target every 3 months',
+			'Tell one person your target date',
+			'Pick a first milestone of one month saved'
+		],
+		[
+			'Write next month’s budget on the 25th',
 			'List every recurring cost tonight',
-			'Cap eating out in the sheet',
-			'Review last week’s totals on Friday',
+			'Give every dollar a job before payday',
+			'Set a weekly cap for food and fun',
+			'Log spending in the sheet every evening',
 			'Keep one line for fun money',
-			'Update the sheet after each shop',
-			'Set a weekly check for 20 minutes',
-			'Print the budget and stick it up'
+			'Compare budget to actual at month end',
+			'Split yearly costs into monthly pieces'
 		],
 		[
-			'Track every purchase the same day',
-			'Wait 24 hours before a want',
+			'Open a separate savings account this week',
+			'Name the account “Emergency fund”',
+			'Set a transfer for the morning of payday',
+			'Start at 10% of each paycheck',
+			'Raise the transfer 1% every 3 months',
+			'Round up card purchases into savings',
+			'Take the savings card out of your wallet',
+			'Keep the fund at a different bank'
+		],
+		[
 			'Cancel one unused subscription today',
-			'Leave cards at home for one walk',
-			'Compare two prices before you buy',
-			'Skip one delivery this week',
-			'Pack lunch 4 days this week',
-			'Uninstall one shopping app tonight'
+			'Wait 48 hours before any want over $50',
+			'Pack lunch 4 days a week',
+			'Delete saved cards from shopping sites',
+			'Unsubscribe from 5 store emails',
+			'Cook at home 5 nights a week',
+			'Shop for groceries with a written list',
+			'Pay cash for eating out for one month'
 		],
 		[
-			'Move 10% of pay to savings on payday',
-			'Name the emergency account tonight',
-			'Raise the transfer by a small step',
-			'Check the savings balance on Sunday',
-			'Hide the savings card from your wallet',
-			'Set the transfer to happen the same day',
-			'Add leftover cash every Friday',
-			'Write the fund target on paper'
+			'List every bill with its due date',
+			'Call one provider a month for a lower rate',
+			'Compare insurance quotes this quarter',
+			'Switch to a cheaper phone plan',
+			'Set autopay for every fixed bill',
+			'Get one quote for cheaper energy',
+			'Set a reminder 3 days before each due date',
+			'Recheck every bill every 6 months'
 		],
 		[
-			'List every balance in one sheet',
-			'Pay more than the minimum this month',
-			'Pick one extra payment date',
-			'Call to ask about a lower rate',
-			'Stop new borrowing for 90 days',
-			'Tick each payment the day it leaves',
-			'Keep statements in one folder',
-			'Review the payoff order on Sunday'
+			'Ask for a raise review this quarter',
+			'List 3 skills someone would pay for',
+			'Sell 5 things you no longer use',
+			'Take one paid side task a month',
+			'Send invoices the day work ends',
+			'Track side income on its own line',
+			'Ask about paid overtime this month',
+			'Move all side income straight to the fund'
 		],
 		[
-			'Ask about extra hours this month',
-			'Send one invoice the day work ends',
-			'List 3 ways to add a little pay',
-			'Price a small side task this week',
-			'Update your rate card this month',
-			'Track hours for one week in a log',
-			'Pitch one extra piece of work',
-			'Put new pay into savings first'
+			'Save half of every tax refund',
+			'Move half of any bonus to the fund',
+			'Bank gift money the day it arrives',
+			'Save the amount each cut bill frees up',
+			'Deposit cash-back rewards monthly',
+			'Save the first month of any raise',
+			'Put loose cash in the fund every Friday',
+			'Save money back from returns the same day'
 		],
 		[
-			'Open a separate savings pocket this week',
-			'Turn on login alerts tonight',
-			'Close one unused account this month',
-			'Write where each account lives',
-			'Check fees on every account once',
-			'Store statements in one place',
-			'Change a weak password this weekend',
-			'Review account names on Sunday'
-		],
-		[
-			'Put every due date on the calendar',
-			'Pay bills the morning they arrive',
-			'Set a reminder 3 days before each due',
-			'Read one statement in full monthly',
-			'Query one surprise charge this week',
-			'Keep a buffer line in the budget',
-			'Photograph receipts you may need',
-			'Check next month’s bills on Sunday'
-		],
-		[
-			'Open the money sheet after breakfast',
-			'No money talk after 9 p.m.',
-			'Tell one person the savings goal',
-			'Write one money win each Sunday',
-			'Leave the shops if you feel rushed',
-			'Count cash on hand every Friday',
-			'Read the goal out loud on payday',
-			'Plan the week’s spend on Sunday'
+			'Check balances every Sunday for 15 minutes',
+			'Write one money win each week',
+			'Look at next week’s bills and plans',
+			'Plan the week’s spending in 5 minutes',
+			'Share progress with a partner or friend',
+			'Pick one leak to fix next week',
+			'Mark each $500 saved with a free treat',
+			'Move leftover budget to the fund'
 		]
 	]
 };
