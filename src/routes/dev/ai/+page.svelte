@@ -172,7 +172,7 @@
 	let question = $state('Which pillar should I start with?');
 	let reply = $state('');
 
-	let candidate = $state('0');
+	let candidate = $state('2');
 	type HoldoutRow = {
 		model: string;
 		direction: string;
@@ -270,7 +270,7 @@
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">AI features</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Everything Bindu can do, against a sandbox chart. Rules run instantly. Writing runs Qwen2.5 1.5B in this browser. Your
+				Everything Bindu can do, against a sandbox chart. Rules run instantly. Bindu writes with Qwen3 4B in this browser. Your
 				real charts are not touched here.
 			</p>
 		</div>

@@ -16,9 +16,17 @@ import {
 	type HelperFinding,
 	type LineReject
 } from './helper.ts';
+import { COACH_MODEL_ID } from './coach-model.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
-export const COACH_MODEL_ID = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
+export const COACH_CANDIDATES = [
+	{ id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B', thinking: false },
+	{ id: 'Qwen3-1.7B-q4f16_1-MLC', label: 'Qwen3 1.7B', thinking: false },
+	{ id: 'Qwen3-4B-q4f16_1-MLC', label: 'Qwen3 4B', thinking: false },
+	{ id: 'Qwen3-4B-q4f16_1-MLC', label: 'Qwen3 4B, thinking', thinking: true }
+] as const;
+
+const RETRY_TEMPERATURES = [0.2, 0.6, 0.9];
 
 export type CoachProgress = { text: string; ratio: number | null };
 
@@ -29,6 +37,8 @@ let ready = false;
 let loading: Promise<void> | null = null;
 let seq = 1;
 let lastStats = '';
+let activeModel = COACH_MODEL_ID;
+let thinking = false;
 
 function onProgress(text: string, ratio: number | null = null): void {
 	const update = { text, ratio };
@@ -58,7 +68,7 @@ function connect(): Worker {
 	worker.onmessage = (event: MessageEvent<CoachResponse>) => {
 		const message = event.data;
 		if (message.type === 'progress') {
-			onProgress(message.text, message.ratio ?? null);
+			onProgress(typeof message.text === 'string' ? message.text : '', message.ratio ?? null);
 			return;
 		}
 		const waiting = pending.get(message.id);
@@ -72,7 +82,9 @@ function connect(): Worker {
 	return worker;
 }
 
-function request(body: Omit<Extract<CoachRequest, { type: 'load' }>, 'id'> | Omit<Extract<CoachRequest, { type: 'complete' }>, 'id'>): Promise<string> {
+function request(
+	body: Omit<Extract<CoachRequest, { type: 'load' }>, 'id'> | Omit<Extract<CoachRequest, { type: 'complete' }>, 'id'>
+): Promise<string> {
 	const target = connect();
 	const id = seq++;
 	return new Promise((resolve, reject) => {
@@ -90,10 +102,22 @@ export function coachStats(): string {
 	return lastStats;
 }
 
-export function loadCoach(): Promise<void> {
-	if (ready) return Promise.resolve();
-	loading ??= request({ type: 'load', model: COACH_MODEL_ID })
+export function coachModel(): string {
+	return activeModel;
+}
+
+/** Loads `model` in the worker. Bindu keeps the default. The lab passes a candidate. */
+export function loadCoach(model = activeModel): Promise<void> {
+	if (ready && model === activeModel) return Promise.resolve();
+	const requested = model;
+	if (requested !== activeModel) {
+		ready = false;
+		loading = null;
+		activeModel = requested;
+	}
+	loading ??= request({ type: 'load', model: requested })
 		.then(() => {
+			if (activeModel !== requested) return;
 			ready = true;
 			onProgress('Coach is ready.');
 		})
@@ -104,18 +128,25 @@ export function loadCoach(): Promise<void> {
 	return loading;
 }
 
+export async function selectCoachModel(model: string, enableThinking = false): Promise<void> {
+	thinking = enableThinking;
+	await loadCoach(model);
+}
+
 export async function interruptCoach(): Promise<void> {
 	worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
 }
 
 async function complete(messages: ChatMessage[], options: { maxTokens?: number; temperature?: number } = {}): Promise<string> {
-	await loadCoach();
+	await loadCoach(activeModel);
+	const maxTokens = options.maxTokens ?? 512;
 	return request({
 		type: 'complete',
-		model: COACH_MODEL_ID,
+		model: activeModel,
 		messages,
-		maxTokens: options.maxTokens ?? 512,
-		temperature: options.temperature ?? 0.2
+		maxTokens: thinking ? Math.min(4096, Math.max(maxTokens * 8, 512)) : maxTokens,
+		temperature: options.temperature ?? 0.2,
+		thinking
 	});
 }
 
@@ -139,9 +170,12 @@ async function writeLines(
 ): Promise<string[] | null> {
 	const kept: string[] = [];
 	let rejected: LineReject[] = [];
-	for (let attempt = 0; attempt < 2 && kept.length < count; attempt++) {
+	for (let attempt = 0; attempt < RETRY_TEMPERATURES.length && kept.length < count; attempt++) {
 		const need = count - kept.length;
-		const raw = await complete(messages(need, attempt === 0 ? [] : rejected), { maxTokens: 24 * need, temperature: 0.2 });
+		const raw = await complete(messages(need, attempt === 0 ? [] : rejected), {
+			maxTokens: 24 * need,
+			temperature: RETRY_TEMPERATURES[attempt]
+		});
 		const round = keptLines(raw, need, { max, kind, pillar, siblings: [...siblings, ...kept] });
 		kept.push(...round.kept);
 		rejected = round.rejected;
@@ -160,8 +194,13 @@ export async function fillActions(data: ChartData, pillarIndex: number, count: n
 	const pillar = (data.pillars[pillarIndex] ?? '').trim();
 	onProgress(`Writing actions for ${pillar}.`);
 	const person = [facts.trim(), factsFromChart(data, pillarIndex)].filter(Boolean).join('\n');
+	const elsewhere = data.actions.flatMap((row, index) =>
+		index === pillarIndex ? [] : row.map((action) => action.trim()).filter((action) => action !== '')
+	);
 	const existing = (data.actions[pillarIndex] ?? []).map((action) => action.trim()).filter(Boolean);
-	return writeLines(count, ACTION_MAX, 'action', pillar, existing, (need, rejected) => fillActionsMessages(data, pillarIndex, need, person, rejected));
+	return writeLines(count, ACTION_MAX, 'action', pillar, [...elsewhere, ...existing], (need, rejected) =>
+		fillActionsMessages(data, pillarIndex, need, person, rejected)
+	);
 }
 
 export async function rewriteCell(data: ChartData, finding: HelperFinding): Promise<string | null> {

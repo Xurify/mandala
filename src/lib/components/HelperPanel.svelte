@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { COACH_DOWNLOAD } from '$lib/chart/coach-model';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
 	import { describeKey } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
@@ -166,12 +167,12 @@
 			{:else if value.kind === 'download'}
 				{#if message.state === 'used' && (helper.progress?.label === 'Downloading.' || helper.progress?.label === 'Starting the download.')}
 					<p class="m-0 text-[0.86rem] leading-snug text-pretty text-muted">
-						{helper.progress.detail ? `${helper.progress.detail} of about 1 GB.` : 'Starting the download.'}
+						{helper.progress.detail ? `${helper.progress.detail} of about ${COACH_DOWNLOAD}.` : 'Starting the download.'}
 						After that I start in seconds, even offline. Your chart never leaves this device.
 					</p>
 				{:else}
 					<p class="m-0 text-[0.86rem] leading-snug text-pretty text-muted">
-						About 1 GB, once. After that I start in seconds, even offline. Your chart never leaves this device.
+						About {COACH_DOWNLOAD}, once. After that I start in seconds, even offline. Your chart never leaves this device.
 					</p>
 				{/if}
 			{:else if value.kind === 'prompt'}

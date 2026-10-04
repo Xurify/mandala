@@ -18,6 +18,7 @@ import {
 	type HelperJob,
 	type HelperPick
 } from './helper.ts';
+import { COACH_MODEL_ID } from './coach-model.ts';
 import { blockOfK, idx, todayKey, type ChartData } from './model.ts';
 
 export type HelperMood = 'idle' | 'listening' | 'thinking' | 'happy' | 'puzzled';
@@ -63,7 +64,7 @@ function loadCoachModule(): Promise<Coach> {
 
 function readConsent(): boolean {
 	try {
-		return typeof localStorage !== 'undefined' && localStorage.getItem(CONSENT_KEY) === '1';
+		return typeof localStorage !== 'undefined' && localStorage.getItem(CONSENT_KEY) === COACH_MODEL_ID;
 	} catch {
 		return false;
 	}
@@ -196,7 +197,7 @@ export class HelperStore {
 	allowDownload(id: number): void {
 		this.#consent = true;
 		try {
-			localStorage.setItem(CONSENT_KEY, '1');
+			localStorage.setItem(CONSENT_KEY, COACH_MODEL_ID);
 		} catch {
 			// Private mode keeps the consent for this session only.
 		}

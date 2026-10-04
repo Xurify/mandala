@@ -2,7 +2,15 @@ import type { ChatMessage } from './helper.ts';
 
 export type CoachRequest =
 	| { type: 'load'; id: number; model: string }
-	| { type: 'complete'; id: number; model: string; messages: ChatMessage[]; maxTokens: number; temperature: number }
+	| {
+			type: 'complete';
+			id: number;
+			model: string;
+			messages: ChatMessage[];
+			maxTokens: number;
+			temperature: number;
+			thinking?: boolean;
+	  }
 	| { type: 'interrupt' };
 
 export type CoachResponse =

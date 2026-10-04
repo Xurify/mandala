@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { coachFixtures } from './coach-fixtures.ts';
 import { coachHoldout } from './coach-holdout.ts';
-import { scoreChart, scoreReply, summarizeScores } from './coach-score.ts';
+import { chartReport, nearCopy, scoreChart, scoreReply, summarizeScores } from './coach-score.ts';
 import { parseDraftText } from './draft.ts';
 
 describe('scoreChart', () => {
@@ -19,6 +19,23 @@ describe('scoreChart', () => {
 		expect(codes).toContain('untickable');
 		expect(codes).toContain('restated');
 		expect(codes).toContain('repeated');
+	});
+});
+
+describe('nearCopy', () => {
+	it('treats a brace and the same brace as one action', () => {
+		expect(nearCopy('Knee brace', 'Apply a knee brace')).toBe(true);
+		expect(nearCopy('Shoes by the door', 'On the calendar every Sunday')).toBe(false);
+	});
+
+	it('counts that copy on the chart report', () => {
+		const chart = parseDraftText(coachFixtures[0]?.reply ?? '');
+		expect(chart).not.toBeNull();
+		chart!.actions[0]![0] = 'Knee brace';
+		chart!.actions[1]![0] = 'Apply a knee brace';
+		const report = chartReport(chart!, 'a bad knee');
+		expect(report.copies).toBeGreaterThan(0);
+		expect(report.constraint).toBe(true);
 	});
 });
 

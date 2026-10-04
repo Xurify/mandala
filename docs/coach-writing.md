@@ -1,7 +1,7 @@
 # Why 1.5B writes badly
 
-**Date:** 2026-10-03
-**Status:** The writing pipeline is built (`factsFor`, `lineFault`, `keptLines`, one retry, no clipping, worked example, temperature 0.2). Model swap and training are not started.
+**Date:** 2026-10-04
+**Status:** Checker, three-try writer, and the holdout harness are in. Bindu loads Qwen3 4B with thinking off (`COACH_MODEL_ID`). Training stays shut. The download card says about 2.3 GB. The old 1.5B consent does not carry over, so the card shows again. Put the 1.5B id back in `src/lib/chart/coach-model.ts` to revert.
 
 The failures we already saw are the size of the model, not a prompt that is a few words short.
 
@@ -41,9 +41,9 @@ The examples live in `.cursor/skills/mandala-method/SKILL.md`. They are not in `
 
 ## What prompt work can and cannot do
 
-Prompt work on this model can move it from unusable to occasionally acceptable on an easy chart. Few-shot, passing the situation into every call, temperature near 0, and reject-and-retry will do that. They will not make it almost perfect. The IFBench gap, from the mid-20s up to around 80, is the model.
+Prompt work on this model can move it from unusable to occasionally acceptable on an easy chart. Few-shot, passing the situation into every call, temperature near 0, and reject-and-retry will do that. They will not make it almost perfect.
 
-A chart that fits still wants a model around 75%+ on [IFBench](https://artificialanalysis.ai/evaluations/ifbench), with reasoning on. The candidate is DeepSeek V4.1 Flash, called `deepseek-flash` at `https://api.deepseek.com` (79% at max effort, 47% with reasoning off). That sends the chart off the device, so it stays a separate decision. These fixes are the writing pipeline either way. Hosts and training are below.
+The bar for a chart that fits is our holdout, not a public benchmark. Count filled action cells out of 64, checker faults, near-copies, and whether the constraint shows up. DeepSeek V4.1 Flash, called `deepseek-flash` at `https://api.deepseek.com`, stays the teacher only if a stock browser model is still thin. That sends the brief off the device, so it stays a separate decision.
 
 ---
 
@@ -141,7 +141,7 @@ The app shape, if a chart may leave the device: the person pastes their own key.
 
 # Should we retrain?
 
-A full retrain, no. A supervised fine-tune, later, yes, and only for the on-device path.
+A full retrain, no. A supervised fine-tune, only if a stock browser model is still thin. The holdout below says it is not.
 
 This task is a rare good fit for training because every failure is a function we can already write: count, length, untickable, uncontrolled, restated, repeated. That is the setting where a verifier helps. The IFBench paper's method is reinforcement learning against a checker. Our checker is narrower than IFBench, and the rules do not change, so the training problem is easier than general instruction following.
 
@@ -164,3 +164,48 @@ Order:
 7. Merge the adapter and compile to MLC. WebLLM loads a compiled model, not a Hugging Face folder. `COACH_MODEL_ID` swaps after that compile. The compile is the expensive part. The training run is cheap.
 
 Do not train on the lab's bad outputs. Do not fine-tune 1.5B and call the product done. Freeform questions (`answer`) can stay on the base model so the fine-tune does not have to remain a general chat model.
+
+# Holdout, 2026-10-04
+
+Same invented briefs in `coach-holdout.ts`. Do not train on them. Each cell is filled / 64, then whether a four-letter token from the constraint string showed up, then seconds. Faults and near-copies were 0 on every chart that actually wrote. A 0 in a few seconds means the pillar JSON failed and the action writer never ran.
+
+## Eight briefs, one pass each
+
+| Brief | 1.5B | 1.7B | 4B | 4B thinking |
+| --- | --- | --- | --- | --- |
+| Half marathon | 60, yes, 24s | 62, yes, 30s | 64, yes, 33s | 64, yes, 303s |
+| Driving test | blank | blank | blank, 6s | 64, yes, 304s |
+| Small app | 63, yes, 18s | blank | 64, no, 27s | 64, yes, 392s |
+| Twenty books | blank | 63, yes, 29s | 63, yes, 31s | 61, yes, 458s |
+| Three songs | blank | 63, yes, 23s | 64, yes, 32s | 63, yes, 527s |
+| Cook dinner | blank | blank | 64, yes, 36s | 63, yes, 355s |
+| Sleep before eleven | blank | 63, yes, 26s | 64, yes, 37s | blank, 62s |
+| Basic Spanish | blank | 64, no, 23s | 64, no, 30s | 62, no, 615s |
+
+Charts that wrote: 2, 5, 7, 7 out of 8. Thinking rescued the driving-test head and the small-app constraint, then dropped sleep and took about ten times as long (five to ten minutes a chart).
+
+A second pass of those same eight on 4B, inside the run below, filled the driving test and kept the small-app constraint. One draw is not the model.
+
+## Fifty briefs, Qwen3 4B, thinking off
+
+48 of 50 wrote a chart. The two blanks were "Stretch after sitting" and "Learn ten signs," both in about 7 seconds. When the head parsed, the mean was 63 of 64 cells. Including the blanks, 60 of 64. Twenty-five charts were full. The shortest written charts were 54 (photograph one roll), 57 (file the insurance form), and 58 (pay the dentist). Checker faults on written cells: 0. Near-copies: 0. Median 36 seconds.
+
+The constraint word showed up on 38 of 50. Ten written charts missed it: Spanish, a month of rent, back pain, the windowsill garden, the tax papers, the weekly sister call, unused clothes, the resume, one loaf, the bus to the clinic. The probe is "did a long word from the constraint appear," not a reading of the chart. A miss can still be a chart that followed the idea in other words.
+
+That is not thin. Thin meant many empty cells, or the constraint turned into a shopping list. The shape is already reliable. Steps 2 through 7 above stay unbuilt: no teacher script, no pasted API key, no Colab LoRA, no browser compile. Real charts stay on the device. Bindu now loads this 4B. Thinking stays off. The 1.5B id is still in the lab picker.
+
+# What hurt while building this
+
+Progress text was sometimes an object. The status line became `[object Object]` and could throw. The worker, the browser callback, and `describeCoachProgress` now coerce a non-string to empty.
+
+`interruptGenerate` throws and has no request id. It now runs inside the try, and that error is swallowed.
+
+`runtimeStatsText` is deprecated. Speed comes from `completion.usage` (prefill and decode tokens per second).
+
+Near-copy first treated a shorter line as a copy of a longer one. "Easy runs" then marked "Easy runs step 6" as a repeat. A match now requires the same content tokens, at least two of them, after a light plural stem. Exact duplicate text still counts. "Ice after the workouts" and "Ice after the runs" can still slip through, because the content tokens differ.
+
+A failed pillar JSON throws away the whole chart in a few seconds. The three action retries never run. Thinking lowers that rate and costs about five minutes a chart. Left as the two head retries that already exist.
+
+A worked example in the prompt, and retrieval over the presets, were considered and left out. The shoes example had already leaked into a running chart.
+
+Scoring through the debugger dies if the page navigates. Resume from a fresh load of `/dev/ai`. The 4B weights stay cached, so the reload is seconds, not the first download.
