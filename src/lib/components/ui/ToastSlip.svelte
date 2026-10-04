@@ -76,7 +76,7 @@
 <div
 	class={cn(
 		s.root(),
-		'transition-[opacity,translate,scale] ease-[cubic-bezier(0.33,0,0.2,1)]',
+		'transition-[opacity,translate,scale] scale-100 ease-[cubic-bezier(0.33,0,0.2,1)]',
 		leaving && 'opacity-0 motion-safe:-translate-y-2 motion-safe:scale-[0.98]',
 		className
 	)}

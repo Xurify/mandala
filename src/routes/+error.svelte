@@ -183,7 +183,7 @@
 				<button
 					type="button"
 					onclick={interactBindu}
-					class="group flex cursor-pointer items-center gap-2 rounded-full border-0 bg-sunken px-4 py-1.5 text-left text-[0.86rem] text-text transition-[background-color,transform] duration-150 ease-ui hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+					class="group flex cursor-pointer items-center gap-2 rounded-full border-0 px-4 py-1.5 text-left text-[0.86rem] text-text bg-sunken transition-[scale] duration-150 ease-ui hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 					aria-label="Click for another note from Bindu"
 				>
 					<span class="font-medium text-muted">Bindu:</span>
@@ -225,7 +225,7 @@
 							<button
 								type="button"
 								onclick={() => openSavedGoal(goal.id)}
-								class="flex w-full cursor-pointer items-center justify-between gap-3 rounded-[18px] border-0 bg-sunken px-4 py-3 text-left transition-[background-color,transform] duration-150 ease-ui hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+								class="flex w-full cursor-pointer items-center justify-between gap-3 rounded-[18px] border-0 px-4 py-3 text-left bg-sunken transition-[scale] duration-150 ease-ui hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 							>
 								<div class="min-w-0 flex-1">
 									<div class="truncate text-[0.94rem] font-[560] text-text">{goal.title}</div>

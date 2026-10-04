@@ -154,7 +154,7 @@
 		{#if d.undo}
 			<button
 				type="button"
-				class="h-9 shrink-0 cursor-pointer rounded-full border-0 bg-[color-mix(in_oklch,var(--on-ink)_16%,transparent)] px-4 font-sans text-[0.86rem] font-semibold text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_28%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+				class="h-9 shrink-0 cursor-pointer rounded-full border-0 px-4 font-sans text-[0.86rem] font-semibold text-on-ink bg-[color-mix(in_oklch,var(--on-ink)_16%,transparent)] hover:bg-[color-mix(in_oklch,var(--on-ink)_28%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
 				onclick={undo}>Undo</button
 			>
 		{/if}

@@ -183,7 +183,7 @@
 									{:else}
 										<button
 											type="button"
-											class="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-full border-0 bg-transparent px-3 py-1.5 text-left hover:bg-sunken motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+											class="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-full border-0 px-3 py-1.5 text-left hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 											onclick={() => (editingKey = lead.key)}
 										>
 											<span
@@ -201,7 +201,7 @@
 									{#if rest.length > 0}
 										<button
 											type="button"
-											class="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-muted hover:bg-sunken hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+											class="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 text-muted hover:bg-sunken hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 											aria-expanded={isExpanded}
 											aria-label={isExpanded ? `Hide other ${pillar.name} actions` : `Show ${rest.length} other ${pillar.name} actions`}
 											onclick={() => togglePillarExpand(pillar.pillarIndex)}
@@ -229,7 +229,7 @@
 											{:else}
 												<button
 													type="button"
-													class="flex min-h-11 w-full cursor-pointer items-center rounded-full border-0 bg-transparent px-4 text-left text-[0.9rem] text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+													class="flex min-h-11 w-full cursor-pointer items-center rounded-full border-0 px-4 text-left text-[0.9rem] text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 													onclick={() => (editingKey = action.key)}
 												>
 													{action.text}

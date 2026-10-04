@@ -33,10 +33,5 @@
 	class={cn(button({ variant, size }), className)}
 	{...rest}
 >
-	{#if icon}
-		<Icon name={icon} size={size === 'sm' ? 16 : 18} />
-	{/if}
-	{#if children}
-		{@render children()}
-	{/if}
+	{#if icon}<Icon name={icon} size={size === 'sm' ? 16 : 18} />{/if}{#if children}{@render children()}{/if}
 </svelte:element>

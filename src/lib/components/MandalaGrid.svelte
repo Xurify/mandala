@@ -73,7 +73,7 @@
 		const hasText = !placeholder;
 
 		return cn(
-			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[background-color,transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
+			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
 			'focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink',
 			'can-hover:hover:z-2 can-hover:hover:scale-[1.04] can-hover:hover:shadow-[0_6px_16px_-4px_oklch(0_0_0/0.2)]',
 			view ? 'rounded-[11px] leading-[1.25]' : 'rounded-[7px] p-[3px] text-[clamp(8px,1.55cqw,12px)] leading-[1.15]',

@@ -143,7 +143,7 @@
 	<div class="flex flex-col gap-3.5">
 		<button
 			type="button"
-			class="group flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[20px] border-2 border-dashed p-4.5 text-center motion-safe:transition-[background-color,border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink {isDraggingOver
+			class="group flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[20px] border-2 border-dashed p-4.5 text-center motion-safe:transition-[border-color] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink {isDraggingOver
 				? 'border-ink bg-sunken'
 				: 'border-line bg-sunken/40 hover:border-ink/50 hover:bg-sunken'}"
 			onclick={handleOpenFilePicker}

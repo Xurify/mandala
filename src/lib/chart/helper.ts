@@ -208,7 +208,7 @@ export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 				'You are a Mandala Method coach.',
 				'The goal is one line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
 				'Each pillar is a short sentence this person could say: a verb and the thing it applies to, at most 32 characters. A follower count, a grade, or a finish time is not a pillar.',
-				'A constraint in the brief is a condition on the work, not eight products.',
+				'A constraint in the answers is a condition on the work, not eight products.',
 				'Return only this JSON: {"goal":"...","pillars":["...", 8 strings]}.'
 			].join('\n')
 		},

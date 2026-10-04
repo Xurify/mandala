@@ -403,7 +403,7 @@
 						type="button"
 						data-spread-toggle={group.pillarIndex}
 						class={cn(
-							'absolute inset-x-3 bottom-3 flex h-11 cursor-pointer items-center justify-between gap-2 rounded-full border-0 bg-[color-mix(in_oklch,var(--text)_10%,transparent)] px-3.5 text-text motion-safe:transition-[translate,background-color,scale] motion-safe:duration-150 can-hover:hover:-translate-y-0.5 can-hover:hover:bg-[color-mix(in_oklch,var(--text)_16%,transparent)] active:scale-[0.97]',
+							'absolute inset-x-3 bottom-3 flex h-11 cursor-pointer items-center justify-between gap-2 rounded-full border-0 px-3.5 text-text bg-[color-mix(in_oklch,var(--text)_10%,transparent)] motion-safe:transition-[translate,scale] motion-safe:duration-150 can-hover:hover:-translate-y-0.5 can-hover:hover:bg-[color-mix(in_oklch,var(--text)_16%,transparent)] active:scale-[0.97]',
 							focusRing
 						)}
 						onclick={() => openSpread(group.pillarIndex)}
@@ -527,7 +527,7 @@
 					{:else}
 						<div
 							class={cn(
-								'flex h-full flex-col justify-between gap-3 rounded-[22px] bg-sunken p-4 text-muted motion-safe:transition-[scale,background-color] motion-safe:duration-200 motion-safe:ease-ui',
+								'flex h-full scale-100 flex-col justify-between gap-3 rounded-[22px] p-4 text-muted bg-sunken motion-safe:transition-[scale] motion-safe:duration-200 motion-safe:ease-ui',
 								inset ? 'min-h-[118px]' : 'min-h-[92px] @min-[540px]:min-h-[164px]',
 								dragging && slot === picked.length && 'bg-sunken-hover text-text',
 								landing === slot && 'scale-[1.04]'
@@ -666,7 +666,7 @@
 		>
 			<div
 				class={cn(
-					'pillar-action flex size-full flex-col gap-3 rounded-[22px] p-4 text-text shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
+					'pillar-action flex size-full scale-100 flex-col gap-3 rounded-[22px] p-4 text-text shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.returning ? 'rotate-0' : drag.over !== null ? 'scale-[0.94] rotate-[-1deg]' : 'scale-[1.06] rotate-[4deg]'
 				)}
 			>

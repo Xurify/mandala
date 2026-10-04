@@ -89,7 +89,7 @@
 			{#each summaries as summary (summary.id)}
 				{@const isChecked = selectedId === summary.id}
 				<label
-					class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[16px] px-3 py-2.5 motion-safe:transition-[background-color,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {isChecked
+					class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[16px] px-3 py-2.5 motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {isChecked
 						? 'bg-surface shadow-seg'
 						: 'hover:bg-sunken-hover'}"
 				>

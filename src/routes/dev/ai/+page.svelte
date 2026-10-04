@@ -341,7 +341,7 @@
 						<li>
 							<button
 								type="button"
-								class="flex w-full min-w-0 cursor-pointer gap-2 rounded-xl border-0 bg-transparent px-2 py-1 text-start font-sans text-[0.88rem] text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ink aria-pressed:bg-sunken"
+								class="flex w-full min-w-0 cursor-pointer gap-2 rounded-xl border-0 px-2 py-1 text-start font-sans text-[0.88rem] text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-ink aria-pressed:bg-sunken"
 								aria-pressed={preferred === pillarIndex}
 								onclick={() => (preferred = preferred === pillarIndex ? null : pillarIndex)}
 							>

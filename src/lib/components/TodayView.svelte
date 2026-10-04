@@ -182,7 +182,7 @@
 	}
 
 	const rowClass =
-		'group flex w-full min-h-11 cursor-pointer items-center gap-3.5 rounded-full border-0 bg-transparent px-3 py-2.5 text-left leading-none motion-safe:transition-colors motion-safe:duration-150 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+		'group flex w-full min-h-11 cursor-pointer items-center gap-3.5 rounded-full border-0 px-3 py-2.5 text-left leading-none hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 </script>
 
 {#snippet checkRow(entry: ActionEntry)}
@@ -196,7 +196,7 @@
 	>
 		<span
 			class={cn(
-				'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[background-color,border-color] motion-safe:duration-150',
+				'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[border-color] motion-safe:duration-150',
 				isChecked
 					? 'border-success bg-success text-surface'
 					: 'border-line bg-transparent group-hover:border-muted',

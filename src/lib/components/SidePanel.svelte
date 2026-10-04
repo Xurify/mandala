@@ -293,7 +293,7 @@
 		<button
 			type="button"
 			role="tab"
-			class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-sunken px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-none active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
+			class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text bg-sunken motion-safe:transition-[color,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-none active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
 			aria-selected={chart.sel === 4}
 			onclick={() => chart.selectGoal()}
 			aria-label="Center goal and core vision"
@@ -312,12 +312,12 @@
 					type="button"
 					role="tab"
 					class={cn(
-						'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[background-color,box-shadow,transform] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] focus-visible:outline-none active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
+						'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] focus-visible:outline-none active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
 						!isFilled && !isSelected && 'dot-fill',
 						isFilled && !isSelected && 'pillar-cell text-on-p',
 						!isSelected && 'can-hover:hover:pillar-cell can-hover:hover:text-on-p',
 						isSelected &&
-							'z-[2] bg-[oklch(0.6_0.14_var(--h))] text-[oklch(0.99_0_0)] shadow-[0_0_0_2px_var(--surface),0_0_0_4px_oklch(0.6_0.14_var(--h))]'
+							'z-[2] text-[oklch(0.99_0_0)] bg-[oklch(0.6_0.14_var(--h))] shadow-[0_0_0_2px_var(--surface),0_0_0_4px_oklch(0.6_0.14_var(--h))]'
 					)}
 					style:--h={HUES[pillarIndex]}
 					title="{pillarName} ({actionsCount}/8 actions)"
@@ -337,7 +337,7 @@
 		<div class="inline-flex shrink-0 gap-0.5">
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Previous section"
 				onclick={() => chart.selectPreviousPillar()}
 			>
@@ -345,7 +345,7 @@
 			</button>
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted motion-safe:transition-[background-color,color,transform] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Next section"
 				onclick={() => chart.selectNextPillar()}
 			>
@@ -433,7 +433,7 @@
 				<textarea
 					bind:this={textareaElements[cellIndex]}
 					class={cn(
-						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
+						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--ink),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
 						info(chart.sel, cellIndex).type === 'goal' &&
 							'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 						info(chart.sel, cellIndex).type === 'pillar' &&
@@ -547,7 +547,7 @@
 							href={meta.note}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="inline-flex size-[42px] shrink-0 items-center justify-center rounded-full bg-sunken text-muted hover:bg-sunken-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+							class="inline-flex size-[42px] shrink-0 items-center justify-center rounded-full text-muted bg-sunken hover:bg-sunken-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 							title="Open link in new tab"
 							aria-label="Open link in new tab"
 						>

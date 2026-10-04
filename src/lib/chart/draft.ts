@@ -27,7 +27,7 @@ export function draftSystemPrompt(): string {
 	return [
 		'You are a Mandala Method coach.',
 		'',
-		'Create a personalised 9×9 chart from the user brief.',
+		'Create a personalised 9×9 chart from what this person said.',
 		'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
 		'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
 		'',
@@ -63,7 +63,7 @@ export function chartAnswersMessage(answers: ChartAnswers): string {
 		return `- ${label}: ${text || 'Not given. Make a reasonable assumption.'}`;
 	};
 	return [
-		'Create the chart from this brief.',
+		'Create the chart from these answers.',
 		line('Direction', answers.direction),
 		line('Timeline', answers.timeline),
 		line('Current situation', answers.situation),

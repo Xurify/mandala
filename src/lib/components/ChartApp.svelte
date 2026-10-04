@@ -481,7 +481,7 @@
 				/>					{#if chart.query.trim()}
 						<button
 							type="button"
-							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
 							aria-label="Clear search"
 							onclick={() => chart.setQuery('')}
 						>
@@ -605,7 +605,7 @@
 		{#each shownHits as key (key)}
 			<button
 				type="button"
-				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 bg-surface px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card motion-safe:transition-colors motion-safe:duration-[120ms] hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
 				onclick={() => {
 					selectBlock(blockOfKey(key), key);
 					chart.setViewMode('edit');
@@ -707,14 +707,14 @@
 				<span>Mandala was updated.</span>
 				<button
 					type="button"
-					class="inline-flex min-h-[34px] cursor-pointer appearance-none items-center rounded-full border-0 bg-on-ink px-3.5 font-sans text-[0.82rem] font-[560] text-ink shadow-press hover:bg-[color-mix(in_oklch,var(--ink)_14%,var(--on-ink))] motion-safe:transition-[background-color,transform] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="shadow-press inline-flex min-h-[34px] cursor-pointer appearance-none items-center rounded-full border-0 px-3.5 font-sans text-[0.82rem] font-[560] text-ink bg-on-ink hover:bg-[color-mix(in_oklch,var(--ink)_14%,var(--on-ink))] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
 					onclick={() => location.reload()}
 				>
 					Refresh
 				</button>
 				<button
 					type="button"
-					class="inline-flex size-[34px] cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent p-0 text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_14%,transparent)] motion-safe:transition-[background-color,transform] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="inline-flex size-[34px] cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_14%,transparent)] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
 					aria-label="Dismiss update notice"
 					onclick={() => (updateReady = false)}
 				>

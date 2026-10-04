@@ -99,12 +99,13 @@ Primitives live in `src/lib/components/ui/` (`Button`, `IconButton`, `SegmentedC
 
 ### Native chrome
 
-Tailwind preflight is off. A raw `<button>`, `<input>`, `<textarea>`, or `<select>` keeps the browser border, background, and button face unless the classes replace them. In dark mode that face is a gray inset control inside our pill. Treat that as a bug.
+Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps the browser border and gray face unless the classes replace them. Buttons rest transparent in the base layer, so a pill does not pick up that face. A field still needs `border-0` and an explicit background.
 
 - A pressable control is a primitive: `Button`, `IconButton`, `SegmentedControl`, `DockTab`, or `MenuItem`. Do not draw a new pill out of raw `<button>` elements.
 - Two to four options that apply immediately are a `SegmentedControl`. The selected option is the surface thumb, not an ink fill.
 - A text field uses `textField` from `src/lib/components/ui/styles.ts`. A longer note uses `textArea`. Both are the `field-ink` utility: resting fill `--sunken`, hover deepens to `--sunken-hover` and draws an ink hairline at 16%, focus lifts to `--surface` with a 1px ink ring at 42% and a 4px ink wash at 9%. No browser outline. Callers add width and icon insets (`ps-10`) on top. Chart cells are not `field-ink`; their focus ring stays a solid ink stroke so the selected cell reads in the grid.
 - A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native and use `accent-ink`.
+- A fill that changes on hover, focus, or selection is a normal background utility (`hover:bg-sunken`, `bg-accent`). Do not transition `background-color` on a control that contains text: that promotes the glyphs and they jump at fractional device scale. `transition-colors` fades color and border only. Chart cells and text fields change fill the same way, with no background transition. Buttons rest transparent and at `scale: 1`, so a press scale does not animate from `none` and a raw button does not keep the gray browser face.
 
 ### Buttons
 

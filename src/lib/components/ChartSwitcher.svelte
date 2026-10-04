@@ -374,7 +374,7 @@
 		>
 			<span class="line-clamp-2">
 				{activeTitle}<span
-					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full bg-sunken align-middle text-text motion-safe:transition-colors motion-safe:duration-150 group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
 				>
 				<Icon
 					name="chevron-down"
@@ -409,7 +409,7 @@
 				{#if find}
 					<button
 						type="button"
-						class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-sunken-hover p-0 text-text after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+						class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
 						aria-label="Clear search"
 						onclick={() => (find = '')}
 					>
@@ -605,7 +605,7 @@
 							<li>
 								<button
 									type="button"
-									class="group flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3 py-1.5 text-start select-none motion-safe:transition-[background-color,opacity] motion-safe:duration-150 hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-checked:bg-sunken coarse:min-h-12 {confirming &&
+									class="group flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 px-3 py-1.5 text-start select-none motion-safe:transition-[opacity] motion-safe:duration-150 hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-checked:bg-sunken coarse:min-h-12 {confirming &&
 									!on
 										? 'opacity-40'
 										: ''}"

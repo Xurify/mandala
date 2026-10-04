@@ -153,7 +153,7 @@
 				<div class="grid grid-cols-2 gap-2.5 max-[500px]:grid-cols-1">
 					<button
 						type="button"
-						class="flex flex-col gap-1 rounded-[16px] border-2 p-3.5 text-left motion-safe:transition-all cursor-pointer {audience === 'self' ? 'border-ink bg-surface shadow-sm' : 'border-line bg-sunken hover:border-muted'}"
+						class="flex flex-col gap-1 rounded-[16px] border-2 p-3.5 text-left motion-safe:transition-[border-color,box-shadow] cursor-pointer {audience === 'self' ? 'border-ink bg-surface shadow-sm' : 'border-line bg-sunken hover:border-muted'}"
 						onclick={() => (audience = 'self')}
 					>
 						<span class="text-[0.88rem] font-semibold text-text">Mainly for myself</span>
@@ -162,7 +162,7 @@
 
 					<button
 						type="button"
-						class="flex flex-col gap-1 rounded-[16px] border-2 p-3.5 text-left motion-safe:transition-all cursor-pointer {audience === 'both' ? 'border-ink bg-surface shadow-sm' : 'border-line bg-sunken hover:border-muted'}"
+						class="flex flex-col gap-1 rounded-[16px] border-2 p-3.5 text-left motion-safe:transition-[border-color,box-shadow] cursor-pointer {audience === 'both' ? 'border-ink bg-surface shadow-sm' : 'border-line bg-sunken hover:border-muted'}"
 						onclick={() => (audience = 'both')}
 					>
 						<span class="text-[0.88rem] font-semibold text-text">For myself and others</span>

@@ -161,7 +161,7 @@
 					role="option"
 					aria-selected={index === active}
 					class={cn(
-						'flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-3.5 text-left font-sans text-[0.9rem] motion-safe:transition-colors motion-safe:duration-150 focus-visible:outline-none',
+						'flex min-h-[44px] w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 px-3.5 text-left font-sans text-[0.9rem] focus-visible:outline-none',
 						item.tone === 'danger'
 							? 'text-danger focus-visible:bg-danger-wash aria-selected:bg-danger-wash'
 							: 'text-text focus-visible:bg-sunken aria-selected:bg-sunken'

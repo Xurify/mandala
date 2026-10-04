@@ -113,7 +113,7 @@
 	<div class="flex flex-col gap-2.5">
 		<button
 			type="button"
-			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 bg-sunken p-3.5 text-start font-sans text-text motion-safe:transition-[background-color,transform] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 			onclick={handleExportPoster}
 			disabled={isExportingPng}
 		>
@@ -144,7 +144,7 @@
 
 		<button
 			type="button"
-			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 bg-sunken p-3.5 text-start font-sans text-text motion-safe:transition-[background-color,transform] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 			onclick={handleExportData}
 		>
 			<div class="flex min-w-0 items-center gap-3">
@@ -165,7 +165,7 @@
 
 		<button
 			type="button"
-			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 bg-sunken p-3.5 text-start font-sans text-text motion-safe:transition-[background-color,transform] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 			onclick={handleShareLink}
 			disabled={isSharing}
 		>
@@ -187,7 +187,7 @@
 
 		<button
 			type="button"
-			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 bg-sunken p-3.5 text-start font-sans text-text motion-safe:transition-[background-color,transform] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 			onclick={handlePublish}
 			disabled={chart.shareBusy}
 		>
@@ -246,7 +246,7 @@
 
 		<button
 			type="button"
-			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 bg-sunken p-3.5 text-start font-sans text-text motion-safe:transition-[background-color,transform] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 			onclick={handleCopyText}
 		>
 			<div class="flex min-w-0 items-center gap-3">

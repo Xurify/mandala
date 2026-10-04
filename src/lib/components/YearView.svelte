@@ -97,7 +97,7 @@
 		<div class="flex items-center gap-1">
 			<button
 				type="button"
-				class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted hover:bg-sunken hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+				class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted hover:bg-sunken hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 				aria-label="Previous year"
 				onclick={() => (year -= 1)}
 			>
@@ -105,7 +105,7 @@
 			</button>
 			<button
 				type="button"
-				class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted hover:bg-sunken hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
+				class="inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted hover:bg-sunken hover:text-text motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent"
 				aria-label="Next year"
 				disabled={year >= currentYear}
 				onclick={() => (year += 1)}
@@ -181,7 +181,7 @@
 					<li>
 						<button
 							type="button"
-							class="flex w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-sunken px-3.5 py-2.5 text-left motion-safe:transition-colors motion-safe:duration-150 hover:bg-sunken-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+							class="flex w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 px-3.5 py-2.5 text-left bg-sunken hover:bg-sunken-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
 							onclick={() => jumpTo(entry.key)}
 						>
 							<span

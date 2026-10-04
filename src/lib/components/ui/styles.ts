@@ -10,15 +10,16 @@ export const textArea =
 	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45]';
 
 export const button = tv({
-	base: `relative isolate inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 bg-transparent py-0 font-sans font-[560] [font-synthesis:none] tracking-[-0.005em] whitespace-nowrap no-underline transition-[color,scale] duration-150 ease-ui scale-100 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-full before:transition-[background-color] before:duration-150 before:ease-ui`,
+	base: `inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 py-0 font-sans font-[560] [font-synthesis:none] tracking-[-0.005em] whitespace-nowrap no-underline transition-[color,scale] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
 		variant: {
 			primary:
-				'text-on-accent before:bg-accent before:shadow-press hover:before:bg-accent-hover focus-visible:before:bg-accent-hover',
-			soft: 'text-text before:bg-soft hover:before:bg-soft-hover focus-visible:before:bg-soft-hover',
+				'shadow-press text-on-accent bg-accent hover:bg-accent-hover focus-visible:bg-accent-hover',
+			soft: 'text-text bg-soft hover:bg-soft-hover focus-visible:bg-soft-hover',
 			ghost:
-				'text-muted hover:text-text focus-visible:text-text before:bg-transparent hover:before:bg-sunken focus-visible:before:bg-sunken dark:hover:before:bg-soft dark:focus-visible:before:bg-soft',
-			danger: 'text-danger hover:before:bg-danger-wash focus-visible:before:bg-danger-wash'
+				'text-muted hover:text-text focus-visible:text-text hover:bg-sunken focus-visible:bg-sunken dark:hover:bg-soft dark:focus-visible:bg-soft',
+			danger:
+				'text-danger hover:bg-danger-wash focus-visible:bg-danger-wash'
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]/none',
@@ -29,18 +30,18 @@ export const button = tv({
 });
 
 export const iconButton = tv({
-	base: `relative inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent p-0 text-text transition-[background-color,transform] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] ${focus}`
+	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] ${focus}`
 });
 
 export const segmented = tv({
 	slots: {
 		group: 'relative inline-flex w-fit gap-0.5 self-start rounded-full bg-sunken p-[3px]',
-		option: `relative z-[1] inline-flex cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent font-sans font-[560] text-muted transition-[color,transform] duration-150 ease-ui hover:text-text active:scale-[0.96] aria-pressed:text-text ${focus}`
+		option: `relative z-[1] inline-flex cursor-pointer appearance-none items-center gap-1.5 rounded-full border-0 py-0 font-sans font-[560] text-muted transition-[color,scale] duration-150 ease-ui hover:text-text active:scale-[0.96] aria-pressed:text-text ${focus}`
 	},
 	variants: {
 		size: {
-			md: { option: 'min-h-[34px] px-4 text-[0.86rem]' },
-			sm: { option: 'min-h-7 gap-[5px] px-[11px] text-[0.76rem] coarse:min-h-[34px]' }
+			md: { option: 'min-h-[34px] px-4 text-[0.86rem]/none' },
+			sm: { option: 'min-h-7 gap-[5px] px-[11px] text-[0.76rem]/none coarse:min-h-[34px]' }
 		}
 	},
 	defaultVariants: { size: 'md' }
@@ -65,7 +66,7 @@ export const menu = tv({
 
 export const menuItem = tv({
 	slots: {
-		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
+		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
 		main: 'relative flex min-w-0 flex-1 items-center gap-3',
 		icon: 'shrink-0 text-muted',
 		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums'
@@ -119,7 +120,7 @@ export const dock = tv({
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 bg-transparent px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[background-color,color,transform] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] ${focus}`
 });
 
 export const toast = tv({
