@@ -222,10 +222,10 @@
 	data-helper
 	{onkeydown}
 >
-	<header class="relative flex min-h-[84px] shrink-0 items-center gap-3 py-2.5 ps-4 pe-2 motion-safe:transition-[min-height] motion-safe:duration-200 motion-safe:ease-ui">
-		<HelperFace mood={helper.mood} size={46} />
+	<header class="relative flex min-h-[78px] shrink-0 items-start gap-3 pt-2.5 pb-1.5 ps-4 pe-2">
+		<HelperFace mood={helper.mood} size={44} class="mt-0.5 shrink-0" />
 		<div class="min-w-0 flex-1">
-			<h2 class="m-0 text-[1.05rem] leading-tight font-[620]">Bindu</h2>
+			<h2 class="m-0 text-[1.02rem] leading-tight font-[620]">Bindu</h2>
 			<p
 				class="m-0 mt-0.5 truncate text-[0.8rem] leading-snug text-muted"
 				role="status"
@@ -243,7 +243,7 @@
 			{#if helper.progress?.downloadFillRatio != null}
 				{@const percent = Math.round(helper.progress.downloadFillRatio * 100)}
 				<div
-					class="mt-1.5 flex items-center gap-2.5 motion-safe:animate-note-in"
+					class="mt-1 flex items-center gap-2.5 motion-safe:animate-note-in"
 					role="progressbar"
 					aria-valuemin={0}
 					aria-valuemax={100}
@@ -258,19 +258,21 @@
 							style:width="{percent}%"
 						></span>
 					</span>
-					<span class="shrink-0 text-[0.74rem] text-muted tabular-nums" aria-hidden="true">
+					<span class="shrink-0 text-[0.74rem] text-muted tabular-nums leading-none" aria-hidden="true">
 						{helper.progress.detail ? `${helper.progress.detail} · ` : ''}{percent}%
 					</span>
 				</div>
 			{/if}
 		</div>
-		<IconButton icon="refresh" label="Start over" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
-		{#if onclose}
-			<IconButton icon="close" label="Close Bindu" onclick={onclose} />
-		{/if}
+		<div class="mt-0.5 flex shrink-0 items-center gap-0.5">
+			<IconButton icon="refresh" label="Start over" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
+			{#if onclose}
+				<IconButton icon="close" label="Close Bindu" onclick={onclose} />
+			{/if}
+		</div>
 	</header>
 
-	<div bind:this={scroller} class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2.5 pb-3">
+	<div bind:this={scroller} class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1.5 pb-3">
 		<ol class="m-0 flex list-none flex-col gap-3 p-0" aria-live="polite">
 			{#each helper.messages as message (message.id)}
 				<li
