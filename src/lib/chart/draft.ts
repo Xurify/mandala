@@ -9,7 +9,8 @@ function clip(value: unknown, max: number): string {
 	return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-export type CoachBrief = {
+/** What the person says before a chart exists: direction, timeline, where they stand, focus, and a constraint. */
+export type ChartAnswers = {
 	direction: string;
 	timeline: string;
 	situation: string;
@@ -17,7 +18,7 @@ export type CoachBrief = {
 	constraint: string;
 };
 
-export function emptyBrief(): CoachBrief {
+export function emptyChartAnswers(): ChartAnswers {
 	return { direction: '', timeline: '', situation: '', focus: '', constraint: '' };
 }
 
@@ -55,18 +56,18 @@ export function draftSystemPrompt(): string {
 	].join('\n');
 }
 
-export function briefToUserMessage(brief: CoachBrief): string {
+export function chartAnswersMessage(answers: ChartAnswers): string {
 	const line = (label: string, value: string) => {
 		const text = value.replace(/\s+/g, ' ').trim();
 		return `- ${label}: ${text || 'Not given. Make a reasonable assumption.'}`;
 	};
 	return [
 		'Create the chart from this brief.',
-		line('Direction', brief.direction),
-		line('Timeline', brief.timeline),
-		line('Current situation', brief.situation),
-		line('Focus right now', brief.focus),
-		line('Constraint', brief.constraint),
+		line('Direction', answers.direction),
+		line('Timeline', answers.timeline),
+		line('Current situation', answers.situation),
+		line('Focus right now', answers.focus),
+		line('Constraint', answers.constraint),
 		'Return 8 pillars. Each pillar has exactly 8 actions.'
 	].join('\n');
 }

@@ -2,12 +2,13 @@
 	import { onMount } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { coachFixtures } from '$lib/chart/coach-fixtures';
-	import { coachHoldout } from '$lib/chart/coach-holdout';
-	import { chartReport, scoreChart, scoreReply, summarizeScores } from '$lib/chart/coach-score';
-	import { briefToUserMessage } from '$lib/chart/draft';
+	import { holdoutChartAnswers } from '$lib/chart/coach-holdout';
+	import { CoachStopped } from '$lib/chart/coach-protocol';
+	import { holdoutChartMetrics, scoreChart, scoreReply, summarizeScores } from '$lib/chart/coach-score';
+	import { chartAnswersMessage } from '$lib/chart/draft';
 	import { exampleChart } from '$lib/chart/example';
 	import {
-		briefFromAnswers,
+		chartAnswersFromText,
 		describeCoachProgress,
 		describeKey,
 		fillPlan,
@@ -145,10 +146,13 @@
 		running = id;
 		const started = performance.now();
 		try {
+			coach.resumeCoach();
 			return await run(coach);
 		} catch (error) {
-			progressText = error instanceof Error ? error.message : 'Failed.';
-			progressRatio = null;
+			if (!(error instanceof CoachStopped)) {
+				progressText = error instanceof Error ? error.message : 'Failed.';
+				progressRatio = null;
+			}
 			return null;
 		} finally {
 			elapsed = { ...elapsed, [id]: Math.round(performance.now() - started) };
@@ -164,7 +168,7 @@
 
 	let direction = $state('Run my first half marathon');
 	let extra = $state('By October. I can run 5 km now and work late on Tuesdays.');
-	const brief = $derived(briefFromAnswers(direction, extra));
+	const answers = $derived(chartAnswersFromText(direction, extra));
 	let drafted = $state<{ chart: ChartData | null; raw: string } | null>(null);
 
 	let filled = $state<string[] | null>(null);
@@ -195,23 +199,23 @@
 		try {
 			await coach.selectCoachModel(choice.id, choice.thinking);
 			loaded = coach.coachLoaded();
-			const briefs = coachHoldout.slice(0, count);
-			for (const brief of briefs) {
+			const setups = holdoutChartAnswers.slice(0, count);
+			for (const setup of setups) {
 				const mark = performance.now();
-				const result = await coach.proposeChart(brief);
+				const result = await coach.proposeChart(setup);
 				const report = result.chart
-					? chartReport(result.chart, brief.constraint)
+					? holdoutChartMetrics(result.chart, setup.constraint)
 					: { filled: 0, faults: 1, copies: 0, constraint: false };
 				const row: HoldoutRow = {
 					model: choice.label,
-					direction: brief.direction,
+					direction: setup.direction,
 					...report,
 					seconds: Math.round((performance.now() - mark) / 1000)
 				};
 				holdoutRows = [...holdoutRows.filter((seen) => !(seen.model === row.model && seen.direction === row.direction)), row];
 			}
 		} catch (error) {
-			holdoutNote = error instanceof Error ? error.message : 'The run stopped.';
+			if (!(error instanceof CoachStopped)) holdoutNote = error instanceof Error ? error.message : 'The run stopped.';
 		} finally {
 			elapsed = { ...elapsed, holdout: Math.round(performance.now() - started) };
 			loaded = coach.coachLoaded();
@@ -296,14 +300,14 @@
 		<p class="m-0 min-h-[1.4em] text-[0.84rem] text-muted" role="status">
 			{load?.label ?? ''}
 			{#if load?.detail}<span class="tabular-nums"> · {load.detail}</span>{/if}
-			{#if load?.ratio != null}<span class="tabular-nums"> · {Math.round(load.ratio * 100)}%</span>{/if}
+			{#if load?.downloadFillRatio != null}<span class="tabular-nums"> · {Math.round(load.downloadFillRatio * 100)}%</span>{/if}
 		</p>
 	</Card>
 
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Holdout</Eyebrow>
 		<p class="m-0 text-[0.88rem] text-pretty text-muted">
-			Same practice briefs, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
+			Same invented starting answers, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
 		</p>
 		<div class="flex flex-wrap items-end gap-3">
 			<label class="flex min-w-52 flex-1 flex-col gap-1.5">
@@ -402,12 +406,12 @@
 				<span class="text-[0.82rem] font-semibold">Anything I should know?</span>
 				<input class={field} bind:value={extra} />
 			</label>
-			<pre class={pre}>{briefToUserMessage(brief)}</pre>
+			<pre class={pre}>{chartAnswersMessage(answers)}</pre>
 			<div class="flex flex-wrap items-center gap-3">
 				<Button
 					size="sm"
-					disabled={!webgpu || running !== null || !brief.direction}
-					onclick={async () => (drafted = await timed('draft', (module) => module.proposeChart(brief)))}
+					disabled={!webgpu || running !== null || !answers.direction}
+					onclick={async () => (drafted = await timed('draft', (module) => module.proposeChart(answers)))}
 				>
 					{running === 'draft' ? 'Writing' : 'Write the chart'}
 				</Button>
@@ -545,7 +549,7 @@
 					</li>
 				{/each}
 			</ul>
-			<p class="m-0 text-[0.8rem] text-muted">Run <code>bun run score:coach</code> for the 50 held-out briefs.</p>
+			<p class="m-0 text-[0.8rem] text-muted">Run <code>bun run score:coach</code> for the 50 held-out answer sets.</p>
 		</Card>
 	</div>
 

@@ -1,7 +1,7 @@
-import type { CoachBrief } from './draft.ts';
+import type { ChartAnswers } from './draft.ts';
 
-/** Invented briefs for a later hand check. Do not train on these. */
-export const coachHoldout: readonly CoachBrief[] = [
+/** Invented starting answers for a later hand check. Do not train on these. */
+export const holdoutChartAnswers: readonly ChartAnswers[] = [
 	{ direction: 'Finish a half marathon', timeline: 'October', situation: 'Runs twice a week', focus: 'A calm knee', constraint: 'A bad knee' },
 	{ direction: 'Pass the driving test', timeline: 'Eight weeks', situation: 'Has a permit', focus: 'Parking', constraint: 'Lessons only on Saturday' },
 	{ direction: 'Ship a small app', timeline: 'Twelve weeks', situation: 'Evenings free', focus: 'One screen that works', constraint: 'No weekend work' },

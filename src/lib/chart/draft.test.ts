@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { briefToUserMessage, chartFromDraft, draftPrompt, draftSystemPrompt, eightActions, parseDraftText } from './draft.ts';
+import { chartAnswersMessage, chartFromDraft, draftPrompt, draftSystemPrompt, eightActions, parseDraftText } from './draft.ts';
 
 const sample = {
 	goal: 'Run a half marathon in under 2:00 by October',
@@ -77,9 +77,9 @@ describe('eightActions', () => {
 		expect(eightActions(raw)?.[0]).toBe('Run Tuesday');
 	});
 });
-describe('briefToUserMessage', () => {
-	it('fills the brief and marks a missing line', () => {
-		const message = briefToUserMessage({
+describe('chartAnswersMessage', () => {
+	it('fills the answers and marks a missing line', () => {
+		const message = chartAnswersMessage({
 			direction: 'Run a half marathon',
 			timeline: '',
 			situation: 'I run twice a week',

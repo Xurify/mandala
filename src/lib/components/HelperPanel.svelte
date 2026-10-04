@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { COACH_DOWNLOAD } from '$lib/chart/coach-model';
+	import { COACH_WEIGHT_DOWNLOAD } from '$lib/chart/coach-model';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
 	import { describeKey } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
 	import HelperFace from './HelperFace.svelte';
+	import BouncingDots from './ui/BouncingDots.svelte';
 	import Button from './ui/Button.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { cn } from './ui/cn';
@@ -27,12 +28,17 @@
 	let scroller: HTMLDivElement | null = $state(null);
 
 	const chips = $derived(helper.chips);
-	const isThinking = $derived(
-		Boolean(
-			helper.progress?.label?.startsWith('Thinking') ||
-				(helper.busy && (!helper.progress?.label || helper.progress.label.startsWith('Thinking')))
-		)
-	);
+	const isReady = $derived(Boolean(helper.progress?.label?.startsWith('Ready')));
+	const activeStatusLabel = $derived.by(() => {
+		if (isReady) return null;
+		if (helper.progress?.label) {
+			return helper.progress.label.replace(/[.…]+$/, '').trim();
+		}
+		if (helper.busy) {
+			return 'Thinking';
+		}
+		return null;
+	});
 
 	$effect(() => {
 		void helper.messages.length;
@@ -167,12 +173,12 @@
 			{:else if value.kind === 'download'}
 				{#if message.state === 'used' && (helper.progress?.label === 'Downloading.' || helper.progress?.label === 'Starting the download.')}
 					<p class="m-0 text-[0.86rem] leading-snug text-pretty text-muted">
-						{helper.progress.detail ? `${helper.progress.detail} of about ${COACH_DOWNLOAD}.` : 'Starting the download.'}
+						{helper.progress.detail ? `${helper.progress.detail} of about ${COACH_WEIGHT_DOWNLOAD}.` : 'Starting the download.'}
 						After that I start in seconds, even offline. Your chart never leaves this device.
 					</p>
 				{:else}
 					<p class="m-0 text-[0.86rem] leading-snug text-pretty text-muted">
-						About {COACH_DOWNLOAD}, once. After that I start in seconds, even offline. Your chart never leaves this device.
+						About {COACH_WEIGHT_DOWNLOAD}, once. After that I start in seconds, even offline. Your chart never leaves this device.
 					</p>
 				{/if}
 			{:else if value.kind === 'prompt'}
@@ -208,23 +214,19 @@
 		<HelperFace mood={helper.mood} size={46} />
 		<div class="min-w-0 flex-1">
 			<h2 class="m-0 text-[1.05rem] leading-tight font-[620]">Bindu</h2>
-			<p class="m-0 truncate text-[0.8rem] text-muted" role="status" aria-label={isThinking ? 'Thinking...' : undefined}>
-				{#if isThinking}
+			<p class="m-0 truncate text-[0.8rem] text-muted" role="status" aria-label={activeStatusLabel ? `${activeStatusLabel}...` : undefined}>
+				{#if activeStatusLabel}
 					<span class="inline-flex items-center">
-						Thinking
-						<span class="ms-1 inline-flex items-center gap-[3px]" aria-hidden="true">
-							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce"></span>
-							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce" style:animation-delay="160ms"></span>
-							<span class="size-1 rounded-full bg-current opacity-35 motion-safe:animate-dot-bounce" style:animation-delay="320ms"></span>
-						</span>
+						{activeStatusLabel}
+						<BouncingDots />
 					</span>
 				{:else}
 					{helper.progress?.label || (helper.modelReady ? 'Ready, on this device' : 'Lives in this browser')}
 				{/if}
 			</p>
-			{#if helper.progress?.ratio != null}
-				{@const percent = Math.round(helper.progress.ratio * 100)}
-				<div class="mt-1.5 flex items-center gap-2">
+			{#if helper.progress?.downloadFillRatio != null}
+				{@const percent = Math.round(helper.progress.downloadFillRatio * 100)}
+				<div class="mt-1.5 flex items-center gap-2 motion-safe:animate-note-in">
 					<span
 						class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-sunken"
 						role="progressbar"

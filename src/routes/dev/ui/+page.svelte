@@ -10,6 +10,7 @@
 	import ProgressRing from '$lib/components/ProgressRing.svelte';
 	import ShortcutsDialog from '$lib/components/ShortcutsDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import BouncingDots from '$lib/components/ui/BouncingDots.svelte';
 	import Card from '$lib/components/ui/Card.svelte';
 	import { cn } from '$lib/components/ui/cn';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
@@ -711,12 +712,12 @@
 			</span>
 			<input class="size-4 shrink-0 cursor-pointer accent-ink" type="checkbox" bind:checked={keepUpdated} />
 		</label>
-		<fieldset class="m-0 grid max-w-xl grid-cols-2 gap-2 border-0 p-0 max-[640px]:grid-cols-1">
+		<fieldset class="m-0 grid max-w-xl grid-cols-2 gap-1.5 rounded-[22px] border-0 bg-sunken p-1.5 max-[640px]:grid-cols-1">
 			<legend class="sr-only">Choose a preset</legend>
 			<label
-				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'health'
-					? 'bg-surface shadow-card'
-					: 'bg-sunken hover:bg-sunken-hover'}"
+				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[16px] px-3 py-2.5 motion-safe:transition-[background-color,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'health'
+					? 'bg-surface shadow-seg'
+					: 'hover:bg-sunken-hover'}"
 			>
 				<input class="sr-only" type="radio" name="catalog-preset" value="health" bind:group={preset} />
 				<span
@@ -735,9 +736,9 @@
 				</span>
 			</label>
 			<label
-				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[18px] px-3.5 py-3 motion-safe:transition-[background-color,box-shadow] motion-safe:duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'blank'
-					? 'bg-surface shadow-card'
-					: 'bg-sunken hover:bg-sunken-hover'}"
+				class="group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-[16px] px-3 py-2.5 motion-safe:transition-[background-color,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink {preset === 'blank'
+					? 'bg-surface shadow-seg'
+					: 'hover:bg-sunken-hover'}"
 			>
 				<input class="sr-only" type="radio" name="catalog-preset" value="blank" bind:group={preset} />
 				<span
@@ -844,6 +845,16 @@
 				{/snippet}
 			</Notice>
 			<Notice>A quiet note with no action.</Notice>
+		</Card>
+
+		<Card class="flex flex-col gap-4">
+			<Eyebrow>Bouncing dots</Eyebrow>
+			<div class="flex flex-wrap items-center gap-6 text-[0.88rem] text-muted">
+				<span class="inline-flex items-center">Thinking <BouncingDots /></span>
+				<span class="inline-flex items-center">Loading <BouncingDots /></span>
+				<span class="inline-flex items-center">Downloading <BouncingDots /></span>
+				<span class="inline-flex items-center">Generating poster <BouncingDots /></span>
+			</div>
 		</Card>
 
 		<Card class="flex flex-col gap-4">

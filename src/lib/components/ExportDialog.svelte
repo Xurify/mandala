@@ -5,6 +5,7 @@
 	import { shareUrl } from '$lib/chart/share';
 	import { shareUrl as publishedUrl } from '$lib/chart/sync/publish';
 	import Button from './ui/Button.svelte';
+	import BouncingDots from './ui/BouncingDots.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Icon from './Icon.svelte';
 
@@ -122,7 +123,14 @@
 				</div>
 				<div class="flex min-w-0 flex-col gap-0.5">
 					<span class="text-[0.92rem] font-[620]">
-						{isExportingPng ? 'Generating poster…' : 'Poster image'}
+						{#if isExportingPng}
+							<span class="inline-flex items-center">
+								Generating poster
+								<BouncingDots />
+							</span>
+						{:else}
+							Poster image
+						{/if}
 					</span>
 					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
 						High-resolution graphic with the complete 9×9 grid.

@@ -4,6 +4,7 @@
 	import { describe, filledCount, getByKey, type ChartData } from '$lib/chart/model';
 	import MandalaGrid from '$lib/components/MandalaGrid.svelte';
 	import BrandMark from '$lib/components/BrandMark.svelte';
+	import BouncingDots from '$lib/components/ui/BouncingDots.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -99,7 +100,10 @@
 	</header>
 
 	{#if loading}
-		<p class="m-0 text-muted" role="status">Loading…</p>
+		<p class="m-0 inline-flex items-center text-muted" role="status">
+			Loading
+			<BouncingDots />
+		</p>
 	{:else if error}
 		<Notice>{error}</Notice>
 	{:else if chartData}

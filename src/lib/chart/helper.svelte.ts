@@ -1,7 +1,7 @@
 import { chart } from './chart.svelte';
 import { draftPrompt, parseDraftText } from './draft.ts';
 import {
-	briefFromAnswers,
+	chartAnswersFromText,
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
@@ -19,6 +19,7 @@ import {
 	type HelperPick
 } from './helper.ts';
 import { COACH_MODEL_ID } from './coach-model.ts';
+import { CoachStopped } from './coach-protocol.ts';
 import { blockOfK, idx, todayKey, type ChartData } from './model.ts';
 
 export type HelperMood = 'idle' | 'listening' | 'thinking' | 'happy' | 'puzzled';
@@ -67,6 +68,15 @@ function readConsent(): boolean {
 		return typeof localStorage !== 'undefined' && localStorage.getItem(CONSENT_KEY) === COACH_MODEL_ID;
 	} catch {
 		return false;
+	}
+}
+
+function persistModelConsent(): void {
+	try {
+		localStorage.setItem(CONSENT_KEY, COACH_MODEL_ID);
+	} catch {
+		// Private mode keeps the consent for this session only.
+		return;
 	}
 }
 
@@ -155,8 +165,8 @@ export class HelperStore {
 		}
 		if (this.step === 'extra') {
 			this.step = 'idle';
-			const brief = briefFromAnswers(this.#direction, text);
-			await this.#withModel(() => this.#draft(brief), 'draft');
+			const answers = chartAnswersFromText(this.#direction, text);
+			await this.#withModel(() => this.#draft(answers), 'draft');
 			return;
 		}
 
@@ -196,11 +206,7 @@ export class HelperStore {
 
 	allowDownload(id: number): void {
 		this.#consent = true;
-		try {
-			localStorage.setItem(CONSENT_KEY, COACH_MODEL_ID);
-		} catch {
-			// Private mode keeps the consent for this session only.
-		}
+		persistModelConsent();
 		this.#settle(id, 'used');
 		const run = this.#pending;
 		this.#pending = null;
@@ -279,10 +285,10 @@ export class HelperStore {
 		);
 	}
 
-	async #draft(brief: ReturnType<typeof briefFromAnswers>): Promise<void> {
+	async #draft(answers: ReturnType<typeof chartAnswersFromText>): Promise<void> {
 		const coach = await loadCoachModule();
 		let draftId = 0;
-		const result = await coach.proposeChart(brief, (partial) => {
+		const result = await coach.proposeChart(answers, (partial) => {
 			if (!draftId) {
 				this.#say('Pillars first. The actions follow, one pillar at a time.', { kind: 'chart', data: partial });
 				draftId = this.messages[this.messages.length - 1]?.id ?? 0;
@@ -394,6 +400,7 @@ export class HelperStore {
 
 	async #run(run: () => Promise<void>): Promise<void> {
 		const coach = await loadCoachModule();
+		coach.resumeCoach();
 		this.busy = true;
 		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
 		this.#progressStop ??= coach.watchCoachProgress((update) => {
@@ -402,8 +409,8 @@ export class HelperStore {
 		try {
 			await run();
 			this.modelReady = coach.coachLoaded();
-		} catch {
-			this.#fail('Something stopped me. Try again in a moment.');
+		} catch (error) {
+			if (!(error instanceof CoachStopped)) this.#fail('Something stopped me. Try again in a moment.');
 		} finally {
 			this.busy = false;
 			this.progress = null;

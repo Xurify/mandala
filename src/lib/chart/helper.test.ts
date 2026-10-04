@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-	briefFromAnswers,
+	chartAnswersFromText,
 	chipsFor,
-	clipWords,
+	truncateAtWordBoundary,
 	describeCoachProgress,
-	factsFor,
+	chartAnswerFacts,
 	fillActionsMessages,
 	fillPlan,
 	goalAndPillars,
@@ -30,21 +30,21 @@ function sample(): ChartData {
 	return data;
 }
 
-describe('briefFromAnswers', () => {
+describe('chartAnswersFromText', () => {
 	it('keeps the direction and skips a bare go', () => {
-		const brief = briefFromAnswers('  Run a half marathon ', 'go');
-		expect(brief.direction).toBe('Run a half marathon');
-		expect(brief.situation).toBe('');
+		const answers = chartAnswersFromText('  Run a half marathon ', 'go');
+		expect(answers.direction).toBe('Run a half marathon');
+		expect(answers.situation).toBe('');
 	});
 
 	it('pulls a timeline out of the extra answer', () => {
-		const brief = briefFromAnswers('Run', 'By October 2026, I run twice a week now');
-		expect(brief.timeline).toBe('October 2026');
-		expect(brief.situation).toContain('twice a week');
+		const answers = chartAnswersFromText('Run', 'By October 2026, I run twice a week now');
+		expect(answers.timeline).toBe('October 2026');
+		expect(answers.situation).toContain('twice a week');
 	});
 
 	it('does not read "in a job" as a timeline', () => {
-		expect(briefFromAnswers('Write', 'I am stuck in a job I dislike').timeline).toBe('');
+		expect(chartAnswersFromText('Write', 'I am stuck in a job I dislike').timeline).toBe('');
 	});
 });
 
@@ -103,8 +103,8 @@ describe('replyLines and oneLine', () => {
 
 describe('facts, faults, and the prompts', () => {
 	it('keeps the person on later calls and skips empty fields', () => {
-		const brief = briefFromAnswers('Run a half', 'By October 2026, bad knee, I run twice a week');
-		const facts = factsFor(brief);
+		const answers = chartAnswersFromText('Run a half', 'By October 2026, bad knee, I run twice a week');
+		const facts = chartAnswerFacts(answers);
 		expect(facts).toContain('October 2026');
 		expect(facts).toContain('bad knee');
 		expect(facts).not.toContain('Focus');
@@ -151,10 +151,10 @@ describe('facts, faults, and the prompts', () => {
 	});
 });
 
-describe('clipWords and goalAndPillars', () => {
+describe('truncateAtWordBoundary and goalAndPillars', () => {
 	it('never cuts mid-word', () => {
-		expect(clipWords('Track expenses using an app to stay aware of spending', 48)).toBe('Track expenses using an app to stay aware of');
-		expect(clipWords('Short one.', 48)).toBe('Short one');
+		expect(truncateAtWordBoundary('Track expenses using an app to stay aware of spending', 48)).toBe('Track expenses using an app to stay aware of');
+		expect(truncateAtWordBoundary('Short one.', 48)).toBe('Short one');
 	});
 
 	it('reads the head of a draft and needs eight distinct pillars', () => {
@@ -237,13 +237,13 @@ describe('describeCoachProgress', () => {
 	it('turns a fetch report into a fill', () => {
 		expect(
 			describeCoachProgress('Fetching param cache[2/8]: 359MB fetched. 36% completed, 12 secs elapsed. It can take a while when we first visit this page to populate the cache. Later refreshes will become faster.', 0.364)
-		).toEqual({ label: 'Downloading.', ratio: 0.364, detail: '359 MB' });
+		).toEqual({ label: 'Downloading.', downloadFillRatio: 0.364, detail: '359 MB' });
 	});
 
 	it('reads the percent from the text when no ratio arrives', () => {
 		expect(describeCoachProgress('Loading model from cache[1/8]: 120MB loaded. 15% completed, 2 secs elapsed.')).toEqual({
-			label: 'Loading it.',
-			ratio: 0.15,
+			label: 'Loading',
+			downloadFillRatio: 0.15,
 			detail: '120 MB'
 		});
 	});
@@ -253,11 +253,11 @@ describe('describeCoachProgress', () => {
 	});
 
 	it('keeps ordinary status lines as they are', () => {
-		expect(describeCoachProgress('Thinking.')).toEqual({ label: 'Thinking.', ratio: null, detail: '' });
-		expect(describeCoachProgress('Start to fetch params', 0)).toEqual({ label: 'Starting the download.', ratio: 0, detail: '' });
+		expect(describeCoachProgress('Thinking.')).toEqual({ label: 'Thinking.', downloadFillRatio: null, detail: '' });
+		expect(describeCoachProgress('Start to fetch params', 0)).toEqual({ label: 'Starting the download.', downloadFillRatio: 0, detail: '' });
 		expect(describeCoachProgress('Loading GPU shader modules[3/40]: 7% completed, 4 secs elapsed.', 0.075)).toEqual({
 			label: 'Getting ready.',
-			ratio: 0.075,
+			downloadFillRatio: 0.075,
 			detail: ''
 		});
 	});

@@ -1,5 +1,12 @@
 import type { ChatMessage } from './helper.ts';
 
+export class CoachStopped extends Error {
+	constructor() {
+		super('Stopped.');
+		this.name = 'CoachStopped';
+	}
+}
+
 export type CoachRequest =
 	| { type: 'load'; id: number; model: string }
 	| {

@@ -15,9 +15,9 @@ On IFBench, Qwen2.5 7B Instruct scores about 26%. Qwen3.5 0.8B is about 21%, 2B 
 
 ## It cannot count characters while it writes
 
-"At most 48 characters" is not a length it can feel. It writes a normal sentence. `clipWords` then cuts at the last whole word, which is how "Review bank statements monthly to avoid late fees" becomes "Review bank statements monthly to avoid late." The cell fits. The sentence is broken. Rejecting the long line and asking again is the fix. Chopping it is not.
+"At most 48 characters" is not a length it can feel. It writes a normal sentence. `truncateAtWordBoundary` then cuts at the last whole word, which is how "Review bank statements monthly to avoid late fees" becomes "Review bank statements monthly to avoid late." The cell fits. The sentence is broken. Rejecting the long line and asking again is the fix. Chopping it is not.
 
-`clipWords` is used by `replyLines`, `oneLine`, and `goalAndPillars`.
+`truncateAtWordBoundary` remains for tests; the writer rejects long lines instead of clipping.
 
 ## It copies the instruction
 
@@ -25,9 +25,9 @@ Asked to rewrite "Work hard every day," it answered `Tick "Work hard every day" 
 
 ## The person's facts never reach the action calls
 
-The pillar step gets the brief (`pillarsMessages` → `briefToUserMessage`). Each action step (`fillActionsMessages`) only gets the goal, the pillar name, and the actions already written. Situation, timeline, and the thing that would make a generic plan wrong are gone. So the model retrieves a stock paragraph. "Have a plan" and "get started now" are that. So are the finance lines it wrote onto a running chart: weekly grocery list, invest in stocks, switch energy bills.
+The pillar step gets the starting answers (`pillarsMessages` → `chartAnswersMessage`). Each action step (`fillActionsMessages`) only gets the goal, the pillar name, and the actions already written. Situation, timeline, and the thing that would make a generic plan wrong are gone. So the model retrieves a stock paragraph. "Have a plan" and "get started now" are that. So are the finance lines it wrote onto a running chart: weekly grocery list, invest in stocks, switch energy bills.
 
-`proposeChart` calls `fillActions(draft, pillarIndex, 8)` with no brief. `briefFromAnswers` also flattens the second answer into `situation` and only peels a timeline out, so focus and constraint never exist as their own fields in the helper flow.
+`proposeChart` calls `fillActions(draft, pillarIndex, 8)` with no starting answers. `chartAnswersFromText` also flattens the second answer into `situation` and only peels a timeline out, so focus and constraint never exist as their own fields in the helper flow.
 
 ## The checker never talks back to the writer
 
@@ -55,19 +55,19 @@ One shared judge, one shared fact line, one example. The model proposes. The jud
 
 ## 1. One fact line on every call
 
-Add `factsFor(brief: CoachBrief): string` next to `briefToUserMessage`. It lists only the fields that are filled: direction, timeline, situation, focus, constraint. Empty fields are omitted, so the model is not told to invent around "Not given."
+Add `chartAnswerFacts(answers: ChartAnswers)` next to `chartAnswersMessage`. It lists only the fields that are filled: direction, timeline, situation, focus, constraint. Empty fields are omitted, so the model is not told to invent around "Not given."
 
-Pass that string into `pillarsMessages`, `fillPillarsMessages`, `fillActionsMessages`, and `rewriteMessages`. `proposeChart(brief)` keeps the brief and hands the same string to every `fillActions` call.
+Pass that string into `pillarsMessages`, `fillPillarsMessages`, `fillActionsMessages`, and `rewriteMessages`. `proposeChart(answers)` keeps the answers and hands the same string to every `fillActions` call.
 
 For a chart that already exists and has no brief, build the line from the chart: goal, the other pillar names, and "stay on this goal." Do not let a money pillar on a running chart drift into grocery lists.
 
-`briefFromAnswers` should keep the whole second answer on the brief even when a timeline is peeled out, so "bad knee" and "I run twice a week" both survive into `factsFor`.
+`chartAnswersFromText` should keep the whole second answer even when a timeline is peeled out, so "bad knee" and "I run twice a week" both survive into `chartAnswerFacts`.
 
 ## 2. Judge the line, then retry once
 
 Extract `lineFault(text, { pillar, siblings, max })` from the same rules `reviewChart` uses: uncontrolled, untickable, restated, repeated, vague (one word), long (over `max`). `reviewChart` calls it. The generator calls it before a line is kept.
 
-`replyLines` stops calling `clipWords`. A line over the max is `long`, not a shortened sentence.
+`replyLines` drops a line over the max as `long`, not a shortened sentence.
 
 Flow in `fillActions` and `fillPillars`:
 
@@ -167,11 +167,11 @@ Do not train on the lab's bad outputs. Do not fine-tune 1.5B and call the produc
 
 # Holdout, 2026-10-04
 
-Same invented briefs in `coach-holdout.ts`. Do not train on them. Each cell is filled / 64, then whether a four-letter token from the constraint string showed up, then seconds. Faults and near-copies were 0 on every chart that actually wrote. A 0 in a few seconds means the pillar JSON failed and the action writer never ran.
+Same invented starting answers in `holdoutChartAnswers` (`coach-holdout.ts`). Do not train on them. Each cell is filled / 64, then whether a constraint word of 3+ letters showed up as its own word, then seconds. Faults and near-copies were 0 on every chart that actually wrote. A 0 in a few seconds means the pillar JSON failed and the action writer never ran.
 
-## Eight briefs, one pass each
+## Eight answer sets, one pass each
 
-| Brief | 1.5B | 1.7B | 4B | 4B thinking |
+| Answers | 1.5B | 1.7B | 4B | 4B thinking |
 | --- | --- | --- | --- | --- |
 | Half marathon | 60, yes, 24s | 62, yes, 30s | 64, yes, 33s | 64, yes, 303s |
 | Driving test | blank | blank | blank, 6s | 64, yes, 304s |
@@ -186,7 +186,7 @@ Charts that wrote: 2, 5, 7, 7 out of 8. Thinking rescued the driving-test head a
 
 A second pass of those same eight on 4B, inside the run below, filled the driving test and kept the small-app constraint. One draw is not the model.
 
-## Fifty briefs, Qwen3 4B, thinking off
+## Fifty answer sets, Qwen3 4B, thinking off
 
 48 of 50 wrote a chart. The two blanks were "Stretch after sitting" and "Learn ten signs," both in about 7 seconds. When the head parsed, the mean was 63 of 64 cells. Including the blanks, 60 of 64. Twenty-five charts were full. The shortest written charts were 54 (photograph one roll), 57 (file the insurance form), and 58 (pay the dentist). Checker faults on written cells: 0. Near-copies: 0. Median 36 seconds.
 

@@ -1,9 +1,9 @@
-import type { CoachRequest, CoachResponse } from './coach-protocol.ts';
-import { ACTION_MAX, PILLAR_MAX, type CoachBrief } from './draft.ts';
+import { CoachStopped, type CoachRequest, type CoachResponse } from './coach-protocol.ts';
+import { ACTION_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
 import {
 	askMessages,
-	factsFor,
-	factsFromChart,
+	chartAnswerFacts,
+	chartContextFacts,
 	fillActionsMessages,
 	fillPillarsMessages,
 	goalAndPillars,
@@ -34,11 +34,12 @@ const listeners = new Set<(update: CoachProgress) => void>();
 const pending = new Map<number, { resolve: (text: string) => void; reject: (error: Error) => void }>();
 let worker: Worker | null = null;
 let ready = false;
-let loading: Promise<void> | null = null;
 let seq = 1;
 let lastStats = '';
 let activeModel = COACH_MODEL_ID;
 let thinking = false;
+let stopped = false;
+let inflightLoad: { model: string; promise: Promise<void> } | null = null;
 
 function onProgress(text: string, ratio: number | null = null): void {
 	const update = { text, ratio };
@@ -109,23 +110,24 @@ export function coachModel(): string {
 /** Loads `model` in the worker. Bindu keeps the default. The lab passes a candidate. */
 export function loadCoach(model = activeModel): Promise<void> {
 	if (ready && model === activeModel) return Promise.resolve();
+	if (inflightLoad?.model === model) return inflightLoad.promise;
+
 	const requested = model;
-	if (requested !== activeModel) {
-		ready = false;
-		loading = null;
-		activeModel = requested;
-	}
-	loading ??= request({ type: 'load', model: requested })
-		.then(() => {
-			if (activeModel !== requested) return;
-			ready = true;
-			onProgress('Coach is ready.');
-		})
-		.catch((error: unknown) => {
-			loading = null;
-			throw error;
-		});
-	return loading;
+	ready = false;
+	activeModel = requested;
+	const earlier = inflightLoad;
+	const promise = (async () => {
+		await earlier?.promise.catch(() => undefined);
+		if (activeModel !== requested) throw new Error('Switched model before this load finished.');
+		await request({ type: 'load', model: requested });
+		if (activeModel !== requested) throw new Error('Switched model before this load finished.');
+		ready = true;
+		onProgress('Coach is ready.');
+	})().finally(() => {
+		if (inflightLoad?.promise === promise) inflightLoad = null;
+	});
+	inflightLoad = { model: requested, promise };
+	return promise;
 }
 
 export async function selectCoachModel(model: string, enableThinking = false): Promise<void> {
@@ -133,14 +135,21 @@ export async function selectCoachModel(model: string, enableThinking = false): P
 	await loadCoach(model);
 }
 
+export function resumeCoach(): void {
+	stopped = false;
+}
+
 export async function interruptCoach(): Promise<void> {
+	stopped = true;
 	worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
 }
 
 async function complete(messages: ChatMessage[], options: { maxTokens?: number; temperature?: number } = {}): Promise<string> {
+	if (stopped) throw new CoachStopped();
 	await loadCoach(activeModel);
+	if (stopped) throw new CoachStopped();
 	const maxTokens = options.maxTokens ?? 512;
-	return request({
+	const text = await request({
 		type: 'complete',
 		model: activeModel,
 		messages,
@@ -148,6 +157,8 @@ async function complete(messages: ChatMessage[], options: { maxTokens?: number; 
 		temperature: options.temperature ?? 0.2,
 		thinking
 	});
+	if (stopped) throw new CoachStopped();
+	return text;
 }
 
 const ECHO = /\b(tick|rewrite|reminder|cell)\b/i;
@@ -185,7 +196,7 @@ async function writeLines(
 
 export async function fillPillars(data: ChartData, count: number, facts = ''): Promise<string[] | null> {
 	onProgress('Naming pillars.');
-	const person = [facts.trim(), factsFromChart(data)].filter(Boolean).join('\n');
+	const person = [facts.trim(), chartContextFacts(data)].filter(Boolean).join('\n');
 	const named = data.pillars.map((pillar) => pillar.trim()).filter(Boolean);
 	return writeLines(count, PILLAR_MAX, 'pillar', '', named, (need, rejected) => fillPillarsMessages(data, need, person, rejected));
 }
@@ -193,7 +204,7 @@ export async function fillPillars(data: ChartData, count: number, facts = ''): P
 export async function fillActions(data: ChartData, pillarIndex: number, count: number, facts = ''): Promise<string[] | null> {
 	const pillar = (data.pillars[pillarIndex] ?? '').trim();
 	onProgress(`Writing actions for ${pillar}.`);
-	const person = [facts.trim(), factsFromChart(data, pillarIndex)].filter(Boolean).join('\n');
+	const person = [facts.trim(), chartContextFacts(data, pillarIndex)].filter(Boolean).join('\n');
 	const elsewhere = data.actions.flatMap((row, index) =>
 		index === pillarIndex ? [] : row.map((action) => action.trim()).filter((action) => action !== '')
 	);
@@ -209,7 +220,7 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	const max = kind === 'pillar' ? PILLAR_MAX : ACTION_MAX;
 	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
 	const pillar = kind === 'action' ? (data.pillars[pillarIndex] ?? '').trim() : '';
-	const facts = factsFromChart(data, kind === 'action' ? pillarIndex : undefined);
+	const facts = chartContextFacts(data, kind === 'action' ? pillarIndex : undefined);
 	const original = finding.text.toLowerCase();
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
@@ -227,12 +238,13 @@ export async function answer(data: ChartData, question: string): Promise<string>
 
 /** Goal and pillars first, then eight actions per pillar. Each step reports the chart so far. */
 export async function proposeChart(
-	brief: CoachBrief,
+	answers: ChartAnswers,
 	onPartial: (draft: ChartData) => void = () => {}
 ): Promise<{ chart: ChartData | null; raw: string }> {
+	resumeCoach();
 	onProgress(ready ? 'Naming the pillars.' : 'Waking up.');
-	const person = factsFor(brief);
-	const head = await retrying(() => complete(pillarsMessages(brief), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
+	const person = chartAnswerFacts(answers);
+	const head = await retrying(() => complete(pillarsMessages(answers), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
 	if (!head) return { chart: null, raw: '' };
 	const draft = emptyChart();
 	draft.goal = head.goal;

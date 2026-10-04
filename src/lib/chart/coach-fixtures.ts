@@ -1,8 +1,8 @@
-import type { CoachBrief } from './draft.ts';
+import type { ChartAnswers } from './draft.ts';
 
 export type CoachFixture = {
 	name: string;
-	brief: CoachBrief;
+	answers: ChartAnswers;
 	reply: string;
 };
 
@@ -24,7 +24,7 @@ const clean = {
 export const coachFixtures: readonly CoachFixture[] = [
 	{
 		name: 'clean chart',
-		brief: {
+		answers: {
 			direction: 'Finish a half marathon',
 			timeline: 'October',
 			situation: 'Runs twice a week',
@@ -35,7 +35,7 @@ export const coachFixtures: readonly CoachFixture[] = [
 	},
 	{
 		name: 'not json',
-		brief: {
+		answers: {
 			direction: 'Learn enough Japanese to travel',
 			timeline: 'One year',
 			situation: 'Knows hiragana',
@@ -46,7 +46,7 @@ export const coachFixtures: readonly CoachFixture[] = [
 	},
 	{
 		name: 'fails the tests',
-		brief: {
+		answers: {
 			direction: 'Grow a video channel',
 			timeline: 'This year',
 			situation: 'Posted once',

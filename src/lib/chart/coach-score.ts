@@ -84,8 +84,16 @@ export function scoreReply(raw: string): { parsed: boolean; issues: CoachIssue[]
 	return { parsed: true, issues: scoreChart(chart) };
 }
 
-/** Filled action cells, checker misses, and whether a constraint word landed. */
-export function chartReport(chart: ChartData, constraint = ''): {
+const CONSTRAINT_SKIP = new Set(['a', 'an', 'the', 'and', 'or', 'no', 'not']);
+
+function constraintWords(constraint: string): string[] {
+	return norm(constraint)
+		.split(' ')
+		.filter((token) => token.length >= 3 && !CONSTRAINT_SKIP.has(token));
+}
+
+/** Filled action cells, checker misses, and whether a constraint word landed as its own word. */
+export function holdoutChartMetrics(chart: ChartData, constraint = ''): {
 	filled: number;
 	faults: number;
 	copies: number;
@@ -93,13 +101,17 @@ export function chartReport(chart: ChartData, constraint = ''): {
 } {
 	const issues = scoreChart(chart);
 	const filled = chart.actions.flat().filter((action) => action.trim() !== '').length;
-	const tokens = norm(constraint).split(' ').filter((token) => token.length >= 4);
-	const blob = norm([chart.goal, ...chart.pillars, ...chart.actions.flat()].join(' '));
+	const wanted = constraintWords(constraint);
+	const written = new Set(
+		norm([chart.goal, ...chart.pillars, ...chart.actions.flat()].join(' '))
+			.split(' ')
+			.filter((token) => token !== '')
+	);
 	return {
 		filled,
 		faults: issues.length,
 		copies: issues.filter((issue) => issue.code === 'repeated').length,
-		constraint: tokens.length === 0 || tokens.some((token) => blob.includes(token))
+		constraint: wanted.length > 0 && wanted.some((token) => written.has(token))
 	};
 }
 

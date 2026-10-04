@@ -1,13 +1,13 @@
 import { nearCopy, norm, restated, UNCONTROLLED, UNTICKABLE } from './coach-score.ts';
 import {
 	ACTION_MAX,
-	briefToUserMessage,
-	emptyBrief,
+	chartAnswersMessage,
+	emptyChartAnswers,
 	GOAL_MAX,
 	jsonValue,
 	parseDraftText,
 	PILLAR_MAX,
-	type CoachBrief
+	type ChartAnswers
 } from './draft.ts';
 import {
 	dateKeyOf,
@@ -42,15 +42,15 @@ const TIMELINE =
 	/\b(?:by|before|within|in)\s+((?:\d+|a|one|two|three|six|twelve)\s+(?:days?|weeks?|months?|years?)|(?:the end of )?(?:january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|fall|winter|next year|the year)(?:\s+\d{4})?|\d{4})\b/i;
 const SKIP = /^(go|skip|no|nope|nothing|none|just write it|write it|that's it|thats it|-)\.?$/i;
 
-export function briefFromAnswers(direction: string, extra: string): CoachBrief {
-	const brief = emptyBrief();
-	brief.direction = direction.replace(/\s+/g, ' ').trim();
+export function chartAnswersFromText(direction: string, extra: string): ChartAnswers {
+	const answers = emptyChartAnswers();
+	answers.direction = direction.replace(/\s+/g, ' ').trim();
 	const rest = extra.replace(/\s+/g, ' ').trim();
-	if (!rest || SKIP.test(rest)) return brief;
+	if (!rest || SKIP.test(rest)) return answers;
 	const timeline = rest.match(TIMELINE);
-	if (timeline?.[1]) brief.timeline = timeline[1];
-	brief.situation = rest;
-	return brief;
+	if (timeline?.[1]) answers.timeline = timeline[1];
+	answers.situation = rest;
+	return answers;
 }
 
 export function intentOf(text: string): HelperIntent {
@@ -101,21 +101,21 @@ const ACTION_EXAMPLE = [
 
 export type LineReject = { text: string; reason: string };
 
-/** The brief, with empty fields left out, so a later call still knows the person. */
-export function factsFor(brief: CoachBrief): string {
+/** The person's answers, with empty fields left out, so a later call still knows them. */
+export function chartAnswerFacts(answers: ChartAnswers): string {
 	const rows: [string, string][] = [
-		['Direction', brief.direction],
-		['Timeline', brief.timeline],
-		['Where they stand', brief.situation],
-		['Focus', brief.focus],
-		['Constraint', brief.constraint]
+		['Direction', answers.direction],
+		['Timeline', answers.timeline],
+		['Where they stand', answers.situation],
+		['Focus', answers.focus],
+		['Constraint', answers.constraint]
 	];
 	const lines = rows.filter(([, value]) => value.trim() !== '').map(([label, value]) => `- ${label}: ${value.trim()}`);
 	return lines.length > 0 ? ['About this person:', ...lines].join('\n') : '';
 }
 
 /** Goal and the other pillars, for a chart that already exists. */
-export function factsFromChart(data: ChartData, skipPillar?: number): string {
+export function chartContextFacts(data: ChartData, skipPillar?: number): string {
 	const others = data.pillars.flatMap((pillar, index) => (index === skipPillar || !pillar.trim() ? [] : [pillar.trim()]));
 	const lines = [`Goal: ${data.goal.trim() || 'not set'}`];
 	if (others.length > 0) lines.push(`Other pillars: ${others.join('; ')}. Do not repeat them.`);
@@ -132,7 +132,7 @@ function rejectBlock(rejected: readonly LineReject[]): string[] {
 	return ['These were rejected. Write replacements. Do not repeat them.', ...rejected.map((item) => `Rejected: "${item.text}" — ${item.reason}`)];
 }
 
-export function pillarsMessages(brief: CoachBrief): ChatMessage[] {
+export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 	return [
 		{
 			role: 'system',
@@ -146,7 +146,7 @@ export function pillarsMessages(brief: CoachBrief): ChatMessage[] {
 		},
 		{
 			role: 'user',
-			content: [factsFor(brief), briefToUserMessage(brief).replace('Return 8 pillars. Each pillar has exactly 8 actions.', 'Return the goal and 8 pillars.')]
+			content: [chartAnswerFacts(answers), chartAnswersMessage(answers).replace('Return 8 pillars. Each pillar has exactly 8 actions.', 'Return the goal and 8 pillars.')]
 				.filter(Boolean)
 				.join('\n')
 		}
@@ -176,7 +176,7 @@ function cleanLine(value: string): string {
 export type CoachLoad = {
 	label: string;
 	/** 0–1 when this step has a measurable fill. */
-	ratio: number | null;
+	downloadFillRatio: number | null;
 	detail: string;
 };
 
@@ -185,27 +185,27 @@ function clampRatio(ratio: number | null | undefined): number | null {
 	return Math.min(1, Math.max(0, ratio));
 }
 
-/** Turn a web-llm progress line into a short status. `ratio` wins over the percent buried in the text. */
-export function describeCoachProgress(text: string, ratio?: number | null): CoachLoad {
+/** Turn a web-llm progress line into a short status. The reported ratio wins over the percent buried in the text. */
+export function describeCoachProgress(text: string, reportedFillRatio?: number | null): CoachLoad {
 	const source = typeof text === 'string' ? text : '';
 	const cleaned = source.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
-	const reported = clampRatio(ratio);
+	const fromReport = clampRatio(reportedFillRatio);
 	const fromText = cleaned.match(/(\d+(?:\.\d+)?)\s*%\s*completed/i);
-	const measured = reported ?? (fromText ? clampRatio(Number(fromText[1]) / 100) : null);
+	const downloadFillRatio = fromReport ?? (fromText ? clampRatio(Number(fromText[1]) / 100) : null);
 	const mb = cleaned.match(/(\d+)\s*MB/i)?.[1];
 	const detail = mb ? `${mb} MB` : '';
 
-	if (/start to fetch/i.test(cleaned)) return { label: 'Starting the download.', ratio: measured ?? 0, detail: '' };
-	if (/fetching param/i.test(cleaned)) return { label: 'Downloading.', ratio: measured, detail };
-	if (/loading model from cache/i.test(cleaned)) return { label: 'Loading it.', ratio: measured, detail };
-	if (/shader/i.test(cleaned)) return { label: 'Getting ready.', ratio: measured, detail: '' };
-	if (/warming up/i.test(cleaned)) return { label: 'Warming up.', ratio: null, detail: '' };
-	if (/coach is ready/i.test(cleaned)) return { label: 'Ready, on this device.', ratio: null, detail: '' };
-	return { label: cleaned, ratio: null, detail: '' };
+	if (/start to fetch/i.test(cleaned)) return { label: 'Starting the download.', downloadFillRatio: downloadFillRatio ?? 0, detail: '' };
+	if (/fetching param/i.test(cleaned)) return { label: 'Downloading.', downloadFillRatio, detail };
+	if (/loading model from cache/i.test(cleaned)) return { label: 'Loading', downloadFillRatio, detail };
+	if (/shader/i.test(cleaned)) return { label: 'Getting ready.', downloadFillRatio, detail: '' };
+	if (/warming up/i.test(cleaned)) return { label: 'Warming up.', downloadFillRatio: null, detail: '' };
+	if (/coach is ready/i.test(cleaned)) return { label: 'Ready, on this device.', downloadFillRatio: null, detail: '' };
+	return { label: cleaned, downloadFillRatio: null, detail: '' };
 }
 
 /** Cut at the last whole word that fits. The writer does not use this. A long line is rejected. */
-export function clipWords(value: string, max: number): string {
+export function truncateAtWordBoundary(value: string, max: number): string {
 	const text = value.replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '');
 	if (text.length <= max) return text;
 	const cut = text.slice(0, max + 1);
