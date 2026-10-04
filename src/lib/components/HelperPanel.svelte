@@ -84,7 +84,7 @@
 		if (!card) return '';
 		if (card.kind === 'chart') return 'Use this chart';
 		if (card.kind === 'cells') return card.edits.length === 1 ? 'Use it' : 'Use these';
-		if (card.kind === 'picks') return card.scope === 'today' ? 'Start today with these' : 'Pin for the week';
+		if (card.kind === 'picks') return card.scope === 'today' ? "Pick today's three" : 'Plan this week';
 		if (card.kind === 'findings') return 'Rewrite them';
 		if (card.kind === 'download') return 'Download';
 		return '';
@@ -276,7 +276,7 @@
 		{#if chips.length}
 			<div class="mt-3 flex flex-wrap gap-1.5">
 				{#each chips as chip (chip.label)}
-					<Button size="sm" variant="soft" onclick={() => helper.start(chip.job)}>{chip.label}</Button>
+					<Button size="sm" variant="soft" onclick={() => helper.choose(chip)}>{chip.label}</Button>
 				{/each}
 			</div>
 		{/if}

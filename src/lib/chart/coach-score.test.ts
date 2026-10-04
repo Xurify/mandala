@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { coachFixtures } from './coach-fixtures.ts';
-import { holdoutChartAnswers } from './coach-holdout.ts';
+import { holdoutDataset } from './coach-holdout.ts';
 import { holdoutChartMetrics, nearCopy, scoreChart, scoreReply, summarizeScores } from './coach-score.ts';
 import { parseDraftText } from './draft.ts';
 
@@ -58,8 +58,8 @@ describe('coach baseline', () => {
 	it('scores the fixture replies and keeps the holdout off to the side', () => {
 		const summary = summarizeScores(coachFixtures.map((fixture) => fixture.reply));
 		expect(summary).toEqual({ total: 3, parsed: 2, withIssues: 1 });
-		expect(holdoutChartAnswers).toHaveLength(50);
-		const directions = new Set(holdoutChartAnswers.map((answers) => answers.direction));
+		expect(holdoutDataset).toHaveLength(50);
+		const directions = new Set(holdoutDataset.map((answers) => answers.direction));
 		expect(directions.size).toBe(50);
 	});
 });

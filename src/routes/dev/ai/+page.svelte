@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { coachFixtures } from '$lib/chart/coach-fixtures';
-	import { holdoutChartAnswers } from '$lib/chart/coach-holdout';
+	import { holdoutDataset } from '$lib/chart/coach-holdout';
 	import { CoachStopped } from '$lib/chart/coach-protocol';
 	import { holdoutChartMetrics, scoreChart, scoreReply, summarizeScores } from '$lib/chart/coach-score';
 	import { chartAnswersMessage } from '$lib/chart/draft';
@@ -199,7 +199,7 @@
 		try {
 			await coach.selectCoachModel(choice.id, choice.thinking);
 			loaded = coach.coachLoaded();
-			const setups = holdoutChartAnswers.slice(0, count);
+			const setups = holdoutDataset.slice(0, count);
 			for (const setup of setups) {
 				const mark = performance.now();
 				const result = await coach.proposeChart(setup);
@@ -305,7 +305,7 @@
 	</Card>
 
 	<Card class="flex flex-col gap-4">
-		<Eyebrow>Holdout</Eyebrow>
+		<Eyebrow>Holdout dataset</Eyebrow>
 		<p class="m-0 text-[0.88rem] text-pretty text-muted">
 			Same invented starting answers, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
 		</p>
@@ -399,7 +399,7 @@
 		<Card class="flex min-w-0 flex-col gap-3.5">
 			<Eyebrow>Draft from two answers</Eyebrow>
 			<label class="flex flex-col gap-1.5">
-				<span class="text-[0.82rem] font-semibold">{'What do you want to grow into?'}</span>
+				<span class="text-[0.82rem] font-semibold">What is the goal? One line is enough.</span>
 				<input class={field} bind:value={direction} />
 			</label>
 			<label class="flex flex-col gap-1.5">
@@ -445,7 +445,7 @@
 		<Card class="flex min-w-0 flex-col gap-3.5">
 			<Eyebrow>Narrow jobs</Eyebrow>
 			<div class="flex flex-col gap-2">
-				<span class="text-[0.82rem] font-semibold">Fill the blanks · {plan ? (plan.kind === 'pillars' ? 'pillars' : sample.pillars[plan.pillarIndex]) : 'nothing'}</span>
+				<span class="text-[0.82rem] font-semibold">Fill empty actions · {plan ? (plan.kind === 'pillars' ? 'pillars' : sample.pillars[plan.pillarIndex]) : 'nothing'}</span>
 				<div class="flex flex-wrap items-center gap-3">
 					<Button
 						size="sm"

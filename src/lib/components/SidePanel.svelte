@@ -380,7 +380,7 @@
 		<div class="mb-4">
 			<Notice>
 				{#snippet children()}
-					Want help choosing balanced pillars? Try the 4 Perspectives.
+					Want help naming the pillars?
 				{/snippet}
 				{#snippet action()}
 					<Button size="sm" variant="soft" onclick={() => (haradaOpen = true)}>
@@ -569,7 +569,7 @@
 				class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
 				onclick={() => (haradaOpen = true)}
 			>
-				Open Harada 4 Perspectives guide
+				Help naming the pillars
 			</button>
 		</li>
 	</ul>

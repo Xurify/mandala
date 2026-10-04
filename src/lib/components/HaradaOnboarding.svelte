@@ -38,10 +38,10 @@
 	}
 
 	function goToStep3(): void {
-		suggestionTangibleSelf = extractPillarName(tangibleSelf, 'Core skills');
-		suggestionTangibleOthers = extractPillarName(tangibleOthers, 'What others see');
-		suggestionIntangibleSelf = extractPillarName(intangibleSelf, 'Mindset');
-		suggestionIntangibleOthers = extractPillarName(intangibleOthers, 'Trust');
+		suggestionTangibleSelf = extractPillarName(tangibleSelf, '');
+		suggestionTangibleOthers = extractPillarName(tangibleOthers, '');
+		suggestionIntangibleSelf = extractPillarName(intangibleSelf, '');
+		suggestionIntangibleOthers = extractPillarName(intangibleOthers, '');
 		currentStep = 3;
 	}
 
@@ -80,7 +80,7 @@
 	}
 </script>
 
-<Dialog bind:open title="Four perspectives" description="Look at the goal four ways: what you can touch, and what you cannot, for you and for others.">
+<Dialog bind:open title="Name the pillars" description="Four ways to look at the goal. Skip any box that does not fit.">
 	{#if currentStep === 1}
 		<div class="flex flex-col gap-5">
 			<div class="rounded-[18px] bg-sunken p-4 text-center">
@@ -113,13 +113,6 @@
 				</div>
 			</div>
 		</div>
-
-		{#snippet footer()}
-			<div class="flex w-full items-center justify-between gap-2">
-				<Button variant="ghost" onclick={handleDismiss}>Skip for now</Button>
-				<Button variant="primary" onclick={goToStep2}>Continue →</Button>
-			</div>
-		{/snippet}
 	{:else if currentStep === 2}
 		<div class="flex flex-col gap-4">
 			<p class="text-[0.84rem] text-muted">
@@ -130,12 +123,12 @@
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<span class="size-2 rounded-full bg-chart-1"></span>
-						<span class="text-[0.78rem] font-bold text-text uppercase tracking-wider">Tangible × Self</span>
+						<span class="text-[0.78rem] font-bold text-text">What you practice</span>
 					</div>
-					<p class="text-[0.74rem] text-muted">What skill or routine will you physically build?</p>
+					<p class="text-[0.74rem] text-muted">What skill or routine will you do?</p>
 					<textarea
 						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Daily speaking practice, vocabulary review"
+						placeholder="e.g. Practice speaking for 15 minutes"
 						bind:value={tangibleSelf}
 					></textarea>
 				</div>
@@ -143,12 +136,12 @@
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<span class="size-2 rounded-full bg-chart-2"></span>
-						<span class="text-[0.78rem] font-bold text-text uppercase tracking-wider">Tangible × Others</span>
+						<span class="text-[0.78rem] font-bold text-text">Who it is for</span>
 					</div>
-					<p class="text-[0.74rem] text-muted">What tangible proof or service will others experience?</p>
+					<p class="text-[0.74rem] text-muted">What will other people see you do?</p>
 					<textarea
 						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Fluent conversation, mentoring others"
+						placeholder="e.g. Talk with a partner for 20 minutes"
 						bind:value={tangibleOthers}
 					></textarea>
 				</div>
@@ -156,12 +149,12 @@
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<span class="size-2 rounded-full bg-chart-3"></span>
-						<span class="text-[0.78rem] font-bold text-text uppercase tracking-wider">Intangible × Self</span>
+						<span class="text-[0.78rem] font-bold text-text">How you keep going</span>
 					</div>
-					<p class="text-[0.74rem] text-muted">What mindset, belief, or emotional calm will anchor you?</p>
+					<p class="text-[0.74rem] text-muted">What helps you continue when it is hard?</p>
 					<textarea
 						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Embrace mistakes as learning, self-compassion"
+						placeholder="e.g. Write one thing that went well after each try"
 						bind:value={intangibleSelf}
 					></textarea>
 				</div>
@@ -169,24 +162,17 @@
 				<div class="flex flex-col gap-1.5">
 					<div class="flex items-center gap-1.5">
 						<span class="size-2 rounded-full bg-chart-4"></span>
-						<span class="text-[0.78rem] font-bold text-text uppercase tracking-wider">Intangible × Others</span>
+						<span class="text-[0.78rem] font-bold text-text">Who you show up for</span>
 					</div>
-					<p class="text-[0.74rem] text-muted">Who do you want to inspire, encourage, or connect with?</p>
+					<p class="text-[0.74rem] text-muted">Who do you want to spend time with?</p>
 					<textarea
 						class={cn(textArea, 'h-20 resize-none text-[0.82rem]')}
-						placeholder="e.g. Deep connection with native speakers"
+						placeholder="e.g. Call one friend on Sunday"
 						bind:value={intangibleOthers}
 					></textarea>
 				</div>
 			</div>
 		</div>
-
-		{#snippet footer()}
-			<div class="flex w-full items-center justify-between gap-2">
-				<Button variant="ghost" onclick={() => (currentStep = 1)}>← Back</Button>
-				<Button variant="primary" onclick={goToStep3}>See pillar ideas</Button>
-			</div>
-		{/snippet}
 	{:else}
 		<div class="flex flex-col gap-4">
 			<p class="text-[0.84rem] text-muted">
@@ -195,7 +181,7 @@
 
 			<div class="flex flex-col gap-3">
 				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted uppercase tracking-wider">Pillar 1 · Tangible Self</span>
+					<span class="text-[0.74rem] font-bold text-muted">Pillar 1 · What you practice</span>
 					<input
 						type="text"
 						class={cn(textField, 'text-[0.88rem] font-medium')}
@@ -205,7 +191,7 @@
 				</div>
 
 				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted uppercase tracking-wider">Pillar 2 · Tangible Others</span>
+					<span class="text-[0.74rem] font-bold text-muted">Pillar 2 · Who it is for</span>
 					<input
 						type="text"
 						class={cn(textField, 'text-[0.88rem] font-medium')}
@@ -215,7 +201,7 @@
 				</div>
 
 				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted uppercase tracking-wider">Pillar 3 · Intangible Self</span>
+					<span class="text-[0.74rem] font-bold text-muted">Pillar 3 · How you keep going</span>
 					<input
 						type="text"
 						class={cn(textField, 'text-[0.88rem] font-medium')}
@@ -225,7 +211,7 @@
 				</div>
 
 				<div class="flex flex-col gap-1">
-					<span class="text-[0.74rem] font-bold text-muted uppercase tracking-wider">Pillar 4 · Intangible Others</span>
+					<span class="text-[0.74rem] font-bold text-muted">Pillar 4 · Who you show up for</span>
 					<input
 						type="text"
 						class={cn(textField, 'text-[0.88rem] font-medium')}
@@ -235,12 +221,20 @@
 				</div>
 			</div>
 		</div>
+	{/if}
 
-		{#snippet footer()}
-			<div class="flex w-full items-center justify-between gap-2">
+	{#snippet footer()}
+		<div class="flex w-full items-center justify-between gap-2">
+			{#if currentStep === 1}
+				<Button variant="ghost" onclick={handleDismiss}>Skip for now</Button>
+				<Button variant="primary" onclick={goToStep2}>Continue →</Button>
+			{:else if currentStep === 2}
+				<Button variant="ghost" onclick={() => (currentStep = 1)}>← Back</Button>
+				<Button variant="primary" onclick={goToStep3}>See pillar ideas</Button>
+			{:else}
 				<Button variant="ghost" onclick={() => (currentStep = 2)}>← Back</Button>
 				<Button variant="primary" onclick={handleApply}>Add to chart</Button>
-			</div>
-		{/snippet}
-	{/if}
+			{/if}
+		</div>
+	{/snippet}
 </Dialog>

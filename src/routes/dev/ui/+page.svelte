@@ -782,7 +782,7 @@
 				<MenuDivider />
 				<MenuItem icon="edit" badge="R">Rename chart</MenuItem>
 				<MenuItem icon="copy" badge="D" onclick={() => chart.say('Chart duplicated')}>Duplicate chart</MenuItem>
-				<MenuItem icon="plus">New blank chart</MenuItem>
+				<MenuItem icon="plus">New chart</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="trash" tone="danger" badge="Del" onclick={() => (dialogOpen = true)}>
 					Delete chart

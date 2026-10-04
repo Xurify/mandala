@@ -236,24 +236,45 @@ export async function answer(data: ChartData, question: string): Promise<string>
 	return (await complete(askMessages(data, question), { maxTokens: 120, temperature: 0.6 })).trim();
 }
 
-/** Goal and pillars first, then eight actions per pillar. Each step reports the chart so far. */
-export async function proposeChart(
+/** Goal and eight pillars, with the actions still empty. */
+export async function proposePillars(
 	answers: ChartAnswers,
 	onPartial: (draft: ChartData) => void = () => {}
 ): Promise<{ chart: ChartData | null; raw: string }> {
 	resumeCoach();
 	onProgress(ready ? 'Naming the pillars.' : 'Waking up.');
-	const person = chartAnswerFacts(answers);
 	const head = await retrying(() => complete(pillarsMessages(answers), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
 	if (!head) return { chart: null, raw: '' };
 	const draft = emptyChart();
 	draft.goal = head.goal;
 	draft.pillars = head.pillars;
 	onPartial(structuredClone(draft));
+	return { chart: draft, raw: JSON.stringify(draft) };
+}
+
+/** Eight actions on each pillar of a chart that already has its goal and pillars. */
+export async function fillDraftActions(
+	draft: ChartData,
+	answers: ChartAnswers,
+	onPartial: (draft: ChartData) => void = () => {}
+): Promise<ChartData> {
+	resumeCoach();
+	const person = chartAnswerFacts(answers);
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 		const actions = await fillActions(draft, pillarIndex, 8, person);
 		draft.actions[pillarIndex] = Array.from({ length: 8 }, (_, index) => actions?.[index] ?? '');
 		onPartial(structuredClone(draft));
 	}
-	return { chart: draft, raw: JSON.stringify(draft) };
+	return draft;
+}
+
+/** Goal and pillars first, then eight actions per pillar. Each step reports the chart so far. */
+export async function proposeChart(
+	answers: ChartAnswers,
+	onPartial: (draft: ChartData) => void = () => {}
+): Promise<{ chart: ChartData | null; raw: string }> {
+	const sketched = await proposePillars(answers, onPartial);
+	if (!sketched.chart) return sketched;
+	const chart = await fillDraftActions(sketched.chart, answers, onPartial);
+	return { chart, raw: JSON.stringify(chart) };
 }

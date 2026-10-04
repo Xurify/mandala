@@ -1,13 +1,20 @@
 import { chart } from './chart.svelte';
-import { draftPrompt, parseDraftText } from './draft.ts';
+import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
+	aimOf,
 	chartAnswersFromText,
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
+	extraChips,
+	fillPillarChip,
 	fillPlan,
 	greetingFor,
+	helpChips,
 	intentOf,
+	isHelpRequest,
+	offerChips,
+	pillarMentioned,
 	reviewChart,
 	suggestToday,
 	suggestWeek,
@@ -88,7 +95,7 @@ export class HelperStore {
 	unread = $state(false);
 	webgpu = $state<boolean | null>(null);
 	modelReady = $state(false);
-	step = $state<'idle' | 'direction' | 'extra'>('idle');
+	step = $state<'idle' | 'direction' | 'extra' | 'offer'>('idle');
 	#cheer = $state(false);
 	#trouble = $state(false);
 	listening = $state(false);
@@ -100,6 +107,11 @@ export class HelperStore {
 	#target: HelperTarget;
 	#seq = 1;
 	#direction = '';
+	#sketch: ChartData | null = null;
+	#sketchId = 0;
+	#help = $state(false);
+	#pillarFill = $state<number | null>(null);
+	#fillPillar: number | null = null;
 	#pending: (() => Promise<void>) | null = null;
 	#consent = readConsent();
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -115,13 +127,21 @@ export class HelperStore {
 	}
 
 	get chips(): HelperChip[] {
-		if (this.busy || this.step !== 'idle') return [];
+		if (this.busy) return [];
+		if (this.step === 'offer') return offerChips();
+		if (this.step === 'extra') return extraChips(this.#sketch !== null);
+		if (this.step === 'direction') return [];
+		if (this.#help) return helpChips();
+		if (this.#pillarFill !== null) {
+			const name = (this.#target.data().pillars[this.#pillarFill] ?? '').trim();
+			if (name) return [fillPillarChip(name, this.#pillarFill)];
+		}
 		return chipsFor(this.#target.data(), this.#target.selectedPillar());
 	}
 
 	get placeholder(): string {
 		if (this.step === 'direction') return 'Run a half marathon, learn Spanish…';
-		if (this.step === 'extra') return 'By when, where you stand, or say go';
+		if (this.step === 'extra') return 'A date, how much time you have, or say go';
 		return 'Ask, or say what you need';
 	}
 
@@ -148,7 +168,16 @@ export class HelperStore {
 		this.step = 'idle';
 		this.#pending = null;
 		this.#trouble = false;
+		this.#clearTurn();
 		this.#say(greetingFor(this.#target.data()));
+	}
+
+	choose(chip: HelperChip): void {
+		const act = chip.act;
+		if (act.kind === 'job') void this.start(act.job, act.pillar);
+		else if (act.kind === 'send') void this.send(act.text);
+		else if (act.kind === 'sketch') void this.#sketchAim();
+		else this.#dismissAim();
 	}
 
 	async send(raw: string): Promise<void> {
@@ -164,29 +193,65 @@ export class HelperStore {
 			return;
 		}
 		if (this.step === 'extra') {
-			this.step = 'idle';
 			const answers = chartAnswersFromText(this.#direction, text);
+			if (this.#sketch) {
+				await this.#withModel(() => this.#fillSketch(answers), 'draft');
+				return;
+			}
+			this.step = 'idle';
 			await this.#withModel(() => this.#draft(answers), 'draft');
 			return;
 		}
+		if (this.step === 'offer') this.step = 'idle';
+		this.#help = false;
+		this.#pillarFill = null;
 
+		const data = this.#target.data();
 		const intent = intentOf(text);
 		if (intent === 'chart') {
-			const data = parseDraftText(text);
-			if (data) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data });
+			const parsed = parseDraftText(text);
+			if (parsed) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data: parsed });
 			return;
 		}
-		if (intent === 'ask') {
-			await this.#withModel(() => this.#answer(text));
+		if (intent !== 'ask') {
+			await this.start(intent);
 			return;
 		}
-		await this.start(intent);
+		if (isHelpRequest(text) && data.goal.trim() && !fillPlan(data)) {
+			this.#help = true;
+			this.#say("The chart is full. Three actions for today is the next move.");
+			return;
+		}
+		const aim = aimOf(text, data);
+		if (aim) {
+			this.#direction = aim;
+			this.#sketch = null;
+			this.#sketchId = 0;
+			this.step = 'offer';
+			this.#say(data.goal.trim() ? 'That is a new chart. This one stays.' : 'I can sketch a chart for that.');
+			return;
+		}
+		const mentioned = pillarMentioned(text, data);
+		if (mentioned !== null) {
+			const name = (data.pillars[mentioned] ?? '').trim();
+			const empty = (data.actions[mentioned] ?? []).filter((action) => !action.trim()).length;
+			if (empty > 0) {
+				this.#pillarFill = mentioned;
+				this.#say(`${name} still has ${empty} empty ${empty === 1 ? 'action' : 'actions'}.`);
+				return;
+			}
+			this.#say(`Those lines are already on ${name}.`);
+			return;
+		}
+		await this.#withModel(() => this.#answer(text));
 	}
 
-	async start(job: HelperJob): Promise<void> {
+	async start(job: HelperJob, pillar?: number): Promise<void> {
 		if (this.busy) return;
 		this.#trouble = false;
+		this.#clearTurn();
 		this.step = 'idle';
+		this.#fillPillar = job === 'fill' ? (pillar ?? this.#target.selectedPillar()) : null;
 		const data = this.#target.data();
 		if (job === 'draft') {
 			this.step = 'direction';
@@ -196,9 +261,9 @@ export class HelperStore {
 		if (job === 'review') return this.#review(data);
 		if (job === 'week') return this.#picks('week', data);
 		if (job === 'today') return this.#picks('today', data);
-		const plan = fillPlan(data, this.#target.selectedPillar());
+		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar());
 		if (!plan) {
-			this.#say(data.goal.trim() ? 'Every cell is filled. Want a review instead?' : 'Give the chart a goal first, then I can fill the rest.');
+			this.#say(data.goal.trim() ? 'Every line is filled. Review my chart instead?' : 'Give the chart a goal first, then I can fill the rest.');
 			return;
 		}
 		await this.#withModel(() => this.#fill());
@@ -220,11 +285,13 @@ export class HelperStore {
 		if (card.kind === 'chart') {
 			if (!this.#target.applyDraft(card.data)) return;
 			this.#settle(id, 'used');
-			this.#celebrate('Done. Pick five to eight for this week whenever you like.');
+			this.#clearTurn();
+			this.step = 'idle';
+			this.#celebrate('Done. Plan this week whenever you like.');
 		} else if (card.kind === 'cells') {
 			this.#target.setCells(card.edits);
 			this.#settle(id, 'used');
-			this.#celebrate(card.edits.length === 1 ? 'Changed it.' : `Changed ${card.edits.length} cells.`);
+			this.#celebrate(card.edits.length === 1 ? 'Changed it.' : `Changed ${card.edits.length} lines.`);
 		} else if (card.kind === 'picks') {
 			const keys = card.picks.map((pick) => pick.key);
 			if (card.scope === 'today') this.#target.setToday(keys);
@@ -263,12 +330,12 @@ export class HelperStore {
 	async #review(data: ChartData): Promise<void> {
 		const findings = reviewChart(data);
 		if (findings.length === 0) {
-			this.#say('Every cell passes both tests: you can tick it, and it is yours to do. Nice work.');
+			this.#say('Every line can be marked done, and it is yours to do.');
 			this.#cheerOnly();
 			return;
 		}
-		const count = findings.length === 1 ? 'One cell' : `${findings.length} cells`;
-		this.#say(`${count} could be sharper. I can rewrite them, and you choose what stays.`, { kind: 'findings', findings });
+		const count = findings.length === 1 ? 'One line' : `${findings.length} lines`;
+		this.#say(`${count} could be clearer. I can rewrite them, and you choose what stays.`, { kind: 'findings', findings });
 	}
 
 	#picks(scope: 'today' | 'week', data: ChartData): void {
@@ -279,8 +346,8 @@ export class HelperStore {
 		}
 		this.#say(
 			scope === 'today'
-				? 'Three for today, from different pillars.'
-				: `${picks.length} for this week, starting with the quiet pillars. Pinned ones lead your daily picks.`,
+				? "Pick today's three, from different pillars."
+				: `${picks.length} for this week, starting with the pillars you have not used. Pinned ones lead each day.`,
 			{ kind: 'picks', scope, picks }
 		);
 	}
@@ -307,7 +374,7 @@ export class HelperStore {
 		if (draftId) this.#settle(draftId, 'open');
 		else this.#say('Here is a first chart.', { kind: 'chart', data: result.chart });
 		const written = result.chart.actions.flat().filter((action) => action.trim()).length;
-		this.#say(written === 64 ? 'All 64 actions are in. Use it, or ask me to start again.' : `${written} of 64 actions are in. The blanks stayed empty.`);
+		this.#say(written === 64 ? 'All 64 actions are in. Use this chart, or ask me to start again.' : `${written} of 64 actions are in. The empty ones stayed empty.`);
 	}
 
 	async #warm(): Promise<void> {
@@ -336,14 +403,14 @@ export class HelperStore {
 	async #fill(): Promise<void> {
 		const coach = await loadCoachModule();
 		const data = this.#target.data();
-		const plan = fillPlan(data, this.#target.selectedPillar());
+		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar());
 		if (!plan) return;
 		if (plan.kind === 'pillars') {
 			const lines = await coach.fillPillars(data, plan.empty.length);
 			if (!lines) return this.#fail('I could not name those pillars. Try once more?');
 			const edits = plan.empty.slice(0, lines.length).map((pillarIndex, index) => ({ key: `p${pillarIndex}`, before: '', after: lines[index] ?? '' }));
-			const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} stayed blank.` : '';
-			this.#say(`${edits.length} pillars for "${data.goal.trim()}". Keep the ones that would change the outcome.${short}`, { kind: 'cells', edits });
+			const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} left empty.` : '';
+			this.#say(`${edits.length} pillars for "${data.goal.trim()}". Keep the ones that matter.${short}`, { kind: 'cells', edits });
 			return;
 		}
 		const lines = await coach.fillActions(data, plan.pillarIndex, plan.empty.length);
@@ -354,8 +421,8 @@ export class HelperStore {
 			after: lines[index] ?? ''
 		}));
 		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
-		const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} stayed blank.` : '';
-		this.#say(`${edits.length} for ${name}. Each one is something you can schedule.${short}`, { kind: 'cells', edits });
+		const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} left empty.` : '';
+		this.#say(`${edits.length} for ${name}. Each one is something you can do.${short}`, { kind: 'cells', edits });
 	}
 
 	async #rewrite(findings: HelperFinding[]): Promise<void> {
@@ -418,6 +485,81 @@ export class HelperStore {
 		}
 	}
 
+	#clearTurn(): void {
+		this.#help = false;
+		this.#pillarFill = null;
+		this.#sketch = null;
+		this.#sketchId = 0;
+		this.#direction = '';
+	}
+
+	#dismissAim(): void {
+		this.#clearTurn();
+		this.step = 'idle';
+		this.#say('Staying with this chart.');
+	}
+
+	#patchChart(id: number, data: ChartData): void {
+		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { kind: 'chart', data } } : entry));
+	}
+
+	async #sketchAim(): Promise<void> {
+		if (this.busy || !this.#direction.trim()) return;
+		const again = this.#sketch !== null;
+		this.#help = false;
+		this.#pillarFill = null;
+		const answers = chartAnswersFromText(this.#direction, '');
+		await this.#withModel(async () => {
+			const coach = await loadCoachModule();
+			let draftId = again ? this.#sketchId : 0;
+			if (again && draftId) this.#settle(draftId, 'working');
+			const result = await coach.proposePillars(answers, (partial) => {
+				this.#sketch = partial;
+				if (!draftId) {
+					this.#say('Here are eight parts of the goal.', { kind: 'chart', data: partial });
+					draftId = this.messages[this.messages.length - 1]?.id ?? 0;
+					this.#sketchId = draftId;
+					this.#settle(draftId, 'working');
+					return;
+				}
+				this.#sketchId = draftId;
+				this.#patchChart(draftId, partial);
+			});
+			if (!result.chart) {
+				if (draftId) this.#settle(draftId, 'skipped');
+				this.#sketch = null;
+				this.step = 'offer';
+				this.#fail('I could not name those pillars. Try once more?');
+				return;
+			}
+			this.#sketch = result.chart;
+			if (draftId) this.#settle(draftId, 'open');
+			this.step = 'extra';
+			if (!again) this.#say(DRAFT_QUESTIONS[1]);
+		}, 'draft');
+	}
+
+	async #fillSketch(answers: ChartAnswers): Promise<void> {
+		const coach = await loadCoachModule();
+		const draft = this.#sketch;
+		const draftId = this.#sketchId;
+		if (!draft || !draftId) return;
+		this.#settle(draftId, 'working');
+		const filled = await coach.fillDraftActions(draft, answers, (partial) => {
+			this.#sketch = partial;
+			this.#patchChart(draftId, partial);
+		});
+		this.#settle(draftId, 'open');
+		this.step = 'idle';
+		this.#sketch = null;
+		const written = filled.actions.flat().filter((action) => action.trim()).length;
+		this.#say(
+			written === 64
+				? 'All 64 actions are in. Use this chart, or ask me to start again.'
+				: `${written} of 64 actions are in. The empty ones stayed empty.`
+		);
+	}
+
 	#push(entry: Omit<HelperMessage, 'id'>): HelperMessage {
 		const message: HelperMessage = { id: this.#seq++, ...entry };
 		this.messages = [...this.messages, message];
@@ -464,7 +606,7 @@ export const helper = new HelperStore({
 		for (const edit of edits) chart.setText(edit.key, edit.after);
 		const first = edits[0];
 		if (first) chart.select(first.key.startsWith('p') ? 4 : blockOfK(Number(first.key.slice(1).split('_')[0])));
-		chart.say(edits.length === 1 ? 'Changed 1 cell.' : `Changed ${edits.length} cells.`);
+		chart.say(edits.length === 1 ? 'Changed 1 line.' : `Changed ${edits.length} lines.`);
 	},
 	setToday: (keys) => {
 		chart.setFocus(todayKey(), keys);

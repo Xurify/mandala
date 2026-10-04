@@ -460,7 +460,7 @@
 	>
 		<MenuDivider />
 		<div class="flex gap-px">
-			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New blank chart</MenuItem>
+			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New chart</MenuItem>
 			<span class="my-2.5 w-px shrink-0 bg-line" aria-hidden="true"></span>
 			<MenuItem icon="target" class="w-auto shrink-0" onclick={handleExample}>
 				Example<span class="sr-only"> chart</span>

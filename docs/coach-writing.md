@@ -165,9 +165,9 @@ Order:
 
 Do not train on the lab's bad outputs. Do not fine-tune 1.5B and call the product done. Freeform questions (`answer`) can stay on the base model so the fine-tune does not have to remain a general chat model.
 
-# Holdout, 2026-10-04
+# Holdout dataset, 2026-10-04
 
-Same invented starting answers in `holdoutChartAnswers` (`coach-holdout.ts`). Do not train on them. Each cell is filled / 64, then whether a constraint word of 3+ letters showed up as its own word, then seconds. Faults and near-copies were 0 on every chart that actually wrote. A 0 in a few seconds means the pillar JSON failed and the action writer never ran.
+Same invented starting answers in `holdoutDataset` (`coach-holdout.ts`). Do not train on them. Each cell is filled / 64, then whether a constraint word of 3+ letters showed up as its own word, then seconds. Faults and near-copies were 0 on every chart that actually wrote. A 0 in a few seconds means the pillar JSON failed and the action writer never ran.
 
 ## Eight answer sets, one pass each
 

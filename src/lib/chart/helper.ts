@@ -34,8 +34,8 @@ export type HelperPick = { key: string; text: string; pillarIndex: number; why: 
 export type FillPlan = { kind: 'pillars'; empty: number[] } | { kind: 'actions'; pillarIndex: number; empty: number[] };
 
 export const DRAFT_QUESTIONS = [
-	'What do you want to grow into? One line is enough.',
-	'Anything I should know? By when, where you stand, what gets in the way. Or say "go".'
+	'What is the goal? One line is enough.',
+	'Anything that would change the plan? A date, how much time you have. Or say go.'
 ] as const;
 
 const TIMELINE =
@@ -64,6 +64,54 @@ export function intentOf(text: string): HelperIntent {
 	return 'ask';
 }
 
+const HELP_REQUEST =
+	/^(?:please\s+)?(?:can you |could you |would you )?(?:help(?: me)?|i need help|what can you do|i(?:'|\s)?m stuck)[.?!]*$/i;
+
+/** A bare ask for help, with no goal of its own. */
+export function isHelpRequest(text: string): boolean {
+	return HELP_REQUEST.test(text.replace(/\s+/g, ' ').trim());
+}
+
+const AIM_FRAME =
+	/^(?:please\s+)?(?:can you help me\s+|could you help me\s+|help me\s+|i want to\s+|i wanna\s+|i'd like to\s+|i would like to\s+|i need to\s+|i want\s+)(.+)$/i;
+
+/** A new direction, when the line is not already a job and is not the current goal. */
+export function aimOf(text: string, data: ChartData): string | null {
+	if (intentOf(text) !== 'ask' || isHelpRequest(text)) return null;
+	const match = text.replace(/\s+/g, ' ').trim().match(AIM_FRAME);
+	if (!match?.[1]) return null;
+	const aim = match[1]
+		.replace(/[,.]?\s+but\b[\s\S]*$/i, '')
+		.replace(/[.?!]+$/g, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+	if (aim.length < 3) return null;
+	const goal = data.goal.trim();
+	if (goal && norm(aim) === norm(goal)) return null;
+	return aim;
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** A pillar already on the chart, named in the line. */
+export function pillarMentioned(text: string, data: ChartData): number | null {
+	if (intentOf(text) !== 'ask') return null;
+	let bestIndex = -1;
+	let bestLength = 0;
+	for (let index = 0; index < data.pillars.length; index++) {
+		const name = (data.pillars[index] ?? '').trim();
+		if (name.length < 4) continue;
+		if (!new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(text)) continue;
+		if (name.length > bestLength) {
+			bestIndex = index;
+			bestLength = name.length;
+		}
+	}
+	return bestIndex === -1 ? null : bestIndex;
+}
+
 function actionKey(pillarIndex: number, actionIndex: number): string {
 	return `a${pillarIndex}_${actionIndex}`;
 }
@@ -87,16 +135,15 @@ export function fillPlan(data: ChartData, preferredPillar: number | null = null)
 }
 
 const CELL_RULES =
-	'Each line is a behaviour this person can schedule. No results they cannot control, no "work hard", no "be more". Three to seven words.';
+	'Each line is something this person does, said the way you would say it: a verb and the thing it applies to. No results they cannot control, no "work hard", no "be more".';
 
 const ACTION_EXAMPLE = [
 	"Someone else's chart. Do not copy it.",
-	'Pillar: Gym, 30 minutes a day',
-	'- Shoes by the door',
-	'- On the calendar every Sunday',
-	'- Pack the bag the night before',
-	'- Book the lane on Monday',
-	'Inner ring "Study 30 minutes a day". Outer ring "Set up the desk as soon as I get home."'
+	'Pillar: Listen to Spanish for 15 minutes',
+	'- Play Spanish audio for 15 minutes at breakfast',
+	'- Shadow a two-minute clip after lunch',
+	'- Watch one show on Friday',
+	'- Note three phrases from the clip'
 ].join('\n');
 
 export type LineReject = { text: string; reason: string };
@@ -139,7 +186,7 @@ export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 			content: [
 				'You are a Mandala Method coach.',
 				'The goal is one line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
-				'Each pillar is something this person does, two to four words. A follower count, a grade, or a finish time is not a pillar.',
+				'Each pillar is a short sentence this person could say: a verb and the thing it applies to, at most 32 characters. A follower count, a grade, or a finish time is not a pillar.',
 				'A constraint in the brief is a condition on the work, not eight products.',
 				'Return only this JSON: {"goal":"...","pillars":["...", 8 strings]}.'
 			].join('\n')
@@ -218,7 +265,7 @@ export function fillPillarsMessages(data: ChartData, count: number, facts = '', 
 	return [
 		{
 			role: 'system',
-			content: `You name pillars for a Mandala chart. A pillar is one driver of the goal. ${CELL_RULES} Two to four words. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
+			content: `You name pillars for a Mandala chart. A pillar is one part of the goal. ${CELL_RULES} At most 32 characters. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
 		},
 		{
 			role: 'user',
@@ -287,8 +334,8 @@ export function lineFault(
 	if (UNCONTROLLED.test(value)) return { code: 'uncontrolled', reason: 'A result you cannot do. Write the step that gets you there.' };
 	if (UNTICKABLE.test(value)) {
 		return options.kind === 'pillar'
-			? { code: 'untickable', reason: 'This cannot be ticked. Name the thing you do.' }
-			: { code: 'untickable', reason: 'This cannot be ticked. Write the session, not the wish.' };
+			? { code: 'untickable', reason: 'This cannot be marked done. Name what you do.' }
+			: { code: 'untickable', reason: 'This cannot be marked done. Write the session, not the wish.' };
 	}
 	if (options.kind === 'action' && options.pillar && restated(options.pillar, value)) return { code: 'restated', reason: 'This repeats the pillar. Write what makes it happen.' };
 	if (options.siblings?.some((seen) => norm(seen) === norm(value) || nearCopy(seen, value))) {
@@ -297,8 +344,8 @@ export function lineFault(
 	if (options.kind === 'action' && !/\s/.test(value)) return { code: 'vague', reason: 'Too thin. Say what you do, and when.' };
 	if (value.length > options.max) {
 		return options.kind === 'pillar'
-			? { code: 'long', reason: 'Too long for a pillar. Two to four words.' }
-			: { code: 'long', reason: 'Too long for one cell. Three to seven words.' };
+			? { code: 'long', reason: 'Too long for a pillar.' }
+			: { code: 'long', reason: 'Too long for one action.' };
 	}
 	return null;
 }
@@ -358,7 +405,7 @@ export function rewriteMessages(data: ChartData, finding: HelperFinding, facts =
 		{
 			role: 'system',
 			content: [
-				'You replace one cell of a Mandala chart with a behaviour, three to seven words.',
+				'You replace one line of a Mandala chart with something this person does: a verb and the thing it applies to.',
 				'Return only the new line. Do not mention the problem.',
 				'"Work hard" → "Block 25 minutes after lunch". "Get 10 million views" → "Post one short video on Tuesday". Do not copy these.'
 			].join('\n')
@@ -412,7 +459,7 @@ function openActions(data: ChartData): { key: string; pillarIndex: number; text:
 
 function pickWhy(key: string, pillarIndex: number, activity: number[], touched: Map<string, string>, pinned: boolean): string {
 	if (pinned) return 'Pinned for this week.';
-	if ((activity[pillarIndex] ?? 0) === 0) return 'This pillar was quiet this week.';
+	if ((activity[pillarIndex] ?? 0) === 0) return 'You have not used this pillar this week.';
 	if (!touched.has(key)) return 'Not started yet.';
 	return 'Longest since you did it.';
 }
@@ -493,8 +540,8 @@ export function askMessages(data: ChartData, question: string): ChatMessage[] {
 			role: 'system',
 			content: [
 				'You are Bindu, a calm helper inside Mandala, a goal chart: one goal, eight pillars, eight actions each.',
-				'Answer in at most three short sentences, in plain words. Be warm and specific to the chart. No lists, no emoji.',
-				`If they want something written, say they can ask you to fill the blanks, review the chart, plan the week, or pick today's three.`,
+				'Answer in two short sentences, in plain words, about this chart. No lists, no emoji, no offer to help in general.',
+				'Do not invent actions that are not already on the chart. If they need something written, the app will offer that. You only talk.',
 				'',
 				chartContext(data)
 			].join('\n')
@@ -504,7 +551,7 @@ export function askMessages(data: ChartData, question: string): ChatMessage[] {
 }
 
 export function greetingFor(data: ChartData): string {
-	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me the direction, and I'll sketch the chart with you.";
+	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me the goal, and I'll start the chart with you.";
 	const plan = fillPlan(data);
 	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still needs ${plan.empty.length} pillars. Want me to suggest some?`;
 	if (plan?.kind === 'actions') {
@@ -514,24 +561,56 @@ export function greetingFor(data: ChartData): string {
 	return "Hi again. The chart is full. I can review it, plan the week, or pick today's three.";
 }
 
-export type HelperChip = { job: HelperJob; label: string };
+export type ChipAct =
+	| { kind: 'job'; job: HelperJob; pillar?: number }
+	| { kind: 'send'; text: string }
+	| { kind: 'sketch' }
+	| { kind: 'dismiss' };
+
+export type HelperChip = { label: string; act: ChipAct };
+
+function jobChip(job: HelperJob, label: string, pillar?: number): HelperChip {
+	return { label, act: pillar === undefined ? { kind: 'job', job } : { kind: 'job', job, pillar } };
+}
 
 export function chipsFor(data: ChartData, preferredPillar: number | null = null): HelperChip[] {
-	if (!filled(data.goal)) return [{ job: 'draft', label: 'Start a chart' }];
+	if (!filled(data.goal)) return [jobChip('draft', 'Start a chart')];
 	const chips: HelperChip[] = [];
 	const plan = fillPlan(data, preferredPillar);
-	if (plan?.kind === 'pillars') chips.push({ job: 'fill', label: 'Suggest pillars' });
+	if (plan?.kind === 'pillars') chips.push(jobChip('fill', 'Suggest pillars'));
 	if (plan?.kind === 'actions') {
-		chips.push({ job: 'fill', label: `Fill ${(data.pillars[plan.pillarIndex] ?? '').trim() || 'the blanks'}` });
+		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
+		chips.push(jobChip('fill', name ? `Fill ${name}` : 'Fill empty actions', plan.pillarIndex));
 	}
 	const hasActions = data.actions.some((row) => row.some(filled));
 	if (hasActions) {
-		chips.push({ job: 'review', label: 'Review my chart' });
-		chips.push({ job: 'week', label: 'Plan this week' });
-		chips.push({ job: 'today', label: "Pick today's three" });
+		chips.push(jobChip('review', 'Review my chart'));
+		chips.push(jobChip('week', 'Plan this week'));
+		chips.push(jobChip('today', "Pick today's three"));
 	}
-	chips.push({ job: 'draft', label: 'New chart' });
+	chips.push(jobChip('draft', 'New chart'));
 	return chips;
+}
+
+export function offerChips(): HelperChip[] {
+	return [
+		{ label: 'Sketch this chart', act: { kind: 'sketch' } },
+		{ label: 'Stay on this chart', act: { kind: 'dismiss' } }
+	];
+}
+
+export function helpChips(): HelperChip[] {
+	return [jobChip('today', "Pick today's three"), jobChip('review', 'Review my chart')];
+}
+
+export function extraChips(sketch: boolean): HelperChip[] {
+	const chips: HelperChip[] = [{ label: 'Go', act: { kind: 'send', text: 'go' } }];
+	if (sketch) chips.push({ label: 'Try again', act: { kind: 'sketch' } });
+	return chips;
+}
+
+export function fillPillarChip(name: string, pillar: number): HelperChip {
+	return jobChip('fill', `Fill ${name}`, pillar);
 }
 
 export function describeKey(data: ChartData, key: string): string {

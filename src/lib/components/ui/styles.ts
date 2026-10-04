@@ -10,7 +10,7 @@ export const textArea =
 	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45]';
 
 export const button = tv({
-	base: `inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,transform] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
+	base: `inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 py-0 font-sans font-[560] tracking-[-0.005em] whitespace-nowrap no-underline transition-[background-color,color,box-shadow,scale] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
 	variants: {
 		variant: {
 			primary: 'bg-accent text-on-accent shadow-press hover:bg-accent-hover focus-visible:bg-accent-hover',
@@ -20,8 +20,8 @@ export const button = tv({
 				'bg-transparent text-danger hover:bg-danger-wash focus-visible:bg-danger-wash'
 		},
 		size: {
-			md: 'min-h-[42px] px-[18px] text-[0.9rem]',
-			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]'
+			md: 'min-h-[42px] px-[18px] text-[0.9rem]/none',
+			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]/none'
 		}
 	},
 	defaultVariants: { variant: 'primary', size: 'md' }
@@ -88,8 +88,8 @@ export const menuItem = tv({
 export const dialog = tv({
 	slots: {
 		panel:
-			'm-auto h-fit overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
-		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-hidden',
+			'm-auto h-fit overflow-clip rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
+		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-clip',
 		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px] motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',

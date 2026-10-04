@@ -36,7 +36,7 @@ const GROUPS: readonly { title: string; items: readonly ShortcutDef[] }[] = [
 		items: [
 			{ label: 'Rename', keys: ['R'] },
 			{ label: 'Duplicate', keys: ['D'] },
-			{ label: 'New blank chart', keys: ['N'] },
+			{ label: 'New chart', keys: ['N'] },
 			{ label: 'Delete chart', keys: ['Del'] }
 		]
 	},

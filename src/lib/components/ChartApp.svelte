@@ -366,7 +366,7 @@
 			items.push({ id: 'split', label: 'Go to Split view', section: 'Actions', icon: 'columns', run: () => chart.setViewMode('split') });
 		}
 		items.push(
-			{ id: 'new-chart', label: 'New blank chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
+			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
 			{ id: 'helper', label: 'Talk to Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
@@ -540,7 +540,7 @@
 				{#if effectiveViewMode !== 'today'}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-						<Button variant="soft" icon="sparkles" onclick={() => helper.show('draft')}>Talk it through</Button>
+						<Button variant="soft" icon="sparkles" onclick={() => helper.show('draft')}>Start a chart</Button>
 						<MethodGuide />
 					</div>
 				{/if}

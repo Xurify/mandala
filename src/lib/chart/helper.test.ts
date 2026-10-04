@@ -1,17 +1,26 @@
 import { describe, expect, it } from 'vitest';
+import { emptyChartAnswers } from './draft.ts';
 import {
+	aimOf,
+	askMessages,
 	chartAnswersFromText,
 	chipsFor,
 	truncateAtWordBoundary,
 	describeCoachProgress,
 	chartAnswerFacts,
+	extraChips,
 	fillActionsMessages,
 	fillPlan,
 	goalAndPillars,
+	helpChips,
 	intentOf,
+	isHelpRequest,
 	keptLines,
 	lineFault,
+	offerChips,
 	oneLine,
+	pillarMentioned,
+	pillarsMessages,
 	replyLines,
 	rewriteMessages,
 	reviewChart,
@@ -121,7 +130,7 @@ describe('facts, faults, and the prompts', () => {
 		const round = keptLines('1. Shoes by the door\n2. Work hard\n3. Easy runs\n4. Shoes by the door', 4, { max: 48, kind: 'action', pillar: 'Easy runs' });
 		expect(round.kept).toEqual(['Shoes by the door']);
 		expect(round.rejected.map((item) => item.reason)).toEqual([
-			'This cannot be ticked. Write the session, not the wish.',
+			'This cannot be marked done. Write the session, not the wish.',
 			'This repeats the pillar. Write what makes it happen.',
 			'Same afternoon as another action on the chart.'
 		]);
@@ -132,7 +141,7 @@ describe('facts, faults, and the prompts', () => {
 		const messages = fillActionsMessages(data, 0, 3, 'About this person:\n- Constraint: A bad knee');
 		const joined = messages.map((message) => message.content).join('\n');
 		expect(joined).toContain('A bad knee');
-		expect(joined).toContain('Shoes by the door');
+		expect(joined).toContain('Play Spanish audio for 15 minutes at breakfast');
 		expect(joined).not.toContain('at most');
 	});
 
@@ -263,9 +272,63 @@ describe('describeCoachProgress', () => {
 	});
 });
 
+function chipJob(chip: { act: { kind: string; job?: string } }): string {
+	return chip.act.kind === 'job' ? (chip.act.job ?? '') : chip.act.kind;
+}
+
 describe('chipsFor', () => {
 	it('offers a start on an empty chart and the whole set on a full one', () => {
-		expect(chipsFor(emptyChart()).map((chip) => chip.job)).toEqual(['draft']);
-		expect(chipsFor(sample()).map((chip) => chip.job)).toEqual(['review', 'week', 'today', 'draft']);
+		expect(chipsFor(emptyChart()).map(chipJob)).toEqual(['draft']);
+		expect(chipsFor(sample()).map(chipJob)).toEqual(['review', 'week', 'today', 'draft']);
+	});
+});
+
+describe('aimOf', () => {
+	it('takes a new direction out of a hesitant line', () => {
+		expect(aimOf('I want to learn Slovak, but I am not sure how', sample())).toBe('learn Slovak');
+	});
+
+	it('leaves a question about the chart, and a bare ask for help', () => {
+		expect(aimOf('Why does a pillar need eight actions?', sample())).toBeNull();
+		expect(isHelpRequest('Can you help me?')).toBe(true);
+		expect(aimOf('Can you help me?', sample())).toBeNull();
+	});
+
+	it('does not repeat the current goal', () => {
+		expect(aimOf('I want to finish a half marathon this October', sample())).toBeNull();
+	});
+});
+
+describe('pillarMentioned', () => {
+	it('finds a pillar named in the question', () => {
+		expect(pillarMentioned('How do I practice the long run?', sample())).toBe(2);
+	});
+});
+
+describe('turn chips', () => {
+	it('offers sketch or stay, help on a full chart, and go after a sketch', () => {
+		expect(offerChips().map((chip) => chip.label)).toEqual(['Sketch this chart', 'Stay on this chart']);
+		expect(helpChips().map(chipJob)).toEqual(['today', 'review']);
+		expect(extraChips(true).map((chip) => chip.label)).toEqual(['Go', 'Try again']);
+		expect(extraChips(false).map((chip) => chip.label)).toEqual(['Go']);
+	});
+});
+
+describe('cell prompts', () => {
+	it('asks for a sentence, not a word count', () => {
+		const pillars = pillarsMessages(emptyChartAnswers())
+			.map((message) => message.content)
+			.join('\n')
+			.toLowerCase();
+		const actions = fillActionsMessages(sample(), 0, 2)
+			.map((message) => message.content)
+			.join('\n')
+			.toLowerCase();
+		expect(pillars).not.toContain('two to four');
+		expect(pillars).not.toContain('three to seven');
+		expect(pillars).toContain('verb');
+		expect(actions).not.toContain('three to seven');
+		expect(actions).toContain('listen to spanish for 15 minutes');
+		expect(askMessages(sample(), 'hello').map((message) => message.content).join('\n').toLowerCase()).not.toContain('fill the blanks');
 	});
 });
