@@ -76,7 +76,7 @@
 			{#if option.icon}
 				<Icon name={option.icon} size={size === 'sm' ? 13 : 16} />
 			{/if}
-			<span>{option.label}</span>
+			<span class="translate-y-px">{option.label}</span>
 		</button>
 	{/each}
 </div>

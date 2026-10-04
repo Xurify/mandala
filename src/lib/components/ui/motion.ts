@@ -9,7 +9,7 @@ export function noteOut(_node: Element, { duration = 520 } = {}): TransitionConf
 	return {
 		duration,
 		easing: cubicOut,
-		css: (t) => `opacity: ${t}; transform: translateY(${(1 - t) * 8}px) scale(${0.96 + t * 0.04})`
+		css: (t) => `opacity: ${t}; transform: translateY(${(1 - t) * 8}px)`
 	};
 }
 
@@ -21,6 +21,6 @@ export function slipOut(_node: Element, { duration = 440 } = {}): TransitionConf
 	return {
 		duration,
 		easing: cubicOut,
-		css: (t) => `opacity: ${t}; transform: scale(${0.97 + t * 0.03})`
+		css: (t) => `opacity: ${t}`
 	};
 }

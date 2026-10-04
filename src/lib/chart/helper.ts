@@ -19,7 +19,7 @@ import {
 } from './model.ts';
 
 export type HelperJob = 'draft' | 'fill' | 'review' | 'week' | 'today';
-export type HelperIntent = HelperJob | 'chart' | 'ask';
+export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel';
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 export type HelperFinding = {
@@ -62,10 +62,25 @@ const DRAFT_COMMAND =
 	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over)\b/i;
 const QUESTION_PATTERNS = /\?$|^(?:how|why|what|when|where|who|which|can you explain|could you explain|is it|are there|tell me about)\b/i;
 
+const CANCEL_COMMAND =
+	/^(?:cancel(?:\s+(?:this|it|that|the\s+draft|draft))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|exit|back|no\s+thanks)\.?$/i;
+
+const REJECT_CARD =
+	/^(?:cancel(?:\s+(?:this|it|that))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|skip|no|nope|nah|not\s+now|not\s+this\s+one|leave\s+it|leave\s+them|discard|dismiss)\.?$/i;
+
+export function isCancellation(text: string): boolean {
+	return CANCEL_COMMAND.test(text.replace(/\s+/g, ' ').trim());
+}
+
+export function isCardRejection(text: string): boolean {
+	return REJECT_CARD.test(text.replace(/\s+/g, ' ').trim());
+}
+
 export function intentOf(text: string): HelperIntent {
 	if (parseDraftText(text)) return 'chart';
 	const trimmed = text.trim();
 	if (QUESTION_PATTERNS.test(trimmed)) return 'ask';
+	if (isCancellation(trimmed)) return 'cancel';
 	if (TODAY_COMMAND.test(trimmed)) return 'today';
 	if (WEEK_COMMAND.test(trimmed)) return 'week';
 	if (REVIEW_COMMAND.test(trimmed)) return 'review';
@@ -589,7 +604,8 @@ export function greetingFor(data: ChartData): string {
 	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still needs ${plan.empty.length} pillars. Want me to suggest some?`;
 	if (plan?.kind === 'actions') {
 		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
-		return `Hi again. ${name} still has ${plan.empty.length} empty actions. I can fill them, or we can plan the week.`;
+		const count = plan.empty.length;
+		return `Hi again. ${name} still has ${count === 1 ? '1 empty action' : `${count} empty actions`}. I can fill them, or we can plan the week.`;
 	}
 	return "Hi again. The chart is full. I can review it, plan the week, or pick today's three.";
 }

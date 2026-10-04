@@ -12,6 +12,8 @@ import {
 	greetingFor,
 	helpChips,
 	intentOf,
+	isCancellation,
+	isCardRejection,
 	isHelpRequest,
 	isPillarActionRequest,
 	offerChips,
@@ -187,6 +189,14 @@ export class HelperStore {
 		this.#say(greetingFor(this.#target.data()));
 	}
 
+	cancel(): void {
+		if (this.step !== 'idle' || this.#direction || this.#sketch) {
+			this.step = 'idle';
+			this.#clearTurn();
+			this.#say('Draft cancelled.');
+		}
+	}
+
 	choose(chip: HelperChip): void {
 		const act = chip.act;
 		if (act.kind === 'job') void this.start(act.job, act.pillar);
@@ -203,12 +213,24 @@ export class HelperStore {
 		this.#trouble = false;
 
 		if (this.step === 'direction') {
+			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
+				this.step = 'idle';
+				this.#clearTurn();
+				this.#say('Draft cancelled.');
+				return;
+			}
 			this.#direction = text;
 			this.step = 'extra';
 			this.#say(DRAFT_QUESTIONS[1]);
 			return;
 		}
 		if (this.step === 'extra') {
+			if (isCancellation(text)) {
+				this.step = 'idle';
+				this.#clearTurn();
+				this.#say('Draft cancelled.');
+				return;
+			}
 			const answers = chartAnswersFromText(this.#direction, text);
 			if (this.#sketch) {
 				await this.#withModel(() => this.#fillSketch(answers), 'draft');
@@ -218,12 +240,33 @@ export class HelperStore {
 			await this.#withModel(() => this.#draft(answers), 'draft');
 			return;
 		}
-		if (this.step === 'offer') this.step = 'idle';
+		if (this.step === 'offer') {
+			if (
+				isCancellation(text) ||
+				/^(?:no|nope|nah|stay|stay\s+(?:with|on)\s+this\s+chart|keep\s+this\s+chart|leave\s+it)\.?$/i.test(text)
+			) {
+				this.#dismissAim();
+				return;
+			}
+			this.step = 'idle';
+		}
 		this.#help = false;
 		this.#pillarFill = null;
 
+		const openMessage = this.messages.find((entry) => entry.state === 'open');
+		if (openMessage && isCardRejection(text)) {
+			this.skip(openMessage.id);
+			return;
+		}
+
 		const data = this.#target.data();
 		const intent = intentOf(text);
+		if (intent === 'cancel') {
+			this.#clearTurn();
+			this.step = 'idle';
+			this.#say('Nothing to cancel.');
+			return;
+		}
 		if (intent === 'chart') {
 			const parsed = parseDraftText(text);
 			if (parsed) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data: parsed });
@@ -493,7 +536,16 @@ export class HelperStore {
 			await run();
 			this.modelReady = coach.coachLoaded();
 		} catch (error) {
-			if (!(error instanceof CoachStopped)) this.#fail('Something stopped me. Try again in a moment.');
+			if (error instanceof CoachStopped) {
+				this.messages = this.messages.map((entry) =>
+					entry.state === 'working' ? { ...entry, state: 'skipped' } : entry
+				);
+				this.#clearTurn();
+				this.step = 'idle';
+				this.#say('Stopped.');
+			} else {
+				this.#fail('Something stopped me. Try again in a moment.');
+			}
 		} finally {
 			this.busy = false;
 			this.progress = null;

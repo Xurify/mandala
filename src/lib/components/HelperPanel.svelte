@@ -64,9 +64,17 @@
 	}
 
 	function onkeydown(event: KeyboardEvent): void {
-		if (event.key !== 'Escape' || !onclose) return;
+		if (event.key !== 'Escape') return;
 		event.stopPropagation();
-		onclose();
+		if (helper.busy) {
+			void helper.stop();
+			return;
+		}
+		if (helper.step !== 'idle') {
+			helper.cancel();
+			return;
+		}
+		if (onclose) onclose();
 	}
 
 	async function copyPrompt(): Promise<void> {
@@ -214,61 +222,55 @@
 	data-helper
 	{onkeydown}
 >
-	<header class="relative flex min-h-[70px] shrink-0 items-center gap-3 py-3 ps-4 pe-2">
+	<header class="relative flex min-h-[84px] shrink-0 items-center gap-3 py-2.5 ps-4 pe-2 motion-safe:transition-[min-height] motion-safe:duration-200 motion-safe:ease-ui">
 		<HelperFace mood={helper.mood} size={46} />
 		<div class="min-w-0 flex-1">
 			<h2 class="m-0 text-[1.05rem] leading-tight font-[620]">Bindu</h2>
 			<p
-				class="m-0 truncate text-[0.8rem] text-muted"
+				class="m-0 mt-0.5 truncate text-[0.8rem] leading-snug text-muted"
 				role="status"
-				aria-label={activeStatusLabel
-					? helper.progress?.downloadFillRatio != null
-						? `${activeStatusLabel}, ${Math.round(helper.progress.downloadFillRatio * 100)}%`
-						: `${activeStatusLabel}...`
-					: undefined}
+				aria-label={activeStatusLabel ? `${activeStatusLabel}...` : undefined}
 			>
 				{#if activeStatusLabel}
 					<span class="inline-flex items-center">
 						{activeStatusLabel}
-						{#if helper.progress?.downloadFillRatio != null}
-							{@const percent = Math.round(helper.progress.downloadFillRatio * 100)}
-							<span class="ms-1.5 tabular-nums text-muted">
-								{helper.progress.detail ? `${helper.progress.detail} · ` : ''}{percent}%
-							</span>
-						{:else}
-							<BouncingDots />
-						{/if}
+						<BouncingDots />
 					</span>
 				{:else}
 					{helper.progress?.label || (helper.modelReady ? 'Ready, on this device' : 'Lives in this browser')}
 				{/if}
 			</p>
+			{#if helper.progress?.downloadFillRatio != null}
+				{@const percent = Math.round(helper.progress.downloadFillRatio * 100)}
+				<div
+					class="mt-1.5 flex items-center gap-2.5 motion-safe:animate-note-in"
+					role="progressbar"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={percent}
+					aria-valuetext={helper.progress.detail ? `${helper.progress.detail}, ${percent}%` : `${percent}%`}
+					aria-label={helper.progress.label}
+					transition:fade={{ duration: 180 }}
+				>
+					<span class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-sunken">
+						<span
+							class="block h-full rounded-full bg-ink motion-safe:transition-[width] motion-safe:duration-300 motion-safe:ease-ui {percent > 0 ? 'min-w-[6px]' : ''}"
+							style:width="{percent}%"
+						></span>
+					</span>
+					<span class="shrink-0 text-[0.74rem] text-muted tabular-nums" aria-hidden="true">
+						{helper.progress.detail ? `${helper.progress.detail} · ` : ''}{percent}%
+					</span>
+				</div>
+			{/if}
 		</div>
 		<IconButton icon="refresh" label="Start over" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
 		{#if onclose}
 			<IconButton icon="close" label="Close Bindu" onclick={onclose} />
 		{/if}
-		{#if helper.progress?.downloadFillRatio != null}
-			{@const percent = Math.round(helper.progress.downloadFillRatio * 100)}
-			<div
-				class="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-sunken"
-				role="progressbar"
-				aria-valuemin={0}
-				aria-valuemax={100}
-				aria-valuenow={percent}
-				aria-valuetext={helper.progress.detail ? `${helper.progress.detail}, ${percent}%` : `${percent}%`}
-				aria-label={helper.progress.label}
-				transition:fade={{ duration: 180 }}
-			>
-				<span
-					class="block h-full bg-ink motion-safe:transition-[width] motion-safe:duration-300 motion-safe:ease-ui"
-					style:width="{percent}%"
-				></span>
-			</div>
-		{/if}
 	</header>
 
-	<div bind:this={scroller} class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-3">
+	<div bind:this={scroller} class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2.5 pb-3">
 		<ol class="m-0 flex list-none flex-col gap-3 p-0" aria-live="polite">
 			{#each helper.messages as message (message.id)}
 				<li

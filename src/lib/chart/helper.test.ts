@@ -14,6 +14,8 @@ import {
 	goalAndPillars,
 	helpChips,
 	intentOf,
+	isCancellation,
+	isCardRejection,
 	isHelpRequest,
 	isPillarActionRequest,
 	keptLines,
@@ -79,6 +81,42 @@ describe('intentOf', () => {
 		expect(intentOf('What if a pillar is weak?')).toBe('ask');
 		expect(intentOf('How should I plan my week?')).toBe('ask');
 		expect(intentOf('I was sick last week')).toBe('ask');
+	});
+
+	it('routes cancellation commands to cancel', () => {
+		expect(intentOf('cancel')).toBe('cancel');
+		expect(intentOf('stop')).toBe('cancel');
+		expect(intentOf('nevermind')).toBe('cancel');
+		expect(intentOf('never mind')).toBe('cancel');
+		expect(intentOf('abort')).toBe('cancel');
+		expect(intentOf('How do I cancel?')).toBe('ask');
+		expect(intentOf('Why did you stop?')).toBe('ask');
+	});
+});
+
+describe('isCancellation and isCardRejection', () => {
+	it('identifies cancellation phrases', () => {
+		expect(isCancellation('cancel')).toBe(true);
+		expect(isCancellation('cancel this')).toBe(true);
+		expect(isCancellation('stop')).toBe(true);
+		expect(isCancellation('nevermind')).toBe(true);
+		expect(isCancellation('never mind')).toBe(true);
+		expect(isCancellation('abort')).toBe(true);
+		expect(isCancellation('forget it')).toBe(true);
+		expect(isCancellation('no thanks')).toBe(true);
+		expect(isCancellation('cancelling my plan next week')).toBe(false);
+	});
+
+	it('identifies card rejection phrases', () => {
+		expect(isCardRejection('skip')).toBe(true);
+		expect(isCardRejection('no')).toBe(true);
+		expect(isCardRejection('nope')).toBe(true);
+		expect(isCardRejection('not now')).toBe(true);
+		expect(isCardRejection('not this one')).toBe(true);
+		expect(isCardRejection('leave it')).toBe(true);
+		expect(isCardRejection('leave them')).toBe(true);
+		expect(isCardRejection('discard')).toBe(true);
+		expect(isCardRejection('cancel')).toBe(true);
 	});
 });
 
