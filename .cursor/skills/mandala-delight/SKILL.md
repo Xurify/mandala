@@ -12,7 +12,7 @@ description: >-
 
 # Mandala delight
 
-`mandala-component` makes a screen correct. This skill makes it something people want to touch, and a finished moment something they remember. Its rules still apply: tokens only, one primary button, pillar hues mean pillars, `motion-safe:`, `bun run check` clean. Finish with `mandala-ui-review`.
+`mandala-component` makes a screen correct by following `DESIGN.md`. This skill makes it something people want to touch, and a finished moment something they remember. Those rules still apply. Finish with `mandala-ui-review`.
 
 Read the closest one before building:
 
