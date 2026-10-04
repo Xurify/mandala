@@ -1,0 +1,11 @@
+import type { ChatMessage } from './helper.ts';
+
+export type CoachRequest =
+	| { type: 'load'; id: number; model: string }
+	| { type: 'complete'; id: number; model: string; messages: ChatMessage[]; maxTokens: number; temperature: number }
+	| { type: 'interrupt' };
+
+export type CoachResponse =
+	| { type: 'progress'; text: string; ratio?: number }
+	| { type: 'done'; id: number; text: string; stats?: string }
+	| { type: 'error'; id: number; text: string };

@@ -63,12 +63,14 @@
 	let justCheckedKey = $state<string | null>(null);
 	let celebrate = $state(false);
 
-	let seeded = false;
+	// Re-seed whenever today's focus changes outside this view (load, or Bindu picking three).
+	let seenFocus = '';
 	$effect(() => {
 		const log = chart.todayLog;
-		if (seeded) return;
-		seeded = true;
-		if (log.started || log.focus.length > 0) {
+		const signature = log.started || log.focus.length > 0 ? `${log.focus.join(',')}|` : '';
+		if (signature === seenFocus) return;
+		seenFocus = signature;
+		if (signature) {
 			confirmed = true;
 			selectedKeys = openKeys(log.focus);
 		}

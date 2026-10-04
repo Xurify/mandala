@@ -8,15 +8,15 @@ export type CoachIssue =
 	| { code: 'restated'; pillar: string; action: string }
 	| { code: 'repeated'; text: string };
 
-const UNTICKABLE =
-	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder)\b/i;
-const UNCONTROLLED = /\b(\d[\d,.]*\s*(million|billion)\s+views|followers|go viral|get famous|get rich)\b/i;
+export const UNTICKABLE =
+	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder|get better|be more|be better)\b/i;
+export const UNCONTROLLED = /\b(\d[\d,.]*\s*(million|billion)\s+views|followers|go viral|get famous|get rich)\b/i;
 
-function norm(value: string): string {
+export function norm(value: string): string {
 	return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-function restated(pillar: string, action: string): boolean {
+export function restated(pillar: string, action: string): boolean {
 	const base = norm(pillar);
 	const cell = norm(action);
 	if (!base || !cell) return false;

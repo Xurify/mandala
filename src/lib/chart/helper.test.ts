@@ -1,0 +1,251 @@
+import { describe, expect, it } from 'vitest';
+import {
+	briefFromAnswers,
+	chipsFor,
+	clipWords,
+	describeCoachProgress,
+	factsFor,
+	fillActionsMessages,
+	fillPlan,
+	goalAndPillars,
+	intentOf,
+	keptLines,
+	lineFault,
+	oneLine,
+	replyLines,
+	rewriteMessages,
+	reviewChart,
+	suggestToday,
+	suggestWeek
+} from './helper.ts';
+import { dateKeyOf, emptyChart, type ChartData } from './model.ts';
+
+function sample(): ChartData {
+	const data = emptyChart();
+	data.goal = 'Finish a half marathon this October';
+	data.pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
+	data.actions = data.pillars.map((pillar) =>
+		Array.from({ length: 8 }, (_, index) => `${pillar} step ${index + 1}`)
+	);
+	return data;
+}
+
+describe('briefFromAnswers', () => {
+	it('keeps the direction and skips a bare go', () => {
+		const brief = briefFromAnswers('  Run a half marathon ', 'go');
+		expect(brief.direction).toBe('Run a half marathon');
+		expect(brief.situation).toBe('');
+	});
+
+	it('pulls a timeline out of the extra answer', () => {
+		const brief = briefFromAnswers('Run', 'By October 2026, I run twice a week now');
+		expect(brief.timeline).toBe('October 2026');
+		expect(brief.situation).toContain('twice a week');
+	});
+
+	it('does not read "in a job" as a timeline', () => {
+		expect(briefFromAnswers('Write', 'I am stuck in a job I dislike').timeline).toBe('');
+	});
+});
+
+describe('intentOf', () => {
+	it('routes plain requests', () => {
+		expect(intentOf("Pick today's three")).toBe('today');
+		expect(intentOf('Plan this week')).toBe('week');
+		expect(intentOf('Review my chart')).toBe('review');
+		expect(intentOf('Fill the blanks')).toBe('fill');
+		expect(intentOf('Start a new chart')).toBe('draft');
+		expect(intentOf('Why does a pillar need eight actions?')).toBe('ask');
+	});
+
+	it('spots a pasted chart', () => {
+		const data = sample();
+		expect(intentOf(JSON.stringify({ goal: data.goal, pillars: data.pillars, actions: data.actions }))).toBe('chart');
+	});
+});
+
+describe('fillPlan', () => {
+	it('names pillars before actions', () => {
+		const data = sample();
+		data.pillars[2] = '';
+		expect(fillPlan(data)).toEqual({ kind: 'pillars', empty: [2] });
+	});
+
+	it('prefers the selected pillar', () => {
+		const data = sample();
+		data.actions[1]![3] = '';
+		data.actions[5]![0] = '';
+		expect(fillPlan(data, 5)).toEqual({ kind: 'actions', pillarIndex: 5, empty: [0] });
+		expect(fillPlan(data)).toEqual({ kind: 'actions', pillarIndex: 1, empty: [3] });
+	});
+
+	it('needs a goal and has nothing to do on a full chart', () => {
+		expect(fillPlan(emptyChart())).toBeNull();
+		expect(fillPlan(sample())).toBeNull();
+	});
+});
+
+describe('replyLines and oneLine', () => {
+	it('reads numbered lines and drops repeats', () => {
+		expect(replyLines('1. Run 5k\n2. run 5k\n3. Stretch\n4. Sleep at ten', 3, 48)).toEqual(['Run 5k', 'Stretch', 'Sleep at ten']);
+		expect(replyLines('1. Only one', 2, 48)).toBeNull();
+	});
+
+	it('takes the first clean line and refuses one that is too long', () => {
+		expect(oneLine('Rewrite: "Ask one question in each class."', 48)).toBe('Ask one question in each class');
+		expect(oneLine('Track expenses using an app to stay aware of every purchase this month', 48)).toBeNull();
+	});
+
+	it('drops a long line instead of cutting it', () => {
+		expect(replyLines('1. Track expenses using an app to stay aware of spending\n2. Note each coffee', 1, 48)).toEqual(['Note each coffee']);
+	});
+});
+
+describe('facts, faults, and the prompts', () => {
+	it('keeps the person on later calls and skips empty fields', () => {
+		const brief = briefFromAnswers('Run a half', 'By October 2026, bad knee, I run twice a week');
+		const facts = factsFor(brief);
+		expect(facts).toContain('October 2026');
+		expect(facts).toContain('bad knee');
+		expect(facts).not.toContain('Focus');
+	});
+
+	it('rejects a long line, a result, and an echo of the pillar', () => {
+		expect(lineFault('Track expenses using an app to stay aware of spending', { max: 48, kind: 'action' })?.code).toBe('long');
+		expect(lineFault('Get 1 million views', { max: 48, kind: 'action' })?.code).toBe('uncontrolled');
+		expect(lineFault('Easy runs', { max: 48, kind: 'action', pillar: 'Easy runs' })?.code).toBe('restated');
+		expect(lineFault('Shoes by the door', { max: 48, kind: 'action', pillar: 'Easy runs' })).toBeNull();
+	});
+
+	it('keeps the good lines and names the bad ones', () => {
+		const round = keptLines('1. Shoes by the door\n2. Work hard\n3. Easy runs\n4. Shoes by the door', 4, { max: 48, kind: 'action', pillar: 'Easy runs' });
+		expect(round.kept).toEqual(['Shoes by the door']);
+		expect(round.rejected.map((item) => item.reason)).toEqual(['Hard to tick. Say what you do on a day.', 'Says the pillar again.', 'Same as another action here.']);
+	});
+
+	it('puts the person and a worked example into the action prompt', () => {
+		const data = sample();
+		const messages = fillActionsMessages(data, 0, 3, 'About this person:\n- Constraint: A bad knee');
+		const joined = messages.map((message) => message.content).join('\n');
+		expect(joined).toContain('A bad knee');
+		expect(joined).toContain('Shoes by the door');
+		expect(joined).not.toContain('at most');
+	});
+
+	it('asks for a behaviour and does not hand the failure back', () => {
+		const data = sample();
+		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'Hard to tick. Say what you do on a day.', code: 'untickable' });
+		const joined = messages.map((message) => message.content).join('\n');
+		expect(joined).toContain('Block 25 minutes after lunch');
+		expect(joined).not.toContain('Hard to tick');
+		expect(joined).not.toContain('Problem:');
+	});
+
+	it('refuses a goal that does not fit the cell', () => {
+		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
+		expect(goalAndPillars(JSON.stringify({ goal: 'x'.repeat(81), pillars }))).toBeNull();
+	});
+});
+
+describe('clipWords and goalAndPillars', () => {
+	it('never cuts mid-word', () => {
+		expect(clipWords('Track expenses using an app to stay aware of spending', 48)).toBe('Track expenses using an app to stay aware of');
+		expect(clipWords('Short one.', 48)).toBe('Short one');
+	});
+
+	it('reads the head of a draft and needs eight distinct pillars', () => {
+		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
+		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }))).toEqual({ goal: 'Finish a half', pillars });
+		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars: [...pillars.slice(0, 7), 'speed'] }))).toBeNull();
+		expect(goalAndPillars('no json here')).toBeNull();
+	});
+});
+
+describe('reviewChart', () => {
+	it('flags cells that fail the tests', () => {
+		const data = sample();
+		data.actions[0]![0] = 'Work hard';
+		data.actions[0]![1] = 'Easy runs';
+		data.actions[0]![2] = 'Get 1 million views';
+		data.actions[0]![3] = 'Hydrate';
+		data.actions[0]![4] = 'Easy runs step 6';
+		const codes = reviewChart(data, 10).map((finding) => [finding.key, finding.code]);
+		expect(codes).toEqual([
+			['a0_0', 'untickable'],
+			['a0_1', 'restated'],
+			['a0_2', 'uncontrolled'],
+			['a0_3', 'vague'],
+			['a0_5', 'repeated']
+		]);
+	});
+
+	it('is quiet on a clean chart', () => {
+		expect(reviewChart(sample())).toEqual([]);
+	});
+});
+
+describe('suggestWeek and suggestToday', () => {
+	it('spreads the week across pillars, quietest first', () => {
+		const data = sample();
+		const today = dateKeyOf(new Date());
+		data.days = { [today]: { focus: ['a0_0'], checked: ['a0_0'] } };
+		const picks = suggestWeek(data, 6);
+		expect(picks).toHaveLength(6);
+		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(6);
+		expect(picks.some((pick) => pick.pillarIndex === 0)).toBe(false);
+	});
+
+	it('skips routines and finished milestones', () => {
+		const data = sample();
+		data.meta = { a1_0: { kind: 'routine' }, a2_0: { kind: 'milestone', done: true } };
+		const keys = suggestWeek(data, 8).map((pick) => pick.key);
+		expect(keys).not.toContain('a1_0');
+		expect(keys).not.toContain('a2_0');
+	});
+
+	it('puts pinned actions first today and avoids what is already checked', () => {
+		const data = sample();
+		const now = new Date();
+		data.meta = { a4_2: { kind: 'milestone', pinned: true } };
+		data.days = { [dateKeyOf(now)]: { focus: [], checked: ['a0_0'] } };
+		const picks = suggestToday(data, now);
+		expect(picks).toHaveLength(3);
+		expect(picks[0]?.key).toBe('a4_2');
+		expect(picks[0]?.why).toBe('Pinned for this week.');
+		expect(picks.map((pick) => pick.key)).not.toContain('a0_0');
+		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(3);
+	});
+});
+
+describe('describeCoachProgress', () => {
+	it('turns a fetch report into a fill', () => {
+		expect(
+			describeCoachProgress('Fetching param cache[2/8]: 359MB fetched. 36% completed, 12 secs elapsed. It can take a while when we first visit this page to populate the cache. Later refreshes will become faster.', 0.364)
+		).toEqual({ label: 'Downloading.', ratio: 0.364, detail: '359 MB' });
+	});
+
+	it('reads the percent from the text when no ratio arrives', () => {
+		expect(describeCoachProgress('Loading model from cache[1/8]: 120MB loaded. 15% completed, 2 secs elapsed.')).toEqual({
+			label: 'Loading it.',
+			ratio: 0.15,
+			detail: '120 MB'
+		});
+	});
+
+	it('keeps ordinary status lines as they are', () => {
+		expect(describeCoachProgress('Thinking.')).toEqual({ label: 'Thinking.', ratio: null, detail: '' });
+		expect(describeCoachProgress('Start to fetch params', 0)).toEqual({ label: 'Starting the download.', ratio: 0, detail: '' });
+		expect(describeCoachProgress('Loading GPU shader modules[3/40]: 7% completed, 4 secs elapsed.', 0.075)).toEqual({
+			label: 'Getting ready.',
+			ratio: 0.075,
+			detail: ''
+		});
+	});
+});
+
+describe('chipsFor', () => {
+	it('offers a start on an empty chart and the whole set on a full one', () => {
+		expect(chipsFor(emptyChart()).map((chip) => chip.job)).toEqual(['draft']);
+		expect(chipsFor(sample()).map((chip) => chip.job)).toEqual(['review', 'week', 'today', 'draft']);
+	});
+});

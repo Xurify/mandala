@@ -1,7 +1,7 @@
 # Why 1.5B writes badly
 
 **Date:** 2026-10-03
-**Status:** Diagnosis kept. Fixes not built.
+**Status:** The writing pipeline is built (`factsFor`, `lineFault`, `keptLines`, one retry, no clipping, worked example, temperature 0.2). Model swap and training are not started.
 
 The failures we already saw are the size of the model, not a prompt that is a few words short.
 
@@ -43,9 +43,11 @@ The examples live in `.cursor/skills/mandala-method/SKILL.md`. They are not in `
 
 Prompt work on this model can move it from unusable to occasionally acceptable on an easy chart. Few-shot, passing the situation into every call, temperature near 0, and reject-and-retry will do that. They will not make it almost perfect. The IFBench gap, from the mid-20s up to around 80, is the model.
 
-A chart that fits still wants a model around 75%+ on IFBench, with reasoning on. DeepSeek V4.1 Flash on above.dev is the candidate (79% at max effort, 47% with reasoning off). That sends the chart off the device, so it stays a separate decision. These fixes are the writing pipeline either way.
+A chart that fits still wants a model around 75%+ on [IFBench](https://artificialanalysis.ai/evaluations/ifbench), with reasoning on. The candidate is DeepSeek V4.1 Flash, called `deepseek-flash` at `https://api.deepseek.com` (79% at max effort, 47% with reasoning off). That sends the chart off the device, so it stays a separate decision. These fixes are the writing pipeline either way. Hosts and training are below.
 
 ---
+
+
 
 # How to fix the six failures
 
@@ -108,4 +110,57 @@ Draft and fill calls in `coach.browser.ts` use 0.3 to 0.5. Drop them to 0.2. Spe
 
 ## What stays true after this
 
-These changes fix the pipeline: facts arrive, bad lines are refused, the example shows the shape, clipping stops pretending to be editing. On 1.5B the chart becomes occasionally acceptable. A chart that fits still needs a stronger model. Do not spend another pass tuning this prompt and calling it done.
+These changes fix the pipeline: facts arrive, bad lines are refused, the example shows the shape, clipping stops pretending to be editing. On 1.5B the chart becomes occasionally acceptable. A chart that fits still needs a stronger model, or a fine-tune of a bigger small model on checker-clean charts. Do not spend another pass tuning this prompt and calling it done.
+
+---
+
+
+
+# Where a stronger model actually lives
+
+[models.dev/providers](https://models.dev/providers/) is a host list. Most rows resell the same weights. Pick the model first, then the first-party API, so cache discounts are not marked up.
+
+A chart is about 2,000 input tokens and 1,200 answer tokens, plus a couple thousand if reasoning is on. Prices are per million tokens.
+
+
+| Model                                          | Call it at                                                                                 | IFBench                                                        | Price                                                                                       | Use                                                                                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| DeepSeek V4.1 Flash, thinking on               | [api.deepseek.com](https://api-docs.deepseek.com/quick_start/pricing), id `deepseek-flash` | ~79% max effort, ~47% thinking off                             | Off-peak $0.15 in / $0.60 out, cache hit $0.003. Peak is double.                            | Default. Under a cent a chart.                                                                                                    |
+| Same model via [above.dev](https://above.dev/) | `https://api.above.dev/v1`                                                                 | Same weights                                                   | About 10% over the first-party price                                                        | Only if we already have credit there.                                                                                             |
+| MiniMax M3                                     | [platform.minimax.io](https://platform.minimax.io/docs/guides/pricing-paygo.md)            | 82.9%, top of the AA board with Grok 4.3                       | About $0.30 in / $1.20 out after their standing discount                                    | The constraint specialist. A few cents a chart.                                                                                   |
+| Gemini 3.8 Flash                               | [Google AI for Developers](https://ai.google.dev/gemini-api/docs/pricing)                  | Gemini 3.5 Flash was ~76%. 3.8 Flash is not the number I have. | Free tier exists. Paid $0.75 in / $3.75 out through 2026, thinking tokens billed as output. | The only strong model with a free tier. Fine for a trial. Weak as the product: quota, and the free tier is not a privacy promise. |
+
+
+Skip speed hosts (Groq, Cerebras) and catalogs (OpenRouter, Kilo, NanoGPT, above.dev's other slots). They serve these same models. Skip flagship Claude and GPT for this job. Their intelligence-index lead is coding and long agent work, at 10–30× the price, for an 80-character cell.
+
+The app shape, if a chart may leave the device: the person pastes their own key. No Mandala account, no proxy. Browser model stays for anyone who refuses.
+
+---
+
+
+
+# Should we retrain?
+
+A full retrain, no. A supervised fine-tune, later, yes, and only for the on-device path.
+
+This task is a rare good fit for training because every failure is a function we can already write: count, length, untickable, uncontrolled, restated, repeated. That is the setting where a verifier helps. The IFBench paper's method is reinforcement learning against a checker. Our checker is narrower than IFBench, and the rules do not change, so the training problem is easier than general instruction following.
+
+What training can teach a small model: eight lines, short lines, don't echo "tick", don't restate the pillar, copy the voice of the worked example.
+
+A concrete constraint is not the size problem. "Bad knee, so no hill sprints" is one fact a 1.5B model can use when that sentence is in the prompt. The action calls were dropping the brief, so the model never saw the knee and wrote a stock paragraph. That was our bug. The pipeline above sends the fact through.
+
+What stays hard at 1.5B is a stack of rules at once, and a vague brief with nothing to hold onto ("be healthier"). Then it reaches for a life wheel. A bigger model invents better drivers from a thin brief. This one needs the constraint written down. Training does not replace a fact we forgot to send. It makes the shape reliable after the fact is present. Qwen2.5 7B sits near 26% on IFBench before any of our data. 1.5B is under that.
+
+The right student, if we train, is Qwen3.5 4B. About 2.4 GB, already ~59% on IFBench, same browser path. 1.5B is only a dry run of the data pipeline.
+
+Order:
+
+1. Build `lineFault`. That function is the reward. Training before it exists teaches the model to emit clipped sentences and `Tick "…"`.
+2. A strong teacher (DeepSeek Flash, thinking on) writes invented charts from briefs like `coach-holdout.ts`. Real charts stay on the device. The original plan was a one-time teacher. This is that.
+3. Keep a chart only when every cell passes `lineFault`.
+4. Measure the base model with the new prompts. If an easy chart is acceptable, stop. Do not train.
+5. If it is not, supervised fine-tune on the clean set. A few hundred charts teach the shape. A couple of thousand, with the person's facts in the prompt, is the test of whether drivers get specific.
+6. If it still echoes, one reinforcement round (GRPO or the same RLVR recipe) with `lineFault` as the reward. One round, not a research project.
+7. Merge the adapter and compile to MLC. WebLLM loads a compiled model, not a Hugging Face folder. `COACH_MODEL_ID` swaps after that compile. The compile is the expensive part. The training run is cheap.
+
+Do not train on the lab's bad outputs. Do not fine-tune 1.5B and call the product done. Freeform questions (`answer`) can stay on the base model so the fine-tune does not have to remain a general chat model.

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
+	import { helper } from '$lib/chart/helper.svelte';
 	import {
 		blockOfKey,
 		getByKey,
@@ -18,7 +19,7 @@
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import BrandMark from './BrandMark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
-	import DraftDialog from './DraftDialog.svelte';
+	import Helper from './Helper.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import ImportDialog from './ImportDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
@@ -61,7 +62,6 @@
 		typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
-	let draftOpen = $state(false);
 	let presetOpen = $state(false);
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
@@ -187,14 +187,6 @@
 		chart.clearAll();
 	}
 
-	function handleOpenDraft() {
-		draftOpen = true;
-	}
-
-	function handleApplyDraft(data: ChartData): void {
-		if (chart.applyDraft(data)) draftOpen = false;
-	}
-
 	function handleOpenPresets() {
 		presetOpen = true;
 	}
@@ -208,6 +200,7 @@
 			(event.target instanceof Element && event.target.closest('dialog') !== null) ||
 			document.querySelector('dialog[open]') !== null;
 		if (inDialog) return;
+		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 
 		const isTyping =
 			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
@@ -375,7 +368,7 @@
 			{ id: 'new-chart', label: 'New blank chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
-			{ id: 'draft', label: 'Coach', section: 'Actions', icon: 'sparkles', run: () => (draftOpen = true) },
+			{ id: 'helper', label: 'Talk to Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
@@ -546,7 +539,7 @@
 				{#if effectiveViewMode !== 'today'}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-						<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Coach</Button>
+						<Button variant="soft" icon="sparkles" onclick={() => helper.show('draft')}>Talk it through</Button>
 						<MethodGuide />
 					</div>
 				{/if}
@@ -577,7 +570,6 @@
 			{/if}
 		</div>
 
-		<DraftDialog bind:open={draftOpen} onapply={handleApplyDraft} />
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
@@ -730,6 +722,8 @@
 			</div>
 		</div>
 	{/if}
+
+	<Helper {helper} />
 
 	<Dock label="Layout view mode">
 		<DockTab

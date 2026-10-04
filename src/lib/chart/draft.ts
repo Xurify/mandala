@@ -191,7 +191,7 @@ export function eightActions(raw: string): string[] | null {
 	return null;
 }
 
-function jsonValue(raw: string): unknown {
+export function jsonValue(raw: string): unknown {
 	let text = raw.trim();
 	const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
 	if (fenced?.[1]) text = fenced[1].trim();

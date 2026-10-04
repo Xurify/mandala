@@ -1,20 +1,44 @@
-import { briefToUserMessage, draftSystemPrompt, eightActions, parseDraftText, partialDraft, type CoachBrief } from './draft.ts';
-import type { ChartData } from './model.ts';
-import type { MLCEngine } from '@mlc-ai/web-llm';
+import type { CoachRequest, CoachResponse } from './coach-protocol.ts';
+import { ACTION_MAX, PILLAR_MAX, type CoachBrief } from './draft.ts';
+import {
+	askMessages,
+	factsFor,
+	factsFromChart,
+	fillActionsMessages,
+	fillPillarsMessages,
+	goalAndPillars,
+	keptLines,
+	lineFault,
+	oneLine,
+	pillarsMessages,
+	rewriteMessages,
+	type ChatMessage,
+	type HelperFinding,
+	type LineReject
+} from './helper.ts';
+import { emptyChart, type ChartData } from './model.ts';
 
 export const COACH_MODEL_ID = 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 
-const RETRY =
-	'The last chart was incomplete. Return a new JSON object only. pillars has 8 strings. actions has 8 arrays, and each array has 8 strings. Do not copy a short example.';
+export type CoachProgress = { text: string; ratio: number | null };
 
-let engine: MLCEngine | null = null;
-let loading: Promise<MLCEngine> | null = null;
-let onProgress: (text: string) => void = () => {};
+const listeners = new Set<(update: CoachProgress) => void>();
+const pending = new Map<number, { resolve: (text: string) => void; reject: (error: Error) => void }>();
+let worker: Worker | null = null;
+let ready = false;
+let loading: Promise<void> | null = null;
+let seq = 1;
+let lastStats = '';
 
-export function watchCoachProgress(listener: (text: string) => void): () => void {
-	onProgress = listener;
+function onProgress(text: string, ratio: number | null = null): void {
+	const update = { text, ratio };
+	for (const listener of listeners) listener(update);
+}
+
+export function watchCoachProgress(listener: (update: CoachProgress) => void): () => void {
+	listeners.add(listener);
 	return () => {
-		if (onProgress === listener) onProgress = () => {};
+		listeners.delete(listener);
 	};
 }
 
@@ -28,98 +52,157 @@ export async function detectWebGPU(): Promise<boolean> {
 	}
 }
 
-export async function loadCoach(): Promise<MLCEngine> {
-	if (engine) {
-		onProgress('Coach is ready.');
-		return engine;
-	}
-	if (!loading) {
-		loading = (async () => {
-			const { CreateMLCEngine } = await import('@mlc-ai/web-llm');
-			const created = await CreateMLCEngine(COACH_MODEL_ID, {
-				initProgressCallback: (report) => onProgress(report.text)
-			});
-			engine = created;
-			return created;
-		})().catch((error: unknown) => {
+function connect(): Worker {
+	if (worker) return worker;
+	worker = new Worker(new URL('./coach.worker.ts', import.meta.url), { type: 'module' });
+	worker.onmessage = (event: MessageEvent<CoachResponse>) => {
+		const message = event.data;
+		if (message.type === 'progress') {
+			onProgress(message.text, message.ratio ?? null);
+			return;
+		}
+		const waiting = pending.get(message.id);
+		if (!waiting) return;
+		pending.delete(message.id);
+		if (message.type === 'done') {
+			if (message.stats) lastStats = message.stats;
+			waiting.resolve(message.text);
+		} else waiting.reject(new Error(message.text));
+	};
+	return worker;
+}
+
+function request(body: Omit<Extract<CoachRequest, { type: 'load' }>, 'id'> | Omit<Extract<CoachRequest, { type: 'complete' }>, 'id'>): Promise<string> {
+	const target = connect();
+	const id = seq++;
+	return new Promise((resolve, reject) => {
+		pending.set(id, { resolve, reject });
+		target.postMessage({ ...body, id } as CoachRequest);
+	});
+}
+
+export function coachLoaded(): boolean {
+	return ready;
+}
+
+/** Last prefill and decode speed the worker reported. */
+export function coachStats(): string {
+	return lastStats;
+}
+
+export function loadCoach(): Promise<void> {
+	if (ready) return Promise.resolve();
+	loading ??= request({ type: 'load', model: COACH_MODEL_ID })
+		.then(() => {
+			ready = true;
+			onProgress('Coach is ready.');
+		})
+		.catch((error: unknown) => {
 			loading = null;
 			throw error;
 		});
-	}
 	return loading;
 }
 
 export async function interruptCoach(): Promise<void> {
-	if (!engine) return;
-	try {
-		await engine.interruptGenerate();
-	} catch {
-		// A finished run has nothing to stop.
-	}
+	worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
 }
 
-async function complete(model: MLCEngine, messages: { role: 'system' | 'user' | 'assistant'; content: string }[]): Promise<string> {
-	await model.resetChat();
-	const completion = await model.chat.completions.create({
+async function complete(messages: ChatMessage[], options: { maxTokens?: number; temperature?: number } = {}): Promise<string> {
+	await loadCoach();
+	return request({
+		type: 'complete',
+		model: COACH_MODEL_ID,
 		messages,
-		temperature: 0.2,
-		max_tokens: 2048,
-		stream: false
+		maxTokens: options.maxTokens ?? 512,
+		temperature: options.temperature ?? 0.2
 	});
-	const content = completion.choices[0]?.message?.content;
-	return typeof content === 'string' ? content : '';
 }
 
-async function actionsForPillar(model: MLCEngine, brief: CoachBrief, goal: string, pillar: string): Promise<string[] | null> {
-	onProgress(`Writing actions for ${pillar}.`);
-	const raw = await complete(model, [
-		{
-			role: 'system',
-			content:
-				'You write Mandala actions. Each one can be scheduled and ticked, and it is something this person can do. Return exactly 8 lines, numbered 1. to 8. No other text.'
-		},
-		{
-			role: 'user',
-			content: `${briefToUserMessage(brief)}\nGoal: ${goal}\nPillar: ${pillar}\nEight facilitators of this pillar. Do not restate the pillar.`
-		}
-	]);
-	return eightActions(raw);
-}
+const ECHO = /\b(tick|rewrite|reminder|cell)\b/i;
 
-async function completeChart(model: MLCEngine, brief: CoachBrief, raw: string): Promise<{ chart: ChartData | null; raw: string }> {
-	const parsed = parseDraftText(raw);
-	if (parsed) return { chart: parsed, raw };
-	const partial = partialDraft(raw);
-	if (!partial) return { chart: null, raw };
-	const actions = partial.actions.map((row) => row.slice(0, 8));
-	for (let index = 0; index < partial.pillars.length; index++) {
-		if ((actions[index]?.length ?? 0) >= 8) continue;
-		const pillar = partial.pillars[index] ?? '';
-		const filled = await actionsForPillar(model, brief, partial.goal, pillar);
-		if (!filled) return { chart: null, raw };
-		actions[index] = filled;
+async function retrying<T>(run: () => Promise<string>, parse: (raw: string) => T | null): Promise<T | null> {
+	for (let attempt = 0; attempt < 2; attempt++) {
+		const parsed = parse(await run());
+		if (parsed) return parsed;
 	}
-	const assembled = JSON.stringify({ goal: partial.goal, pillars: partial.pillars, actions });
-	return { chart: parseDraftText(assembled), raw: assembled };
+	return null;
 }
 
-export async function proposeChart(brief: CoachBrief): Promise<{ chart: ChartData | null; raw: string }> {
-	onProgress('Loading the coach.');
-	const model = await loadCoach();
-	onProgress('Writing the chart.');
-	const user = briefToUserMessage(brief);
-	const system = draftSystemPrompt();
-	const first = await complete(model, [
-		{ role: 'system', content: system },
-		{ role: 'user', content: user }
-	]);
-	const ready = await completeChart(model, brief, first);
-	if (ready.chart) return ready;
-	onProgress('Asking again for the chart.');
-	const second = await complete(model, [
-		{ role: 'system', content: system },
-		{ role: 'user', content: `${user}\n${RETRY}` }
-	]);
-	const retried = await completeChart(model, brief, second);
-	return retried.chart ? retried : { chart: null, raw: second };
+async function writeLines(
+	count: number,
+	max: number,
+	kind: 'pillar' | 'action',
+	pillar: string,
+	siblings: readonly string[],
+	messages: (need: number, rejected: readonly LineReject[]) => ChatMessage[]
+): Promise<string[] | null> {
+	const kept: string[] = [];
+	let rejected: LineReject[] = [];
+	for (let attempt = 0; attempt < 2 && kept.length < count; attempt++) {
+		const need = count - kept.length;
+		const raw = await complete(messages(need, attempt === 0 ? [] : rejected), { maxTokens: 24 * need, temperature: 0.2 });
+		const round = keptLines(raw, need, { max, kind, pillar, siblings: [...siblings, ...kept] });
+		kept.push(...round.kept);
+		rejected = round.rejected;
+	}
+	return kept.length > 0 ? kept : null;
+}
+
+export async function fillPillars(data: ChartData, count: number, facts = ''): Promise<string[] | null> {
+	onProgress('Naming pillars.');
+	const person = [facts.trim(), factsFromChart(data)].filter(Boolean).join('\n');
+	const named = data.pillars.map((pillar) => pillar.trim()).filter(Boolean);
+	return writeLines(count, PILLAR_MAX, 'pillar', '', named, (need, rejected) => fillPillarsMessages(data, need, person, rejected));
+}
+
+export async function fillActions(data: ChartData, pillarIndex: number, count: number, facts = ''): Promise<string[] | null> {
+	const pillar = (data.pillars[pillarIndex] ?? '').trim();
+	onProgress(`Writing actions for ${pillar}.`);
+	const person = [facts.trim(), factsFromChart(data, pillarIndex)].filter(Boolean).join('\n');
+	const existing = (data.actions[pillarIndex] ?? []).map((action) => action.trim()).filter(Boolean);
+	return writeLines(count, ACTION_MAX, 'action', pillar, existing, (need, rejected) => fillActionsMessages(data, pillarIndex, need, person, rejected));
+}
+
+export async function rewriteCell(data: ChartData, finding: HelperFinding): Promise<string | null> {
+	onProgress(`Rewriting "${finding.text}".`);
+	const kind = finding.key.startsWith('p') ? 'pillar' : 'action';
+	const max = kind === 'pillar' ? PILLAR_MAX : ACTION_MAX;
+	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
+	const pillar = kind === 'action' ? (data.pillars[pillarIndex] ?? '').trim() : '';
+	const facts = factsFromChart(data, kind === 'action' ? pillarIndex : undefined);
+	const original = finding.text.toLowerCase();
+	for (let attempt = 0; attempt < 2; attempt++) {
+		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
+		if (!line) continue;
+		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text] });
+		if (!fault && !line.toLowerCase().includes(original) && !ECHO.test(line)) return line;
+	}
+	return null;
+}
+
+export async function answer(data: ChartData, question: string): Promise<string> {
+	onProgress('Thinking.');
+	return (await complete(askMessages(data, question), { maxTokens: 120, temperature: 0.6 })).trim();
+}
+
+/** Goal and pillars first, then eight actions per pillar. Each step reports the chart so far. */
+export async function proposeChart(
+	brief: CoachBrief,
+	onPartial: (draft: ChartData) => void = () => {}
+): Promise<{ chart: ChartData | null; raw: string }> {
+	onProgress(ready ? 'Naming the pillars.' : 'Waking up.');
+	const person = factsFor(brief);
+	const head = await retrying(() => complete(pillarsMessages(brief), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
+	if (!head) return { chart: null, raw: '' };
+	const draft = emptyChart();
+	draft.goal = head.goal;
+	draft.pillars = head.pillars;
+	onPartial(structuredClone(draft));
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const actions = await fillActions(draft, pillarIndex, 8, person);
+		draft.actions[pillarIndex] = Array.from({ length: 8 }, (_, index) => actions?.[index] ?? '');
+		onPartial(structuredClone(draft));
+	}
+	return { chart: draft, raw: JSON.stringify(draft) };
 }
