@@ -107,8 +107,9 @@
 		</figcaption>
 	</figure>
 	<p class="mb-2.5">
-		A mandala chart is a goal-setting sheet. The 9×9 grid is nine 3×3 blocks. You build it once, as a
-		plan, and keep it. You do not redraw it every day.
+		A mandala chart is a goal-setting sheet. People also call it a Mandalart, a Mandalachart, or Open
+		Window 64. The 9×9 grid is nine 3×3 blocks. You build it once, as a plan, and keep it. You do not
+		redraw it every day.
 	</p>
 
 	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How it’s built</h3>
@@ -181,8 +182,7 @@
 		Takashi Harada, who created the Harada Method, calls that sheet the
 		<a class={linkClass} href="https://harada-educate.jp/ow64/" target="_blank" rel="noopener noreferrer"
 			>Open Window 64<span class="sr-only"> (opens in a new tab)</span></a
-		>. The 64 is the number of actions, not an 8×8 grid. Coverage often calls the same page a
-		mandala chart. The Harada Method is wider than the grid: it pairs this sheet with a
-		longer-term goal page, daily routines, and reflection.
+		>. The 64 is the number of actions, not an 8×8 grid. The Harada Method is wider than the grid: it
+		pairs this sheet with a longer-term goal page, daily routines, and reflection.
 	</p>
 </Dialog>
