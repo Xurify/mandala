@@ -91,6 +91,14 @@ function persistModelConsent(): void {
 	}
 }
 
+function clearModelConsent(): void {
+	try {
+		localStorage.removeItem(CONSENT_KEY);
+	} catch {
+		return;
+	}
+}
+
 function conversationHistory(messages: readonly HelperMessage[], maxTurns = 8): ChatMessage[] {
 	const history: ChatMessage[] = [];
 	for (const message of messages.slice(-maxTurns)) {
@@ -330,7 +338,6 @@ export class HelperStore {
 
 	allowDownload(id: number): void {
 		this.#consent = true;
-		persistModelConsent();
 		this.#settle(id, 'used');
 		const run = this.#pending;
 		this.#pending = null;
@@ -451,8 +458,13 @@ export class HelperStore {
 		try {
 			await coach.loadCoach();
 			this.modelReady = true;
+			persistModelConsent();
 		} catch {
 			this.#warming = false;
+			if (!coach.coachLoaded()) {
+				this.#consent = false;
+				clearModelConsent();
+			}
 		} finally {
 			stop();
 			if (!this.busy) this.progress = null;
@@ -535,6 +547,7 @@ export class HelperStore {
 		try {
 			await run();
 			this.modelReady = coach.coachLoaded();
+			if (this.modelReady) persistModelConsent();
 		} catch (error) {
 			if (error instanceof CoachStopped) {
 				this.messages = this.messages.map((entry) =>
@@ -544,6 +557,10 @@ export class HelperStore {
 				this.step = 'idle';
 				this.#say('Stopped.');
 			} else {
+				if (!coach.coachLoaded()) {
+					this.#consent = false;
+					clearModelConsent();
+				}
 				this.#fail('Something stopped me. Try again in a moment.');
 			}
 		} finally {

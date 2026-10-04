@@ -219,6 +219,22 @@ describe('truncateAtWordBoundary and goalAndPillars', () => {
 		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars: [...pillars.slice(0, 7), 'speed'] }))).toBeNull();
 		expect(goalAndPillars('no json here')).toBeNull();
 	});
+
+	it('trims slightly long pillars to fit cell instead of failing', () => {
+		const pillars = [
+			'Easy runs',
+			'Speed intervals on track',
+			'Long run',
+			'Strength and conditioning session',
+			'Sleep',
+			'Food',
+			'Shoes',
+			'Calendar'
+		];
+		const result = goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }));
+		expect(result).not.toBeNull();
+		expect(result?.pillars[3]).toBe('Strength and conditioning');
+	});
 });
 
 describe('reviewChart', () => {
@@ -372,6 +388,15 @@ describe('isPillarActionRequest', () => {
 describe('pillarMentioned', () => {
 	it('finds a pillar named in the question', () => {
 		expect(pillarMentioned('How do I practice the long run?', sample())).toBe(2);
+	});
+
+	it('finds short 2 and 3 letter pillars without false positives on stop words', () => {
+		const data = sample();
+		data.pillars[0] = 'Gym';
+		data.pillars[1] = 'UI';
+		expect(pillarMentioned('Can you suggest actions for Gym?', data)).toBe(0);
+		expect(pillarMentioned('How can I improve the UI?', data)).toBe(1);
+		expect(pillarMentioned('How do I run in the morning?', data)).toBeNull();
 	});
 });
 

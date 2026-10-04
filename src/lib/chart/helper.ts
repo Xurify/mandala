@@ -131,6 +131,10 @@ function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const SHORT_STOP_WORDS = new Set([
+	'in', 'on', 'at', 'to', 'by', 'of', 'or', 'an', 'as', 'is', 'it', 'if', 'be', 'we', 'me', 'my', 'up', 'do', 'go', 'no', 'so'
+]);
+
 /** A pillar already on the chart, named in the line. */
 export function pillarMentioned(text: string, data: ChartData): number | null {
 	if (intentOf(text) !== 'ask') return null;
@@ -138,7 +142,7 @@ export function pillarMentioned(text: string, data: ChartData): number | null {
 	let bestLength = 0;
 	for (let index = 0; index < data.pillars.length; index++) {
 		const name = (data.pillars[index] ?? '').trim();
-		if (name.length < 4) continue;
+		if (name.length < 2 || (name.length === 2 && SHORT_STOP_WORDS.has(name.toLowerCase()))) continue;
 		if (!new RegExp(`\\b${escapeRegExp(name)}\\b`, 'i').test(text)) continue;
 		if (name.length > bestLength) {
 			bestIndex = index;
@@ -244,7 +248,9 @@ export function goalAndPillars(raw: string): { goal: string; pillars: string[] }
 	if (!goal || goal.length > GOAL_MAX || !Array.isArray(record.pillars)) return null;
 	const pillars: string[] = [];
 	for (const item of record.pillars) {
-		const pillar = typeof item === 'string' ? cleanLine(item) : '';
+		const rawPillar = typeof item === 'string' ? cleanLine(item) : '';
+		if (!rawPillar) continue;
+		const pillar = rawPillar.length > PILLAR_MAX ? truncateAtWordBoundary(rawPillar, PILLAR_MAX) : rawPillar;
 		if (!pillar || pillar.length > PILLAR_MAX) continue;
 		if (!pillars.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) pillars.push(pillar);
 	}
