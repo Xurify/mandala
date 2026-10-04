@@ -17,7 +17,7 @@ Run through every item; fix before reporting.
 **System**
 - [ ] Primitives from `src/lib/components/ui/`. Feature screens pass layout classes only. No raw hex/rgb, no component `<style>`
 - [ ] No raw `<button>` or text field left on the browser face. Primitive, or `border-0` plus an explicit background. Two to four exclusive options are `SegmentedControl`
-- [ ] Pillar hues used only for pillars; chrome is paper and ink
+- [ ] Pillar hues used only for pillars. Chrome is paper and ink. Accent is only the primary button and the selected dock tab
 - [ ] Separation by tone/shadow, not borders
 - [ ] Pill radius on every pressable control
 - [ ] `font-serif` only for titles, the goal, headings, and the wordmark. It is still Source Sans 3 (`--serif` aliases `--font`)
@@ -33,6 +33,10 @@ Run through every item; fix before reporting.
 - [ ] Hover, active (`scale`), focus-visible, disabled all defined
 - [ ] Empty state has a friendly line and a next step
 - [ ] New motion uses `motion-safe:` so reduced motion skips it
+- [ ] An arrival may land. A departure eases, longer, with no overshoot, and does not travel into the neighbor. A timed one starts before removal. Hover or focus can bring it back
+- [ ] A replacement fades the old one. It does not pop
+- [ ] A finished moment is its own layout
+- [ ] A celebration plays when the moment happens, and does not replay on reload
 
 **Themes and sizes**
 - [ ] Light and dark both look intentional (new tokens exist in both dark blocks)
@@ -67,7 +71,7 @@ Use the `user-Mobbin` MCP (`search_screens`, `search_flows`, `search_sections`; 
 - Reject patterns that fight the method: daily grid rewrites, eight life-area wheels, streak counters, two primary actions, pillar hues on chrome. Take structure (one action, quiet paper, a ring) and leave the rest.
 - Search for the **pattern**, not the feature name: "onboarding goal setting", "progress ring", "bottom sheet picker", "empty state journal", "settings list".
 - Pull 3–6 examples, then name what each does well in one line and what we'd take. Map every idea back to existing tokens/classes. If it needs a new token or component, say so explicitly.
-- Never copy another app's hues or branding. Our color stays paper, ink, and the eight pillar hues.
+- Never copy another app's hues or branding. Our color stays paper, ink, accent, and the eight pillar hues.
 - When proposing directions, give the user 2–3 distinct options via AskQuestion, not a single take.
 
 ## Report format

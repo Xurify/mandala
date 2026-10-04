@@ -2,7 +2,7 @@
 
 Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`.
 
-**Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy.
+**Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy. A new or restyled component also follows **Making a component** there: name the object it is in this app, give it one job, try several versions in the place it will sit, and let arrivals land while departures ease out.
 
 ## Stack
 
@@ -79,5 +79,5 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 
 - `.cursor/skills/mandala-component/` — building or changing UI within the design system.
 - `.cursor/skills/mandala-ui-review/` — reviewing UI/UX, researching patterns on Mobbin, visual verification.
-- `.cursor/skills/mandala-delight/` — making a flat or overwhelming screen tactile and fun: metaphor first, depth, motion, drag, game-verb copy.
+- `.cursor/skills/mandala-delight/` — making a flat screen tactile, and a finished state a moment: metaphor first, several tries before keeping one, motion that lands on the way in and eases on the way out.
 - `.cursor/skills/mandala-method/` — filling, reviewing, and tightening a chart (goal, pillars, actions).

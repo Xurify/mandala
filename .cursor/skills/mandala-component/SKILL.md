@@ -1,6 +1,6 @@
 ---
 name: mandala-component
-description: Builds or changes Svelte 5 UI in the Mandala app using its calm-editorial design system (paper/ink tokens, pill buttons, Source Sans 3, pillar hues). Use when adding a component, screen, dialog, menu item, button, or style; when editing app.css or any .svelte file under src/lib/components; or when the user asks for UI or UX work in this repo. Chart content and method copy follow mandala-method.
+description: Builds or changes Svelte 5 UI in the Mandala app using its calm-editorial design system (paper/ink tokens, pill buttons, Source Sans 3, pillar hues). Use when adding a component, screen, dialog, menu item, button, or style; when editing app.css or any .svelte file under src/lib/components; or when the user asks for UI or UX work in this repo. Follow DESIGN.md → Making a component so the result belongs to this app. Chart content and method copy follow mandala-method.
 ---
 
 # Building Mandala UI
@@ -13,26 +13,29 @@ Feature screens and `src/lib/components/ui/` both use Tailwind utilities (`tv` +
 
 ```
 - [ ] 1. Find the closest existing pattern
-- [ ] 2. Decide the hierarchy (what is the one primary action?)
-- [ ] 3. Build with a primitive, or utilities on the feature component
-- [ ] 4. Add CSS only for tokens, a shared pillar utility, or chart print
-- [ ] 5. Wire state through `chart`
-- [ ] 6. Verify (check, both themes, mobile, keyboard)
+- [ ] 2. Name the object, and give it one job (DESIGN.md → Making a component)
+- [ ] 3. Decide the hierarchy (what is the one primary action?)
+- [ ] 4. Build with a primitive, or utilities on the feature component
+- [ ] 5. Add CSS only for tokens, a shared pillar utility, or chart print
+- [ ] 6. Wire state through `chart`
+- [ ] 7. Verify (check, both themes, mobile, keyboard)
 ```
 
 **1. Find the closest pattern.** Search before writing. A dialog → `PresetPicker.svelte` (`Dialog` + `{#snippet footer()}`). A toggle → `SegmentedControl` like the theme row in `ChartApp.svelte`. An overflow action → `MenuItem` in the topbar menu. A header → `Eyebrow` + `font-serif` heading + muted line, like `SidePanel.svelte`. `font-serif` is the title role. `--serif` is the same Source Sans 3 as `--font`. Do not add a second typeface.
 
-**2. Decide hierarchy.** List the actions. Exactly one gets `Button` `variant="primary"` (or none). Secondary → `soft`. Informational or escape → `ghost` or `IconButton`. Rarely used or destructive → the overflow menu, not a visible button.
+**2. Name the object.** Read `DESIGN.md` → Making a component before inventing a look. Say what it is in this app (a slip, a seal, a dealt card), not the widget name. One job. No button unless it changes something. If two metaphors both work, draw both on `/dev/ui`, in the place the component will sit, and keep the one that belongs. `mandala-delight` is the longer version of this step.
 
-**3. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because `src/print.css` selects them.
+**3. Decide hierarchy.** List the actions. Exactly one gets `Button` `variant="primary"` (or none). Secondary → `soft`. Informational or escape → `ghost` or `IconButton`. Rarely used or destructive → the overflow menu, not a visible button.
+
+**4. Build with primitives and utilities.** `Button`, `IconButton`, `SegmentedControl`, `Eyebrow`, `Menu`, `Dialog`, `Notice`, `Dock`, `chart.say()` for toasts. Icons via `<Icon name="…" size={16|18} />`; add missing paths to `Icon.svelte`. Grid cells keep the class names `cell`, `goal`, `pillar`, `action`, `block`, and `mandala` because `src/print.css` selects them.
 
 Preflight is off. A raw `<button>` or text field without `border-0` and an explicit background shows the browser face. Two to four exclusive options are `SegmentedControl`, not a hand-rolled pill group. A text field copies the rename input in `ChartSwitcher.svelte`. See `DESIGN.md` → Native chrome.
 
-**4. New CSS goes in `src/app.css` only for tokens or a shared `@utility`.** Chart print goes in `src/print.css` (imported from `app.css`). Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
+**5. New CSS goes in `src/app.css` only for tokens or a shared `@utility`.** Chart print goes in `src/print.css` (imported from `app.css`). Never a component `<style>`. Only tokens, never raw colors. If you add a token: light value in `:root`, dark value in **both** dark blocks. Animate with `motion-safe:`.
 
-**5. State.** Read and mutate through the `chart` singleton (`$lib/chart/chart.svelte.ts`). Derived UI state uses `$derived`, not `$effect`. Local UI state uses `$state` in the component.
+**6. State.** Read and mutate through the `chart` singleton (`$lib/chart/chart.svelte.ts`). Derived UI state uses `$derived`, not `$effect`. Local UI state uses `$state` in the component. An effect is for a subscription, such as a clock that starts a departure before removal.
 
-**6. Verify.** Run `bun run check` (0 errors, 0 warnings). Then look at the result: light + dark, desktop split mode + ≤900px width, Tab through it. Finish with the checklist in `.cursor/skills/mandala-ui-review/SKILL.md`.
+**7. Verify.** Run `bun run check` (0 errors, 0 warnings). Then look at the result: light + dark, desktop split mode + ≤900px width, Tab through it, including the moment it leaves. Finish with the checklist in `.cursor/skills/mandala-ui-review/SKILL.md`.
 
 ## What the screen is allowed to be
 
@@ -42,7 +45,7 @@ The grid is the map. Day-to-day work is a few actions pulled off it, not a secon
 - Empty cells are gaps in the plan. An empty state offers the next step (write the goal, start from a preset). It does not scold.
 - Placeholder and preset text has to pass the method tests: a cell can be ticked, and it is a behaviour the person controls. “Study 20 minutes” can be a sample. “Do better” cannot.
 - One chart is one direction. Switcher and preset copy say that. They do not invite two aims into one center.
-- Toasts stay one line, past tense, no exclamation: `chart.say('Copied as text')`.
+- Toasts are the paper slip: the mark, an eyebrow, then the chart name (`chart.note('Renamed', name)`). A plain note is one past-tense sentence and no eyebrow (`chart.say('Copied as text.')`). The same action again adds a sheet and ticks the count. A different action fades this slip and lands the next. A delete is the only slip with Undo. The ring empties pillar by pillar, and the slip starts fading during the last of them. Hover fans the pile, pauses the clock, and brings a fading slip back. It does not drop into the dock.
 
 ## Svelte 5 rules for this repo
 
@@ -70,9 +73,9 @@ Circular layouts use `PILLAR_ANGLES`, `pillarArc`, `arcPath` from `$lib/chart/ri
 
 ## Examples
 
-**"Add a 'Duplicate chart' action."** Rare, non-destructive: a `MenuItem` in `ChartSwitcher`'s menu, not a new button in the hero. On success, `chart.say('Chart duplicated')`.
+**"Add a 'Duplicate chart' action."** Rare, non-destructive: a `MenuItem` in `ChartSwitcher`'s menu, not a new button in the hero. On success the slip names the chart (`Duplicated “More organized life”.`). A burst while it is up stamps the count on that same slip.
 
-**"Add a confirm step before Clear."** `Dialog` with `title="Clear this chart?"`, one muted line, `{#snippet footer()}` with `Button variant="soft"` Cancel and `Button variant="primary"` "Clear chart". Danger color stays on the menu item that opened it, not on the button fill.
+**"Add a confirm step before Clear."** `Dialog` with `title="Clear this chart?"`, one muted line, `{#snippet footer()}` with `Button variant="ghost"` Cancel and `Button variant="danger"` "Clear chart". Danger is text and wash, never a fill. A recoverable confirm stays `primary`.
 
 **"The stats need a label."** `Eyebrow` above, number in tabular-nums below. No box, no border.
 

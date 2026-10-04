@@ -44,7 +44,7 @@ export const menu = tv({
 		trigger: 'relative z-50 w-full',
 		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
 		panel:
-			'absolute top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,32rem)] min-w-[min(290px,calc(100vw-32px))] flex-col gap-px overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
+			'absolute top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,32rem)] min-w-[min(290px,calc(100vw-32px))] flex-col gap-px overflow-x-clip overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
 	},
 	variants: {
 		align: {
@@ -58,7 +58,7 @@ export const menu = tv({
 export const menuItem = tv({
 	slots: {
 		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 bg-transparent px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
-		main: 'flex min-w-0 flex-1 items-center gap-3',
+		main: 'relative flex min-w-0 flex-1 items-center gap-3',
 		icon: 'shrink-0 text-muted',
 		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums'
 	},

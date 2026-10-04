@@ -14,13 +14,26 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 
 ## Principles
 
-1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). Never use a hue for decoration or for a button.
+1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button and the selected dock tab. It aliases `--ink`, the same fill main uses. A hue goes there only when it stays clear of every pillar. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
 3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
 4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
 5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
 6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
 7. **Both themes are first-class.** Every new token gets a dark value in the same commit.
+
+## Making a component
+
+Correct and on-token is the floor. A component that could be lifted into any other app is not finished. This is the pass that decides what it is.
+
+1. **Name the object it is, in this app.** Mandala is a notebook on a desk. A confirmation is a slip of paper. A finished day is a seal. A choice is a card drawn from a deck. If the only name you have is the widget ("toast", "modal", "badge"), you do not have a design yet. The metaphor picks the surface, the type, and the motion together. A part that ignores it is decoration.
+2. **One job, fully said.** List what it tells the person and the one thing they can do from it. If there is no action that changes something, there is no button. A second action, a second copy of the same news, or a count that fights the layout is hedging. Confidence is one object.
+3. **Draw it several ways before you keep one.** Same moments, same place it will actually sit (above the dock, in the dialog, on the grid). Four to eight takes, on `/dev/ui`, including the generic version you are tempted to ship. Keep the one that belongs to the metaphor. Leave the others in the lab so the next decision has something to point at.
+4. **The picture is the data.** A ring uses `pillarArc` and `arcPath`, so it matches the grid. A repeat is another sheet in the pile, not a new sentence. Time, count, and status should be readable with the words covered.
+5. **Arrival and departure are different gestures.** Something landing may overshoot, briefly, between 280 and 420ms. Something leaving never overshoots: a bounce on the way out feels like a mistake. A departure eases, runs longer (about 500–700ms), and does not travel into whatever sits next to it. A timed departure starts before the deadline, so the end is visible while it is happening. Hover or focus pauses that clock and reverses the fade. The person pointing at it still wants it.
+6. **Look at the awkward states, in place.** Repeat, undo, a long name, the plain case, nothing showing. Light and dark. Desktop and a phone. Keyboard focus. A component that only looks right alone, once, is not done.
+
+The toast is the worked example. It is a paper slip, not an ink pill: the mark, an eyebrow, the chart name in the title size. Repeats thicken the pile and tick ×n. Only a delete offers Undo. The ring empties one pillar at a time, and the slip closes, lifts, and fades during the last pillar, instead of being cut on the final frame. Replacing it fades the old one in place while the new one lands. Seed and the ink pill stay beside it in the toast lab on `/dev/ui`.
 
 ## Tokens
 
@@ -36,7 +49,8 @@ All tokens live at the top of `src/app.css` as CSS custom properties in OKLCH. T
 | `--text` | Body and headings |
 | `--muted` | Secondary copy, ghost buttons, eyebrows |
 | `--line` | Hairline dividers only |
-| `--ink` / `--ink-hover` / `--on-ink` | Primary action fill, selected dock tab, goal cell. Inverts in dark (light ink on dark paper) |
+| `--ink` / `--ink-hover` / `--on-ink` | Goal cell, focus ring, and ink fills that are not the primary action. Inverts in dark (light ink on dark paper) |
+| `--accent` / `--accent-hover` / `--on-accent` | Primary button and selected dock tab. Aliases of `--ink`, `--ink-hover`, and `--on-ink` |
 | `--success` / `--danger` | Status text and destructive menu items. Never as fills |
 
 ### Chart color
@@ -57,9 +71,10 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 
 - `--shadow-sm`: resting cards. In dark it's a 1px light hairline, because shadows vanish on dark paper.
 - `--shadow-md`: floating things (menus, dialogs, dock, toast).
-- `--ease: cubic-bezier(0.2, 0, 0, 1)` for all UI transitions, 150ms for state changes, 180–240ms for enter/exit.
-- Playful overshoot `cubic-bezier(0.34, 1.56, 0.64, 1)` is allowed only on the brand mark and chart hover.
-- Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`.
+- `--shadow-edge-up` / `--shadow-edge-down`: the lip where a scrolling list passes under a footer or a header. Short and warm, no hairline. Shown only while that edge still has rows to scroll.
+- `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
+- An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
+- Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`. Opacity may still fade.
 
 ## Typography
 
@@ -98,6 +113,7 @@ Tailwind preflight is off. A raw `<button>`, `<input>`, `<textarea>`, or `<selec
 | `Button` `variant="primary"` | The single main action of a view or dialog ("Start from a preset", "Use this preset") |
 | `Button` `variant="soft"` | Secondary actions that still matter ("Get a prompt", "Cancel") |
 | `Button` `variant="ghost"` | Tertiary / informational ("How it works") |
+| `Button` `variant="danger"` | Throw away, or kill a link. Danger text and wash only, never a fill. A recoverable confirm stays `primary` |
 | `size="sm"` | Dense contexts (notice rows, toolbars, inside dialogs) |
 | `IconButton` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
 
@@ -109,11 +125,11 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the ink fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
 
 ### Menus
 
-`Menu` owns open, escape, outside click, and focus return. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock.
 
 ### Dialogs
 
@@ -121,7 +137,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Feedback
 
-- `Toast` (`role="status"`) reads `chart.say()`. One line, past tense, no exclamation marks: "Copied as text", "Preset applied".
+- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock.
 - `Notice` for persistent inline info with an optional small primary or soft `Button`.
 
 ### Brand
@@ -156,8 +172,11 @@ Short, warm, plain. Sentence case everywhere. Say what happens, not what the fea
 | Reuse `Button` variants | Invent a new button style in a component `<style>` |
 | Use a primitive, or `border-0` plus an explicit background | Leave a raw button or input on the browser's border and gray face |
 | Separate with tone and `--shadow-sm` | Wrap things in `1px solid` borders |
-| Use one primary `Button` per view | Put two ink buttons side by side |
+| Use one primary `Button` per view | Put two accent buttons side by side |
 | Use pillar hues only for pillars | Tint a button or badge with a pillar hue |
+| Keep accent on the primary button and the selected dock tab | Paint the goal, a badge, or a second control with accent |
 | Add dark values for new tokens in both dark blocks | Hardcode hex / rgb in components |
 | Serif for reflective content | Serif on buttons, labels, or inputs |
 | Pill radii on controls | Square or 6px-radius buttons |
+| Let a timed thing start leaving before it is removed | Cut it on the last frame, or bounce it on the way out |
+| Arrive with a little weight | Use the same spring for the exit |

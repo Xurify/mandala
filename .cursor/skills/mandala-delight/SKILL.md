@@ -1,90 +1,104 @@
 ---
 name: mandala-delight
-description: Turns a correct but flat Mandala screen into a tactile, playful one without leaving the design system, by choosing a physical metaphor, then adding depth, motion, direct manipulation, and game-verb copy. Use when the user says a UI is bland, boring, overwhelming, cluttered, not fun, or asks for something creative, delightful, outstanding, or astonishing; when designing a new interactive surface (pickers, reviews, onboarding, empty states); or when adding drag, flip, deal, stack, or expand interactions.
+description: >-
+  Turns a correct but flat Mandala screen into a tactile one, and a finished
+  state into a moment, without leaving the design system. Use when the user
+  says a UI is bland, boring, cheap, overwhelming, or cluttered; asks for
+  something creative, delightful, outstanding, or astonishing; asks for an
+  experience, a ceremony, or a screen that feels finished; or when designing a
+  picker, review, onboarding, empty state, toast, or a drag, flip, deal, stack,
+  or expand interaction.
 ---
 
 # Mandala delight
 
-`mandala-component` makes a screen correct. This skill makes it something people want to touch. Its rules still apply: tokens only, one primary button, pillar hues mean pillars, `motion-safe:`, `bun run check` clean. Finish with `mandala-ui-review`.
+`mandala-component` makes a screen correct. This skill makes it something people want to touch, and a finished moment something they remember. Its rules still apply: tokens only, one primary button, pillar hues mean pillars, `motion-safe:`, `bun run check` clean. Finish with `mandala-ui-review`.
 
-Canonical example: `src/lib/components/FocusPicker.svelte` (the "pick three for today" card deck). Read it before building something similar.
+Read the closest one before building:
+
+- `src/lib/components/FocusPicker.svelte` for a choice
+- `src/lib/components/DaySeal.svelte` and the closed branch of `TodayView.svelte` for a moment that just became true
+- [recipes.md](recipes.md) for pointer drag
 
 ## 1. Change the concept, not the polish
 
 When the user says "bland", "overwhelming", or "try something else", restyling won't fix it. Swap the concept.
 
-The focus picker took five rounds:
-
-| Round | Concept | Why it failed or worked |
-|---|---|---|
-| 1 | A 3×3 grid around the goal | Looked like a second mandala and repeated the chart |
-| 2 | Accordion of pillars | Hid the pillars, so the user lost sight of goals |
-| 3 | Tabs plus a list | Correct but forgettable |
-| 4 | A sheet with all 64 actions | Everything visible, which overwhelmed the user |
-| 5 | Eight decks, one card face up, deal three into slots | Loved: all pillars present, one choice each, tactile |
-
-Workflow:
-
-1. Name the **verb** of the screen (choose, sort, review, commit, reflect).
-2. Sketch three physical metaphors for that verb, for example cards and a hand, a shelf, a stamp, a seal, or a tray. Pick the one whose verbs are tactile (deal, draw, flip, stack, swap, drop).
-3. Let the metaphor drive layout, motion, and copy together. If one part ignores the metaphor, it reads as decoration.
+1. Name the **verb** (choose, sort, review, commit, reflect, close).
+2. Sketch three physical metaphors. Pick the one whose verbs are tactile (deal, draw, stamp, seal, drop).
+3. Let that metaphor drive layout, motion, and copy together. A part that ignores it reads as decoration.
 4. Ask the user which direction when two options are both strong (AskQuestion, 2–3 options).
 
-## 2. Breadth visible, depth on demand
+A second copy of the chart, a control that hides the groups, and a sheet of everything have all failed here. Show every group, and one item of each at a time.
 
-"Show everything" and "hide things" both fail. Show **one representative of every group** and make the rest one gesture away.
+## 2. A moment gets its own layout
 
-- Each of the eight pillars shows a face-up top card with a `1 / 8` counter. The other cards are a flip (next arrow, ArrowLeft/ArrowRight) or a spread (expand) away.
-- Stacked layers behind the top card say "there's more" without words. Fan them with small opposite rotations (`rotate-[3deg]`, `rotate-[-4deg]`), not offsets.
-- Spreading a deck fans its cards inside that cell. Other pillars stay in the grid. Tap a card to add it. Tap Stack, or Escape, to close. The fan does not take a full row.
+When something becomes true, swap the composition. The working list with a check on it is still the working list.
 
-## 3. Put the destination on top
+## 3. The picture is the data
 
-The outcome sits above the source: three numbered slots, then the decks.
+Light only what changed. A circle uses `pillarArc` and `arcPath`, so it matches the grid. The count or the check sits in the center. The `aria-label` is the same sentence the page says.
 
-- Empty slots invite the action: a big muted numeral and one line of copy on the next free slot only ("Drag a card here", then "Drag another").
-- Filled slots are a **promotion** in saturation. A card in the deck uses `pillar-action` (tint), the same card in a slot uses `pillar-cell` (strong), and "in your day" inside a spread uses `bg-ink`. Commitment reads as more color, not as a checkmark.
-- A tiny static tilt per slot (`SLOT_TILT = [-1.6, 1.1, -0.6]` degrees, applied through `--tilt`) makes the slots look placed by hand. Hover straightens the tilt.
+## 4. Play it once, in order
 
-## 4. Physicality checklist
+Set a flag at the instant the moment happens, and clear it when the moment un-happens. A reload shows the settled picture and does not replay.
 
-- [ ] Depth: `shadow-card` at rest, `shadow-float` when lifted, hovered, or chosen
+Order: the picture arrives, the parts draw in data order, the last stroke is the punchline, then the words. Reuse `seal-in`, `seal-draw`, `done-in`, and `pop-in` before adding a keyframe. Headings and paragraphs need `m-0`.
+
+## 5. One sentence, then one door
+
+Say what changed, in words. Then exactly one primary button. No second action, streak, or confetti on the climax.
+
+## 6. Breadth visible, depth on demand
+
+Show one representative of every group. The rest is one gesture away. The destination sits above the source. Only the next empty spot invites the action. Commitment reads as more color, not as a checkmark. Hitting the limit shakes the tray and says how to recover.
+
+## 7. Physicality
+
+- [ ] Depth: `shadow-card` at rest, `shadow-float` when lifted or chosen
 - [ ] Hover lift `can-hover:hover:-translate-y-1`; press `active:scale-[0.97]`
-- [ ] Arrivals overshoot (`animate-deal-in`). Flips turn (`animate-card-in`). Spreads stagger (`animation-delay: index * 35ms`)
-- [ ] A lifted card leaves a hole in its deck (`invisible`), so the layers below show through
-- [ ] Hitting the limit shakes the tray and says how to fix it ("Drop a card on one to swap it"), not just "no"
-- [ ] Every state, including the empty deck ("All in your day"), still looks like part of the game
+- [ ] Arrivals overshoot. A group arriving together staggers by index
+- [ ] A lifted piece leaves a hole, so what is underneath shows through
+- [ ] Every state, including "nothing left here", still belongs to the metaphor
 
-## 5. Motion rules that bite
+## 8. Motion rules that bite
 
-- Animation keyframes use `transform`. Resting states use the individual `rotate`, `translate`, and `scale` properties (which are what Tailwind v4 `rotate-*`, `translate-*`, and `scale-*` set), so the two never overwrite each other.
-- If a keyframe's `to` omits `transform`, the element's own static rotation survives the animation (`deal-in` does this).
+- Keyframes animate `transform`. Resting tilt, shift, and scale use the individual `rotate`, `translate`, and `scale` properties, so the two never overwrite each other.
+- A keyframe `to` that omits `transform` keeps the element's own rotation.
 - `animation-fill-mode: both` pins `opacity: 1`, so `opacity-0` loses to it. Hide animated elements with `invisible`.
-- An inline `style:rotate` beats `hover:` classes. Drive per-item values through a custom property (`style:--tilt` plus `rotate-[var(--tilt)]`).
-- Easing: overshoot `cubic-bezier(0.34, 1.56, 0.64, 1)` for things landing, expo-out `cubic-bezier(0.16, 1, 0.3, 1)` for UI. Durations stay between 150 and 420ms.
-- New keyframes go in `src/app.css` as `--animate-*` theme tokens. Always use them as `motion-safe:animate-*`.
+- An inline `style:rotate` beats a `hover:` class. Drive per-item values through a custom property.
+- Overshoot `cubic-bezier(0.34, 1.56, 0.64, 1)` for things landing. Expo-out `cubic-bezier(0.16, 1, 0.3, 1)` for UI. Arrivals stay between 150 and 420ms.
+- A departure does not overshoot, and it does not reuse the arrival curve. Ease it, 500–700ms. A timed one starts before removal. See §12.
+- New keyframes go in `src/app.css` as `--animate-*` and are used as `motion-safe:animate-*`.
 
-## 6. Direct manipulation, with parity
+## 9. Direct manipulation, with parity
 
-Drag is the delight. Tap, buttons, and keys are the contract. Every gesture also has a non-gesture path.
+Drag is the delight. Tap, buttons, and keys do the same job. Use pointer events in an `{@attach}`. HTML5 drag and drop misses touch and gives no ghost. The recipe is in [recipes.md](recipes.md).
 
-- Use pointer events in an `{@attach}`. Don't use HTML5 drag and drop: it doesn't work on touch and gives no control over the ghost. Recipe: [recipes.md](recipes.md).
-- Mouse starts dragging after 6px of movement. Touch needs a 220ms still press, so a swipe keeps scrolling the page.
-- While dragging, a fixed, `pointer-events-none` ghost follows the pointer and tilts. Over a target it straightens and shrinks slightly, as if about to land.
-- Find the drop target with `elementFromPoint` plus `closest('[data-drop]')`, scoped to the component root (two pickers can be mounted at once).
-- Drop rules: an empty slot fills the next free slot. An occupied slot swaps out its card. A drop anywhere else springs the ghost back home.
-- The `aria-live` status line narrates the drag ("Drop it into your day." or "Drop it on a card to swap.").
-- Swallow the click that follows a drag. Add `select-none [-webkit-touch-callout:none]` to drag sources.
-- Expand moves focus to the first card. Collapse returns focus to the expand control. Escape collapses, and it must `stopPropagation` so a surrounding `Dialog` stays open.
+Scope hit-testing to the component root, since two of the same component can be mounted. The `aria-live` line narrates the gesture. Escape inside a dialog must `stopPropagation` so the dialog stays open.
 
-## 7. Copy is part of the game
+## 10. Copy
 
-Use the metaphor's verbs in sentence case, kept short and warm: "Deal me three", "Deal the rest", "Stack", "Swap", "Drop it here", "That's your day." Status lines say what to do next, never what went wrong. Don't use exclamation marks or emoji.
+Use the metaphor's verbs. Sentence case, short, warm, no emoji, no exclamation. A status line says what to do next.
 
-## 8. Verify the feel, not only the look
+## 11. Try several, in place, then keep one
 
-- Screenshot every round: desktop in dark, phone (`emulate` `390x844x2,mobile,touch`) in light, and the inset or dialog variant. Restore the emulation afterwards (`1280x800x1`, `colorScheme: auto`).
-- `emulate` reloads the page. Reopen the surface before you screenshot.
-- The devtools `drag` tool fires HTML5 drag events, which never reach pointer-event code. Simulate the pointer sequence instead. See [recipes.md](recipes.md).
-- Capture a mid-drag frame: ghost, hole, and highlighted landing slot. The middle of the drag is where most bugs show up.
-- Check that rotated layers aren't clipped inside scroll containers. Give the grid a little padding when it sits inside a dialog (`inset && 'px-2'`).
+When the concept is still a guess, do not polish the first idea into the product. Build four to eight takes of the same moments and put them where the real component sits. Include the generic version (a plain pill, a stock card) so the one you keep has to beat it. `/dev/ui` is the lab. The takes that lose stay there.
+
+Same data in every take: the repeat, the undo, the long name, the plain case, nothing showing. Play them in order, like a person would hit them. Then pick the one whose metaphor holds together. Ask the user when two of them are both strong.
+
+## 12. Departures
+
+Arrivals land. Departures leave. They are not the same animation run backwards.
+
+- A leaving thing eases. It never bounces. A spring on the way out reads as a mistake.
+- It does not travel into the thing beside it. The toast used to drop into the dock. That was the jarring part, not the fade.
+- A clock starts the fade before the deadline, about 500–700ms early, so the end is visible while it happens. Pointing at it (hover or focus) pauses the clock and reverses the fade. The person pointing still wants it.
+- A replacement fades the old one in place. The new one lands on its own. They do not cross.
+- Reduced motion skips the travel and the early fade. Opacity may still ease.
+
+## 13. Verify the feel
+
+Screenshot each round: desktop dark, phone light (`emulate` `390x844x2,mobile,touch`), and the dialog variant. Restore emulation afterwards (`1280x800x1`, `colorScheme: auto`). `emulate` reloads the page, so reopen the surface before the screenshot.
+
+The devtools `drag` tool fires HTML5 drag events, which pointer code never sees. Simulate the pointer sequence. See [recipes.md](recipes.md). Capture a mid-drag frame. Rotated layers get clipped inside scroll containers, so give the grid a little padding in a dialog.

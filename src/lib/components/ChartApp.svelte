@@ -375,7 +375,7 @@
 			{ id: 'new-chart', label: 'New blank chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
-			{ id: 'draft', label: 'Get a prompt', section: 'Actions', icon: 'sparkles', run: () => (draftOpen = true) },
+			{ id: 'draft', label: 'Coach', section: 'Actions', icon: 'sparkles', run: () => (draftOpen = true) },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
@@ -546,7 +546,7 @@
 				{#if effectiveViewMode !== 'today'}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-						<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Get a prompt</Button>
+						<Button variant="soft" icon="sparkles" onclick={handleOpenDraft}>Coach</Button>
 						<MethodGuide />
 					</div>
 				{/if}

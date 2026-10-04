@@ -70,7 +70,9 @@
 			if (!panel) return;
 			const trigger = panel.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
 			if (!trigger) return;
-			const dock = document.querySelector<HTMLElement>('[role="tablist"]');
+			const dock = document.querySelector<HTMLElement>(
+			'[role="tablist"][aria-label="Layout view mode"]'
+		);
 			const limit = (dock ? dock.getBoundingClientRect().top : window.innerHeight) - 12;
 			const room = Math.min(640, Math.max(220, Math.floor(limit - trigger.getBoundingClientRect().bottom - 8)));
 			const next = `${room}px`;
@@ -419,7 +421,7 @@
 	{/if}
 	<div
 		id="chart-switch-list"
-		class="flex min-h-0 flex-auto flex-col gap-px overflow-y-auto overscroll-none"
+		class="flex min-h-0 flex-auto flex-col gap-px overflow-x-clip overflow-y-auto overscroll-none"
 		{@attach pinMenu}
 	>
 		{#if chartRows.length === 0}
@@ -437,9 +439,8 @@
 						onclick={() => handleSelect(item.id)}
 					>
 						<FillRing filled={item.filled} />
-						<span class="min-w-0 flex-1 truncate" title={item.title}>
-							{item.title}<span class="sr-only">, {item.filled} of 73, updated {deletedClock(item.updatedAt)}</span>
-						</span>
+						<span class="min-w-0 flex-1 truncate" title={item.title}>{item.title}</span>
+						<span class="sr-only">, {item.filled} of 73, updated {deletedClock(item.updatedAt)}</span>
 						<span class="shrink-0 text-[0.8rem] font-normal tabular-nums text-muted" aria-hidden="true">
 							{formatAgo(item.updatedAt, now)}
 						</span>
