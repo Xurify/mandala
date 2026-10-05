@@ -23,6 +23,14 @@ describe('share encoding', () => {
 		expect(decoded?.days).toEqual(sampleChart().days);
 	});
 
+	it('leaves the draft brief out of the link', async () => {
+		const data = sampleChart();
+		data.brief = { constraint: 'A bad knee' };
+		const decoded = await decodeChartShare(`#${await encodeChartShare(data)}`);
+		expect(decoded?.goal).toBe('Run a half marathon');
+		expect(decoded?.brief).toBeUndefined();
+	});
+
 	it('round-trips a plain (uncompressed) payload', async () => {
 		const json = JSON.stringify(sampleChart());
 		let binary = '';

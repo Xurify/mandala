@@ -2,7 +2,10 @@ import { chart } from './chart.svelte';
 import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	briefOf,
 	chartAnswersFromText,
+	chatReply,
+	conversationHistory,
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
@@ -11,6 +14,7 @@ import {
 	fillPlan,
 	greetingFor,
 	helpChips,
+	helpReply,
 	intentOf,
 	isCancellation,
 	isCardRejection,
@@ -19,43 +23,27 @@ import {
 	moodFor,
 	offerChips,
 	pillarMentioned,
+	progressReport,
 	reviewChart,
 	suggestToday,
 	suggestWeek,
 	textOfKey,
+	type CardState,
+	type CellEdit,
 	type ChatMessage,
 	type CoachLoad,
+	type HelperCard,
 	type HelperChip,
 	type HelperFinding,
 	type HelperJob,
-	type HelperMood,
-	type HelperPick
+	type HelperMessage,
+	type HelperMood
 } from './helper.ts';
 import { COACH_MODEL_ID } from './coach-model.ts';
 import { CoachStopped } from './coach-protocol.ts';
 import { blockOfK, idx, todayKey, type ChartData } from './model.ts';
 
-export type { HelperMood };
-
-export type CellEdit = { key: string; before: string; after: string; reason?: string };
-
-export type HelperCard =
-	| { kind: 'chart'; data: ChartData }
-	| { kind: 'cells'; edits: CellEdit[] }
-	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
-	| { kind: 'findings'; findings: HelperFinding[] }
-	| { kind: 'download' }
-	| { kind: 'prompt' };
-
-export type CardState = 'working' | 'open' | 'used' | 'skipped';
-
-export type HelperMessage = {
-	id: number;
-	from: 'helper' | 'you';
-	text: string;
-	card?: HelperCard;
-	state?: CardState;
-};
+export type { CardState, CellEdit, HelperCard, HelperMessage, HelperMood };
 
 /** What the helper may read and change. The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
@@ -66,6 +54,8 @@ export type HelperTarget = {
 	setToday(keys: string[]): void;
 	pinWeek(keys: string[]): void;
 	showCell(key: string): void;
+	/** The chart the conversation belongs to. The lab leaves it out and keeps one thread. */
+	chartId?(): string;
 };
 
 type Coach = typeof import('./coach.browser.ts');
@@ -99,19 +89,6 @@ function clearModelConsent(): void {
 	} catch {
 		return;
 	}
-}
-
-function conversationHistory(messages: readonly HelperMessage[], maxTurns = 8): ChatMessage[] {
-	const history: ChatMessage[] = [];
-	for (const message of messages.slice(-maxTurns)) {
-		const content = message.text.trim();
-		if (!content) continue;
-		history.push({
-			role: message.from === 'you' ? 'user' : 'assistant',
-			content
-		});
-	}
-	return history;
 }
 
 export class HelperStore {
@@ -153,9 +130,39 @@ export class HelperStore {
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
 	#warming = false;
 	#progressStop: (() => void) | null = null;
+	#chartId = '';
+	#threads = new Map<string, HelperMessage[]>();
+	#jobChart: string | null = null;
+	#thanks = 0;
 
 	constructor(target: HelperTarget) {
 		this.#target = target;
+		this.#chartId = target.chartId?.() ?? '';
+	}
+
+	/** Each chart keeps its own conversation. A job still running for the old chart is stopped, and its replies are dropped. */
+	follow(chartId: string): void {
+		if (chartId === this.#chartId) return;
+		if (this.#chartId) {
+			this.#threads.set(
+				this.#chartId,
+				this.messages.map((entry) => (entry.state === 'working' ? { ...entry, state: 'skipped' } : entry))
+			);
+		}
+		if (this.busy) void this.stop();
+		this.#chartId = chartId;
+		this.messages = this.#threads.get(chartId) ?? [];
+		this.#threads.delete(chartId);
+		this.step = 'idle';
+		this.#pending = null;
+		this.#sorry = false;
+		this.unread = false;
+		this.#clearTurn();
+		if (this.open && this.messages.length === 0) this.#aside(greetingFor(this.#target.data()));
+	}
+
+	get #stale(): boolean {
+		return this.#jobChart !== null && this.#jobChart !== this.#chartId;
 	}
 
 	get data(): ChartData {
@@ -184,7 +191,7 @@ export class HelperStore {
 	show(job?: HelperJob): void {
 		this.open = true;
 		this.unread = false;
-		if (this.messages.length === 0) this.#say(greetingFor(this.#target.data()));
+		if (this.messages.length === 0) this.#aside(greetingFor(this.#target.data()));
 		void this.#warm();
 		if (job) void this.start(job);
 	}
@@ -205,14 +212,14 @@ export class HelperStore {
 		this.#pending = null;
 		this.#sorry = false;
 		this.#clearTurn();
-		this.#say(greetingFor(this.#target.data()));
+		this.#aside(greetingFor(this.#target.data()));
 	}
 
 	cancel(): void {
 		if (this.step !== 'idle' || this.#direction || this.#sketch) {
 			this.step = 'idle';
 			this.#clearTurn();
-			this.#say('Draft cancelled.');
+			this.#aside('Draft cancelled.');
 		}
 	}
 
@@ -235,7 +242,7 @@ export class HelperStore {
 			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
 				this.step = 'idle';
 				this.#clearTurn();
-				this.#say('Draft cancelled.');
+				this.#aside('Draft cancelled.');
 				return;
 			}
 			this.#direction = text;
@@ -247,7 +254,7 @@ export class HelperStore {
 			if (isCancellation(text)) {
 				this.step = 'idle';
 				this.#clearTurn();
-				this.#say('Draft cancelled.');
+				this.#aside('Draft cancelled.');
 				return;
 			}
 			const answers = chartAnswersFromText(this.#direction, text);
@@ -283,7 +290,17 @@ export class HelperStore {
 		if (intent === 'cancel') {
 			this.#clearTurn();
 			this.step = 'idle';
-			this.#say('Nothing to cancel.');
+			this.#aside('Nothing to cancel.');
+			return;
+		}
+		if (intent === 'chat') {
+			const reply = chatReply(text, data, this.#thanks++);
+			this.#help = reply.nextStep;
+			this.#say(reply.text);
+			return;
+		}
+		if (intent === 'progress') {
+			this.#say(progressReport(data));
 			return;
 		}
 		if (intent === 'chart') {
@@ -295,9 +312,9 @@ export class HelperStore {
 			await this.start(intent);
 			return;
 		}
-		if (isHelpRequest(text) && data.goal.trim() && !fillPlan(data)) {
-			this.#help = true;
-			this.#say("The chart is full. Three actions for today is the next move.");
+		if (isHelpRequest(text)) {
+			this.#help = data.goal.trim() !== '' && !fillPlan(data);
+			this.#say(helpReply(data));
 			return;
 		}
 		const aim = aimOf(text, data);
@@ -321,7 +338,7 @@ export class HelperStore {
 			this.#say(`${name} is already full. We can review its actions or pick one for today.`);
 			return;
 		}
-		await this.#withModel(() => this.#answer(text, history));
+		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()));
 	}
 
 	async start(job: HelperJob, pillar?: number): Promise<void> {
@@ -361,6 +378,9 @@ export class HelperStore {
 		if (!message || !card || message.state !== 'open') return;
 		if (card.kind === 'chart') {
 			if (!this.#target.applyDraft(card.data)) return;
+			// A draft can open as a new chart. The conversation that made it goes with it.
+			const next = this.#target.chartId?.();
+			if (next) this.#chartId = next;
 			this.#settle(id, 'used');
 			this.#clearTurn();
 			this.step = 'idle';
@@ -439,17 +459,18 @@ export class HelperStore {
 				this.#settle(draftId, 'working');
 				return;
 			}
-			this.messages = this.messages.map((entry) =>
-				entry.id === draftId ? { ...entry, card: { kind: 'chart', data: partial } } : entry
-			);
+			this.#patchChart(draftId, partial);
 		});
 		if (!result.chart) {
 			if (draftId) this.#settle(draftId, 'skipped');
 			this.#fail('I lost the thread on that one. Try again, or copy the prompt into another chat app.', { kind: 'prompt' });
 			return;
 		}
-		if (draftId) this.#settle(draftId, 'open');
-		else this.#say('Here is a first chart.', { kind: 'chart', data: result.chart });
+		const finished = { ...result.chart, brief: briefOf(answers) };
+		if (draftId) {
+			this.#patchChart(draftId, finished);
+			this.#settle(draftId, 'open');
+		} else this.#say('Here is a first chart.', { kind: 'chart', data: finished });
 		const written = result.chart.actions.flat().filter((action) => action.trim()).length;
 		this.#say(written === 64 ? 'All 64 actions are in. Use this chart, or ask me to start again.' : `${written} of 64 actions are in. The empty ones stayed empty.`);
 	}
@@ -520,9 +541,9 @@ export class HelperStore {
 		this.#say('Here is how I would put them.', { kind: 'cells', edits });
 	}
 
-	async #answer(question: string, history: readonly ChatMessage[] = []): Promise<void> {
+	async #answer(question: string, history: readonly ChatMessage[] = [], pillar: number | null = null): Promise<void> {
 		const coach = await loadCoachModule();
-		const reply = await coach.answer(this.#target.data(), question, history);
+		const reply = await coach.answer(this.#target.data(), question, history, pillar);
 		if (!reply) return this.#fail('I am not sure. Try asking another way.');
 		this.#say(reply);
 	}
@@ -551,6 +572,7 @@ export class HelperStore {
 		const coach = await loadCoachModule();
 		coach.resumeCoach();
 		this.busy = true;
+		this.#jobChart = this.#chartId;
 		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
 		this.#progressStop ??= coach.watchCoachProgress((update) => {
 			this.progress = describeCoachProgress(update.text, update.ratio);
@@ -560,6 +582,7 @@ export class HelperStore {
 			this.modelReady = coach.coachLoaded();
 			if (this.modelReady) persistModelConsent();
 		} catch (error) {
+			if (this.#stale) return;
 			if (error instanceof CoachStopped) {
 				this.messages = this.messages.map((entry) =>
 					entry.state === 'working' ? { ...entry, state: 'skipped' } : entry
@@ -567,7 +590,7 @@ export class HelperStore {
 				this.#clearTurn();
 				this.step = 'idle';
 				this.#sorry = true;
-				this.#say('Stopped.', undefined, true);
+				this.#aside('Stopped.', true);
 			} else {
 				if (!coach.coachLoaded()) {
 					this.#consent = false;
@@ -576,6 +599,11 @@ export class HelperStore {
 				this.#fail('Something stopped me. Try again in a moment.');
 			}
 		} finally {
+			if (this.#stale) {
+				this.step = 'idle';
+				this.#clearTurn();
+			}
+			this.#jobChart = null;
 			this.busy = false;
 			this.progress = null;
 			if (!this.open) this.unread = true;
@@ -597,6 +625,7 @@ export class HelperStore {
 	}
 
 	#patchChart(id: number, data: ChartData): void {
+		if (this.#stale) return;
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { kind: 'chart', data } } : entry));
 	}
 
@@ -646,6 +675,7 @@ export class HelperStore {
 			this.#sketch = partial;
 			this.#patchChart(draftId, partial);
 		});
+		this.#patchChart(draftId, { ...filled, brief: briefOf(answers) });
 		this.#settle(draftId, 'open');
 		this.step = 'idle';
 		this.#sketch = null;
@@ -663,7 +693,16 @@ export class HelperStore {
 		return message;
 	}
 
+	/** A greeting or status line: shown, never sent to the model. */
+	#aside(text: string, preserveSorry = false): void {
+		if (this.#stale) return;
+		if (!preserveSorry) this.#sorry = false;
+		this.#push({ from: 'helper', text, aside: true });
+		if (!this.open) this.unread = true;
+	}
+
 	#say(text: string, card?: HelperCard, preserveSorry = false): void {
+		if (this.#stale) return;
 		if (!preserveSorry) this.#sorry = false;
 		if (card) {
 			if (this.messages.some((entry) => entry.state === 'open' && entry.card?.kind === 'download')) this.#pending = null;
@@ -679,6 +718,7 @@ export class HelperStore {
 	}
 
 	#settle(id: number, state: CardState): void {
+		if (this.#stale) return;
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, state } : entry));
 	}
 
@@ -714,5 +754,6 @@ export const helper = new HelperStore({
 		for (const key of keys) chart.setActionMeta(key, { pinned: true });
 		chart.say(`Pinned ${keys.length} for this week.`);
 	},
-	showCell: (key) => chart.jumpToKey(key)
+	showCell: (key) => chart.jumpToKey(key),
+	chartId: () => chart.activeId
 });

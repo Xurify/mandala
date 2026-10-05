@@ -1,7 +1,7 @@
 # Bindu
 
 **Date:** 2026-10-05
-**Status:** "What it does today" and "What the probe found" describe the code as it is. Everything from "Where Bindu should go" down is the plan. None of it is built yet.
+**Status:** "What it does today" describes the code. The routing fixes, the wider review, the progress reply, per-chart conversations, and the saved draft answers are in (see "What the probe found"). The rest, from "Where Bindu should go" down, is the plan.
 
 Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the day and the week, reviews the chart, and writes pillars and actions. The name and its face come from the center dot of a mandala; see `DESIGN.md` → Voice and copy.
 
@@ -32,13 +32,16 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | Spot a new goal in a message ("I want to learn Spanish") and offer to sketch it | Typing it | Detection no, sketch yes | `aimOf` |
 | Paste a reply from another chat app and get a chart card | Pasting it | No | `parseDraftText` |
 | Copy the draft prompt for another chat app | Declining the download, or no WebGPU | No | `draftPrompt` |
-| Help, cancel, "not this one" | Typing it | No | `isHelpRequest`, `isCancellation`, `isCardRejection` |
+| How am I doing: ticks in the last 7 days, quiet pillars, streak, milestones | "How am I doing?", "which pillar have I been ignoring?" | No | `progressReport` |
+| Help: the next move on this chart | "Help", "I'm stuck", "where do I start?" | No | `helpReply` |
+| Thanks, hello, "I missed three days" | Typing it | No | `chatReply` |
+| Cancel, "not this one" | Typing it | No | `isCancellation`, `isCardRejection` |
 | Answer anything else | Any message that matches nothing above | Yes | `askMessages`, `answer` |
 | Stop a running job | "Stop Bindu" in the command palette | No | `interruptCoach` |
 
 On the 404 page, Bindu cycles through canned notes. It doesn't touch the store.
 
-Six of the jobs need no model. They run instantly, without the 2.3 GB download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries.
+Most of the jobs need no model. They run instantly, without the 2.3 GB download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries.
 
 ### How a message is routed
 
@@ -46,18 +49,19 @@ Six of the jobs need no model. They run instantly, without the 2.3 GB download, 
 
 1. Mid-draft steps (the goal, then "anything that would change the plan"), and the new-chart offer.
 2. "No" or "skip" while a card is open.
-3. `intentOf`: a pasted chart, then **any question** (ends in `?`, or starts with what, how, why…), then cancel, today, week, review, fill, draft. Each of these is an exact phrase pattern.
-4. A bare ask for help.
+3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on to the model; then cancel, today, week, review, fill, progress, draft.
+4. A bare ask for help, answered from the chart.
 5. A new goal (`aimOf`).
 6. A pillar name together with fill, finish or work on.
 7. Everything else goes to the model. With no WebGPU, the reply says so. Without the download, the reply is the download card.
 
 ### What Bindu remembers today
 
-- Open chat gets the last 8 messages and a summary of the chart: the goal, plus pillar names with action counts. It gets no actions, no days, and no done counts.
-- The draft answers (goal, timeline, situation) last for that one draft. A later fill or rewrite doesn't see them.
-- The conversation is in memory only. It is gone on reload, and it doesn't change when you switch charts.
-- The only thing it stores is the download consent (`mandala-helper-model`).
+- Each chart has its own conversation. Switching charts swaps it, and a job still running for the old chart stops. A draft that opens as a new chart takes its conversation along. Conversations are in memory only and are gone on reload.
+- Open chat gets the last 8 messages, without greetings and status lines. A card goes in as one line: what was offered, and whether it was used or skipped.
+- Open chat also gets the chart: each pillar with its action count and how often it was used in the last 7 days, the actions of the pillar the question names (or the selected one), and today's picks.
+- The draft answers (timeline, situation, focus, constraint) are saved on the chart as `brief`. Fills, rewrites and answers get them as one line. The brief syncs between your devices and stays out of share links.
+- The download consent is stored as `mandala-helper-model`.
 
 ## What the probe found
 
@@ -78,6 +82,8 @@ Why:
 **Review: 6 of 25 weak lines caught, 0 of 15 good lines flagged.** `UNTICKABLE` and `UNCONTROLLED` are short phrase lists. They never flag a good line, but "Eat healthier", "Read more books", "Exercise regularly", "Lose 10 kg", "Get promoted" and "Become fluent" all pass.
 
 Neither is a model problem. Both are rules that cover too little.
+
+**After the fix, the same probe: 21 of 25 routed, 24 of 25 weak lines caught, 0 good lines flagged, no lines flagged in any preset.** The four messages still missing are features that don't exist yet: "I have 20 minutes" (quick pick), "what's a pillar?" and "how many actions a day?" (method answers), and "undo that". "Learn Python" still passes review. The fix was tuned on this probe, so these numbers are optimistic. Tests 1 and 2 below are the honest measure. The messages and lines are in `helper.test.ts`.
 
 ## Where Bindu should go
 
@@ -161,6 +167,8 @@ type HelperMemory = {
 };
 ```
 
+`ChartData.brief` is the first piece of this: the draft answers, kept on the chart. Facts from chat, declined, and seen fold in next to it.
+
 The panel shows the facts under "What I know", each with Forget. The conversation is display history, kept per chart. It is never sent to the model as context, and the model never writes a summary of you.
 
 ## Where the model helps, and how we'll know
@@ -186,10 +194,10 @@ The rule side runs in `bun run test`, with these floors as assertions, so a chan
 
 ## Order
 
-1. Fix the three routing bugs (questions checked first, "help me finish my chart", exact phrases), and add the message set as a test.
+1. ~~Fix the three routing bugs, and add the message set as a test.~~ Done, with the progress reply, help from the chart, and thanks and hello.
 2. The intent bank, clarify chips, and the method answers.
 3. Insights: quiet pillar, picked not done, comeback, your own words.
-4. Memory: facts from the draft answers, then declined and seen.
+4. Memory: ~~facts from the draft answers~~ (saved as `brief`; not yet shown or editable in the panel), then declined and seen.
 5. Guided rewrite.
 6. Test 1, then decide on model review.
 7. Open chat becomes the last resort.

@@ -3,6 +3,7 @@ import { ACTION_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
 import {
 	askMessages,
 	chartAnswerFacts,
+	chartBriefFacts,
 	chartContextFacts,
 	fillActionsMessages,
 	fillPillarsMessages,
@@ -191,7 +192,7 @@ async function writeLines(
 
 export async function fillPillars(data: ChartData, count: number, facts = ''): Promise<string[] | null> {
 	onProgress('Naming pillars.');
-	const person = [facts.trim(), chartContextFacts(data)].filter(Boolean).join('\n');
+	const person = [facts.trim() || chartBriefFacts(data), chartContextFacts(data)].filter(Boolean).join('\n');
 	const named = data.pillars.map((pillar) => pillar.trim()).filter(Boolean);
 	return writeLines(count, PILLAR_MAX, 'pillar', '', named, (need, rejected) => fillPillarsMessages(data, need, person, rejected));
 }
@@ -199,7 +200,7 @@ export async function fillPillars(data: ChartData, count: number, facts = ''): P
 export async function fillActions(data: ChartData, pillarIndex: number, count: number, facts = ''): Promise<string[] | null> {
 	const pillar = (data.pillars[pillarIndex] ?? '').trim();
 	onProgress(`Writing actions for ${pillar}.`);
-	const person = [facts.trim(), chartContextFacts(data, pillarIndex)].filter(Boolean).join('\n');
+	const person = [facts.trim() || chartBriefFacts(data), chartContextFacts(data, pillarIndex)].filter(Boolean).join('\n');
 	const elsewhere = data.actions.flatMap((row, index) =>
 		index === pillarIndex ? [] : row.map((action) => action.trim()).filter((action) => action !== '')
 	);
@@ -215,7 +216,7 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	const max = kind === 'pillar' ? PILLAR_MAX : ACTION_MAX;
 	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
 	const pillar = kind === 'action' ? (data.pillars[pillarIndex] ?? '').trim() : '';
-	const facts = chartContextFacts(data, kind === 'action' ? pillarIndex : undefined);
+	const facts = [chartBriefFacts(data), chartContextFacts(data, kind === 'action' ? pillarIndex : undefined)].filter(Boolean).join('\n');
 	const original = finding.text.toLowerCase();
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
@@ -226,9 +227,14 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	return null;
 }
 
-export async function answer(data: ChartData, question: string, history: readonly ChatMessage[] = []): Promise<string> {
+export async function answer(
+	data: ChartData,
+	question: string,
+	history: readonly ChatMessage[] = [],
+	pillar: number | null = null
+): Promise<string> {
 	onProgress('Thinking.');
-	return (await complete(askMessages(data, question, history), { maxTokens: 180, temperature: 0.6 })).trim();
+	return (await complete(askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 })).trim();
 }
 
 /** Goal and eight pillars, with the actions still empty. */

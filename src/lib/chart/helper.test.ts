@@ -3,6 +3,13 @@ import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
 	askMessages,
+	chartBriefFacts,
+	chartContext,
+	chatReply,
+	conversationHistory,
+	helpReply,
+	progressReport,
+	type HelperMessage,
 	chartAnswersFromText,
 	chipsFor,
 	truncateAtWordBoundary,
@@ -32,7 +39,9 @@ import {
 	suggestToday,
 	suggestWeek
 } from './helper.ts';
-import { dateKeyOf, emptyChart, type ChartData } from './model.ts';
+import { dateKeyOf, emptyChart, parseChart, type ChartData } from './model.ts';
+import { exampleChart } from './example.ts';
+import { buildChart, PRESETS } from './presets/index.ts';
 
 function sample(): ChartData {
 	const data = emptyChart();
@@ -570,5 +579,199 @@ describe('moodFor priority list', () => {
 		expect(moodFor()).toBe('idle');
 		expect(moodFor({ step: 'idle' })).toBe('idle');
 		expect(moodFor({ card: null, step: 'idle' })).toBe('idle');
+	});
+});
+
+describe('everyday messages', () => {
+	// Where a message should land without the model. Keep adding the ones people actually type.
+	const routes: [string, ReturnType<typeof intentOf>][] = [
+		['What should I do today?', 'today'],
+		['what should I work on today', 'today'],
+		['pick 3 for today', 'today'],
+		["give me today's actions", 'today'],
+		['Can you pick my three?', 'today'],
+		['plan my week', 'week'],
+		['what should I focus on this week?', 'week'],
+		['weekly plan', 'week'],
+		['is my chart any good?', 'review'],
+		['review', 'review'],
+		['check my actions', 'review'],
+		["what's wrong with my chart?", 'review'],
+		['fill the empty ones', 'fill'],
+		['fill in my chart', 'fill'],
+		['help me finish my chart', 'fill'],
+		['Could you fill in the rest?', 'fill'],
+		['how am I doing?', 'progress'],
+		["how's my progress", 'progress'],
+		['which pillar have I been ignoring?', 'progress'],
+		['progress', 'progress'],
+		['start over', 'draft'],
+		['new goal', 'draft'],
+		['thanks', 'chat'],
+		['hi Bindu', 'chat'],
+		['I missed three days', 'chat'],
+		['How should I plan my week?', 'ask'],
+		["what's a pillar?", 'ask'],
+		['I want to run a marathon', 'ask']
+	];
+
+	it.each(routes)('routes "%s" to %s', (text, intent) => {
+		expect(intentOf(text)).toBe(intent);
+	});
+
+	it('does not read finishing this chart as a new goal', () => {
+		expect(aimOf('help me finish my chart', sample())).toBeNull();
+		expect(aimOf('I want to run a marathon', sample())).toBe('run a marathon');
+	});
+
+	it('treats feeling stuck as a request for help', () => {
+		expect(isHelpRequest("I'm feeling stuck")).toBe(true);
+		expect(isHelpRequest('Where do I start?')).toBe(true);
+	});
+});
+
+describe('chatReply and helpReply', () => {
+	it('answers thanks and hello without the model', () => {
+		expect(chatReply('thanks', sample(), 0).text).toBe('Any time.');
+		expect(chatReply('thanks', sample(), 1).text).toBe('Glad it helped.');
+		expect(chatReply('hello', emptyChart()).text).toContain("I'm Bindu");
+	});
+
+	it('meets a missed day with the next step', () => {
+		const reply = chatReply('I missed three days', sample());
+		expect(reply.nextStep).toBe(true);
+		expect(reply.text).toContain('not about you');
+	});
+
+	it('points help at the next move on this chart', () => {
+		expect(helpReply(emptyChart())).toContain('goal');
+		const data = sample();
+		data.pillars[7] = '';
+		expect(helpReply(data)).toBe('The chart needs one more pillar. I can suggest them.');
+	});
+});
+
+describe('lineFault, open-ended lines', () => {
+	const weak = [
+		'Eat healthier',
+		'Read more books',
+		'Exercise regularly',
+		'Sleep better',
+		'Drink more water',
+		'Be a better listener',
+		'Stay motivated',
+		'Improve my Spanish',
+		'Have a positive mindset',
+		'Lose 10 kg',
+		'Get promoted',
+		'Get fit',
+		'Win the race',
+		'Become fluent',
+		'Make 1000 sales'
+	];
+	const fine = [
+		'Run 30 minutes on Tuesday',
+		'Read 20 pages before bed',
+		'Drink more water at lunch',
+		'Be in bed by 10:30',
+		'Stay off the phone after 9',
+		'Ask one question when stuck',
+		'Book the driving test',
+		'Learn three chords'
+	];
+
+	it.each(weak)('flags "%s"', (text) => {
+		expect(lineFault(text, { max: 48, kind: 'action' })).not.toBeNull();
+	});
+
+	it.each(fine)('passes "%s"', (text) => {
+		expect(lineFault(text, { max: 48, kind: 'action' })).toBeNull();
+	});
+
+	it('flags nothing in the presets', () => {
+		for (const preset of PRESETS) expect(reviewChart(buildChart(preset), 99)).toEqual([]);
+	});
+
+	it('flags the example chart lines that cannot be ticked', () => {
+		const texts = reviewChart(exampleChart(), 99).map((finding) => finding.text);
+		expect(texts).toContain('Be present');
+		expect(texts).toContain('Listen more');
+	});
+});
+
+describe('progressReport', () => {
+	const now = new Date(2026, 9, 5, 12);
+	const day = (offset: number) => dateKeyOf(new Date(2026, 9, 5 + offset, 12));
+
+	it('starts the log when nothing is ticked', () => {
+		expect(progressReport(sample(), now)).toContain('Nothing ticked yet.');
+		expect(progressReport(emptyChart(), now)).toContain('no goal');
+	});
+
+	it('counts ticks, quiet pillars, streak, and milestones from the log', () => {
+		const data = sample();
+		data.days = {
+			[day(0)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0', 'a1_0'] },
+			[day(-1)]: { focus: ['a2_0'], checked: ['a2_0'] },
+			[day(-2)]: { focus: ['a3_0', 'a4_0', 'a5_0'], checked: ['a3_0'] }
+		};
+		data.meta = { a6_0: { kind: 'milestone', done: true } };
+		const report = progressReport(data, now);
+		expect(report).toContain('4 ticks in the last 7 days');
+		expect(report).toContain('Nothing from Shoes and Calendar this week.');
+		expect(report).toContain('3 days in a row.');
+		expect(report).toContain('1 milestone done.');
+	});
+});
+
+describe('model context', () => {
+	it('keeps greetings out of history and describes cards in one line', () => {
+		const messages: HelperMessage[] = [
+			{ id: 1, from: 'helper', text: 'Hi again.', aside: true },
+			{ id: 2, from: 'you', text: 'Plan this week' },
+			{
+				id: 3,
+				from: 'helper',
+				text: 'Two for this week.',
+				card: {
+					kind: 'picks',
+					scope: 'week',
+					picks: [
+						{ key: 'a0_0', text: 'Run 30 minutes Tuesday', pillarIndex: 0, why: '' },
+						{ key: 'a1_0', text: '8 strides after Thursday', pillarIndex: 1, why: '' }
+					]
+				},
+				state: 'skipped'
+			}
+		];
+		const history = conversationHistory(messages);
+		expect(history).toHaveLength(2);
+		expect(history[1]!.content).toBe(
+			'Two for this week. [Picks for the week: Run 30 minutes Tuesday; 8 strides after Thursday. They skipped it.]'
+		);
+	});
+
+	it("adds one pillar's actions, today's picks, and the brief", () => {
+		const data = sample();
+		const now = new Date(2026, 9, 5, 12);
+		data.days = { [dateKeyOf(now)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0'] } };
+		data.brief = { constraint: 'A bad knee', timeline: 'October' };
+		const context = chartContext(data, 2, now);
+		expect(context).toContain(`Actions in Long run: ${data.actions[2]![0]}`);
+		expect(context).toContain(`Today's picks: ${data.actions[0]![0]} (done); ${data.actions[1]![0]}`);
+		expect(context).toContain('- Constraint: A bad knee');
+		expect(chartBriefFacts(data)).toBe('About this person:\n- Timeline: October\n- Constraint: A bad knee');
+	});
+
+	it('finds the pillar a question names', () => {
+		const messages = askMessages(sample(), 'What is weak in Strength?');
+		expect(messages[0]!.content).toContain('Actions in Strength:');
+	});
+
+	it('keeps the brief through save and load, and drops junk', () => {
+		const data = sample();
+		data.brief = { situation: 'Runs twice a week', focus: '  ' };
+		expect(parseChart(JSON.stringify(data))?.brief).toEqual({ situation: 'Runs twice a week' });
+		expect(parseChart(JSON.stringify({ ...data, brief: 'nope' }))?.brief).toBeUndefined();
 	});
 });
