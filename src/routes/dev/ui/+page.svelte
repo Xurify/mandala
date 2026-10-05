@@ -2,6 +2,7 @@
 	import { exampleChart } from '$lib/chart/example';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { HUES, POS } from '$lib/chart/model';
+	import Wordmark from '$lib/components/Wordmark.svelte';
 	import BrandMark from '$lib/components/BrandMark.svelte';
 	import CommandPalette, { type CommandItem } from '$lib/components/CommandPalette.svelte';
 	import DaySeal from '$lib/components/DaySeal.svelte';
@@ -436,17 +437,19 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="mx-auto flex max-w-[1180px] flex-col gap-8 px-7 pt-8 pb-40">
-	<header class="flex flex-wrap items-end justify-between gap-6">
+<div class="page-gutter mx-auto flex max-w-[1180px] flex-col gap-8 pb-40">
+	<header class="flex flex-col gap-6">
+		<div class="flex items-center justify-between gap-4">
+			<Wordmark />
+			<SegmentedControl
+				label="Color theme"
+				size="sm"
+				options={themes}
+				value={chart.theme}
+				onchange={setTheme}
+			/>
+		</div>
 		<div class="flex max-w-[62ch] flex-col gap-3">
-			<a
-				href="/"
-				class="inline-flex cursor-pointer items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-				aria-label="Mandala home"
-			>
-				<BrandMark />
-				<span class="font-serif text-[1.25rem] font-[560]">Mandala</span>
-			</a>
 			<div>
 				<Eyebrow>Design system</Eyebrow>
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">
@@ -458,13 +461,6 @@
 				action. Delete this route when you don't want the catalog.
 			</p>
 		</div>
-		<SegmentedControl
-			label="Color theme"
-			size="sm"
-			options={themes}
-			value={chart.theme}
-			onchange={setTheme}
-		/>
 	</header>
 
 	<nav class="flex flex-wrap gap-x-4 gap-y-1" aria-label="Catalog">

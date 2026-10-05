@@ -18,7 +18,7 @@
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
-	import BrandMark from './BrandMark.svelte';
+	import Wordmark from './Wordmark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import Helper from './Helper.svelte';
 	import ExportDialog from './ExportDialog.svelte';
@@ -476,19 +476,11 @@
 <svelte:document onvisibilitychange={persistHidden} />
 
 <div
-	class="mx-auto max-w-295 pt-[max(24px,env(safe-area-inset-top,24px))] pr-[max(28px,env(safe-area-inset-right,28px))] pb-[calc(128px+env(safe-area-inset-bottom,0px))] pl-[max(28px,env(safe-area-inset-left,28px))] max-[900px]:pt-[max(14px,env(safe-area-inset-top,14px))] max-[900px]:pr-[max(14px,env(safe-area-inset-right,14px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] max-[900px]:pl-[max(14px,env(safe-area-inset-left,14px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class="page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
-			<a
-				href="/"
-				class="flex min-w-0 shrink-0 cursor-pointer items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[900px]:flex-auto"
-				aria-label="Mandala home"
-				onclick={handleGoHome}
-			>
-				<BrandMark />
-				<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
-			</a>
+			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
 			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:order-3 max-[900px]:ms-0 max-[900px]:max-w-none max-[900px]:flex-auto">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">

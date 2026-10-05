@@ -137,6 +137,18 @@
 		inset 0 1px 0 oklch(1 0 0 / 0.12),
 		0 1px 2px oklch(0 0 0 / 0.14);
 }
+/* Top and side inset for every page. The wordmark row is 42px, so the mark
+   lands in the same place as the home toolbar. */
+@utility page-gutter {
+	padding-top: max(24px, env(safe-area-inset-top, 24px));
+	padding-right: max(28px, env(safe-area-inset-right, 28px));
+	padding-left: max(28px, env(safe-area-inset-left, 28px));
+	@media (max-width: 900px) {
+		padding-top: max(14px, env(safe-area-inset-top, 14px));
+		padding-right: max(14px, env(safe-area-inset-right, 14px));
+		padding-left: max(14px, env(safe-area-inset-left, 14px));
+	}
+}
 /* Shared text-field chrome. Size, radius, and padding stay on the caller. */
 @utility field-ink {
 	border-width: 0;

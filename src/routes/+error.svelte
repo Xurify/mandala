@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import BrandMark from '$lib/components/BrandMark.svelte';
+	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
 	import type { HelperMood } from '$lib/chart/helper.svelte';
 	import { filledCount } from '$lib/chart/model';
@@ -140,18 +140,9 @@
 	<title>{statusHeading} · Mandala</title>
 </svelte:head>
 
-<div
-	class="mx-auto flex min-h-dvh max-w-[880px] flex-col px-7 pt-[max(24px,env(safe-area-inset-top,24px))] pb-16 max-[900px]:px-4 max-[900px]:pt-[max(16px,env(safe-area-inset-top,16px))]"
->
+<div class="page-gutter mx-auto flex min-h-dvh max-w-[880px] flex-col pb-16">
 	<header class="flex flex-wrap items-center justify-between gap-3">
-		<a
-			href="/"
-			class="inline-flex min-w-0 items-center gap-2.5 rounded-full py-1 pr-3 text-text no-underline transition-opacity duration-150 ease-ui hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-			aria-label="Return to Mandala home"
-		>
-			<BrandMark />
-			<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
-		</a>
+		<Wordmark />
 
 		<SegmentedControl
 			label="Theme"

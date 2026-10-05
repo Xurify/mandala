@@ -3,7 +3,7 @@
 	import { fetchShare } from '$lib/chart/sync/publish';
 	import { describe, filledCount, getByKey, type ChartData } from '$lib/chart/model';
 	import MandalaGrid from '$lib/components/MandalaGrid.svelte';
-	import BrandMark from '$lib/components/BrandMark.svelte';
+	import Wordmark from '$lib/components/Wordmark.svelte';
 	import BouncingDots from '$lib/components/ui/BouncingDots.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
@@ -77,16 +77,9 @@
 	<meta property="og:description" content="A goal chart shared from Mandala." />
 </svelte:head>
 
-<div class="mx-auto flex min-h-dvh max-w-[560px] flex-col gap-6 px-6 pt-8 pb-16">
+<div class="page-gutter mx-auto flex min-h-dvh max-w-[560px] flex-col gap-6 pb-16">
 	<header class="flex items-center justify-between gap-4">
-		<a
-			href="/"
-			class="inline-flex items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-			aria-label="Mandala home"
-		>
-			<BrandMark />
-			<span class="font-serif text-[1.25rem] font-[560]">Mandala</span>
-		</a>
+		<Wordmark />
 		<div class="flex items-center gap-1">
 			<Eyebrow>Shared chart</Eyebrow>
 			<IconButton

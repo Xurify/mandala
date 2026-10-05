@@ -2,6 +2,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { fetchShare, publishChart, secretFor, shareUrl, unpublishChart } from '$lib/chart/sync/publish';
 	import { filledCount } from '$lib/chart/model';
+	import Wordmark from '$lib/components/Wordmark.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
@@ -77,17 +78,20 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="mx-auto flex max-w-[820px] flex-col gap-6 px-7 pt-8 pb-40">
-	<header class="flex flex-col gap-3">
-		<Eyebrow>Prototype</Eyebrow>
-		<h1 class="m-0 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">
-			Sync harness
-		</h1>
-		<p class="m-0 max-w-[62ch] text-pretty text-muted">
-			Two surfaces, one table. Device sync keeps your charts in step across
-			your own devices; publishing gives a read-only link that serves the
-			latest version of one chart.
-		</p>
+<div class="page-gutter mx-auto flex max-w-[820px] flex-col gap-6 pb-40">
+	<header class="flex flex-col gap-6">
+		<Wordmark />
+		<div class="flex flex-col gap-3">
+			<Eyebrow>Prototype</Eyebrow>
+			<h1 class="m-0 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">
+				Sync harness
+			</h1>
+			<p class="m-0 max-w-[62ch] text-pretty text-muted">
+				Two surfaces, one table. Device sync keeps your charts in step across
+				your own devices; publishing gives a read-only link that serves the
+				latest version of one chart.
+			</p>
+		</div>
 	</header>
 
 	<Notice>

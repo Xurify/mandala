@@ -19,7 +19,7 @@
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
-	import BrandMark from '$lib/components/BrandMark.svelte';
+	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
 	import HelperPanel from '$lib/components/HelperPanel.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -268,17 +268,13 @@
 	</ul>
 {/snippet}
 
-<div class="mx-auto flex max-w-[1180px] flex-col gap-8 px-7 pt-8 pb-40 max-[900px]:px-3.5">
-	<header class="flex flex-wrap items-end justify-between gap-6">
+<div class="page-gutter mx-auto flex max-w-[1180px] flex-col gap-8 pb-40">
+	<header class="flex flex-col gap-6">
+		<div class="flex items-center justify-between gap-4">
+			<Wordmark />
+			<SegmentedControl label="Color theme" size="sm" options={themes} value={chart.theme} onchange={setTheme} />
+		</div>
 		<div class="flex max-w-[62ch] flex-col gap-3">
-			<a
-				href="/"
-				class="inline-flex cursor-pointer items-center gap-2.5 rounded-lg text-text no-underline transition-[opacity,transform] duration-150 ease-ui hover:opacity-90 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-				aria-label="Mandala home"
-			>
-				<BrandMark />
-				<span class="font-serif text-[1.25rem] font-[560]">Mandala</span>
-			</a>
 			<div>
 				<Eyebrow>Lab</Eyebrow>
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">AI features</h1>
@@ -288,7 +284,6 @@
 				real charts are not touched here.
 			</p>
 		</div>
-		<SegmentedControl label="Color theme" size="sm" options={themes} value={chart.theme} onchange={setTheme} />
 	</header>
 
 	<Card class="flex flex-col gap-4">
