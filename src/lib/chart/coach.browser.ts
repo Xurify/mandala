@@ -16,15 +16,10 @@ import {
 	type HelperFinding,
 	type LineReject
 } from './helper.ts';
-import { COACH_MODEL_ID } from './coach-model.ts';
-import { emptyChart, type ChartData } from './model.ts';
+import { COACH_CANDIDATES, COACH_MODEL_ID } from './coach-model.ts';
 
-export const COACH_CANDIDATES = [
-	{ id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', label: 'Qwen2.5 1.5B', thinking: false },
-	{ id: 'Qwen3-1.7B-q4f16_1-MLC', label: 'Qwen3 1.7B', thinking: false },
-	{ id: 'Qwen3-4B-q4f16_1-MLC', label: 'Qwen3 4B', thinking: false },
-	{ id: 'Qwen3-4B-q4f16_1-MLC', label: 'Qwen3 4B, thinking', thinking: true }
-] as const;
+export { COACH_CANDIDATES };
+import { emptyChart, type ChartData } from './model.ts';
 
 const RETRY_TEMPERATURES = [0.2, 0.6, 0.9];
 

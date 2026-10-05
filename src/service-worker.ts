@@ -6,7 +6,8 @@
 import { build, files, version } from '$service-worker';
 
 const self = globalThis.self as unknown as ServiceWorkerGlobalScope;
-const CACHE = `mandala-shell-${version}`;
+const SHELL = 'mandala-shell-';
+const CACHE = `${SHELL}${version}`;
 // The coach worker bundles the 6 MB model runtime. Only people who use Bindu should download it.
 const ASSETS = [...build.filter((path) => !path.includes('/workers/')), ...files];
 
@@ -19,10 +20,10 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches.keys().then(async (keys) => {
-			// An old shell means this activation is a real update, not a first install.
-			const hadOldCache = keys.some((key) => key !== CACHE);
+			// Only previous app shells. Model weights live in IndexedDB; other caches stay.
+			const hadOldCache = keys.some((key) => key.startsWith(SHELL) && key !== CACHE);
 			for (const key of keys) {
-				if (key !== CACHE) await caches.delete(key);
+				if (key.startsWith(SHELL) && key !== CACHE) await caches.delete(key);
 			}
 			await self.clients.claim();
 			if (!hadOldCache) return;

@@ -18,6 +18,7 @@
 		suggestWeek
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
+	import { COACH_CANDIDATES } from '$lib/chart/coach-model';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
@@ -188,12 +189,10 @@
 	let reply = $state('');
 
 	let candidate = $state('2');
-	const modelOptions = $derived(
-		(coach?.COACH_CANDIDATES ?? []).map((choice, index) => ({
-			value: String(index),
-			label: choice.label
-		}))
-	);
+	const modelOptions = COACH_CANDIDATES.map((choice, index) => ({
+		value: String(index),
+		label: choice.label
+	}));
 	type HoldoutRow = {
 		model: string;
 		direction: string;
@@ -342,7 +341,7 @@
 					options={modelOptions}
 					bind:value={candidate}
 					disabled={running !== null}
-					placeholder="Loading models"
+					placeholder="Choose a model"
 				/>
 			</div>
 			<div class="flex h-[42px] items-center gap-2">
@@ -350,7 +349,9 @@
 					{running === 'holdout' ? 'Scoring' : 'Score 8'}
 				</Button>
 				<Button variant="soft" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
-				<span class="w-14 text-end text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
+				{#if seconds('holdout')}
+					<span class="text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
+				{/if}
 			</div>
 		</div>
 		{#if holdoutNote}<p class="m-0 text-[0.88rem] text-danger" role="alert">{holdoutNote}</p>{/if}

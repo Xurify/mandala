@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { CreateMLCEngine, type MLCEngine, type CompletionUsage } from '@mlc-ai/web-llm';
+import { CreateMLCEngine, prebuiltAppConfig, type MLCEngine, type CompletionUsage } from '@mlc-ai/web-llm';
 import type { CoachRequest, CoachResponse } from './coach-protocol.ts';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
@@ -47,6 +47,8 @@ function load(model: string): Promise<MLCEngine> {
 			loadedId = '';
 		}
 		const created = await CreateMLCEngine(model, {
+			// Cache.add rejects Hugging Face's redirected shard responses as a network error.
+			appConfig: { ...prebuiltAppConfig, cacheBackend: 'indexeddb' },
 			initProgressCallback: (report) =>
 				post({ type: 'progress', text: progressText(report.text), ratio: report.progress })
 		});
