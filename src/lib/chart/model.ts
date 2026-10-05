@@ -40,6 +40,8 @@ export type DayLog = {
 	dropped?: string[];
 	/** Suggestions turned down that day: skipped or swapped out. */
 	declined?: string[];
+	/** Insights Bindu showed that day, as `id:key`. */
+	shown?: string[];
 };
 
 export type WeekReflection = {

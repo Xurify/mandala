@@ -14,14 +14,16 @@ import {
 	getByKey,
 	isOpenFocus,
 	labelOfKey,
+	isRoutine,
 	parseBrief,
 	pillarActivityLast7,
+	weekStartKey,
 	type ChartBrief,
 	type ChartData
 } from './model.ts';
 
 export type HelperJob = 'draft' | 'fill' | 'review' | 'week' | 'today';
-export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel' | 'progress' | 'chat';
+export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel' | 'progress' | 'chat' | 'facts';
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 export type CellEdit = { key: string; before: string; after: string; reason?: string };
@@ -32,7 +34,8 @@ export type HelperCard =
 	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
 	| { kind: 'findings'; findings: HelperFinding[] }
 	| { kind: 'download' }
-	| { kind: 'prompt' };
+	| { kind: 'prompt' }
+	| { kind: 'facts' };
 
 export type CardState = 'working' | 'open' | 'used' | 'skipped';
 
@@ -57,7 +60,7 @@ export type HelperMood =
 	| 'offering'
 	| 'curious';
 
-export type HelperCardKind = 'chart' | 'cells' | 'picks' | 'findings' | 'download' | 'prompt';
+export type HelperCardKind = 'chart' | 'cells' | 'picks' | 'findings' | 'download' | 'prompt' | 'facts';
 
 export type HelperMoodOptions = {
 	busy?: boolean;
@@ -127,7 +130,7 @@ const REVIEW_COMMAND =
 const FILL_COMMAND =
 	/\b(?:fill(?:\s+in)?(?:\s+(?:the|all|my))?\s+(?:blanks?|empty|missing|gaps|rest|chart)|(?:finish|complete)\s+(?:the|my|this)\s+chart|suggest\s+pillars)\b/i;
 const DRAFT_COMMAND =
-	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over|start\s+again|(?:a\s+)?(?:new|different)\s+goal)\b/i;
+	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+|fresh\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over|start\s+again|(?:a\s+)?(?:new|different)\s+goal)\b/i;
 const PROGRESS_COMMAND = /^(?:(?:show\s+(?:me\s+)?)?(?:my\s+)?(?:progress|stats))[.!]*$/i;
 
 // Questions that ask for a job, not about one. "How should I plan my week?" stays a question.
@@ -140,6 +143,9 @@ const REVIEW_QUESTION =
 const FILL_QUESTION = /\b(?:can|could|would)\s+you\s+(?:fill|finish|complete)\s+(?:in\s+)?(?:the|my|this)\s+(?:chart|blanks|rest|gaps)\b/i;
 const PROGRESS_QUESTION =
 	/\bhow\s+(?:am\s+i|i'?m)\s+doing\b|\bhow(?:'s|\s+is)\s+my\s+progress\b|\bhow\s+far\s+(?:along\s+)?am\s+i\b|\bwhich\s+pillars?\s+(?:have\s+i\s+|am\s+i\s+|did\s+i\s+)?(?:been\s+)?(?:ignor|neglect|skipp|miss)/i;
+
+const FACTS_QUESTION =
+	/\bwhat\s+(?:do|did)\s+you\s+(?:know|remember|keep)(?:\s+about\s+me)?\b|\bwhat\s+(?:have|did)\s+i\s+(?:tell|told)\s+you\b|\bwhat\s+i\s+told\s+you\b|^what\s+i\s+told\s+you|^(?:what\s+you\s+know|my\s+(?:answers|brief|facts))[.!?]*$/i;
 
 const THANKS =
 	/^(?:thanks?(?:\s+you)?|thank\s+you|thx|ty|cheers|great|nice|cool|perfect|awesome|got\s+it|ok(?:ay)?|sounds\s+good)(?:\s+(?:so\s+much|a\s+lot|bindu))?[.!]*$/i;
@@ -165,6 +171,7 @@ export function intentOf(text: string): HelperIntent {
 	if (parseDraftText(text)) return 'chart';
 	const trimmed = text.replace(/\s+/g, ' ').trim();
 	if (THANKS.test(trimmed) || HELLO.test(trimmed) || MISSED.test(trimmed)) return 'chat';
+	if (FACTS_QUESTION.test(trimmed)) return 'facts';
 	if (TODAY_QUESTION.test(trimmed)) return 'today';
 	if (WEEK_QUESTION.test(trimmed)) return 'week';
 	if (REVIEW_QUESTION.test(trimmed)) return 'review';
@@ -901,10 +908,16 @@ export function askMessages(
 	];
 }
 
+/** The insight worth opening with, if one is strong and not shown lately. */
+export function greetingInsight(data: ChartData, now: Date = new Date()): HelperInsight | null {
+	const top = unseenInsights(data, now)[0];
+	return top && top.weight >= 30 ? top : null;
+}
+
 export function greetingFor(data: ChartData, now: Date = new Date()): string {
 	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me the goal, and I'll start the chart with you.";
-	const insight = insightsFor(data, now)[0];
-	if (insight && insight.weight >= 30) return `Hi again. ${insight.text}`;
+	const insight = greetingInsight(data, now);
+	if (insight) return `Hi again. ${insight.text}`;
 	const plan = fillPlan(data);
 	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still needs ${plan.empty.length} pillars. Want me to suggest some?`;
 	if (plan?.kind === 'actions') {
@@ -1007,13 +1020,37 @@ function quietPillars(data: ChartData, history: PickHistory, days = 7): number[]
 }
 
 export type HelperInsight = {
-	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm';
+	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'words' | 'follow' | 'retire';
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
 	/** The action it is about, when there is one. */
 	key?: string;
+	/** What else makes it the same insight: a pillar, a week. */
+	ref?: string;
 };
+
+export function insightSignature(insight: HelperInsight): string {
+	return `${insight.id}:${insight.key ?? insight.ref ?? ''}`;
+}
+
+const DAY_BOUND = new Set<HelperInsight['id']>(['today', 'yesterday', 'comeback']);
+const SHOWN_WINDOW = 3;
+
+/** Insights not shown lately. A day-bound one waits a day, the rest wait three. */
+export function unseenInsights(data: ChartData, now: Date = new Date()): HelperInsight[] {
+	const shown = new Map<string, number>();
+	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
+		const ago = daysBetween(dateKey, now);
+		if (ago < 0 || ago >= SHOWN_WINDOW) continue;
+		for (const signature of log.shown ?? []) shown.set(signature, Math.min(ago, shown.get(signature) ?? ago));
+	}
+	return insightsFor(data, now).filter((insight) => {
+		const ago = shown.get(insightSignature(insight));
+		if (ago === undefined) return true;
+		return DAY_BOUND.has(insight.id) ? ago > 0 : false;
+	});
+}
 
 function quote(text: string): string {
 	return `\u201c${text}\u201d`;
@@ -1080,6 +1117,7 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		const name = pillarName(data, longest);
 		insights.push({
 			id: 'quiet',
+			ref: `p${longest}`,
 			text: gap === null ? `Nothing ticked in ${name} yet.` : `${name} hasn't had a tick in ${gap} days.`,
 			weight: 30
 		});
@@ -1101,7 +1139,74 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		else if (share((hour) => hour >= 12 && hour < 18) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks happen in the afternoon.', weight: 16 });
 	}
 
+	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now));
+
 	return insights.sort((a, b) => b.weight - a.weight);
+}
+
+/** Last week's reflection note, said back once the new week starts. */
+function ownWords(data: ChartData, now: Date): HelperInsight[] {
+	const lastWeek = new Date(now);
+	lastWeek.setDate(now.getDate() - 7);
+	const previous = weekStartKey(lastWeek);
+	const note = (data.weeks?.[previous]?.note ?? '').replace(/\s+/g, ' ').trim();
+	if (!note || (data.weeks?.[weekStartKey(now)]?.note ?? '').trim()) return [];
+	const said = note.length > 120 ? `${note.slice(0, 117).replace(/\s+\S*$/, '')}\u2026` : note;
+	return [{ id: 'words', ref: previous, text: `Last week you wrote: ${quote(said)} Still true?`, weight: 33 }];
+}
+
+const FOLLOW_WINDOW = 28;
+
+/** Which pillar's picks get finished, against which don't. Needs enough picks to mean something. */
+function followThrough(data: ChartData, now: Date): HelperInsight[] {
+	const picked = Array.from({ length: 8 }, () => 0);
+	const finished = Array.from({ length: 8 }, () => 0);
+	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
+		const ago = daysBetween(dateKey, now);
+		if (ago <= 0 || ago > FOLLOW_WINDOW) continue;
+		for (const key of log.focus) {
+			const pillarIndex = Number(key.slice(1).split('_')[0]);
+			if (!key.startsWith('a') || !(pillarIndex >= 0 && pillarIndex < 8)) continue;
+			picked[pillarIndex]! += 1;
+			if (log.checked.includes(key)) finished[pillarIndex]! += 1;
+		}
+	}
+	const total = picked.reduce((sum, count) => sum + count, 0);
+	const counted = picked.flatMap((count, index) => (count >= 4 && filled(data.pillars[index]) ? [index] : []));
+	if (total < 10 || counted.length < 2) return [];
+	const rate = (index: number) => finished[index]! / picked[index]!;
+	const ranked = [...counted].sort((a, b) => rate(b) - rate(a));
+	const best = ranked[0]!;
+	const worst = ranked[ranked.length - 1]!;
+	if (rate(best) - rate(worst) < 0.4) return [];
+	return [
+		{
+			id: 'follow',
+			ref: `p${worst}`,
+			text: `You finish ${pillarName(data, best)} picks ${finished[best]} of ${picked[best]} times. ${pillarName(data, worst)}, ${finished[worst]} of ${picked[worst]}.`,
+			weight: 22
+		}
+	];
+}
+
+/** A routine ticked most days for two weeks may have become a habit, and its cell could hold something new. */
+function readyToRetire(data: ChartData, now: Date): HelperInsight[] {
+	const out: HelperInsight[] = [];
+	for (const [key, meta] of Object.entries(data.meta ?? {})) {
+		if (!isRoutine(meta)) continue;
+		const text = textOfKey(data, key);
+		if (!text) continue;
+		let days = 0;
+		for (let offset = 0; offset < 14; offset++) {
+			const date = new Date(now);
+			date.setDate(now.getDate() - offset);
+			if (data.days?.[dateKeyOf(date)]?.checked.includes(key)) days += 1;
+		}
+		if (days >= 10) {
+			out.push({ id: 'retire', key, text: `${quote(text)} is ticked on ${days} of the last 14 days. It may be a habit now, and the cell could hold something new.`, weight: 24 });
+		}
+	}
+	return out;
 }
 
 /** "How am I doing?" from the log. Every number here is counted, not written. */
@@ -1170,4 +1275,110 @@ export function conversationHistory(messages: readonly HelperMessage[], maxMessa
 		history.push({ role: message.from === 'you' ? 'user' : 'assistant', content });
 	}
 	return history;
+}
+
+type MethodEntry = { match: RegExp; text: string; job?: HelperJob };
+
+// Answers about the method, from MethodGuide and the method notes. No model.
+const METHOD: readonly MethodEntry[] = [
+	{
+		match: /\bwho\s+are\s+you\b|\bwhat(?:'s|\s+is)\s+(?:a\s+)?bindu\b|\bwhy\s+(?:the\s+name\s+)?bindu\b|\byour\s+name\b/i,
+		text: "I'm Bindu, named for the dot at the center of a mandala. I help you start the chart, pick what to do, and see how it's going."
+	},
+	{
+		match: /\bwhat(?:'s|\s+is|\s+are)\s+(?:a\s+)?pillars?\b|\bwhat\s+(?:does|do)\s+(?:a\s+)?pillars?\s+mean\b/i,
+		text: 'A pillar is one of the eight things that has to be true for the goal to happen. Each gets eight actions around it. Keep them as different drivers, not eight versions of one.'
+	},
+	{
+		match: /\bwhat(?:'s|\s+is)\s+(?:the\s+)?(?:goal|center|centre|middle)\b|\bwhat\s+goes\s+in\s+the\s+(?:center|centre|middle)\b/i,
+		text: 'The center is one direction. It can be big, or a little vague. The pillars and actions around it are what make it specific.'
+	},
+	{
+		match: /\bwhat(?:'s|\s+is)\s+(?:a\s+)?(?:good\s+)?action\b|\bwhat\s+counts\s+as\s+an?\s+action\b|\bexample\s+of\s+an?\s+(?:good\s+)?action\b|\btwo\s+tests\b|\bcalendar\s+test\b|\bcontrol\s+test\b/i,
+		text: 'An action is something you do and can tick off. It passes two tests: it could go on a calendar, and it is yours to do, not a result. "Run 20 minutes on Tuesday" passes. "Get fit" does not.',
+		job: 'review'
+	},
+	{
+		match: /\bwhy\s+(?:64|sixty[-\s]four|eight|8)\b|\bwhy\s+so\s+many\b|\bdo\s+i\s+(?:have|need)\s+to\s+(?:fill|do)\s+(?:all|every)/i,
+		text: 'Eight pillars with eight actions each makes 64. The number pushes you past the first obvious ideas. You never do all 64 at once.'
+	},
+	{
+		match: /\bhow\s+many\b[^?]*\b(?:a|per|each|every)\s+day\b|\bhow\s+many\b[^?]*\btoday\b|\bshould\s+i\s+do\s+(?:all|every)\b/i,
+		text: 'Three a day is plenty, ideally from different pillars. The chart is the map. A day is a few actions pulled off it.',
+		job: 'today'
+	},
+	{
+		match: /\bhow\s+many\b[^?]*\b(?:a|per|each|this)\s+week\b|\bwhere\s+do\s+i\s+start\s+(?:with|on)\s+(?:the\s+)?(?:chart|64)\b/i,
+		text: 'Five to eight for the first week. Keep what works and add a few more each week. Most people take on the whole sheet over 8 to 12 weeks.',
+		job: 'week'
+	},
+	{
+		match: /\b(?:two|2|more\s+than\s+one|multiple|several|another)\s+goals?\b|\bsecond\s+goal\b/i,
+		text: 'One chart holds one direction. A second goal gets its own chart, so each stays clear.',
+		job: 'draft'
+	},
+	{
+		match: /\bwhat\s+(?:if|happens\s+if)\s+i\s+(?:miss|skip|fall\s+behind|don'?t)\b|\bfell\s+behind\b|\bmissed\s+a\s+(?:day|week)\b/i,
+		text: 'A missed day says something about the plan, not about you. Make the action smaller or move it, then pick three for today.',
+		job: 'today'
+	},
+	{
+		match: /\bhow\s+often\b[^?]*\b(?:review|change|update|look\s+at|redo)\b|\bwhen\s+(?:should\s+i\s+)?(?:change|update|swap|replace)\s+(?:a\s+)?(?:pillar|action)/i,
+		text: 'Look at it weekly or monthly. Retire what has become a habit, swap actions that are not happening, and move a pillar when the drivers change.',
+		job: 'review'
+	},
+	{
+		match: /\b(?:routine|milestone)s?\b[^?]*\b(?:routine|milestone|difference|mean)\b|\bwhat(?:'s|\s+is)\s+an?\s+(?:routine|milestone)\b/i,
+		text: 'A routine repeats, like a daily walk, and shows up every day. A milestone is done once, like booking the exam. Both have to be things you can tick.'
+	},
+	{
+		match: /\bwhat\s+(?:does|do)\s+pin(?:ning|ned)?\b|\bwhat(?:'s|\s+is)\s+(?:a\s+)?pin(?:ned)?\b|\bwhy\s+pin\b/i,
+		text: "Pinning puts an action at the front of your picks for the week. Pin the few that matter most right now."
+	},
+	{
+		match: /\bwho\s+(?:invented|created|made)\b|\bwhere\s+(?:does|did)\s+(?:this|it|the\s+(?:method|chart|grid))\s+come\s+from\b|\bohtani\b|\bharada\b|\bhistory\s+of\b/i,
+		text: "The grid is Yasuo Matsumura's Mandalachart, from 1979. Takashi Harada used it in his method, and Shohei Ohtani filled one in at school, which made it famous."
+	},
+	{
+		match: /\b(?:is\s+(?:my\s+)?(?:data|chart|this)\s+private|privacy|where\s+(?:is|does)\s+my\s+(?:data|chart)|do\s+you\s+send|does\s+(?:my\s+)?(?:data|anything)\s+leave)\b/i,
+		text: 'Your chart stays in this browser, and I run on this device too. Nothing leaves unless you share the chart or turn on sync.'
+	},
+	{
+		match: /\bcan'?t\s+think\s+of\b|\b(?:stuck|blank)\s+on\s+(?:a\s+)?(?:pillar|actions?)\b|\bhow\s+do\s+i\s+(?:come\s+up\s+with|think\s+of|write)\s+actions?\b/i,
+		text: 'Ask what would make the pillar easier to do: a time, a place, something to set up the night before. "Shoes by the door" is an action. I can fill the empty ones too.',
+		job: 'fill'
+	}
+];
+
+/** A written answer about the method, when the question matches one. */
+export function methodAnswer(text: string): { text: string; job?: HelperJob } | null {
+	const trimmed = text.replace(/\s+/g, ' ').trim();
+	const entry = METHOD.find((item) => item.match.test(trimmed));
+	return entry ? { text: entry.text, job: entry.job } : null;
+}
+
+export const BRIEF_LABELS: Record<keyof ChartBrief, string> = {
+	timeline: 'Timeline',
+	situation: 'Where you stand',
+	focus: 'Focus',
+	constraint: 'Something to work around'
+};
+
+export type AskRoute = 'help' | 'method' | 'aim' | 'pillar' | 'model';
+export type HelperRoute = Exclude<HelperIntent, 'ask'> | AskRoute;
+
+/** Where a message that matched no job goes. `HelperStore.send` follows this order. */
+export function askRoute(text: string, data: ChartData): AskRoute {
+	if (isHelpRequest(text)) return 'help';
+	if (methodAnswer(text)) return 'method';
+	if (aimOf(text, data)) return 'aim';
+	const mentioned = pillarMentioned(text, data);
+	if (mentioned !== null && isPillarActionRequest(text)) return 'pillar';
+	return 'model';
+}
+
+/** Where a message lands when nothing else is going on: a job, a written reply, or the model. */
+export function routeOf(text: string, data: ChartData): HelperRoute {
+	const intent = intentOf(text);
+	return intent === 'ask' ? askRoute(text, data) : intent;
 }

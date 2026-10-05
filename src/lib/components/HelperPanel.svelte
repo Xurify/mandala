@@ -2,7 +2,7 @@
 	import { fade } from 'svelte/transition';
 	import { COACH_WEIGHT_DOWNLOAD } from '$lib/chart/coach-model';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
-	import { describeKey } from '$lib/chart/helper';
+	import { BRIEF_LABELS, describeKey } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
 	import HelperFace from './HelperFace.svelte';
 	import BouncingDots from './ui/BouncingDots.svelte';
@@ -196,6 +196,26 @@
 						About {COACH_WEIGHT_DOWNLOAD}, once. After that I start in seconds, even offline. Your chart never leaves this device.
 					</p>
 				{/if}
+			{:else if value.kind === 'facts'}
+				{@const brief = helper.data.brief}
+				{#if brief && Object.keys(brief).length > 0}
+					<ul class="m-0 flex list-none flex-col gap-2.5 p-0">
+						{#each Object.entries(BRIEF_LABELS) as [field, label] (field)}
+							{@const said = brief[field as keyof typeof BRIEF_LABELS]}
+							{#if said}
+								<li class="flex min-w-0 flex-col gap-0.5 text-[0.9rem] leading-snug">
+									<span class="flex items-baseline justify-between gap-3">
+										<span class="text-[0.74rem] font-semibold text-muted">{label}</span>
+										<button type="button" class={link} aria-label="Forget {label.toLowerCase()}" onclick={() => helper.forget(field as keyof typeof BRIEF_LABELS)}>Forget</button>
+									</span>
+									<span class="text-pretty">{said}</span>
+								</li>
+							{/if}
+						{/each}
+					</ul>
+				{:else}
+					<p class="m-0 text-[0.86rem] text-muted">Forgotten. I'll write from the chart alone.</p>
+				{/if}
 			{:else if value.kind === 'prompt'}
 				<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 					<Button size="sm" variant="soft" icon="copy" onclick={copyPrompt}>{copied ? 'Copied' : 'Copy the prompt'}</Button>
@@ -268,6 +288,7 @@
 			{/if}
 		</div>
 		<div class="mt-0.5 flex shrink-0 items-center gap-0.5">
+			<IconButton icon="info" label="What I know" onclick={() => helper.showFacts()} />
 			<IconButton icon="refresh" label="Start over" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
 			{#if onclose}
 				<IconButton icon="close" label="Close Bindu" onclick={onclose} />

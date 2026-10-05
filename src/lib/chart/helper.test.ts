@@ -9,7 +9,9 @@ import {
 	conversationHistory,
 	greetingFor,
 	insightsFor,
+	methodAnswer,
 	pickHistory,
+	unseenInsights,
 	helpReply,
 	progressReport,
 	type HelperMessage,
@@ -42,7 +44,7 @@ import {
 	suggestToday,
 	suggestWeek
 } from './helper.ts';
-import { dateKeyOf, emptyChart, parseChart, type ChartData } from './model.ts';
+import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ChartData } from './model.ts';
 import { exampleChart } from './example.ts';
 import { buildChart, PRESETS } from './presets/index.ts';
 
@@ -898,5 +900,62 @@ describe('insightsFor', () => {
 		const data = sample();
 		data.days = { [day(-9)]: { focus: ['a0_0'], checked: ['a0_0'] }, [day(0)]: { focus: ['a1_0'], checked: ['a1_0'] } };
 		expect(greetingFor(data, now)).toBe("Hi again. Today's pick is done.");
+	});
+});
+
+describe('more insights', () => {
+	const now = new Date(2026, 9, 7, 12);
+	const day = (offset: number) => dateKeyOf(new Date(2026, 9, 7 + offset, 12));
+
+	it("says last week's note back once the new week starts", () => {
+		const data = sample();
+		data.days = { [day(-1)]: { focus: [], checked: ['a0_0'] } };
+		data.weeks = { [weekStartKey(new Date(2026, 8, 30))]: { note: 'Too tired after work.', swapped: [] } };
+		const words = insightsFor(data, now).find((insight) => insight.id === 'words');
+		expect(words?.text).toBe('Last week you wrote: \u201cToo tired after work.\u201d Still true?');
+		data.weeks[weekStartKey(now)] = { note: 'Better.', swapped: [] };
+		expect(insightsFor(data, now).some((insight) => insight.id === 'words')).toBe(false);
+	});
+
+	it('compares follow-through across pillars once there are enough picks', () => {
+		const data = sample();
+		data.days = {};
+		for (let offset = 1; offset <= 6; offset++) {
+			data.days[day(-offset)] = { focus: ['a0_0', 'a1_0'], checked: offset <= 5 ? ['a0_0'] : ['a0_0', 'a1_0'] };
+		}
+		expect(insightsFor(data, now).find((insight) => insight.id === 'follow')?.text).toBe(
+			'You finish Easy runs picks 6 of 6 times. Speed, 1 of 6.'
+		);
+	});
+
+	it('suggests retiring a routine that became a habit', () => {
+		const data = sample();
+		data.meta = { a4_0: { kind: 'routine' } };
+		data.days = {};
+		for (let offset = 0; offset < 11; offset++) data.days[day(-offset)] = { focus: [], checked: ['a4_0'] };
+		const retire = insightsFor(data, now).find((insight) => insight.id === 'retire');
+		expect(retire?.key).toBe('a4_0');
+		expect(retire?.text).toContain('is ticked on 11 of the last 14 days');
+	});
+
+	it('holds back an insight shown in the last three days', () => {
+		const data = sample();
+		data.days = {
+			[day(-1)]: { focus: ['a3_0'], checked: ['a1_1'] },
+			[day(-2)]: { focus: ['a3_0'], checked: [] },
+			[day(-3)]: { focus: ['a3_0'], checked: [] }
+		};
+		expect(unseenInsights(data, now).some((insight) => insight.id === 'stuck')).toBe(true);
+		data.days[day(-2)]!.shown = ['stuck:a3_0'];
+		expect(unseenInsights(data, now).some((insight) => insight.id === 'stuck')).toBe(false);
+		expect(insightsFor(data, now).some((insight) => insight.id === 'stuck')).toBe(true);
+	});
+});
+
+describe('methodAnswer', () => {
+	it('answers common method questions in writing', () => {
+		expect(methodAnswer('Why 64?')?.text).toContain('Eight pillars with eight actions');
+		expect(methodAnswer('how many actions should I do a day?')?.job).toBe('today');
+		expect(methodAnswer('Should I run in the morning?')).toBeNull();
 	});
 });

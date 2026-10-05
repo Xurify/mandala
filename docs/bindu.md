@@ -1,7 +1,7 @@
 # Bindu
 
 **Date:** 2026-10-05
-**Status:** "What it does today" describes the code. The routing fixes, the wider review, the progress reply, per-chart conversations, and the saved draft answers are in (see "What the probe found"). The rest, from "Where Bindu should go" down, is the plan.
+**Status:** "What it does today" describes the code. The order at the bottom shows what is built from the plan.
 
 Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the day and the week, reviews the chart, and writes pillars and actions. The name and its face come from the center dot of a mandala; see `DESIGN.md` → Voice and copy.
 
@@ -36,6 +36,8 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | How am I doing: ticks in the last 7 days, quiet pillars, streak, milestones | "How am I doing?", "which pillar have I been ignoring?" | No | `progressReport` |
 | Help: the next move on this chart | "Help", "I'm stuck", "where do I start?" | No | `helpReply` |
 | Thanks, hello, "I missed three days" | Typing it | No | `chatReply` |
+| Answer method questions: what a pillar is, why 64, how many a day, two goals, a missed day, routines and milestones, privacy, where the grid comes from | Asking it | No | `methodAnswer` |
+| What I know: the draft answers Bindu kept, each with Forget | The info button in the panel header, or "what do you know about me?" | No | `showFacts`, `forget` |
 | Cancel, "not this one" | Typing it | No | `isCancellation`, `isCardRejection` |
 | Answer anything else | Any message that matches nothing above | Yes | `askMessages`, `answer` |
 | Stop a running job | "Stop Bindu" in the command palette | No | `interruptCoach` |
@@ -51,17 +53,16 @@ Most of the jobs need no model. They run instantly, without the 2.3 GB download,
 1. Mid-draft steps (the goal, then "anything that would change the plan"), and the new-chart offer.
 2. "No" or "skip" while a card is open.
 3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on to the model; then cancel, today, week, review, fill, progress, draft.
-4. A bare ask for help, answered from the chart.
-5. A new goal (`aimOf`).
-6. A pillar name together with fill, finish or work on.
-7. Everything else goes to the model. With no WebGPU, the reply says so. Without the download, the reply is the download card.
+4. `askRoute`: a bare ask for help, answered from the chart; a method question, answered from the written bank; a new goal (`aimOf`); a pillar name together with fill, finish or work on.
+5. Everything else goes to the model. With no WebGPU, the reply says so. Without the download, the reply is the download card.
 
 ### What Bindu remembers today
 
 - Each chart has its own conversation. Switching charts swaps it, and a job still running for the old chart stops. A draft that opens as a new chart takes its conversation along. Conversations are in memory only and are gone on reload.
 - Open chat gets the last 8 messages, without greetings and status lines. A card goes in as one line: what was offered, and whether it was used or skipped.
 - Open chat also gets the chart: each pillar with its action count and how often it was used in the last 7 days, the actions of the pillar the question names (or the selected one), and today's picks.
-- The draft answers (timeline, situation, focus, constraint) are saved on the chart as `brief`. Fills, rewrites and answers get them as one line. The brief syncs between your devices and stays out of share links.
+- The draft answers (timeline, situation, focus, constraint) are saved on the chart as `brief`. Fills, rewrites and answers get them as one line. The brief syncs between your devices and stays out of share links. "What I know" shows it, and Forget removes a line.
+- Insights shown in a greeting are logged, so the greeting doesn't repeat one: a day-bound insight (today, yesterday, comeback) waits a day, the rest wait three.
 - The download consent is stored as `mandala-helper-model`.
 
 ## How picks work
@@ -82,7 +83,7 @@ The three are a mix, one per pillar while there are enough pillars:
 3. One you ticked in the last 7 days, to keep it going.
 4. The best of the rest.
 
-Each pick says why it was chosen. "Swap" replaces one pick and records the old one as turned down today. "Not now" turns down all of them. Asking again then gives different picks.
+Each pick says why it was chosen. "Swap" replaces one pick and records the old one as turned down today. "Not now" turns down all of them. Asking again then gives different picks. On a week plan, Swap and "Not now" don't touch today.
 
 Routines are habits that are always on, so they are never picked.
 
@@ -90,8 +91,9 @@ Routines are habits that are always on, so they are never picked.
 
 `DayLog` holds the day's `focus` (picks) and `checked` (ticks), plus:
 - `at`: the time of each tick, "HH:MM".
-- `dropped`: picks taken off the list that day.
+- `dropped`: picks you took off the list that day. When Bindu's picks replace the list, the old ones are not counted.
 - `declined`: Bindu's suggestions turned down that day.
+- `shown`: insights Bindu opened with that day.
 
 All of it syncs with the chart.
 
@@ -153,9 +155,9 @@ Three pure steps, each tested on its own:
 
 ### Insights
 
-**Built, short windows** (`insightsFor`): today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with an "Open it" chip), an action taken off the list twice this week, the pillar that has waited longest, and time of day once there are 5 timed ticks in 2 weeks. The greeting leads with the strongest one. "How am I doing?" adds up to two after its counts. They don't need weeks of history: one good day or one stuck pick is enough.
+**Built** (`insightsFor`): today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with an "Open it" chip), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The greeting leads with the strongest one not shown lately (`unseenInsights`). "How am I doing?" adds up to two after its counts. Most need only a day or two of history.
 
-**Still to build**, from the catalog below: lopsided month, follow-through by pillar, ready to retire, weekday rhythm, pinned untouched, your own words, thin pillar.
+**Still to build**, from the catalog below: lopsided month, weekday rhythm, pinned untouched, thin pillar, and "Not useful" on an insight.
 
 Everything here comes from data the chart already keeps: `days` (each day's picks and ticks), `meta` (routine or milestone, pinned, done, `doneAt`, note) and `weeks` (reflection notes and swaps). Tick times, picks taken off the list, and turned-down suggestions are logged from 2026-10-05 on.
 
@@ -175,11 +177,11 @@ Everything here comes from data the chart already keeps: `days` (each day's pick
 
 These are how Bindu helps people see their own patterns: when they work, what they finish, what they keep postponing, what they said last week. Each one is their pattern, said back plainly.
 
-Picking: each insight scores on how recent and how large its pattern is. Opening the panel shows at most one, in the greeting. "How am I doing?" shows up to three. An insight shown once waits 7 days before it can show again. "Not useful" makes it wait 30.
+Picking: each insight has a weight. Opening the panel shows at most one, in the greeting, and only when its weight is 30 or more. A day-bound insight waits a day before it can open the panel again, the rest wait three.
 
 ### Method answers
 
-A written bank of about 30 short answers, taken from `MethodGuide.svelte` and `.cursor/skills/mandala-method/`: what a pillar is, why 64, the two tests, how many actions a day, what to do after a missed week, one goal or two, when to change a pillar, routines against milestones, where the grid comes from. Each answer is three sentences at most and ends with a chip that does something to this chart. The bank lives in code, next to `helper.ts`.
+Built: 15 answers in `methodAnswer`, the ones people ask most. The plan is a bank of about 30 short answers, taken from `MethodGuide.svelte` and `.cursor/skills/mandala-method/`: what a pillar is, why 64, the two tests, how many actions a day, what to do after a missed week, one goal or two, when to change a pillar, routines against milestones, where the grid comes from. Each answer is three sentences at most and ends with a chip that does something to this chart. The bank lives in code, next to `helper.ts`.
 
 ### Guided rewrite without the model
 
@@ -228,12 +230,14 @@ The panel shows the facts under "What I know", each with Forget. The conversatio
 
 The rule side runs in `bun run test`, with these floors as assertions, so a change that makes Bindu worse fails. The model side runs on `/dev/ai`, like the holdout run, and the results go in this file.
 
+**Built so far:** `bindu-eval.ts` holds 66 routing messages and 50 lines, written after the rules by the same hand. First run, with three wrong labels corrected: 64 of 66 routed, 24 of 25 weak lines caught, 0 of 25 good lines flagged. The two routing misses ("start a fresh chart", "what did I tell you") were then fixed, so 66 of 66 is tuned, not earned. "Become a morning person" still passes review, because "morning" reads as a time. `bindu-eval.test.ts` holds the floors: 95% routed, 90% of weak lines caught, no good line flagged. Still missing: lines and messages written by someone else, the 200 and 300 sizes, a held-out half, and the model side on `/dev/ai`.
+
 ## Order
 
 1. ~~Fix the three routing bugs, and add the message set as a test.~~ Done, with the progress reply, help from the chart, and thanks and hello.
-2. The intent bank, clarify chips, and the method answers.
-3. ~~Insights: quiet pillar, picked not done, comeback~~ (done, with better picks and Swap). Your own words is next.
-4. Memory: ~~facts from the draft answers~~ (saved as `brief`; not yet shown or editable in the panel), then declined and seen.
+2. The intent bank and clarify chips. ~~Method answers~~ (15 of about 30).
+3. ~~Insights: quiet pillar, picked not done, comeback, your own words, follow-through, ready to retire~~ (done, with better picks and Swap).
+4. Memory: ~~facts from the draft answers, shown under "What I know" with Forget; declined; seen~~. Facts from chat are next.
 5. Guided rewrite.
 6. Test 1, then decide on model review.
 7. Open chat becomes the last resort.
