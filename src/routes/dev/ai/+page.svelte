@@ -42,7 +42,17 @@
 		{ value: 'flawed', label: 'Weak cells' },
 		{ value: 'empty', label: 'Empty' }
 	];
-	const moods: HelperMood[] = ['idle', 'listening', 'thinking', 'happy', 'puzzled'];
+	const faceScenarios: { mood: HelperMood; moment: string }[] = [
+		{ mood: 'waiting', moment: 'Waking up or downloading' },
+		{ mood: 'thinking', moment: 'Writing a reply' },
+		{ mood: 'happy', moment: 'Kept a card, clean review' },
+		{ mood: 'sorry', moment: 'Stopped or failed' },
+		{ mood: 'puzzled', moment: 'Open findings card' },
+		{ mood: 'offering', moment: 'Proposed a card' },
+		{ mood: 'curious', moment: 'Asked and waiting' },
+		{ mood: 'listening', moment: 'Message box focused' },
+		{ mood: 'idle', moment: 'Resting, greeting' }
+	];
 	const field = textField;
 	const area = textArea;
 	const pre =
@@ -556,14 +566,17 @@
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Bindu's faces</Eyebrow>
 		<div class="flex flex-wrap gap-8">
-			{#each moods as mood (mood)}
-				<figure class="m-0 flex flex-col items-center gap-2">
+			{#each faceScenarios as scenario (scenario.mood)}
+				<figure class="m-0 flex flex-col items-center gap-2.5">
 					<div class="flex items-end gap-3">
-						<HelperFace {mood} size={28} />
-						<HelperFace {mood} size={46} />
-						<HelperFace {mood} size={80} />
+						<HelperFace mood={scenario.mood} size={28} />
+						<HelperFace mood={scenario.mood} size={46} />
+						<HelperFace mood={scenario.mood} size={80} />
 					</div>
-					<figcaption class="text-[0.82rem] text-muted">{mood}</figcaption>
+					<figcaption class="flex flex-col items-center text-center">
+						<span class="text-[0.84rem] font-[560] text-text capitalize">{scenario.mood}</span>
+						<span class="text-[0.74rem] text-muted">{scenario.moment}</span>
+					</figcaption>
 				</figure>
 			{/each}
 		</div>

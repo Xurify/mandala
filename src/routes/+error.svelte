@@ -44,7 +44,7 @@
 	];
 
 	let noteIndex = $state(0);
-	let currentMood = $state<HelperMood>('puzzled');
+	let currentMood = $state<HelperMood>(page.status === 404 ? 'puzzled' : 'sorry');
 	let isHopping = $state(false);
 
 	function interactBindu(): void {

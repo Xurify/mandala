@@ -24,7 +24,12 @@
 </script>
 
 <svg
-	class={cn('block shrink-0 overflow-visible', mood === 'happy' && 'motion-safe:animate-hop', className)}
+	class={cn(
+		'block shrink-0 overflow-visible',
+		mood === 'happy' && 'motion-safe:animate-cheer',
+		mood === 'offering' && 'motion-safe:animate-nod',
+		className
+	)}
 	width={size}
 	height={size}
 	viewBox="0 0 100 100"
@@ -43,33 +48,102 @@
 		/>
 	{/each}
 	{#if mood === 'happy'}
-		<g class="fill-none stroke-on-ink stroke-[3.2] [stroke-linecap:round] [stroke-linejoin:round]">
+		<g
+			class="fill-none stroke-on-ink stroke-[3.2] [stroke-linecap:round] [stroke-linejoin:round] [transform-box:fill-box] origin-center motion-safe:animate-joy"
+		>
 			<path d="M37.5 49 Q41.5 43.5 45.5 49" />
 			<path d="M54.5 49 Q58.5 43.5 62.5 49" />
 			<path d="M42 56 Q50 64 58 56" />
 		</g>
-	{:else}
+	{:else if mood === 'listening'}
 		<g
-			class={cn(
-				'fill-on-ink [transform-box:fill-box] origin-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-ui',
-				mood === 'idle' && 'motion-safe:animate-blink',
-				mood === 'thinking' && 'translate-x-[2.5px] -translate-y-[3px]'
-			)}
+			class="origin-center [transform-box:fill-box] motion-safe:animate-listen motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-ui"
 		>
-			<ellipse cx="41.5" cy="47" rx="3.3" ry={mood === 'listening' ? 5 : 4.4} />
-			<ellipse cx="58.5" cy="47" rx="3.3" ry={mood === 'listening' ? 5 : mood === 'puzzled' ? 3 : 4.4} />
-		</g>
-		{#if mood === 'listening'}
-			<circle class="fill-on-ink" cx="50" cy="58" r="2.4" />
-		{:else}
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-listen-blink">
+				<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
+				<ellipse cx="58.5" cy="47" rx="3.3" ry="4.4" />
+			</g>
 			<path
 				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
-				d={mood === 'thinking'
-					? 'M46 58 L54 58'
-					: mood === 'puzzled'
-						? 'M43.5 58.5 Q46.75 55.5 50 58.5 Q53.25 61.5 56.5 58.5'
-						: 'M44 56.5 Q50 61.5 56 56.5'}
+				d="M46 57.5 Q50 60.5 54 57.5"
 			/>
-		{/if}
+		</g>
+	{:else if mood === 'waiting'}
+		<g class="[transform-box:fill-box] origin-center motion-safe:animate-breathe">
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-wait">
+				<ellipse cx="41.5" cy="48" rx="3.3" ry="2.2" />
+				<ellipse cx="58.5" cy="48" rx="3.3" ry="2.2" />
+			</g>
+			<path
+				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+				d="M46.5 58 L53.5 58"
+			/>
+		</g>
+	{:else if mood === 'thinking'}
+		<g
+			class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-ui translate-x-[2.5px] -translate-y-[3px]"
+		>
+			<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
+			<ellipse cx="58.5" cy="47" rx="3.3" ry="4.4" />
+		</g>
+		<path
+			class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+			d="M46 58 L54 58"
+		/>
+	{:else if mood === 'sorry'}
+		<g class="[transform-box:fill-box] origin-center motion-safe:animate-sigh">
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-sorry-blink">
+				<ellipse cx="41.5" cy="49.5" rx="3.3" ry="4" />
+				<ellipse cx="58.5" cy="49.5" rx="3.3" ry="4" />
+			</g>
+			<path
+				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+				d="M45.5 59.5 Q50 56.5 54.5 59.5"
+			/>
+		</g>
+	{:else if mood === 'puzzled'}
+		<g class="[transform-box:fill-box] origin-center motion-safe:animate-puzzle">
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-squint">
+				<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
+				<ellipse cx="58.5" cy="47" rx="3.3" ry="3" />
+			</g>
+			<path
+				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+				d="M43.5 58.5 Q46.75 55.5 50 58.5 Q53.25 61.5 56.5 58.5"
+			/>
+		</g>
+	{:else if mood === 'offering'}
+		<g class="[transform-box:fill-box] origin-center">
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-offer-blink">
+				<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
+				<ellipse cx="58.5" cy="47" rx="3.3" ry="4.4" />
+			</g>
+			<path
+				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+				d="M45 56.5 Q50 60.5 55 56.5"
+			/>
+		</g>
+	{:else if mood === 'curious'}
+		<g class="[transform-box:fill-box] origin-center motion-safe:animate-curious">
+			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-curious-blink">
+				<ellipse cx="41.5" cy="45" rx="3.3" ry="4.4" />
+				<ellipse cx="58.5" cy="43" rx="3.3" ry="4.4" />
+			</g>
+			<path
+				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+				d="M45.5 56.5 Q50 60 54.5 56.5"
+			/>
+		</g>
+	{:else}
+		<g
+			class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-ui motion-safe:animate-blink"
+		>
+			<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
+			<ellipse cx="58.5" cy="47" rx="3.3" ry="4.4" />
+		</g>
+		<path
+			class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
+			d="M44 56.5 Q50 61.5 56 56.5"
+		/>
 	{/if}
 </svg>

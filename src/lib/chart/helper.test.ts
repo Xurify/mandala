@@ -18,8 +18,10 @@ import {
 	isCardRejection,
 	isHelpRequest,
 	isPillarActionRequest,
+	isWaitingStatus,
 	keptLines,
 	lineFault,
+	moodFor,
 	offerChips,
 	oneLine,
 	pillarMentioned,
@@ -439,5 +441,134 @@ describe('cell prompts', () => {
 		expect(messages[1]).toEqual(history[0]);
 		expect(messages[2]).toEqual(history[1]);
 		expect(messages[3]?.content).toBe('Should I learn it?');
+	});
+});
+
+describe('isWaitingStatus', () => {
+	it('matches download, loading, cache, shader, warm up, and waking up', () => {
+		expect(isWaitingStatus('Starting the download.')).toBe(true);
+		expect(isWaitingStatus('Downloading.')).toBe(true);
+		expect(isWaitingStatus('Loading model from cache')).toBe(true);
+		expect(isWaitingStatus('Getting ready.')).toBe(true);
+		expect(isWaitingStatus('Warming up.')).toBe(true);
+		expect(isWaitingStatus('Waking up.')).toBe(true);
+	});
+
+	it('returns false for thinking, ready, empty, and null', () => {
+		expect(isWaitingStatus('Thinking.')).toBe(false);
+		expect(isWaitingStatus('Ready, on this device.')).toBe(false);
+		expect(isWaitingStatus('')).toBe(false);
+		expect(isWaitingStatus(null)).toBe(false);
+		expect(isWaitingStatus(undefined)).toBe(false);
+	});
+});
+
+describe('moodFor priority list', () => {
+	it('selects waiting when busy and status is waiting', () => {
+		expect(
+			moodFor({
+				busy: true,
+				status: 'Downloading.',
+				cheer: true,
+				sorry: true,
+				card: 'findings',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('waiting');
+	});
+
+	it('selects thinking when busy and not waiting', () => {
+		expect(
+			moodFor({
+				busy: true,
+				status: 'Thinking.',
+				cheer: true,
+				sorry: true,
+				card: 'findings',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('thinking');
+	});
+
+	it('selects happy when cheer is active and not busy', () => {
+		expect(
+			moodFor({
+				cheer: true,
+				sorry: true,
+				card: 'findings',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('happy');
+	});
+
+	it('selects sorry on failure or stop', () => {
+		expect(
+			moodFor({
+				sorry: true,
+				card: 'findings',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('sorry');
+	});
+
+	it('selects puzzled when a findings card is open', () => {
+		expect(
+			moodFor({
+				card: 'findings',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('puzzled');
+	});
+
+	it('selects listening when message box is focused, beating offering and curious', () => {
+		expect(
+			moodFor({
+				card: 'picks',
+				listening: true,
+				step: 'direction'
+			})
+		).toBe('listening');
+		expect(
+			moodFor({
+				card: 'chart',
+				listening: true
+			})
+		).toBe('listening');
+		expect(
+			moodFor({
+				step: 'extra',
+				listening: true
+			})
+		).toBe('listening');
+		expect(
+			moodFor({
+				listening: true
+			})
+		).toBe('listening');
+	});
+
+	it('selects offering when a non-findings card is open', () => {
+		expect(moodFor({ card: 'chart', step: 'direction' })).toBe('offering');
+		expect(moodFor({ card: 'cells', step: 'offer' })).toBe('offering');
+		expect(moodFor({ card: 'picks' })).toBe('offering');
+		expect(moodFor({ card: 'download' })).toBe('offering');
+		expect(moodFor({ card: 'prompt' })).toBe('offering');
+	});
+
+	it('selects curious when waiting for goal, extra, or sketch choice', () => {
+		expect(moodFor({ step: 'direction' })).toBe('curious');
+		expect(moodFor({ step: 'extra' })).toBe('curious');
+		expect(moodFor({ step: 'offer' })).toBe('curious');
+	});
+
+	it('defaults to idle', () => {
+		expect(moodFor()).toBe('idle');
+		expect(moodFor({ step: 'idle' })).toBe('idle');
+		expect(moodFor({ card: null, step: 'idle' })).toBe('idle');
 	});
 });

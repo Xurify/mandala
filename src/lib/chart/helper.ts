@@ -22,6 +22,47 @@ export type HelperJob = 'draft' | 'fill' | 'review' | 'week' | 'today';
 export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel';
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
+export type HelperMood =
+	| 'idle'
+	| 'listening'
+	| 'thinking'
+	| 'waiting'
+	| 'happy'
+	| 'sorry'
+	| 'puzzled'
+	| 'offering'
+	| 'curious';
+
+export type HelperCardKind = 'chart' | 'cells' | 'picks' | 'findings' | 'download' | 'prompt';
+
+export type HelperMoodOptions = {
+	busy?: boolean;
+	status?: string | null;
+	cheer?: boolean;
+	sorry?: boolean;
+	card?: HelperCardKind | null;
+	step?: 'idle' | 'direction' | 'extra' | 'offer';
+	listening?: boolean;
+};
+
+export function isWaitingStatus(status?: string | null): boolean {
+	if (!status) return false;
+	return /\b(?:download|downloading|cache|loading|shader|getting ready|warm|warming|waking up)\b/i.test(status);
+}
+
+export function moodFor(options: HelperMoodOptions = {}): HelperMood {
+	if (options.busy) {
+		return isWaitingStatus(options.status) ? 'waiting' : 'thinking';
+	}
+	if (options.cheer) return 'happy';
+	if (options.sorry) return 'sorry';
+	if (options.card === 'findings') return 'puzzled';
+	if (options.listening) return 'listening';
+	if (options.card) return 'offering';
+	if (options.step && options.step !== 'idle') return 'curious';
+	return 'idle';
+}
+
 export type HelperFinding = {
 	key: string;
 	text: string;

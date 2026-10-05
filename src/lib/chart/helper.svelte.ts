@@ -16,6 +16,7 @@ import {
 	isCardRejection,
 	isHelpRequest,
 	isPillarActionRequest,
+	moodFor,
 	offerChips,
 	pillarMentioned,
 	reviewChart,
@@ -27,13 +28,14 @@ import {
 	type HelperChip,
 	type HelperFinding,
 	type HelperJob,
+	type HelperMood,
 	type HelperPick
 } from './helper.ts';
 import { COACH_MODEL_ID } from './coach-model.ts';
 import { CoachStopped } from './coach-protocol.ts';
 import { blockOfK, idx, todayKey, type ChartData } from './model.ts';
 
-export type HelperMood = 'idle' | 'listening' | 'thinking' | 'happy' | 'puzzled';
+export type { HelperMood };
 
 export type CellEdit = { key: string; before: string; after: string; reason?: string };
 
@@ -122,12 +124,21 @@ export class HelperStore {
 	modelReady = $state(false);
 	step = $state<'idle' | 'direction' | 'extra' | 'offer'>('idle');
 	#cheer = $state(false);
-	#trouble = $state(false);
+	#sorry = $state(false);
 	listening = $state(false);
 
-	mood: HelperMood = $derived(
-		this.busy ? 'thinking' : this.#cheer ? 'happy' : this.#trouble ? 'puzzled' : this.listening ? 'listening' : 'idle'
-	);
+	mood: HelperMood = $derived.by(() => {
+		const openCard = this.messages.find((entry) => entry.state === 'open')?.card?.kind ?? null;
+		return moodFor({
+			busy: this.busy,
+			status: this.progress?.label,
+			cheer: this.#cheer,
+			sorry: this.#sorry,
+			card: openCard,
+			step: this.step,
+			listening: this.listening
+		});
+	});
 
 	#target: HelperTarget;
 	#seq = 1;
@@ -192,7 +203,7 @@ export class HelperStore {
 		this.messages = [];
 		this.step = 'idle';
 		this.#pending = null;
-		this.#trouble = false;
+		this.#sorry = false;
 		this.#clearTurn();
 		this.#say(greetingFor(this.#target.data()));
 	}
@@ -218,7 +229,7 @@ export class HelperStore {
 		if (!text || this.busy) return;
 		const history = conversationHistory(this.messages, 8);
 		this.#push({ from: 'you', text: text.length > 600 ? `${text.slice(0, 600)}…` : text });
-		this.#trouble = false;
+		this.#sorry = false;
 
 		if (this.step === 'direction') {
 			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
@@ -315,7 +326,7 @@ export class HelperStore {
 
 	async start(job: HelperJob, pillar?: number): Promise<void> {
 		if (this.busy) return;
-		this.#trouble = false;
+		this.#sorry = false;
 		this.#clearTurn();
 		this.step = 'idle';
 		this.#fillPillar = job === 'fill' ? (pillar ?? this.#target.selectedPillar()) : null;
@@ -555,7 +566,8 @@ export class HelperStore {
 				);
 				this.#clearTurn();
 				this.step = 'idle';
-				this.#say('Stopped.');
+				this.#sorry = true;
+				this.#say('Stopped.', undefined, true);
 			} else {
 				if (!coach.coachLoaded()) {
 					this.#consent = false;
@@ -651,7 +663,8 @@ export class HelperStore {
 		return message;
 	}
 
-	#say(text: string, card?: HelperCard): void {
+	#say(text: string, card?: HelperCard, preserveSorry = false): void {
+		if (!preserveSorry) this.#sorry = false;
 		if (card) {
 			if (this.messages.some((entry) => entry.state === 'open' && entry.card?.kind === 'download')) this.#pending = null;
 			this.messages = this.messages.map((entry) => (entry.state === 'open' ? { ...entry, state: 'skipped' } : entry));
@@ -661,8 +674,8 @@ export class HelperStore {
 	}
 
 	#fail(text: string, card?: HelperCard): void {
-		this.#trouble = true;
-		this.#say(text, card);
+		this.#sorry = true;
+		this.#say(text, card, true);
 	}
 
 	#settle(id: number, state: CardState): void {
