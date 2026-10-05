@@ -11,6 +11,13 @@
 				if (storedTheme === 'dark' || storedTheme === 'light') {
 					root.setAttribute('data-theme', storedTheme);
 				}
+				const storedAccent = localStorage.getItem('accent');
+				const accentIds = ['leaf', 'field', 'walnut', 'olive'];
+				if (storedAccent && accentIds.includes(storedAccent)) {
+					root.setAttribute('data-accent', storedAccent);
+				} else if (storedAccent) {
+					localStorage.removeItem('accent');
+				}
 				const storedMode = localStorage.getItem('mandala_view_mode');
 				if (
 					storedMode === 'view' ||

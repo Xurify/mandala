@@ -24,6 +24,7 @@ import {
   type Milestones,
   type WeekReflection,
 } from "./model.ts";
+import { isAccent, type AccentId } from "./accent.ts";
 import {
   LIBRARY_KEY,
   activeRecord,
@@ -81,6 +82,19 @@ export type AppTheme = "system" | "light" | "dark";
 export type ViewMode = "view" | "edit" | "split" | "today" | "year";
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
+
+function loadInitialAccent(): AccentId {
+  if (typeof window === "undefined") return "ink";
+  try {
+    const storedAccent = localStorage.getItem("accent");
+    if (storedAccent && isAccent(storedAccent)) return storedAccent;
+    if (storedAccent) localStorage.removeItem("accent");
+    return "ink";
+    return "ink";
+  } catch {
+    return "ink";
+  }
+}
 
 function loadInitialTheme(): AppTheme {
   if (typeof window === "undefined") return "system";
@@ -153,6 +167,7 @@ export class ChartStore {
   data: ChartData = $state(cloneChart(activeRecord(bootLibrary).data));
   sel = $state(4);
   theme: AppTheme = $state(loadInitialTheme());
+  accent: AccentId = $state(loadInitialAccent());
   viewMode: ViewMode = $state(loadInitialViewMode());
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
@@ -894,6 +909,21 @@ export class ChartStore {
       // private mode / storage blocked
     }
     this.bumpTheme();
+  }
+
+  setAccent(accent: AccentId): void {
+    this.accent = accent;
+    try {
+      if (accent === "ink") {
+        localStorage.removeItem("accent");
+        document.documentElement.removeAttribute("data-accent");
+      } else {
+        localStorage.setItem("accent", accent);
+        document.documentElement.setAttribute("data-accent", accent);
+      }
+    } catch {
+      // private mode / storage blocked
+    }
   }
 
   applyPreset(preset: Preset): boolean {

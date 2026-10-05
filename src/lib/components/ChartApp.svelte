@@ -12,6 +12,7 @@
 		type ChartData
 	} from '$lib/chart/model';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
+	import { ACCENTS } from '$lib/chart/accent';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
@@ -52,6 +53,8 @@
 		{ value: 'dark', label: 'Dark', icon: 'moon' as const }
 	];
 
+	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Ink');
+
 	const scales = [
 		{ value: 'fit', label: 'Fit', icon: 'minimize' as const, title: 'Fit entire chart on screen without scrolling' },
 		{ value: 'large', label: 'Large', icon: 'maximize' as const, title: 'Enlarge chart for maximum text readability' }
@@ -89,6 +92,11 @@
 			document.documentElement.setAttribute('data-theme', chart.theme);
 		} else {
 			document.documentElement.removeAttribute('data-theme');
+		}
+		if (chart.accent === 'ink') {
+			document.documentElement.removeAttribute('data-accent');
+		} else {
+			document.documentElement.setAttribute('data-accent', chart.accent);
 		}
 		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleThemeChange = (): void => chart.bumpTheme();
@@ -395,7 +403,13 @@
 			},
 			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
 			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
-			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
+			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') },
+			...ACCENTS.map((item) => ({
+				id: `accent-${item.id}`,
+				label: `${item.label} accent`,
+				section: 'Actions' as const,
+				run: () => chart.setAccent(item.id)
+			}))
 		);
 		if (supportsDirectoryPicker()) {
 			items.push({
@@ -539,6 +553,22 @@
 							if (isTheme(value)) chart.setTheme(value);
 						}}
 					/>
+				</div>
+				<div class="flex flex-col gap-2 px-3 py-1.5 text-[0.9rem]">
+					<span class="text-muted">Accent <span class="text-text">{accentName}</span></span>
+					<div class="grid w-max grid-cols-5 gap-1.5" role="group" aria-label="Accent color">
+						{#each ACCENTS as item (item.id)}
+							<button
+								type="button"
+								class="size-[42px] cursor-pointer appearance-none rounded-full border-0 p-0 motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)] coarse:size-11"
+								style:background={item.id === 'ink' ? 'var(--ink)' : `var(--swatch-${item.id})`}
+								aria-pressed={chart.accent === item.id}
+								aria-label={item.label}
+								title={item.title}
+								onclick={() => chart.setAccent(item.id)}
+							></button>
+						{/each}
+					</div>
 				</div>
 				<MenuDivider />
 				<MenuItem icon="trash" tone="danger" onclick={handleClearChart}>Clear chart</MenuItem>

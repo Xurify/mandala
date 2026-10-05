@@ -507,7 +507,7 @@
 {#snippet pickMark(on: boolean)}
 	<span
 		class="flex size-4 shrink-0 items-center justify-center rounded-[5px] motion-safe:transition-colors motion-safe:duration-150 {on
-			? 'bg-ink text-on-ink'
+			? 'bg-accent text-on-accent'
 			: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
 		aria-hidden="true"
 	>

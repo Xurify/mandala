@@ -242,7 +242,7 @@
 		<Button size="sm" variant="soft" onclick={() => fire('', 'Copied as text')}>Plain note</Button>
 		<Button size="sm" variant="ghost" onclick={clear}>Clear</Button>
 		<label class="ml-auto flex cursor-pointer items-center gap-2 text-[0.88rem]">
-			<input class="size-4 cursor-pointer accent-ink" type="checkbox" bind:checked={timers} onchange={arm} />
+			<input class="size-4 cursor-pointer" type="checkbox" bind:checked={timers} onchange={arm} />
 			Run the clock
 		</label>
 	</div>

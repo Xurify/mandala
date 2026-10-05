@@ -14,7 +14,7 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 
 ## Principles
 
-1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button and the selected dock tab. It aliases `--ink`, the same fill main uses. A hue goes there only when it stays clear of every pillar. Never use a pillar hue, or the accent, for decoration.
+1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It aliases `--ink` until the more-actions menu picks Leaf, Field, Walnut, or Olive. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
 3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
 4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
@@ -50,7 +50,7 @@ All tokens live at the top of `src/app.css` as CSS custom properties in OKLCH. T
 | `--muted` | Secondary copy, ghost buttons, eyebrows |
 | `--line` | Hairline dividers only |
 | `--ink` / `--ink-hover` / `--on-ink` | Goal cell, focus ring, and ink fills that are not the primary action. Inverts in dark (light ink on dark paper) |
-| `--accent` / `--accent-hover` / `--on-accent` | Primary button and selected dock tab. Aliases of `--ink`, `--ink-hover`, and `--on-ink` |
+| `--accent` / `--accent-hover` / `--on-accent` | Primary button, selected dock tab, field halo, selected radio, checkbox. Aliases of `--ink` until a saved accent (`data-accent`) overrides them |
 | `--success` / `--danger` | Status text and destructive menu items. Never as fills |
 
 ### Chart color
@@ -104,7 +104,7 @@ Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps th
 - A pressable control is a primitive: `Button`, `IconButton`, `SegmentedControl`, `DockTab`, or `MenuItem`. Do not draw a new pill out of raw `<button>` elements.
 - Two to four options that apply immediately are a `SegmentedControl`. The selected option is the surface thumb, not an ink fill.
 - A text field uses `textField` from `src/lib/components/ui/styles.ts`. A longer note uses `textArea`. Both are the `field-ink` utility: resting fill `--sunken`, hover deepens to `--sunken-hover` and draws an ink hairline at 16%, focus lifts to `--surface` with a 1px ink ring at 42% and a 4px ink wash at 9%. No browser outline. Callers add width and icon insets (`ps-10`) on top. Chart cells are not `field-ink`; their focus ring stays a solid ink stroke so the selected cell reads in the grid.
-- A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native and use `accent-ink`.
+- A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native. Their checked color is `accent-color: var(--accent)`.
 - A fill that changes on hover, focus, or selection is a normal background utility (`hover:bg-sunken`, `bg-accent`). Do not transition `background-color` on a control that contains text: that promotes the glyphs and they jump at fractional device scale. `transition-colors` fades color and border only. Chart cells and text fields change fill the same way, with no background transition. Buttons rest transparent and at `scale: 1`, so a press scale does not animate from `none` and a raw button does not keep the gray browser face.
 
 ### Buttons
@@ -177,7 +177,7 @@ Short, warm, plain. Sentence case everywhere. Say what happens, not what the fea
 | Separate with tone and `--shadow-sm` | Wrap things in `1px solid` borders |
 | Use one primary `Button` per view | Put two accent buttons side by side |
 | Use pillar hues only for pillars | Tint a button or badge with a pillar hue |
-| Keep accent on the primary button and the selected dock tab | Paint the goal, a badge, or a second control with accent |
+| Keep accent on the primary button, the selected dock tab, and input chrome | Paint the goal, a badge, or a pillar with accent |
 | Add dark values for new tokens in both dark blocks | Hardcode hex / rgb in components |
 | Serif for reflective content | Serif on buttons, labels, or inputs |
 | Pill radii on controls | Square or 6px-radius buttons |

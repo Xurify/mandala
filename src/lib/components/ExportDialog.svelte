@@ -228,7 +228,7 @@
 					</span>
 					<input
 						type="checkbox"
-						class="size-4 shrink-0 cursor-pointer accent-[var(--ink)]"
+						class="size-4 shrink-0 cursor-pointer"
 						checked={chart.autoShare}
 						onchange={(event) => chart.setAutoShare(event.currentTarget.checked)}
 					/>

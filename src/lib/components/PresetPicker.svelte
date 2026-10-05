@@ -68,7 +68,7 @@
 {#snippet radioPip(checked: boolean)}
 	<span
 		class="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-150 {checked
-			? 'bg-ink text-on-ink'
+			? 'bg-accent text-on-accent'
 			: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
 		aria-hidden="true"
 	>
@@ -113,7 +113,7 @@
 					{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as slot (slot)}
 						{#if slot === 4}
 							<div
-								class="flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-ink px-2 text-center font-serif text-[0.84rem] leading-[1.15] font-[560] tracking-[-0.01em] text-balance text-on-ink"
+								class="flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-goal px-2 text-center font-serif text-[0.84rem] leading-[1.15] font-[560] tracking-[-0.01em] text-balance text-goal-fg"
 							>
 								{@render fadingName(shown.title)}
 							</div>

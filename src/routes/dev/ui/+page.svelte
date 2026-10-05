@@ -710,7 +710,7 @@
 				Keep the page up to date
 				<span class="block text-[0.78rem] text-muted">Publishes after edits.</span>
 			</span>
-			<input class="size-4 shrink-0 cursor-pointer accent-ink" type="checkbox" bind:checked={keepUpdated} />
+			<input class="size-4 shrink-0 cursor-pointer" type="checkbox" bind:checked={keepUpdated} />
 		</label>
 		<fieldset class="m-0 grid max-w-xl grid-cols-2 gap-1.5 rounded-[22px] border-0 bg-sunken p-1.5 max-[640px]:grid-cols-1">
 			<legend class="sr-only">Choose a preset</legend>
@@ -722,7 +722,7 @@
 				<input class="sr-only" type="radio" name="catalog-preset" value="health" bind:group={preset} />
 				<span
 					class="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-150 {preset === 'health'
-						? 'bg-ink text-on-ink'
+						? 'bg-accent text-on-accent'
 						: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
 					aria-hidden="true"
 				>
@@ -743,7 +743,7 @@
 				<input class="sr-only" type="radio" name="catalog-preset" value="blank" bind:group={preset} />
 				<span
 					class="mt-[3px] flex size-4 shrink-0 items-center justify-center rounded-full motion-safe:transition-colors motion-safe:duration-150 {preset === 'blank'
-						? 'bg-ink text-on-ink'
+						? 'bg-accent text-on-accent'
 						: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
 					aria-hidden="true"
 				>
