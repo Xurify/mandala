@@ -134,7 +134,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Menus
 
-`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on `--shadow-edge-up`: a lip draws a hairline next to the divider and the two read as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height.
 
 ### Dialogs
 

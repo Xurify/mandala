@@ -60,7 +60,9 @@
 	function onMenu(open: boolean): void {
 		menuOpen = open;
 		if (!open) find = '';
-	}	function pinMenu(list: HTMLElement): () => void {
+	}
+
+	function pinMenu(list: HTMLElement): () => void {
 		const band = list.parentElement;
 		const panel = band?.parentElement;
 		const fade = band?.querySelector<HTMLElement>('[data-menu-fade]');
@@ -112,11 +114,16 @@
 			place();
 			mark();
 		};
+		// The panel is sized to the dock after this runs, and a filter changes how
+		// much is left. Both move the fade without a scroll.
+		const size = new ResizeObserver(mark);
+		size.observe(list);
 		window.addEventListener('resize', onWindow);
 		window.addEventListener('scroll', onWindow, { passive: true });
 		list.addEventListener('scroll', mark, { passive: true });
 		return () => {
 			cancelAnimationFrame(frame);
+			size.disconnect();
 			window.removeEventListener('resize', onWindow);
 			window.removeEventListener('scroll', onWindow);
 			list.removeEventListener('scroll', mark);
@@ -457,7 +464,7 @@
 		</div>
 		<div
 			data-menu-fade
-			class="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-b from-transparent to-surface opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-ui [&[data-more]]:opacity-100"
+			class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-linear-to-b from-transparent to-surface opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-ui [&[data-more]]:opacity-100"
 			aria-hidden="true"
 		></div>
 	</div>
@@ -465,12 +472,16 @@
 		<MenuDivider />
 		<div class="flex gap-px">
 			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New chart</MenuItem>
-			<MenuItem icon="target" class="w-auto shrink-0" onclick={handleExample}>
+			<MenuItem icon="target" class="flex-1" onclick={handleExample}>
 				Example<span class="sr-only"> chart</span>
 			</MenuItem>
 		</div>
-		<MenuItem icon="edit" shortcut="R" onclick={openRename}>Rename chart</MenuItem>
-		<MenuItem icon="copy" shortcut="D" onclick={handleDuplicate}>Duplicate chart</MenuItem>
+		<div class="flex gap-px">
+			<MenuItem icon="edit" shortcut="R" class="flex-1" onclick={openRename}>Rename chart</MenuItem>
+			<MenuItem icon="copy" shortcut="D" class="flex-1" onclick={handleDuplicate}>
+				Duplicate chart
+			</MenuItem>
+		</div>
 		<MenuDivider />
 		<MenuItem
 			icon="clock"

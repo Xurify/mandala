@@ -37,7 +37,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | Help: the next move on this chart | "Help", "I'm stuck", "where do I start?" | No | `helpReply` |
 | Thanks, hello, "I missed three days" | Typing it | No | `chatReply` |
 | Answer method questions: what a pillar is, why 64, how many a day, two goals, a missed day, routines and milestones, privacy, where the grid comes from | Asking it | No | `methodAnswer` |
-| What I know: the draft answers Bindu kept, each with Forget | The info button in the panel header, or "what do you know about me?" | No | `showFacts`, `forget` |
+| What I know: the draft answers Bindu kept, each with Forget | "what do you know about me?" | No | `showFacts`, `forget` |
 | Cancel, "not this one" | Typing it | No | `isCancellation`, `isCardRejection` |
 | Answer anything else | Any message that matches nothing above | Yes | `askMessages`, `answer` |
 | Stop a running job | "Stop Bindu" in the command palette | No | `interruptCoach` |
