@@ -79,7 +79,7 @@ export async function publishChart(
 		throw new Error('The update secret for this share is missing on this device.');
 	}
 	const useSecret = secret ?? newSecret();
-	const response = await request('PUT', id, useSecret, { chart: data });
+	const response = await request('PUT', id, useSecret, { chart: { ...data, brief: undefined } });
 	if (!response.ok) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
 		throw new Error(detail ?? `Publish failed (${response.status}).`);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { helper } from '$lib/chart/helper.svelte';
 	import {
@@ -84,6 +84,11 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
+
+	$effect(() => {
+		const chartId = chart.activeId;
+		untrack(() => helper.follow(chartId));
+	});
 
 	onMount(() => {
 		chart.load();

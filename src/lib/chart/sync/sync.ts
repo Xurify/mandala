@@ -47,6 +47,10 @@ export function overlayLocalEdits(
 		}
 	});
 
+	if (JSON.stringify(base.brief ?? null) !== JSON.stringify(edited.brief ?? null)) {
+		merged.brief = edited.brief ? structuredClone(edited.brief) : undefined;
+	}
+
 	return merged;
 }
 

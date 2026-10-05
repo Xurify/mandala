@@ -63,7 +63,7 @@ export function isShareHash(hash: string): boolean {
 }
 
 export async function encodeChartShare(data: ChartData): Promise<string> {
-	const raw = new TextEncoder().encode(exportJson(data));
+	const raw = new TextEncoder().encode(exportJson({ ...data, brief: undefined }));
 	const compressed = await gzipBytes(raw);
 	if (compressed && compressed.length < raw.length) {
 		return `${SHARE_PREFIX}${COMPRESSED_PREFIX}${bytesToBase64Url(compressed)}`;

@@ -34,6 +34,14 @@ export type DayLog = {
 	focus: string[];
 	checked: string[];
 	started?: boolean;
+	/** Local time of each tick, "HH:MM". */
+	at?: Record<string, string>;
+	/** Picks taken off the day's list. */
+	dropped?: string[];
+	/** Suggestions turned down that day: skipped or swapped out. */
+	declined?: string[];
+	/** Insights Bindu showed that day, as `id:key`. */
+	shown?: string[];
 };
 
 export type WeekReflection = {
@@ -42,6 +50,27 @@ export type WeekReflection = {
 	dismissed?: boolean;
 };
 
+/** What the person said when Bindu drafted this chart. Stays on the device and out of share links. */
+export type ChartBrief = {
+	timeline?: string;
+	situation?: string;
+	focus?: string;
+	constraint?: string;
+};
+
+const BRIEF_FIELDS = ['timeline', 'situation', 'focus', 'constraint'] as const;
+
+export function parseBrief(value: unknown): ChartBrief | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const record = value as Record<string, unknown>;
+	const brief: ChartBrief = {};
+	for (const field of BRIEF_FIELDS) {
+		const text = record[field];
+		if (typeof text === 'string' && text.trim()) brief[field] = text.trim().slice(0, TEXT_MAX * 2);
+	}
+	return Object.keys(brief).length > 0 ? brief : undefined;
+}
+
 export type ChartData = {
 	goal: string;
 	pillars: string[];
@@ -49,6 +78,7 @@ export type ChartData = {
 	meta?: Record<string, ActionMeta>;
 	days?: Record<string, DayLog>;
 	weeks?: Record<string, WeekReflection>;
+	brief?: ChartBrief;
 };
 
 export function emptyChart(): ChartData {
@@ -232,7 +262,8 @@ export function parseChart(raw: string): ChartData | null {
 			actions: record.actions as string[][],
 			meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
 			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
-			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined
+			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
+			brief: parseBrief(record.brief)
 		};
 	} catch {
 		return null;
@@ -416,6 +447,10 @@ export function dateKeyOf(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+export function clockOf(date: Date): string {
+	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 export function todayKey(): string {

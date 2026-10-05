@@ -71,6 +71,17 @@ describe('overlayLocalEdits', () => {
 		expect(merged.weeks?.['2026-09-28']?.note).toBe('Wrote a note');
 	});
 
+	it('carries a brief this device added', () => {
+		const base = emptyChart();
+		const edited = structuredClone(base);
+		edited.brief = { timeline: 'October' };
+		const server = chartWith('Newer there');
+		server.brief = { timeline: 'March' };
+
+		expect(overlayLocalEdits(base, edited, server).brief).toEqual({ timeline: 'October' });
+		expect(overlayLocalEdits(base, structuredClone(base), server).brief).toEqual({ timeline: 'March' });
+	});
+
 	it('does not mutate the server copy it was given', () => {
 		const base = chartWith('Base', '');
 		const edited = chartWith('Device edit', '');

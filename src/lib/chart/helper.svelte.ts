@@ -2,7 +2,11 @@ import { chart } from './chart.svelte';
 import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	askRoute,
+	briefOf,
 	chartAnswersFromText,
+	chatReply,
+	conversationHistory,
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
@@ -11,51 +15,40 @@ import {
 	fillPlan,
 	greetingFor,
 	helpChips,
+	helpReply,
+	greetingInsight,
+	insightChip,
+	insightSignature,
+	insightsFor,
+	methodAnswer,
 	intentOf,
 	isCancellation,
 	isCardRejection,
-	isHelpRequest,
-	isPillarActionRequest,
 	moodFor,
 	offerChips,
 	pillarMentioned,
+	progressReport,
 	reviewChart,
 	suggestToday,
 	suggestWeek,
 	textOfKey,
+	type CardState,
+	type HelperPick,
+	type CellEdit,
 	type ChatMessage,
 	type CoachLoad,
+	type HelperCard,
 	type HelperChip,
 	type HelperFinding,
 	type HelperJob,
-	type HelperMood,
-	type HelperPick
+	type HelperMessage,
+	type HelperMood
 } from './helper.ts';
 import { COACH_MODEL_ID } from './coach-model.ts';
 import { CoachStopped } from './coach-protocol.ts';
-import { blockOfK, idx, todayKey, type ChartData } from './model.ts';
+import { blockOfK, idx, todayKey, type ChartBrief, type ChartData } from './model.ts';
 
-export type { HelperMood };
-
-export type CellEdit = { key: string; before: string; after: string; reason?: string };
-
-export type HelperCard =
-	| { kind: 'chart'; data: ChartData }
-	| { kind: 'cells'; edits: CellEdit[] }
-	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
-	| { kind: 'findings'; findings: HelperFinding[] }
-	| { kind: 'download' }
-	| { kind: 'prompt' };
-
-export type CardState = 'working' | 'open' | 'used' | 'skipped';
-
-export type HelperMessage = {
-	id: number;
-	from: 'helper' | 'you';
-	text: string;
-	card?: HelperCard;
-	state?: CardState;
-};
+export type { CardState, CellEdit, HelperCard, HelperMessage, HelperMood };
 
 /** What the helper may read and change. The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
@@ -66,6 +59,14 @@ export type HelperTarget = {
 	setToday(keys: string[]): void;
 	pinWeek(keys: string[]): void;
 	showCell(key: string): void;
+	/** Suggestions turned down today, so they are not offered again today. */
+	decline?(keys: string[]): void;
+	/** An insight was shown, so the greeting does not repeat it. */
+	noteShown?(signature: string): void;
+	/** Replace what Bindu kept from the draft. */
+	setBrief?(brief: ChartBrief | undefined): void;
+	/** The chart the conversation belongs to. The lab leaves it out and keeps one thread. */
+	chartId?(): string;
 };
 
 type Coach = typeof import('./coach.browser.ts');
@@ -99,19 +100,6 @@ function clearModelConsent(): void {
 	} catch {
 		return;
 	}
-}
-
-function conversationHistory(messages: readonly HelperMessage[], maxTurns = 8): ChatMessage[] {
-	const history: ChatMessage[] = [];
-	for (const message of messages.slice(-maxTurns)) {
-		const content = message.text.trim();
-		if (!content) continue;
-		history.push({
-			role: message.from === 'you' ? 'user' : 'assistant',
-			content
-		});
-	}
-	return history;
 }
 
 export class HelperStore {
@@ -153,9 +141,71 @@ export class HelperStore {
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
 	#warming = false;
 	#progressStop: (() => void) | null = null;
+	#chartId = '';
+	#threads = new Map<string, HelperMessage[]>();
+	#jobChart: string | null = null;
+	#thanks = 0;
+	#lead = $state<HelperChip | null>(null);
+	#swapped = new Set<string>();
 
 	constructor(target: HelperTarget) {
 		this.#target = target;
+		this.#chartId = target.chartId?.() ?? '';
+	}
+
+	/** Each chart keeps its own conversation. A job still running for the old chart is stopped, and its replies are dropped. */
+	follow(chartId: string): void {
+		if (chartId === this.#chartId) return;
+		if (this.#chartId) {
+			this.#threads.set(
+				this.#chartId,
+				this.messages.map((entry) => (entry.state === 'working' ? { ...entry, state: 'skipped' } : entry))
+			);
+		}
+		if (this.busy) void this.stop();
+		this.#chartId = chartId;
+		this.messages = this.#threads.get(chartId) ?? [];
+		this.#threads.delete(chartId);
+		this.step = 'idle';
+		this.#pending = null;
+		this.#sorry = false;
+		this.unread = false;
+		this.#clearTurn();
+		if (this.open && this.messages.length === 0) this.#greet();
+	}
+
+	#greet(): void {
+		const data = this.#target.data();
+		const top = data.goal.trim() ? greetingInsight(data) : null;
+		this.#aside(greetingFor(data));
+		this.#lead = insightChip(top ?? undefined);
+		if (top) this.#target.noteShown?.(insightSignature(top));
+	}
+
+	/** What Bindu kept from the draft, with a way to forget each line. */
+	showFacts(): void {
+		this.open = true;
+		const has = Boolean(this.#target.data().brief);
+		this.#push({
+			from: 'helper',
+			text: has
+				? 'This is what I kept from when we drafted the chart. I use it when I write lines for you.'
+				: 'Nothing yet. When we draft a chart together, I keep your answers here.',
+			card: has ? { kind: 'facts' } : undefined,
+			aside: true
+		});
+	}
+
+	forget(field: keyof ChartBrief): void {
+		const brief = this.#target.data().brief;
+		if (!brief?.[field]) return;
+		const next = { ...brief };
+		delete next[field];
+		this.#target.setBrief?.(next);
+	}
+
+	get #stale(): boolean {
+		return this.#jobChart !== null && this.#jobChart !== this.#chartId;
 	}
 
 	get data(): ChartData {
@@ -163,10 +213,23 @@ export class HelperStore {
 	}
 
 	get chips(): HelperChip[] {
+		const openCard = this.messages.find((entry) => entry.state === 'open')?.card;
+		// The open card already offers this job as its button.
+		const cardJob: HelperJob | null =
+			openCard?.kind === 'picks' ? openCard.scope : openCard?.kind === 'findings' ? 'review' : openCard?.kind === 'chart' ? 'draft' : null;
+		return this.#chips().filter((chip) => !(chip.act.kind === 'job' && chip.act.job === cardJob));
+	}
+
+	#chips(): HelperChip[] {
 		if (this.busy) return [];
 		if (this.step === 'offer') return offerChips();
 		if (this.step === 'extra') return extraChips(this.#sketch !== null);
 		if (this.step === 'direction') return [];
+		if (this.#lead) {
+			const lead = this.#lead;
+			const rest = chipsFor(this.#target.data(), this.#target.selectedPillar()).filter((chip) => chip.label !== lead.label);
+			return [lead, ...rest];
+		}
 		if (this.#help) return helpChips();
 		if (this.#pillarFill !== null) {
 			const name = (this.#target.data().pillars[this.#pillarFill] ?? '').trim();
@@ -184,7 +247,7 @@ export class HelperStore {
 	show(job?: HelperJob): void {
 		this.open = true;
 		this.unread = false;
-		if (this.messages.length === 0) this.#say(greetingFor(this.#target.data()));
+		if (this.messages.length === 0) this.#greet();
 		void this.#warm();
 		if (job) void this.start(job);
 	}
@@ -205,14 +268,14 @@ export class HelperStore {
 		this.#pending = null;
 		this.#sorry = false;
 		this.#clearTurn();
-		this.#say(greetingFor(this.#target.data()));
+		this.#greet();
 	}
 
 	cancel(): void {
 		if (this.step !== 'idle' || this.#direction || this.#sketch) {
 			this.step = 'idle';
 			this.#clearTurn();
-			this.#say('Draft cancelled.');
+			this.#aside('Draft cancelled.');
 		}
 	}
 
@@ -221,6 +284,7 @@ export class HelperStore {
 		if (act.kind === 'job') void this.start(act.job, act.pillar);
 		else if (act.kind === 'send') void this.send(act.text);
 		else if (act.kind === 'sketch') void this.#sketchAim();
+		else if (act.kind === 'show') this.showCell(act.key);
 		else this.#dismissAim();
 	}
 
@@ -235,7 +299,7 @@ export class HelperStore {
 			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
 				this.step = 'idle';
 				this.#clearTurn();
-				this.#say('Draft cancelled.');
+				this.#aside('Draft cancelled.');
 				return;
 			}
 			this.#direction = text;
@@ -247,7 +311,7 @@ export class HelperStore {
 			if (isCancellation(text)) {
 				this.step = 'idle';
 				this.#clearTurn();
-				this.#say('Draft cancelled.');
+				this.#aside('Draft cancelled.');
 				return;
 			}
 			const answers = chartAnswersFromText(this.#direction, text);
@@ -270,6 +334,7 @@ export class HelperStore {
 			this.step = 'idle';
 		}
 		this.#help = false;
+		this.#lead = null;
 		this.#pillarFill = null;
 
 		const openMessage = this.messages.find((entry) => entry.state === 'open');
@@ -283,7 +348,22 @@ export class HelperStore {
 		if (intent === 'cancel') {
 			this.#clearTurn();
 			this.step = 'idle';
-			this.#say('Nothing to cancel.');
+			this.#aside('Nothing to cancel.');
+			return;
+		}
+		if (intent === 'chat') {
+			const reply = chatReply(text, data, this.#thanks++);
+			this.#help = reply.nextStep;
+			this.#say(reply.text);
+			return;
+		}
+		if (intent === 'facts') {
+			this.showFacts();
+			return;
+		}
+		if (intent === 'progress') {
+			this.#say(progressReport(data));
+			this.#lead = insightChip(insightsFor(data).find((insight) => insight.key));
 			return;
 		}
 		if (intent === 'chart') {
@@ -295,12 +375,19 @@ export class HelperStore {
 			await this.start(intent);
 			return;
 		}
-		if (isHelpRequest(text) && data.goal.trim() && !fillPlan(data)) {
-			this.#help = true;
-			this.#say("The chart is full. Three actions for today is the next move.");
+		const route = askRoute(text, data);
+		if (route === 'help') {
+			this.#help = data.goal.trim() !== '' && !fillPlan(data);
+			this.#say(helpReply(data));
 			return;
 		}
-		const aim = aimOf(text, data);
+		const method = route === 'method' ? methodAnswer(text) : null;
+		if (method) {
+			this.#say(method.text);
+			if (method.job) this.#lead = chipsFor(data).find((chip) => chip.act.kind === 'job' && chip.act.job === method.job) ?? null;
+			return;
+		}
+		const aim = route === 'aim' ? aimOf(text, data) : null;
 		if (aim) {
 			this.#direction = aim;
 			this.#sketch = null;
@@ -310,7 +397,7 @@ export class HelperStore {
 			return;
 		}
 		const mentioned = pillarMentioned(text, data);
-		if (mentioned !== null && isPillarActionRequest(text)) {
+		if (route === 'pillar' && mentioned !== null) {
 			const name = (data.pillars[mentioned] ?? '').trim();
 			const empty = (data.actions[mentioned] ?? []).filter((action) => !action.trim()).length;
 			if (empty > 0) {
@@ -321,7 +408,7 @@ export class HelperStore {
 			this.#say(`${name} is already full. We can review its actions or pick one for today.`);
 			return;
 		}
-		await this.#withModel(() => this.#answer(text, history));
+		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()));
 	}
 
 	async start(job: HelperJob, pillar?: number): Promise<void> {
@@ -361,10 +448,15 @@ export class HelperStore {
 		if (!message || !card || message.state !== 'open') return;
 		if (card.kind === 'chart') {
 			if (!this.#target.applyDraft(card.data)) return;
+			// A draft can open as a new chart. The conversation that made it goes with it.
+			const next = this.#target.chartId?.();
+			if (next) this.#chartId = next;
 			this.#settle(id, 'used');
 			this.#clearTurn();
 			this.step = 'idle';
-			this.#celebrate('Done. Plan this week whenever you like.');
+			this.#celebrate(
+				card.data.brief ? 'Done. I kept your answers for later. Ask what I know any time.' : 'Done. Plan this week whenever you like.'
+			);
 		} else if (card.kind === 'cells') {
 			this.#target.setCells(card.edits);
 			this.#settle(id, 'used');
@@ -381,10 +473,34 @@ export class HelperStore {
 		}
 	}
 
+	/** Trade one pick for the next best, from a pillar the others don't use where it can. */
+	swap(id: number, key: string): void {
+		const message = this.messages.find((entry) => entry.id === id);
+		const card = message?.card;
+		if (!message || card?.kind !== 'picks' || message.state !== 'open') return;
+		this.#swapped.add(key);
+		if (card.scope === 'today') this.#target.decline?.([key]);
+		const keep = card.picks.filter((pick) => pick.key !== key);
+		const exclude = new Set([...card.picks.map((pick) => pick.key), ...this.#swapped]);
+		const data = this.#target.data();
+		const options = card.scope === 'today' ? suggestToday(data, new Date(), 8, exclude) : suggestWeek(data, 8, new Date(), exclude);
+		const taken = new Set(keep.map((pick) => pick.pillarIndex));
+		const next: HelperPick | undefined = options.find((pick) => !taken.has(pick.pillarIndex)) ?? options[0];
+		const picks = next ? card.picks.map((pick) => (pick.key === key ? next : pick)) : keep;
+		if (picks.length === 0) {
+			this.#settle(id, 'skipped');
+			this.#aside('Nothing else is open right now.');
+			return;
+		}
+		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { ...card, picks } } : entry));
+		if (!next) this.#aside('Nothing else is open right now.');
+	}
+
 	skip(id: number): void {
 		const message = this.messages.find((entry) => entry.id === id);
 		if (!message?.card || message.state !== 'open') return;
 		this.#settle(id, 'skipped');
+		if (message.card.kind === 'picks' && message.card.scope === 'today') this.#target.decline?.(message.card.picks.map((pick) => pick.key));
 		if (message.card.kind === 'download') {
 			this.#pending = null;
 			this.#say('No problem. Copy the prompt into any chat app and paste the reply here.', { kind: 'prompt' });
@@ -416,6 +532,7 @@ export class HelperStore {
 	}
 
 	#picks(scope: 'today' | 'week', data: ChartData): void {
+		this.#swapped.clear();
 		const picks = scope === 'today' ? suggestToday(data) : suggestWeek(data);
 		if (picks.length === 0) {
 			this.#say('There is nothing open to pick yet. Add a few actions first.');
@@ -439,17 +556,18 @@ export class HelperStore {
 				this.#settle(draftId, 'working');
 				return;
 			}
-			this.messages = this.messages.map((entry) =>
-				entry.id === draftId ? { ...entry, card: { kind: 'chart', data: partial } } : entry
-			);
+			this.#patchChart(draftId, partial);
 		});
 		if (!result.chart) {
 			if (draftId) this.#settle(draftId, 'skipped');
 			this.#fail('I lost the thread on that one. Try again, or copy the prompt into another chat app.', { kind: 'prompt' });
 			return;
 		}
-		if (draftId) this.#settle(draftId, 'open');
-		else this.#say('Here is a first chart.', { kind: 'chart', data: result.chart });
+		const finished = { ...result.chart, brief: briefOf(answers) };
+		if (draftId) {
+			this.#patchChart(draftId, finished);
+			this.#settle(draftId, 'open');
+		} else this.#say('Here is a first chart.', { kind: 'chart', data: finished });
 		const written = result.chart.actions.flat().filter((action) => action.trim()).length;
 		this.#say(written === 64 ? 'All 64 actions are in. Use this chart, or ask me to start again.' : `${written} of 64 actions are in. The empty ones stayed empty.`);
 	}
@@ -520,9 +638,9 @@ export class HelperStore {
 		this.#say('Here is how I would put them.', { kind: 'cells', edits });
 	}
 
-	async #answer(question: string, history: readonly ChatMessage[] = []): Promise<void> {
+	async #answer(question: string, history: readonly ChatMessage[] = [], pillar: number | null = null): Promise<void> {
 		const coach = await loadCoachModule();
-		const reply = await coach.answer(this.#target.data(), question, history);
+		const reply = await coach.answer(this.#target.data(), question, history, pillar);
 		if (!reply) return this.#fail('I am not sure. Try asking another way.');
 		this.#say(reply);
 	}
@@ -551,6 +669,7 @@ export class HelperStore {
 		const coach = await loadCoachModule();
 		coach.resumeCoach();
 		this.busy = true;
+		this.#jobChart = this.#chartId;
 		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
 		this.#progressStop ??= coach.watchCoachProgress((update) => {
 			this.progress = describeCoachProgress(update.text, update.ratio);
@@ -560,6 +679,7 @@ export class HelperStore {
 			this.modelReady = coach.coachLoaded();
 			if (this.modelReady) persistModelConsent();
 		} catch (error) {
+			if (this.#stale) return;
 			if (error instanceof CoachStopped) {
 				this.messages = this.messages.map((entry) =>
 					entry.state === 'working' ? { ...entry, state: 'skipped' } : entry
@@ -567,7 +687,7 @@ export class HelperStore {
 				this.#clearTurn();
 				this.step = 'idle';
 				this.#sorry = true;
-				this.#say('Stopped.', undefined, true);
+				this.#aside('Stopped.', true);
 			} else {
 				if (!coach.coachLoaded()) {
 					this.#consent = false;
@@ -576,6 +696,11 @@ export class HelperStore {
 				this.#fail('Something stopped me. Try again in a moment.');
 			}
 		} finally {
+			if (this.#stale) {
+				this.step = 'idle';
+				this.#clearTurn();
+			}
+			this.#jobChart = null;
 			this.busy = false;
 			this.progress = null;
 			if (!this.open) this.unread = true;
@@ -584,6 +709,7 @@ export class HelperStore {
 
 	#clearTurn(): void {
 		this.#help = false;
+		this.#lead = null;
 		this.#pillarFill = null;
 		this.#sketch = null;
 		this.#sketchId = 0;
@@ -597,6 +723,7 @@ export class HelperStore {
 	}
 
 	#patchChart(id: number, data: ChartData): void {
+		if (this.#stale) return;
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { kind: 'chart', data } } : entry));
 	}
 
@@ -646,6 +773,7 @@ export class HelperStore {
 			this.#sketch = partial;
 			this.#patchChart(draftId, partial);
 		});
+		this.#patchChart(draftId, { ...filled, brief: briefOf(answers) });
 		this.#settle(draftId, 'open');
 		this.step = 'idle';
 		this.#sketch = null;
@@ -663,7 +791,16 @@ export class HelperStore {
 		return message;
 	}
 
+	/** A greeting or status line: shown, never sent to the model. */
+	#aside(text: string, preserveSorry = false): void {
+		if (this.#stale) return;
+		if (!preserveSorry) this.#sorry = false;
+		this.#push({ from: 'helper', text, aside: true });
+		if (!this.open) this.unread = true;
+	}
+
 	#say(text: string, card?: HelperCard, preserveSorry = false): void {
+		if (this.#stale) return;
 		if (!preserveSorry) this.#sorry = false;
 		if (card) {
 			if (this.messages.some((entry) => entry.state === 'open' && entry.card?.kind === 'download')) this.#pending = null;
@@ -679,6 +816,7 @@ export class HelperStore {
 	}
 
 	#settle(id: number, state: CardState): void {
+		if (this.#stale) return;
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, state } : entry));
 	}
 
@@ -707,12 +845,16 @@ export const helper = new HelperStore({
 		chart.say(edits.length === 1 ? 'Changed 1 line.' : `Changed ${edits.length} lines.`);
 	},
 	setToday: (keys) => {
-		chart.setFocus(todayKey(), keys);
+		chart.setFocus(todayKey(), keys, true);
 		chart.setViewMode('today');
 	},
 	pinWeek: (keys) => {
 		for (const key of keys) chart.setActionMeta(key, { pinned: true });
 		chart.say(`Pinned ${keys.length} for this week.`);
 	},
-	showCell: (key) => chart.jumpToKey(key)
+	showCell: (key) => chart.jumpToKey(key),
+	decline: (keys) => chart.declineToday(keys),
+	noteShown: (signature) => chart.noteShown(signature),
+	setBrief: (brief) => chart.setBrief(brief),
+	chartId: () => chart.activeId
 });
