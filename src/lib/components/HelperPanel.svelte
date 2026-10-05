@@ -162,10 +162,13 @@
 					{#each value.picks as pick (pick.key)}
 						<li class="flex min-w-0 gap-2.5 text-[0.9rem] leading-snug">
 							{@render dot(pick.pillarIndex)}
-							<span class="flex min-w-0 flex-col gap-0.5">
+							<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 								<span class="text-pretty">{pick.text}</span>
 								<span class="text-[0.78rem] text-muted">{pick.why}</span>
 							</span>
+							{#if message.state === 'open'}
+								<button type="button" class={cn(link, 'shrink-0 self-start')} aria-label="Swap {pick.text}" onclick={() => helper.swap(message.id, pick.key)}>Swap</button>
+							{/if}
 						</li>
 					{/each}
 				</ul>

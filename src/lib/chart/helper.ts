@@ -625,91 +625,220 @@ export function oneLine(raw: string, max: number): string | null {
 	return line;
 }
 
-function lastTouched(data: ChartData): Map<string, string> {
-	const touched = new Map<string, string>();
-	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
-		for (const key of [...log.focus, ...log.checked]) {
-			const seen = touched.get(key);
-			if (!seen || seen < dateKey) touched.set(key, dateKey);
-		}
-	}
-	return touched;
+const DAY_MS = 86_400_000;
+const STUCK_PICKS = 3;
+const STUCK_WINDOW = 14;
+const MOMENTUM_WINDOW = 7;
+
+function daysBetween(fromKey: string, now: Date): number {
+	const [year, month, day] = fromKey.split('-').map(Number);
+	const from = new Date(year!, month! - 1, day!);
+	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	return Math.round((today.getTime() - from.getTime()) / DAY_MS);
 }
 
-function openActions(data: ChartData): { key: string; pillarIndex: number; text: string }[] {
-	const out: { key: string; pillarIndex: number; text: string }[] = [];
+/** Same number for the same day and key, so ties settle differently each day but hold still within one. */
+function dayJitter(dateKey: string, key: string): number {
+	let hash = 2166136261;
+	for (const char of `${dateKey}:${key}`) {
+		hash ^= char.charCodeAt(0);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0) / 4294967296;
+}
+
+export type ActionHistory = {
+	/** Days since the last tick, or null if never ticked. */
+	sinceTick: number | null;
+	/** Ticks in the last 7 days, today excluded. */
+	recentTicks: number;
+	/** Days picked in the last 14 days without being ticked that day. */
+	missedPicks: number;
+	/** Days it was taken off the list in the last 7 days. */
+	recentDrops: number;
+};
+
+export type PickHistory = {
+	actions: Map<string, ActionHistory>;
+	/** Days since each pillar last had a tick, or null if never. */
+	pillarSinceTick: (number | null)[];
+	declinedToday: Set<string>;
+	droppedToday: Set<string>;
+};
+
+/** What the day logs say about each action and pillar. Picks without a tick do not count as done. */
+export function pickHistory(data: ChartData, now: Date = new Date()): PickHistory {
+	const actions = new Map<string, ActionHistory>();
+	const entry = (key: string) => {
+		let found = actions.get(key);
+		if (!found) {
+			found = { sinceTick: null, recentTicks: 0, missedPicks: 0, recentDrops: 0 };
+			actions.set(key, found);
+		}
+		return found;
+	};
+	const pillarSinceTick: (number | null)[] = Array.from({ length: 8 }, () => null);
+	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
+		const ago = daysBetween(dateKey, now);
+		if (ago < 0) continue;
+		for (const key of log.checked) {
+			const found = entry(key);
+			if (found.sinceTick === null || ago < found.sinceTick) found.sinceTick = ago;
+			if (ago > 0 && ago <= MOMENTUM_WINDOW) found.recentTicks += 1;
+			const pillarIndex = Number(key.slice(1).split('_')[0]);
+			if (key.startsWith('a') && pillarIndex >= 0 && pillarIndex < 8) {
+				const seen = pillarSinceTick[pillarIndex];
+				if (seen == null || ago < seen) pillarSinceTick[pillarIndex] = ago;
+			}
+		}
+		if (ago > 0 && ago <= STUCK_WINDOW) {
+			for (const key of log.focus) if (!log.checked.includes(key)) entry(key).missedPicks += 1;
+		}
+		if (ago <= MOMENTUM_WINDOW) for (const key of log.dropped ?? []) entry(key).recentDrops += 1;
+	}
+	const today = data.days?.[dateKeyOf(now)];
+	return {
+		actions,
+		pillarSinceTick,
+		declinedToday: new Set(today?.declined ?? []),
+		droppedToday: new Set(today?.dropped ?? [])
+	};
+}
+
+/** Picked again and again, never ticked. Better made smaller than offered again. */
+export function isStuck(history: ActionHistory | undefined): boolean {
+	return (history?.missedPicks ?? 0) >= STUCK_PICKS && (history?.recentTicks ?? 0) === 0;
+}
+
+/** The pillar that has waited longest for a tick. Ties settle by the day, the same way picks do. */
+export function quietestPillar(history: PickHistory, dateKey: string, among: readonly number[]): number | null {
+	const gap = (index: number) => Math.min(history.pillarSinceTick[index] ?? 99, 99);
+	const ranked = [...among].sort((a, b) => gap(b) - gap(a) || dayJitter(dateKey, `p${b}`) - dayJitter(dateKey, `p${a}`));
+	return ranked[0] ?? null;
+}
+
+type Candidate = { key: string; pillarIndex: number; text: string; pinned: boolean; milestone: boolean; history: ActionHistory | undefined };
+
+function candidates(data: ChartData, history: PickHistory, now: Date, exclude: ReadonlySet<string>): Candidate[] {
+	const done = new Set(data.days?.[dateKeyOf(now)]?.checked ?? []);
+	const out: Candidate[] = [];
 	data.actions.forEach((row, pillarIndex) => {
+		if (!filled(data.pillars[pillarIndex])) return;
 		row.forEach((action, actionIndex) => {
 			const key = actionKey(pillarIndex, actionIndex);
-			if (filled(action) && isOpenFocus(data.meta?.[key])) out.push({ key, pillarIndex, text: action.trim() });
+			const meta = data.meta?.[key];
+			if (!filled(action) || !isOpenFocus(meta)) return;
+			if (done.has(key) || exclude.has(key) || history.declinedToday.has(key) || history.droppedToday.has(key)) return;
+			const past = history.actions.get(key);
+			if (isStuck(past) && !meta?.pinned) return;
+			out.push({ key, pillarIndex, text: action.trim(), pinned: meta?.pinned === true, milestone: meta?.kind === 'milestone', history: past });
 		});
 	});
 	return out;
 }
 
-function pickWhy(key: string, pillarIndex: number, activity: number[], touched: Map<string, string>, pinned: boolean): string {
-	if (pinned) return 'Pinned for this week.';
-	if ((activity[pillarIndex] ?? 0) === 0) return 'You have not used this pillar this week.';
-	if (!touched.has(key)) return 'Not started yet.';
-	return 'Longest since you did it.';
+function scoreOf(candidate: Candidate, history: PickHistory, dateKey: string): number {
+	const pillarGap = history.pillarSinceTick[candidate.pillarIndex];
+	const actionGap = candidate.history?.sinceTick ?? null;
+	let score = Math.min(pillarGap ?? 14, 14) * 2 + Math.min(actionGap ?? 21, 21);
+	if (candidate.pinned) score += 100;
+	if (candidate.milestone) score += 4;
+	score -= (candidate.history?.missedPicks ?? 0) * 4;
+	score -= (candidate.history?.recentDrops ?? 0) * 6;
+	return score + dayJitter(dateKey, candidate.key) * 3;
 }
 
-/** Five to eight actions, spread across the quietest pillars first. */
-export function suggestWeek(data: ChartData, count = 6): HelperPick[] {
-	const activity = pillarActivityLast7(data);
-	const touched = lastTouched(data);
-	const byPillar = new Map<number, { key: string; pillarIndex: number; text: string }[]>();
-	for (const action of openActions(data)) {
-		const list = byPillar.get(action.pillarIndex) ?? [];
-		list.push(action);
-		byPillar.set(action.pillarIndex, list);
+function pillarName(data: ChartData, pillarIndex: number): string {
+	return (data.pillars[pillarIndex] ?? '').trim();
+}
+
+function plural(count: number, one: string, many = `${one}s`): string {
+	return `${count} ${count === 1 ? one : many}`;
+}
+
+type PickRole = 'pinned' | 'quiet' | 'momentum' | 'best';
+
+function whyFor(data: ChartData, candidate: Candidate, role: PickRole, history: PickHistory): string {
+	if (role === 'pinned' || candidate.pinned) return 'Pinned for this week.';
+	const name = pillarName(data, candidate.pillarIndex);
+	const pillarGap = history.pillarSinceTick[candidate.pillarIndex];
+	if (role === 'quiet') {
+		if (pillarGap === null) return `Nothing ticked in ${name} yet.`;
+		return `${name} last had a tick ${pillarGap === 1 ? 'yesterday' : `${pillarGap} days ago`}.`;
 	}
-	for (const list of byPillar.values()) {
-		list.sort((a, b) => (touched.get(a.key) ?? '').localeCompare(touched.get(b.key) ?? ''));
-	}
-	const pillarOrder = [...byPillar.keys()].sort((a, b) => (activity[a] ?? 0) - (activity[b] ?? 0) || a - b);
+	const past = candidate.history;
+	if (role === 'momentum' && past) return `Done ${past.recentTicks === 1 ? 'once' : plural(past.recentTicks, 'time')} this week. Keep it going.`;
+	if (past?.sinceTick == null) return candidate.milestone ? 'A one-time step, not started yet.' : 'Not started yet.';
+	return `Last done ${past.sinceTick === 1 ? 'yesterday' : `${past.sinceTick} days ago`}.`;
+}
+
+function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: PickHistory): HelperPick {
+	return { key: candidate.key, text: candidate.text, pillarIndex: candidate.pillarIndex, why: whyFor(data, candidate, role, history) };
+}
+
+/**
+ * Today's three, as a mix: pins first, then one from the pillar that has waited longest,
+ * one that keeps something going, and the best of the rest. One per pillar while it can.
+ */
+export function suggestToday(
+	data: ChartData,
+	now: Date = new Date(),
+	count = 3,
+	exclude: ReadonlySet<string> = new Set()
+): HelperPick[] {
+	const history = pickHistory(data, now);
+	const dateKey = dateKeyOf(now);
+	const pool = candidates(data, history, now, exclude)
+		.map((candidate) => ({ candidate, score: scoreOf(candidate, history, dateKey) }))
+		.sort((a, b) => b.score - a.score);
 	const picks: HelperPick[] = [];
-	for (let round = 0; picks.length < count; round++) {
-		let added = false;
-		for (const pillarIndex of pillarOrder) {
-			const action = byPillar.get(pillarIndex)?.[round];
-			if (!action || picks.length >= count) continue;
-			picks.push({ ...action, why: pickWhy(action.key, pillarIndex, activity, touched, false) });
-			added = true;
-		}
-		if (!added) break;
-	}
+	const used = new Set<string>();
+	const usedPillars = new Set<number>();
+	const take = (candidate: Candidate | undefined, role: PickRole) => {
+		if (!candidate || picks.length >= count || used.has(candidate.key)) return;
+		picks.push(toPick(data, candidate, role, history));
+		used.add(candidate.key);
+		usedPillars.add(candidate.pillarIndex);
+	};
+	const fresh = (candidate: Candidate) => !used.has(candidate.key) && !usedPillars.has(candidate.pillarIndex);
+
+	for (const { candidate } of pool) if (candidate.pinned && fresh(candidate)) take(candidate, 'pinned');
+	const open = new Set(pool.filter(({ candidate }) => fresh(candidate)).map(({ candidate }) => candidate.pillarIndex));
+	const quiet = quietestPillar(history, dateKey, [...open]);
+	take(pool.find(({ candidate }) => candidate.pillarIndex === quiet && fresh(candidate))?.candidate, 'quiet');
+	take(pool.find(({ candidate }) => fresh(candidate) && (candidate.history?.recentTicks ?? 0) > 0)?.candidate, 'momentum');
+	for (const { candidate } of pool) if (fresh(candidate)) take(candidate, 'best');
+	for (const { candidate } of pool) take(candidate, 'best');
 	return picks;
 }
 
-/** Three for today: the week's pins first, one per pillar where possible. */
-export function suggestToday(data: ChartData, now: Date = new Date(), count = 3): HelperPick[] {
-	const today = dateKeyOf(now);
-	const done = new Set(data.days?.[today]?.checked ?? []);
-	const activity = pillarActivityLast7(data);
-	const touched = lastTouched(data);
-	const open = openActions(data).filter((action) => !done.has(action.key));
-	const pinned = open.filter((action) => data.meta?.[action.key]?.pinned);
-	const pinnedKeys = new Set(pinned.map((action) => action.key));
-	const ordered = [
-		...pinned.sort((a, b) => (touched.get(a.key) ?? '').localeCompare(touched.get(b.key) ?? '')),
-		...suggestWeek(data, 64).filter((pick) => !pinnedKeys.has(pick.key) && !done.has(pick.key))
-	];
+/** Five to eight for the week: one per pillar, the ones that waited longest first. */
+export function suggestWeek(
+	data: ChartData,
+	count = 6,
+	now: Date = new Date(),
+	exclude: ReadonlySet<string> = new Set()
+): HelperPick[] {
+	const history = pickHistory(data, now);
+	const dateKey = dateKeyOf(now);
+	const pool = candidates(data, history, now, exclude)
+		.map((candidate) => ({ candidate, score: scoreOf(candidate, history, dateKey) }))
+		.sort((a, b) => b.score - a.score);
 	const picks: HelperPick[] = [];
-	const usedPillars = new Set<number>();
-	for (const pass of [true, false]) {
-		for (const action of ordered) {
+	const used = new Set<string>();
+	for (let round = 0; picks.length < count; round++) {
+		const usedPillars = new Set<number>();
+		let added = false;
+		for (const { candidate } of pool) {
 			if (picks.length >= count) break;
-			if (picks.some((pick) => pick.key === action.key)) continue;
-			if (pass && usedPillars.has(action.pillarIndex)) continue;
-			usedPillars.add(action.pillarIndex);
-			picks.push({
-				key: action.key,
-				text: action.text,
-				pillarIndex: action.pillarIndex,
-				why: pickWhy(action.key, action.pillarIndex, activity, touched, pinnedKeys.has(action.key))
-			});
+			if (used.has(candidate.key) || usedPillars.has(candidate.pillarIndex)) continue;
+			if (picks.filter((pick) => pick.pillarIndex === candidate.pillarIndex).length > round) continue;
+			picks.push(toPick(data, candidate, candidate.pinned ? 'pinned' : 'best', history));
+			used.add(candidate.key);
+			usedPillars.add(candidate.pillarIndex);
+			added = true;
 		}
+		if (!added) break;
 	}
 	return picks;
 }
@@ -772,8 +901,10 @@ export function askMessages(
 	];
 }
 
-export function greetingFor(data: ChartData): string {
+export function greetingFor(data: ChartData, now: Date = new Date()): string {
 	if (!filled(data.goal)) return "Hi, I'm Bindu. Tell me the goal, and I'll start the chart with you.";
+	const insight = insightsFor(data, now)[0];
+	if (insight && insight.weight >= 30) return `Hi again. ${insight.text}`;
 	const plan = fillPlan(data);
 	if (plan?.kind === 'pillars') return `Hi again. "${data.goal.trim()}" still needs ${plan.empty.length} pillars. Want me to suggest some?`;
 	if (plan?.kind === 'actions') {
@@ -788,7 +919,8 @@ export type ChipAct =
 	| { kind: 'job'; job: HelperJob; pillar?: number }
 	| { kind: 'send'; text: string }
 	| { kind: 'sketch' }
-	| { kind: 'dismiss' };
+	| { kind: 'dismiss' }
+	| { kind: 'show'; key: string };
 
 export type HelperChip = { label: string; act: ChipAct };
 
@@ -822,6 +954,11 @@ export function offerChips(): HelperChip[] {
 	];
 }
 
+/** A chip for the action an insight is about. */
+export function insightChip(insight: HelperInsight | undefined): HelperChip | null {
+	return insight?.key ? { label: 'Open it', act: { kind: 'show', key: insight.key } } : null;
+}
+
 export function helpChips(): HelperChip[] {
 	return [jobChip('today', "Pick today's three"), jobChip('review', 'Review my chart')];
 }
@@ -847,10 +984,7 @@ export function textOfKey(data: ChartData, key: string): string {
 function currentStreak(data: ChartData, now: Date): number {
 	let streak = 0;
 	const date = new Date(now);
-	const active = (key: string) => {
-		const log = data.days?.[key];
-		return (log?.checked.length ?? 0) > 0;
-	};
+	const active = (key: string) => (data.days?.[key]?.checked.length ?? 0) > 0;
 	if (!active(dateKeyOf(date))) date.setDate(date.getDate() - 1);
 	while (active(dateKeyOf(date))) {
 		streak += 1;
@@ -864,40 +998,143 @@ function listNames(names: readonly string[]): string {
 	return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
+function quietPillars(data: ChartData, history: PickHistory, days = 7): number[] {
+	return data.pillars.flatMap((name, index) => {
+		if (!filled(name) || !(data.actions[index] ?? []).some(filled)) return [];
+		const gap = history.pillarSinceTick[index];
+		return gap === null || gap >= days ? [index] : [];
+	});
+}
+
+export type HelperInsight = {
+	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm';
+	text: string;
+	/** Higher shows first. Above 30 is worth a greeting. */
+	weight: number;
+	/** The action it is about, when there is one. */
+	key?: string;
+};
+
+function quote(text: string): string {
+	return `\u201c${text}\u201d`;
+}
+
+/**
+ * What the log says right now. Short windows on purpose: today, yesterday, this week.
+ * Every number is counted from `days`.
+ */
+export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsight[] {
+	if (!filled(data.goal) || !data.days) return [];
+	const insights: HelperInsight[] = [];
+	const history = pickHistory(data, now);
+	const today = data.days[dateKeyOf(now)];
+	const yesterdayDate = new Date(now);
+	yesterdayDate.setDate(now.getDate() - 1);
+	const yesterday = data.days[dateKeyOf(yesterdayDate)];
+	const everTicked = Object.values(data.days).some((log) => log.checked.length > 0);
+	if (!everTicked) return [];
+
+	if (today && today.focus.length > 0) {
+		const done = today.focus.filter((key) => today.checked.includes(key)).length;
+		if (done === today.focus.length) insights.push({ id: 'today', text: done === 1 ? "Today's pick is done." : `All ${done} of today's picks are done.`, weight: 50 });
+		else if (done > 0) insights.push({ id: 'today', text: `${done} of ${today.focus.length} done today.`, weight: 20 });
+	}
+
+	if (yesterday && yesterday.focus.length > 0) {
+		const done = yesterday.focus.filter((key) => yesterday.checked.includes(key)).length;
+		insights.push({
+			id: 'yesterday',
+			text: done === yesterday.focus.length ? 'Yesterday you finished everything you picked.' : `Yesterday you finished ${done} of ${yesterday.focus.length}.`,
+			weight: done === yesterday.focus.length ? 28 : 18
+		});
+	}
+
+	if (today && today.checked.length > 0) {
+		let gap = 0;
+		const date = new Date(now);
+		for (let step = 1; step <= 60; step++) {
+			date.setDate(date.getDate() - 1);
+			if ((data.days[dateKeyOf(date)]?.checked.length ?? 0) > 0) break;
+			gap = step;
+		}
+		if (gap >= 4 && gap < 60) insights.push({ id: 'comeback', text: `First tick in ${gap + 1} days. Good to see you.`, weight: 45 });
+	}
+
+	const streak = currentStreak(data, now);
+	if (streak >= 3) insights.push({ id: 'streak', text: `${streak} days in a row.`, weight: 15 + Math.min(streak, 15) });
+
+	for (const [key, past] of history.actions) {
+		const text = textOfKey(data, key);
+		if (!text) continue;
+		if (isStuck(past)) {
+			insights.push({ id: 'stuck', key, text: `You picked ${quote(text)} ${plural(past.missedPicks, 'time')} and haven't ticked it. A smaller version might go.`, weight: 40 + past.missedPicks });
+		} else if (past.recentDrops >= 2) {
+			insights.push({ id: 'dropped', key, text: `${quote(text)} came off the list ${past.recentDrops === 2 ? 'twice' : `${past.recentDrops} times`} this week.`, weight: 32 });
+		}
+	}
+
+	const quiet = quietPillars(data, history);
+	if (quiet.length > 0 && quiet.length < 8) {
+		const longest = quietestPillar(history, dateKeyOf(now), quiet)!;
+		const gap = history.pillarSinceTick[longest];
+		const name = pillarName(data, longest);
+		insights.push({
+			id: 'quiet',
+			text: gap === null ? `Nothing ticked in ${name} yet.` : `${name} hasn't had a tick in ${gap} days.`,
+			weight: 30
+		});
+	}
+
+	const times: number[] = [];
+	for (const [dateKey, log] of Object.entries(data.days)) {
+		const ago = daysBetween(dateKey, now);
+		if (ago < 0 || ago > 14) continue;
+		for (const clock of Object.values(log.at ?? {})) {
+			const hour = Number(clock.split(':')[0]);
+			if (Number.isFinite(hour)) times.push(hour);
+		}
+	}
+	if (times.length >= 5) {
+		const share = (test: (hour: number) => boolean) => times.filter(test).length / times.length;
+		if (share((hour) => hour < 12) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks land before noon.', weight: 16 });
+		else if (share((hour) => hour >= 18) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks happen in the evening.', weight: 16 });
+		else if (share((hour) => hour >= 12 && hour < 18) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks happen in the afternoon.', weight: 16 });
+	}
+
+	return insights.sort((a, b) => b.weight - a.weight);
+}
+
 /** "How am I doing?" from the log. Every number here is counted, not written. */
 export function progressReport(data: ChartData, now: Date = new Date()): string {
 	if (!filled(data.goal)) return 'There is no goal yet. Tell me the goal and we can start the chart.';
 	const written = data.actions.flat().filter(filled).length;
+	const everTicked = Object.values(data.days ?? {}).some((log) => log.checked.length > 0);
+	if (!everTicked) {
+		const first = written === 64 ? 'All 64 actions are written. Nothing ticked yet.' : `${written} of 64 actions are written. Nothing ticked yet.`;
+		return `${first} ${written > 0 ? "Pick today's three and the log starts." : 'Fill a pillar first, then pick a few for today.'}`;
+	}
+	const history = pickHistory(data, now);
 	let ticks = 0;
 	for (let offset = 0; offset < 7; offset++) {
 		const date = new Date(now);
 		date.setDate(now.getDate() - offset);
 		ticks += data.days?.[dateKeyOf(date)]?.checked.length ?? 0;
 	}
-	const everTicked = Object.values(data.days ?? {}).some((log) => log.checked.length > 0);
-	const lines: string[] = [];
-	if (!everTicked) {
-		lines.push(written === 64 ? 'All 64 actions are written. Nothing ticked yet.' : `${written} of 64 actions are written. Nothing ticked yet.`);
-		lines.push(written > 0 ? "Pick today's three and the log starts." : 'Fill a pillar first, then pick a few for today.');
-		return lines.join(' ');
-	}
-	const activity = pillarActivityLast7(data);
-	const used = activity.filter((count, index) => count > 0 && filled(data.pillars[index])).length;
-	lines.push(
+	const ticked = history.pillarSinceTick.filter((gap, index) => gap !== null && gap < 7 && filled(data.pillars[index])).length;
+	const lines: string[] = [
 		ticks === 0
 			? 'Nothing ticked in the last 7 days.'
-			: `${ticks} ${ticks === 1 ? 'tick' : 'ticks'} in the last 7 days, from ${used} ${used === 1 ? 'pillar' : 'pillars'}.`
-	);
-	const quiet = data.pillars.flatMap((name, index) =>
-		filled(name) && (data.actions[index] ?? []).some(filled) && (activity[index] ?? 0) === 0 ? [name.trim()] : []
-	);
+			: `${plural(ticks, 'tick')} in the last 7 days, from ${plural(ticked, 'pillar')}.`
+	];
+	const quiet = quietPillars(data, history).map((index) => pillarName(data, index));
 	if (quiet.length > 0 && quiet.length <= 3) lines.push(`Nothing from ${listNames(quiet)} this week.`);
-	else if (quiet.length > 3) lines.push(`${quiet.length} pillars sat out this week, ${listNames(quiet.slice(0, 2))} among them.`);
+	else if (quiet.length > 3 && quiet.length < 8) lines.push(`${quiet.length} pillars sat out this week, ${listNames(quiet.slice(0, 2))} among them.`);
 	const streak = currentStreak(data, now);
 	if (streak >= 2) lines.push(`${streak} days in a row.`);
 	const milestones = Object.values(data.meta ?? {}).filter((meta) => meta.kind === 'milestone' && meta.done).length;
-	if (milestones > 0) lines.push(`${milestones} ${milestones === 1 ? 'milestone' : 'milestones'} done.`);
-	return lines.join(' ');
+	if (milestones > 0) lines.push(`${plural(milestones, 'milestone')} done.`);
+	const extra = insightsFor(data, now).filter((insight) => !['quiet', 'streak', 'today'].includes(insight.id)).slice(0, 2);
+	return [...lines, ...extra.map((insight) => insight.text)].join(' ');
 }
 
 const CARD_LIST_MAX = 8;

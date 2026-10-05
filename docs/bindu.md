@@ -25,8 +25,9 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | Greeting and next-step chips | Open the panel | No | `greetingFor`, `chipsFor` |
 | Review the chart: lines that can't be ticked, results you don't control, a line that repeats its pillar, duplicates, too long, one word | "Review my chart" chip or phrase | No | `reviewChart`, `lineFault` |
 | Rewrite the lines a review flagged | "Use" on the findings card | Yes | `rewriteCell` |
-| Plan this week: about 6 actions, quietest pillars first | "Plan this week" | No | `suggestWeek` |
-| Pick today's three: pinned first, one per pillar | "Pick today's three" | No | `suggestToday` |
+| Plan this week: about 6 actions, one per pillar, the ones that waited longest first | "Plan this week" | No | `suggestWeek` |
+| Pick today's three, with Swap on each pick (see "How picks work") | "Pick today's three" | No | `suggestToday`, `swap` |
+| Insights from today, yesterday and this week, in the greeting and in "How am I doing?" | Opening the panel, "How am I doing?" | No | `insightsFor` |
 | Fill empty pillars, or the empty actions of one pillar | "Suggest pillars", "Fill Health", or naming a pillar with "fill" | Yes | `fillPillars`, `fillActions` |
 | Draft a whole chart: two questions, then goal and pillars, then 64 actions | "Start a chart" (panel chip, or the empty chart's button) | Yes | `proposePillars`, `fillDraftActions` |
 | Spot a new goal in a message ("I want to learn Spanish") and offer to sketch it | Typing it | Detection no, sketch yes | `aimOf` |
@@ -62,6 +63,37 @@ Most of the jobs need no model. They run instantly, without the 2.3 GB download,
 - Open chat also gets the chart: each pillar with its action count and how often it was used in the last 7 days, the actions of the pillar the question names (or the selected one), and today's picks.
 - The draft answers (timeline, situation, focus, constraint) are saved on the chart as `brief`. Fills, rewrites and answers get them as one line. The brief syncs between your devices and stays out of share links.
 - The download consent is stored as `mandala-helper-model`.
+
+## How picks work
+
+Each open action gets a score from the day logs (`pickHistory`, `suggestToday`):
+
+- **Pillar wait:** days since the pillar last had a tick. A pick without a tick doesn't count as done.
+- **Action wait:** days since the action was last ticked.
+- **Pinned:** always first.
+- **One-time step:** a small bonus for a milestone not done yet.
+- **Penalties:** a pick that didn't get ticked, and an action taken off the list this week.
+- **Left out entirely:** anything turned down or taken off today's list, anything already ticked today, and anything picked 3 times in 14 days without a tick. Unless it's pinned, the last one shows up as an insight instead.
+- **Ties:** a seed from the date and the action settles them. Picks stay the same all day but change from day to day, so a fresh chart no longer always starts in the top-left.
+
+The three are a mix, one per pillar while there are enough pillars:
+1. Pins.
+2. The best action in the pillar that has waited longest. The greeting names the same pillar.
+3. One you ticked in the last 7 days, to keep it going.
+4. The best of the rest.
+
+Each pick says why it was chosen. "Swap" replaces one pick and records the old one as turned down today. "Not now" turns down all of them. Asking again then gives different picks.
+
+Routines are habits that are always on, so they are never picked.
+
+### What the day log keeps
+
+`DayLog` holds the day's `focus` (picks) and `checked` (ticks), plus:
+- `at`: the time of each tick, "HH:MM".
+- `dropped`: picks taken off the list that day.
+- `declined`: Bindu's suggestions turned down that day.
+
+All of it syncs with the chart.
 
 ## What the probe found
 
@@ -121,7 +153,11 @@ Three pure steps, each tested on its own:
 
 ### Insights
 
-Everything here comes from data the chart already keeps: `days` (each day's picks and ticks), `meta` (routine or milestone, pinned, done, `doneAt`, note) and `weeks` (reflection notes and swaps). There are no times of day and no record of a skipped suggestion, so no insight claims either.
+**Built, short windows** (`insightsFor`): today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with an "Open it" chip), an action taken off the list twice this week, the pillar that has waited longest, and time of day once there are 5 timed ticks in 2 weeks. The greeting leads with the strongest one. "How am I doing?" adds up to two after its counts. They don't need weeks of history: one good day or one stuck pick is enough.
+
+**Still to build**, from the catalog below: lopsided month, follow-through by pillar, ready to retire, weekday rhythm, pinned untouched, your own words, thin pillar.
+
+Everything here comes from data the chart already keeps: `days` (each day's picks and ticks), `meta` (routine or milestone, pinned, done, `doneAt`, note) and `weeks` (reflection notes and swaps). Tick times, picks taken off the list, and turned-down suggestions are logged from 2026-10-05 on.
 
 | Insight | Fires when | Bindu says | Chip |
 | --- | --- | --- | --- |
@@ -196,7 +232,7 @@ The rule side runs in `bun run test`, with these floors as assertions, so a chan
 
 1. ~~Fix the three routing bugs, and add the message set as a test.~~ Done, with the progress reply, help from the chart, and thanks and hello.
 2. The intent bank, clarify chips, and the method answers.
-3. Insights: quiet pillar, picked not done, comeback, your own words.
+3. ~~Insights: quiet pillar, picked not done, comeback~~ (done, with better picks and Swap). Your own words is next.
 4. Memory: ~~facts from the draft answers~~ (saved as `brief`; not yet shown or editable in the panel), then declined and seen.
 5. Guided rewrite.
 6. Test 1, then decide on model review.

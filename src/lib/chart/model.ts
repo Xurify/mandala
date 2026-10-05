@@ -34,6 +34,12 @@ export type DayLog = {
 	focus: string[];
 	checked: string[];
 	started?: boolean;
+	/** Local time of each tick, "HH:MM". */
+	at?: Record<string, string>;
+	/** Picks taken off the day's list. */
+	dropped?: string[];
+	/** Suggestions turned down that day: skipped or swapped out. */
+	declined?: string[];
 };
 
 export type WeekReflection = {
@@ -439,6 +445,10 @@ export function dateKeyOf(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+export function clockOf(date: Date): string {
+	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 export function todayKey(): string {

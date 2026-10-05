@@ -15,6 +15,8 @@ import {
 	greetingFor,
 	helpChips,
 	helpReply,
+	insightChip,
+	insightsFor,
 	intentOf,
 	isCancellation,
 	isCardRejection,
@@ -29,6 +31,7 @@ import {
 	suggestWeek,
 	textOfKey,
 	type CardState,
+	type HelperPick,
 	type CellEdit,
 	type ChatMessage,
 	type CoachLoad,
@@ -54,6 +57,8 @@ export type HelperTarget = {
 	setToday(keys: string[]): void;
 	pinWeek(keys: string[]): void;
 	showCell(key: string): void;
+	/** Suggestions turned down today, so they are not offered again today. */
+	decline?(keys: string[]): void;
 	/** The chart the conversation belongs to. The lab leaves it out and keeps one thread. */
 	chartId?(): string;
 };
@@ -134,6 +139,8 @@ export class HelperStore {
 	#threads = new Map<string, HelperMessage[]>();
 	#jobChart: string | null = null;
 	#thanks = 0;
+	#lead = $state<HelperChip | null>(null);
+	#swapped = new Set<string>();
 
 	constructor(target: HelperTarget) {
 		this.#target = target;
@@ -158,7 +165,14 @@ export class HelperStore {
 		this.#sorry = false;
 		this.unread = false;
 		this.#clearTurn();
-		if (this.open && this.messages.length === 0) this.#aside(greetingFor(this.#target.data()));
+		if (this.open && this.messages.length === 0) this.#greet();
+	}
+
+	#greet(): void {
+		const data = this.#target.data();
+		const top = insightsFor(data)[0];
+		this.#aside(greetingFor(data));
+		this.#lead = top && top.weight >= 30 ? insightChip(top) : null;
 	}
 
 	get #stale(): boolean {
@@ -174,6 +188,7 @@ export class HelperStore {
 		if (this.step === 'offer') return offerChips();
 		if (this.step === 'extra') return extraChips(this.#sketch !== null);
 		if (this.step === 'direction') return [];
+		if (this.#lead) return [this.#lead, ...chipsFor(this.#target.data(), this.#target.selectedPillar())];
 		if (this.#help) return helpChips();
 		if (this.#pillarFill !== null) {
 			const name = (this.#target.data().pillars[this.#pillarFill] ?? '').trim();
@@ -191,7 +206,7 @@ export class HelperStore {
 	show(job?: HelperJob): void {
 		this.open = true;
 		this.unread = false;
-		if (this.messages.length === 0) this.#aside(greetingFor(this.#target.data()));
+		if (this.messages.length === 0) this.#greet();
 		void this.#warm();
 		if (job) void this.start(job);
 	}
@@ -212,7 +227,7 @@ export class HelperStore {
 		this.#pending = null;
 		this.#sorry = false;
 		this.#clearTurn();
-		this.#aside(greetingFor(this.#target.data()));
+		this.#greet();
 	}
 
 	cancel(): void {
@@ -228,6 +243,7 @@ export class HelperStore {
 		if (act.kind === 'job') void this.start(act.job, act.pillar);
 		else if (act.kind === 'send') void this.send(act.text);
 		else if (act.kind === 'sketch') void this.#sketchAim();
+		else if (act.kind === 'show') this.showCell(act.key);
 		else this.#dismissAim();
 	}
 
@@ -277,6 +293,7 @@ export class HelperStore {
 			this.step = 'idle';
 		}
 		this.#help = false;
+		this.#lead = null;
 		this.#pillarFill = null;
 
 		const openMessage = this.messages.find((entry) => entry.state === 'open');
@@ -301,6 +318,7 @@ export class HelperStore {
 		}
 		if (intent === 'progress') {
 			this.#say(progressReport(data));
+			this.#lead = insightChip(insightsFor(data).find((insight) => insight.key));
 			return;
 		}
 		if (intent === 'chart') {
@@ -401,10 +419,34 @@ export class HelperStore {
 		}
 	}
 
+	/** Trade one pick for the next best, from a pillar the others don't use where it can. */
+	swap(id: number, key: string): void {
+		const message = this.messages.find((entry) => entry.id === id);
+		const card = message?.card;
+		if (!message || card?.kind !== 'picks' || message.state !== 'open') return;
+		this.#swapped.add(key);
+		this.#target.decline?.([key]);
+		const keep = card.picks.filter((pick) => pick.key !== key);
+		const exclude = new Set([...card.picks.map((pick) => pick.key), ...this.#swapped]);
+		const data = this.#target.data();
+		const options = card.scope === 'today' ? suggestToday(data, new Date(), 8, exclude) : suggestWeek(data, 8, new Date(), exclude);
+		const taken = new Set(keep.map((pick) => pick.pillarIndex));
+		const next: HelperPick | undefined = options.find((pick) => !taken.has(pick.pillarIndex)) ?? options[0];
+		const picks = next ? card.picks.map((pick) => (pick.key === key ? next : pick)) : keep;
+		if (picks.length === 0) {
+			this.#settle(id, 'skipped');
+			this.#aside('Nothing else is open right now.');
+			return;
+		}
+		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { ...card, picks } } : entry));
+		if (!next) this.#aside('Nothing else is open right now.');
+	}
+
 	skip(id: number): void {
 		const message = this.messages.find((entry) => entry.id === id);
 		if (!message?.card || message.state !== 'open') return;
 		this.#settle(id, 'skipped');
+		if (message.card.kind === 'picks') this.#target.decline?.(message.card.picks.map((pick) => pick.key));
 		if (message.card.kind === 'download') {
 			this.#pending = null;
 			this.#say('No problem. Copy the prompt into any chat app and paste the reply here.', { kind: 'prompt' });
@@ -436,6 +478,7 @@ export class HelperStore {
 	}
 
 	#picks(scope: 'today' | 'week', data: ChartData): void {
+		this.#swapped.clear();
 		const picks = scope === 'today' ? suggestToday(data) : suggestWeek(data);
 		if (picks.length === 0) {
 			this.#say('There is nothing open to pick yet. Add a few actions first.');
@@ -612,6 +655,7 @@ export class HelperStore {
 
 	#clearTurn(): void {
 		this.#help = false;
+		this.#lead = null;
 		this.#pillarFill = null;
 		this.#sketch = null;
 		this.#sketchId = 0;
@@ -755,5 +799,6 @@ export const helper = new HelperStore({
 		chart.say(`Pinned ${keys.length} for this week.`);
 	},
 	showCell: (key) => chart.jumpToKey(key),
+	decline: (keys) => chart.declineToday(keys),
 	chartId: () => chart.activeId
 });

@@ -17,6 +17,7 @@ import {
   setMeta,
   STORAGE_KEY,
   todayKey,
+  clockOf,
   weekStartKey,
   type ActionMeta,
   type ChartData,
@@ -566,7 +567,9 @@ export class ChartStore {
   setFocus(dateKey: string, keys: string[]): void {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    const log: DayLog = { ...existing, focus: keys, started: true };
+    const removed = existing.focus.filter((key) => !keys.includes(key));
+    const dropped = [...(existing.dropped ?? []).filter((key) => !keys.includes(key)), ...removed];
+    const log: DayLog = { ...existing, focus: keys, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
     this.data.days[dateKey] = log;
     this.data = { ...this.data };
     this.save();
@@ -576,13 +579,28 @@ export class ChartStore {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     const isChecked = existing.checked.includes(key);
+    const at = { ...existing.at };
+    if (isChecked) delete at[key];
+    else at[key] = clockOf(new Date());
     const log: DayLog = {
       ...existing,
       checked: isChecked
         ? existing.checked.filter((checkedKey) => checkedKey !== key)
         : [...existing.checked, key],
+      at: Object.keys(at).length > 0 ? at : undefined,
     };
     this.data.days[dateKey] = log;
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  /** Bindu's suggestions turned down today, so they are not offered again today. */
+  declineToday(keys: string[]): void {
+    if (keys.length === 0) return;
+    if (!this.data.days) this.data.days = {};
+    const dateKey = todayKey();
+    const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
+    this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...keys])] };
     this.data = { ...this.data };
     this.save();
   }
