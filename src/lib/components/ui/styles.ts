@@ -47,6 +47,33 @@ export const segmented = tv({
 	defaultVariants: { size: 'md' }
 });
 
+export const select = tv({
+	slots: {
+		wrap: 'relative flex min-w-0',
+		trigger:
+			'field-ink inline-flex w-full cursor-pointer appearance-none items-center justify-between gap-2 rounded-full text-start font-sans font-[560] aria-expanded:bg-surface aria-expanded:shadow-[0_0_0_1px_color-mix(in_oklch,var(--accent)_42%,transparent),0_0_0_4px_color-mix(in_oklch,var(--accent)_9%,transparent)]',
+		value: 'min-w-0 flex-1 truncate',
+		chevron: 'shrink-0 text-muted motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-ui',
+		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
+		panel:
+			'absolute start-0 top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,20rem)] w-full min-w-full flex-col gap-px overflow-x-clip overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float origin-top-left motion-safe:animate-menu',
+		option:
+			'flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none aria-selected:bg-sunken coarse:min-h-[46px]',
+		check: 'shrink-0 text-text'
+	},
+	variants: {
+		size: {
+			md: { trigger: 'h-[42px] px-4 text-base' },
+			sm: { trigger: 'h-[34px] px-3.5 text-[0.84rem]' }
+		},
+		open: {
+			true: { chevron: 'rotate-180' },
+			false: {}
+		}
+	},
+	defaultVariants: { size: 'md', open: false }
+});
+
 export const menu = tv({
 	slots: {
 		wrap: 'relative flex',

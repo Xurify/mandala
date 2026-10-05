@@ -24,6 +24,7 @@
 	import MenuItem from '$lib/components/ui/MenuItem.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { dock, fieldInk, menu, textArea, textField } from '$lib/components/ui/styles';
 	import ToastLab from './ToastLab.svelte';
 
@@ -375,6 +376,14 @@
 	let shortcutsOpen = $state(false);
 	let paletteOpen = $state(false);
 	let pinned = $state(true);
+	let pickedModel = $state('qwen3');
+	const modelChoices = [
+		{ value: 'qwen15', label: 'Qwen2.5 1.5B' },
+		{ value: 'qwen17', label: 'Qwen3 1.7B' },
+		{ value: 'qwen3', label: 'Qwen3 4B' },
+		{ value: 'qwen3t', label: 'Qwen3 4B, thinking' }
+	];
+
 	let name = $state('Morning chart');
 	let query = $state('walk');
 	let reply = $state('');
@@ -655,7 +664,11 @@
 
 	<Card id="fields" class="flex scroll-mt-6 flex-col gap-5">
 		<Eyebrow>Fields</Eyebrow>
-		<div class="grid gap-4 md:grid-cols-2">
+		<div class="grid items-end gap-4 md:grid-cols-2">
+			<div class="flex flex-col gap-1.5">
+				<span id="catalog-model" class="text-[0.82rem] font-semibold">Model</span>
+				<Select label="Model" labelledBy="catalog-model" options={modelChoices} bind:value={pickedModel} />
+			</div>
 			<label class="flex flex-col gap-1.5">
 				<span class="text-[0.82rem] font-semibold">Chart name</span>
 				<input class={field} type="text" bind:value={name} spellcheck="false" />
@@ -664,6 +677,16 @@
 				<span class="text-[0.82rem] font-semibold">Disabled</span>
 				<input class={field} type="text" value="Locked title" disabled />
 			</label>
+			<div class="flex flex-col gap-1.5">
+				<span id="catalog-model-locked" class="text-[0.82rem] font-semibold">Locked</span>
+				<Select
+					label="Locked model"
+					labelledBy="catalog-model-locked"
+					options={modelChoices}
+					value="qwen3"
+					disabled
+				/>
+			</div>
 		</div>
 		<label class="flex max-w-[340px] flex-col gap-1.5">
 			<span class="text-[0.82rem] font-semibold">Search</span>

@@ -26,6 +26,7 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import { textArea, textField } from '$lib/components/ui/styles';
 
 	type Coach = typeof import('$lib/chart/coach.browser');
@@ -187,6 +188,12 @@
 	let reply = $state('');
 
 	let candidate = $state('2');
+	const modelOptions = $derived(
+		(coach?.COACH_CANDIDATES ?? []).map((choice, index) => ({
+			value: String(index),
+			label: choice.label
+		}))
+	);
 	type HoldoutRow = {
 		model: string;
 		direction: string;
@@ -296,11 +303,23 @@
 				<Button size="sm" variant="ghost" disabled={!running} onclick={() => coach?.interruptCoach()}>Stop</Button>
 			</div>
 		</div>
-		<dl class="m-0 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 text-[0.88rem]">
-			<div><dt class="text-muted">WebGPU</dt><dd class="m-0 font-[620]">{webgpu === null ? 'Checking' : webgpu ? 'Available' : 'Not available'}</dd></div>
-			<div><dt class="text-muted">Model</dt><dd class="m-0 font-[620] break-all">{coach?.coachModel() ?? '…'}</dd></div>
-			<div><dt class="text-muted">State</dt><dd class="m-0 font-[620]">{loaded ? 'In memory' : running ? `Running: ${running}` : 'Not loaded'}</dd></div>
-			<div><dt class="text-muted">Load time</dt><dd class="m-0 font-[620] tabular-nums">{seconds('load') || '—'}</dd></div>
+		<dl class="m-0 grid grid-cols-2 gap-x-6 gap-y-3 text-[0.88rem] sm:grid-cols-4">
+			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">WebGPU</dt>
+				<dd class="m-0 font-[620]">{webgpu === null ? 'Checking' : webgpu ? 'Available' : 'Not available'}</dd>
+			</div>
+			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">Model</dt>
+				<dd class="m-0 font-[620] break-all">{coach?.coachModel() ?? '…'}</dd>
+			</div>
+			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">State</dt>
+				<dd class="m-0 font-[620]">{loaded ? 'In memory' : running ? `Running: ${running}` : 'Not loaded'}</dd>
+			</div>
+			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">Load time</dt>
+				<dd class="m-0 font-[620] tabular-nums">{seconds('load') || '—'}</dd>
+			</div>
 		</dl>
 		<p class="m-0 min-h-[1.4em] text-[0.84rem] text-muted" role="status">
 			{load?.label ?? ''}
@@ -314,32 +333,44 @@
 		<p class="m-0 text-[0.88rem] text-pretty text-muted">
 			Same invented starting answers, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
 		</p>
-		<div class="flex flex-wrap items-end gap-3">
-			<label class="flex min-w-52 flex-1 flex-col gap-1.5">
-				<span class="text-[0.82rem] font-semibold">Model</span>
-				<select class={field} bind:value={candidate} disabled={running !== null} aria-label="Model to score">
-					{#each coach?.COACH_CANDIDATES ?? [] as choice, index (choice.label)}
-						<option value={String(index)}>{choice.label}</option>
-					{/each}
-				</select>
-			</label>
-			<Button size="sm" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(8)}>
-				{running === 'holdout' ? 'Scoring' : 'Score 8'}
-			</Button>
-			<Button size="sm" variant="soft" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
-			<span class="text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
+		<div class="flex flex-wrap items-end gap-2">
+			<div class="flex min-w-56 flex-[1_1_16rem] flex-col gap-1.5">
+				<span id="holdout-model" class="text-[0.82rem] font-semibold">Model</span>
+				<Select
+					label="Model to score"
+					labelledBy="holdout-model"
+					options={modelOptions}
+					bind:value={candidate}
+					disabled={running !== null}
+					placeholder="Loading models"
+				/>
+			</div>
+			<div class="flex h-[42px] items-center gap-2">
+				<Button disabled={!webgpu || running !== null} onclick={() => scoreHoldout(8)}>
+					{running === 'holdout' ? 'Scoring' : 'Score 8'}
+				</Button>
+				<Button variant="soft" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
+				<span class="w-14 text-end text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
+			</div>
 		</div>
 		{#if holdoutNote}<p class="m-0 text-[0.88rem] text-danger" role="alert">{holdoutNote}</p>{/if}
 		<pre class={pre}>{holdoutRows.map((row) => `${row.model} · ${row.direction} · ${row.filled}/64 · faults ${row.faults} · copies ${row.copies} · constraint ${row.constraint ? 'yes' : 'no'} · ${row.seconds}s`).join('\n') || 'Nothing scored yet.'}</pre>
 	</Card>
 
 	<Card class="flex flex-col gap-4">
-		<div class="flex flex-wrap items-center justify-between gap-3">
+		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 			<Eyebrow>Sandbox chart</Eyebrow>
-			<SegmentedControl label="Scenario" size="sm" options={scenarios} value={scenario} onchange={pickScenario} />
+			<SegmentedControl
+				class="max-w-full"
+				label="Scenario"
+				size="sm"
+				options={scenarios}
+				value={scenario}
+				onchange={pickScenario}
+			/>
 		</div>
 		<div class="grid grid-cols-[minmax(0,1fr)_minmax(0,400px)] gap-6 max-[900px]:grid-cols-1">
-			<div class="flex min-w-0 flex-col gap-4">
+			<div class="flex min-h-0 min-w-0 flex-col gap-4">
 				<p class="m-0 text-[1.05rem] font-[620]">{sample.goal || 'No goal yet'}</p>
 				<ol class="m-0 grid list-none grid-cols-2 gap-x-5 gap-y-2.5 p-0 max-[640px]:grid-cols-1">
 					{#each sample.pillars as pillar, pillarIndex (pillarIndex)}
@@ -358,9 +389,9 @@
 					{/each}
 				</ol>
 				<p class="m-0 text-[0.8rem] text-muted">Press a pillar to act as the selected block. Bindu fills that one first.</p>
-				<div class="flex flex-col gap-1.5">
+				<div class="flex min-h-0 flex-1 flex-col gap-1.5">
 					<span class="text-[0.82rem] font-semibold">What Bindu changed</span>
-					<pre class={pre}>{events.join('\n') || 'Nothing yet.'}</pre>
+					<pre class="m-0 min-h-28 flex-1 overflow-auto rounded-2xl bg-sunken px-3.5 py-3 font-mono text-[0.76rem] leading-[1.5] whitespace-pre-wrap text-text">{events.join('\n') || 'Nothing yet.'}</pre>
 				</div>
 			</div>
 			<div class="h-[600px] min-w-0 rounded-[28px] shadow-float">
