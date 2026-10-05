@@ -150,12 +150,7 @@
 	}
 
 	.cell span {
-		display: -webkit-box !important;
-		-webkit-line-clamp: 4 !important;
-		-webkit-box-orient: vertical !important;
-		overflow: hidden !important;
 		color: inherit !important;
-		font-size: 8pt !important;
 		line-height: 1.15 !important;
 		opacity: 1 !important;
 	}

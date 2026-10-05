@@ -11,7 +11,14 @@
 		type ActionMeta,
 		type ChartData
 	} from '$lib/chart/model';
-	import { goalTypeMin, largestFittingSize, rememberGoalFit, watchFaceSwap } from './goal-fit';
+	import {
+		fullLinesThatFit,
+		largestSizeThatFits,
+		remeasureWhenFontSettles,
+		saveGoalFitForNextVisit,
+		smallestFontSizeForSentence,
+		type CellKind
+	} from './goal-fit';
 	import { cn } from './ui/cn';
 
 	let {
@@ -73,15 +80,17 @@
 		const hasText = !placeholder;
 
 		return cn(
-			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans motion-safe:transition-[transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
+			'cell relative flex flex-col aspect-square min-w-0 cursor-pointer items-center justify-center overflow-hidden border-0 text-center font-sans leading-[1.15] motion-safe:transition-[transform,box-shadow] motion-safe:duration-[180ms] motion-safe:ease-ui',
 			'focus-visible:z-[1] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink',
 			'can-hover:hover:z-2 can-hover:hover:scale-[1.04] can-hover:hover:shadow-[0_6px_16px_-4px_oklch(0_0_0/0.2)]',
-			view ? 'rounded-[11px] leading-[1.25]' : 'rounded-[7px] p-[3px] text-[clamp(8px,1.55cqw,12px)] leading-[1.15]',
-			view && type === 'action' && 'px-1 py-[5px] text-[clamp(8.5px,1.3cqw,13px)]',
-			view && type === 'pillar' && 'px-1 py-[5px] text-[clamp(9px,1.45cqw,13.5px)]',
-			view &&
-				type === 'goal' &&
-				'px-[clamp(10px,1.15em,18px)] py-1.5 font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.01em]',
+			view ? 'rounded-[11px]' : 'rounded-[7px] text-[clamp(8px,1.55cqw,12px)]',
+			// 28% radius needs ~8% inset or the curve slices the first and last letters.
+			type === 'action' && (view ? 'p-[max(4px,5%)]' : 'p-[max(3px,4%)]'),
+			type === 'pillar' && 'p-[max(5px,10%)]',
+			type === 'goal' && 'p-[max(6px,10%)]',
+			view && type === 'action' && 'text-[clamp(8.5px,1.3cqw,13px)]',
+			view && type === 'pillar' && 'text-[clamp(9px,1.45cqw,13.5px)]',
+			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.01em]',
 			type === 'goal' &&
 				'goal bg-goal text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
 			type === 'goal' && (view ? 'font-[560]' : 'font-semibold'),
@@ -149,48 +158,84 @@
 		return `${describe(blockIndex, cellIndex)}: ${text || 'empty'}`;
 	}
 
-	const fitGoalText: Attachment = (element) => {
+	function kindOf(element: HTMLElement): CellKind {
+		const kind = element.dataset.kind;
+		if (kind === 'goal' || kind === 'pillar' || kind === 'action') return kind;
+		return 'action';
+	}
+
+	const fitCellText: Attachment = (element) => {
 		if (!(element instanceof HTMLSpanElement)) return;
 		const cell = element.parentElement;
 		if (!(cell instanceof HTMLElement)) return;
 
 		let frame = 0;
 
-		const apply = (): void => {
-			const text = element.textContent ?? '';
+		const clearClamp = (): void => {
 			element.style.display = '';
 			element.style.overflow = '';
-			element.style.removeProperty('-webkit-line-clamp');
-			if (text.trim() === '' || getComputedStyle(element).display === 'none') return;
+			element.style.overflowWrap = '';
+			element.style.webkitLineClamp = '';
+			element.style.webkitBoxOrient = '';
+		};
+
+		const apply = (): void => {
+			const text = (element.textContent ?? '').replace(/\s+/g, ' ').trim();
+			clearClamp();
+			if (text === '' || getComputedStyle(element).display === 'none') {
+				element.style.fontSize = '';
+				cell.removeAttribute('title');
+				return;
+			}
 
 			const cellStyle = getComputedStyle(cell);
 			const available =
-				cell.clientHeight - parseFloat(cellStyle.paddingTop) - parseFloat(cellStyle.paddingBottom);
+				cell.clientHeight -
+				parseFloat(cellStyle.paddingTop) -
+				parseFloat(cellStyle.paddingBottom) -
+				1;
 			if (available <= 0) return;
 
-			// The button carries the design size. The span may already wear the saved size.
+			// The button carries the design size. The span may already wear a fitted size.
 			const max = parseFloat(cellStyle.fontSize);
 			if (!Number.isFinite(max) || max <= 0) return;
 
+			const kind = kindOf(element);
+			const min = smallestFontSizeForSentence(max, kind);
 			element.style.display = 'block';
 			element.style.overflow = 'visible';
-			element.style.setProperty('-webkit-line-clamp', 'unset');
-
-			const min = goalTypeMin(max);
 			const fits = (size: number): boolean => {
 				element.style.fontSize = `${size}px`;
-				return element.scrollHeight <= available + 1;
+				return element.scrollHeight <= available && element.scrollWidth <= element.clientWidth + 1;
 			};
 
-			const chosen = largestFittingSize(min, max, fits);
-
-			element.style.display = '';
-			element.style.overflow = '';
-			element.style.removeProperty('-webkit-line-clamp');
-			const used = chosen >= max - 0.25 ? max : chosen;
-			const next = `${used.toFixed(2)}px`;
+			const chosen = largestSizeThatFits(min, max, fits);
+			const snapped = chosen === max ? max : Math.floor(chosen * 100 + 1e-6) / 100;
+			const next = `${snapped}px`;
 			if (element.style.fontSize !== next) element.style.fontSize = next;
-			rememberGoalFit('cell', used);
+			if (kind === 'goal' && !source) saveGoalFitForNextVisit('cell', snapped);
+
+			const overflow =
+				element.scrollHeight > available || element.scrollWidth > element.clientWidth + 1;
+			if (!overflow) {
+				clearClamp();
+				cell.removeAttribute('title');
+				return;
+			}
+
+			// Still too long at the floor: ellipsize on a whole line, never through a letter.
+			element.style.overflowWrap = 'anywhere';
+			element.style.display = '-webkit-box';
+			element.style.webkitBoxOrient = 'vertical';
+			element.style.overflow = 'hidden';
+			const line = parseFloat(getComputedStyle(element).lineHeight);
+			let lines = fullLinesThatFit(available, Number.isFinite(line) ? line : snapped * 1.15);
+			element.style.webkitLineClamp = String(lines);
+			if (element.scrollHeight > available + 1 && lines > 1) {
+				lines -= 1;
+				element.style.webkitLineClamp = String(lines);
+			}
+			cell.title = text;
 		};
 
 		const schedule = (): void => {
@@ -200,7 +245,11 @@
 
 		apply();
 		schedule();
-		const stopFace = watchFaceSwap(schedule);
+		const stopFace = remeasureWhenFontSettles(schedule);
+		const onBeforePrint = (): void => apply();
+		const onAfterPrint = (): void => schedule();
+		window.addEventListener('beforeprint', onBeforePrint);
+		window.addEventListener('afterprint', onAfterPrint);
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(cell);
 		const textObserver = new MutationObserver(schedule);
@@ -210,13 +259,14 @@
 		return () => {
 			cancelAnimationFrame(frame);
 			stopFace();
+			window.removeEventListener('beforeprint', onBeforePrint);
+			window.removeEventListener('afterprint', onAfterPrint);
 			resizeObserver.disconnect();
 			textObserver.disconnect();
 			classObserver.disconnect();
+			clearClamp();
 			element.style.fontSize = '';
-			element.style.display = '';
-			element.style.overflow = '';
-			element.style.removeProperty('-webkit-line-clamp');
+			cell.removeAttribute('title');
 		};
 	};
 </script>
@@ -260,12 +310,11 @@
 					{/if}
 					<span
 						class={cn(
-							'w-full hyphens-manual wrap-break-word',
-							!source && '@max-[480px]:hidden',
-							view ? 'line-clamp-5' : 'line-clamp-4'
+							'block w-full min-w-0 text-balance hyphens-auto',
+							!source && '@max-[480px]:hidden'
 						)}
-						{@attach cellInformation.type === 'goal' ? fitGoalText : undefined}
-						>{textOf(key)}</span
+						data-kind={cellInformation.type}
+						{@attach fitCellText}>{textOf(key)}</span
 					>
 				</button>
 			{/each}

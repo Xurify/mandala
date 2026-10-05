@@ -67,7 +67,7 @@ export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
 const SYNC_STATE_KEY = "mandala-sync-state-v1";
 import { exampleChart, isExampleChart } from "./example.ts";
-import { bindGoalFit } from "$lib/components/goal-fit";
+import { applySavedGoalFit } from "$lib/components/goal-fit";
 import { buildChart, type Preset } from "./presets/index.ts";
 import {
   clearBackupHandle,
@@ -272,12 +272,12 @@ export class ChartStore {
     this.sel = 4;
     this.query = "";
     this.#adoptShareState();
-    this.#bindGoalFit();
+    this.#applySavedGoalFit();
   }
 
-  #bindGoalFit(): void {
+  #applySavedGoalFit(): void {
     if (typeof window === "undefined") return;
-    bindGoalFit(this.data.goal, this.viewMode, this.viewScale, window.innerWidth);
+    applySavedGoalFit(this.data.goal, this.viewMode, this.viewScale, window.innerWidth);
   }
 
   #adoptShareState(): void {
@@ -513,7 +513,7 @@ export class ChartStore {
     } catch {
       // storage blocked
     }
-    this.#bindGoalFit();
+    this.#applySavedGoalFit();
   }
 
   setViewScale(scale: ViewScale): void {
@@ -525,7 +525,7 @@ export class ChartStore {
     } catch {
       // storage blocked
     }
-    this.#bindGoalFit();
+    this.#applySavedGoalFit();
   }
 
   setQuery(value: string): void {
@@ -535,7 +535,7 @@ export class ChartStore {
   setText(key: string, value: string): void {
     setByKey(this.data, key, value);
     this.save();
-    if (key === "g") this.#bindGoalFit();
+    if (key === "g") this.#applySavedGoalFit();
   }
 
   textOf(key: string): string {
@@ -1063,7 +1063,7 @@ export class ChartStore {
       this.data = cloneChart(activeRecord(next).data);
       this.#resetView();
       this.#adoptShareState();
-      this.#bindGoalFit();
+      this.#applySavedGoalFit();
     }
     const held = this.#copySlips();
     this.saveNow();
@@ -1090,7 +1090,7 @@ export class ChartStore {
     this.data = cloneChart(activeRecord(next).data);
     this.#resetView();
     this.#adoptShareState();
-    this.#bindGoalFit();
+    this.#applySavedGoalFit();
     this.saveNow();
     this.#applyNote(held, "Restored", batch.subject, titles.length, batch.mixed);
   }
@@ -1213,7 +1213,7 @@ if (typeof document !== "undefined") {
   if (chart.viewScale === "large")
     document.documentElement.dataset.scale = "large";
   else delete document.documentElement.dataset.scale;
-  bindGoalFit(chart.data.goal, chart.viewMode, chart.viewScale, window.innerWidth);
+  applySavedGoalFit(chart.data.goal, chart.viewMode, chart.viewScale, window.innerWidth);
   requestAnimationFrame(() => {
     document.documentElement.dataset.chartMotion = "";
   });

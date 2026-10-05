@@ -17,6 +17,22 @@ const PALETTE = {
 	onInk: toHex(oklchToRgb(0.985, 0.006, 85))
 };
 
+function fitLine(
+	context: CanvasRenderingContext2D,
+	line: string,
+	maxWidth: number,
+	allowEllipsis: boolean
+): string {
+	if (context.measureText(line).width <= maxWidth + 0.5) return line;
+	if (!allowEllipsis) return line;
+	const chars = Array.from(line.trimEnd());
+	while (chars.length > 0 && context.measureText(`${chars.join('')}…`).width > maxWidth) {
+		chars.pop();
+	}
+	const next = chars.join('').trimEnd();
+	return next ? `${next}…` : '…';
+}
+
 function wrapText(
 	context: CanvasRenderingContext2D,
 	text: string,
@@ -24,21 +40,20 @@ function wrapText(
 	maxLines: number,
 	allowEllipsis = true
 ): string[] {
-	const words = text.split(/\s+/);
+	const words = text.trim().split(/\s+/).filter((word) => word.length > 0);
 	const lines: string[] = [];
 	let currentLine = '';
 
 	for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
-		const word = words[wordIndex];
+		const word = words[wordIndex] ?? '';
 		const testLine = currentLine ? `${currentLine} ${word}` : word;
 		const metrics = context.measureText(testLine);
 
 		if (metrics.width > maxWidth && currentLine) {
 			if (lines.length === maxLines - 1) {
-				if (allowEllipsis) {
-					currentLine = `${currentLine}…`;
-				}
-				lines.push(currentLine);
+				lines.push(
+					allowEllipsis ? fitLine(context, `${currentLine}…`, maxWidth, true) : currentLine
+				);
 				currentLine = '';
 				break;
 			}
@@ -50,7 +65,7 @@ function wrapText(
 	}
 
 	if (currentLine && lines.length < maxLines) {
-		lines.push(currentLine);
+		lines.push(fitLine(context, currentLine, maxWidth, allowEllipsis));
 	}
 
 	return lines;
@@ -71,8 +86,9 @@ function fitCellText(
 		context.font = `${fontWeight} ${currentFontSize}px "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif`;
 		const lines = wrapText(context, text, maxWidth, maxLines, false);
 		const totalHeight = lines.length * lineHeight;
+		const withinWidth = lines.every((line) => context.measureText(line).width <= maxWidth + 0.5);
 
-		if (totalHeight <= maxHeight) {
+		if (totalHeight <= maxHeight && withinWidth) {
 			const joinedWords = lines.join(' ').replace(/\s+/g, ' ').trim();
 			const originalWords = text.trim().replace(/\s+/g, ' ');
 			if (joinedWords === originalWords) {
@@ -263,24 +279,23 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 				const isGoal = cellInformation.type === 'goal';
 				const isPillar = cellInformation.type === 'pillar';
 
-				const maxContentWidth = cellSize - 32;
-				const maxContentHeight = cellSize - 24;
+				const inset = Math.round(cellSize * (isGoal || isPillar ? 0.1 : 0.06));
+				const maxContentWidth = cellSize - inset * 2;
+				const maxContentHeight = cellSize - inset * 2;
 
 				let baseFontSize = 18;
-				let minFontSize = 14;
+				let minFontSize = 11;
 				let fontWeight = '500';
-				let maxLines = 5;
+				const maxLines = 8;
 
 				if (isGoal) {
 					baseFontSize = 23;
-					minFontSize = 16;
+					minFontSize = 12;
 					fontWeight = '600';
-					maxLines = 5;
 				} else if (isPillar) {
 					baseFontSize = 21;
-					minFontSize = 16;
+					minFontSize = 12;
 					fontWeight = '600';
-					maxLines = 4;
 				}
 
 				const { lines, fontSize, lineHeight } = fitCellText(

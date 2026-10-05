@@ -60,11 +60,10 @@
 	function onMenu(open: boolean): void {
 		menuOpen = open;
 		if (!open) find = '';
-	}
-
-	function pinMenu(list: HTMLElement): () => void {
-		const panel = list.parentElement;
-		const foot = panel?.querySelector<HTMLElement>('[data-menu-foot]');
+	}	function pinMenu(list: HTMLElement): () => void {
+		const band = list.parentElement;
+		const panel = band?.parentElement;
+		const fade = band?.querySelector<HTMLElement>('[data-menu-fade]');
 		// The shared menu scrolls as one piece. This one keeps the actions on screen.
 		if (panel) panel.style.overflowY = 'hidden';
 
@@ -73,22 +72,23 @@
 			const trigger = panel.parentElement?.querySelector<HTMLElement>('[aria-haspopup="menu"]');
 			if (!trigger) return;
 			const dock = document.querySelector<HTMLElement>(
-			'[role="tablist"][aria-label="Layout view mode"]'
-		);
+				'[role="tablist"][aria-label="Layout view mode"]'
+			);
 			const limit = (dock ? dock.getBoundingClientRect().top : window.innerHeight) - 12;
 			const room = Math.min(640, Math.max(220, Math.floor(limit - trigger.getBoundingClientRect().bottom - 8)));
 			const next = `${room}px`;
 			if (panel.style.maxHeight !== next) panel.style.maxHeight = next;
 		}
 
+		// A row that still has charts under it dissolves into the actions instead of
+		// being sliced by the foot. A lip plus the divider above it drew two edges.
 		function mark(): void {
-			if (!foot) return;
+			if (!fade) return;
 			const leftover = list.scrollHeight - list.clientHeight - list.scrollTop;
-			const open = foot.hasAttribute('data-more');
+			const open = fade.hasAttribute('data-more');
 			const more = open ? leftover > 1 : leftover > 8;
 			if (more === open) return;
-			foot.toggleAttribute('data-more', more);
-			foot.classList.toggle('shadow-edge-up', more);
+			fade.toggleAttribute('data-more', more);
 		}
 
 		function revealActive(): void {
@@ -419,11 +419,12 @@
 			</div>
 		</div>
 	{/if}
-	<div
-		id="chart-switch-list"
-		class="flex min-h-0 flex-auto flex-col gap-px overflow-x-clip overflow-y-auto overscroll-none"
-		{@attach pinMenu}
-	>
+	<div class="relative flex min-h-0 flex-auto flex-col">
+		<div
+			id="chart-switch-list"
+			class="flex min-h-0 flex-auto flex-col gap-px overflow-x-clip overflow-y-auto overscroll-none"
+			{@attach pinMenu}
+		>
 		{#if chartRows.length === 0}
 			<p class="m-0 px-3 py-2.5 text-[0.86rem] text-pretty text-muted">No matching chart.</p>
 		{/if}
@@ -453,15 +454,17 @@
 				{/each}
 			</div>
 		{/each}
+		</div>
+		<div
+			data-menu-fade
+			class="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-b from-transparent to-surface opacity-0 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-ui [&[data-more]]:opacity-100"
+			aria-hidden="true"
+		></div>
 	</div>
-	<div
-		class="-mx-1.5 -mb-1.5 relative z-10 flex shrink-0 flex-col gap-px bg-surface px-1.5 pb-1.5 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui"
-		data-menu-foot
-	>
+	<div class="relative z-10 flex shrink-0 flex-col gap-px">
 		<MenuDivider />
 		<div class="flex gap-px">
 			<MenuItem icon="grid" shortcut="N" class="flex-1" onclick={handleNew}>New chart</MenuItem>
-			<span class="my-2.5 w-px shrink-0 bg-line" aria-hidden="true"></span>
 			<MenuItem icon="target" class="w-auto shrink-0" onclick={handleExample}>
 				Example<span class="sr-only"> chart</span>
 			</MenuItem>

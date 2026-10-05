@@ -16,6 +16,7 @@
 <button
 	type={type ?? 'button'}
 	aria-label={label}
+	title={label}
 	class={cn(iconButton(), className)}
 	{...rest}
 >

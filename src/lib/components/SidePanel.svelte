@@ -2,7 +2,12 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
-	import { goalTypeMin, largestFittingSize, rememberGoalFit, watchFaceSwap } from './goal-fit';
+	import {
+		largestSizeThatFits,
+		remeasureWhenFontSettles,
+		saveGoalFitForNextVisit,
+		smallestEditorGoalFontSize
+	} from './goal-fit';
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
@@ -183,17 +188,17 @@
 				return;
 			}
 
-			const min = goalTypeMin(max);
+			const min = smallestEditorGoalFontSize(max);
 			const fits = (size: number): boolean => {
 				element.style.fontSize = `${size}px`;
 				return contentHeight() <= element.clientHeight + 1;
 			};
-			const chosen = largestFittingSize(min, max, fits);
+			const chosen = largestSizeThatFits(min, max, fits);
 			const clamped = !fits(min);
 			const used = chosen >= max - 0.25 ? max : chosen;
 			const next = `${used.toFixed(2)}px`;
 			if (element.style.fontSize !== next) element.style.fontSize = next;
-			rememberGoalFit('field', used);
+			saveGoalFitForNextVisit('field', used);
 
 			if (clamped) {
 				element.style.paddingTop = `${GOAL_PAD_TOP}px`;
@@ -261,7 +266,7 @@
 
 		apply();
 		schedule();
-		const stopFace = watchFaceSwap(schedule);
+		const stopFace = remeasureWhenFontSettles(schedule);
 		const resizeObserver = new ResizeObserver(schedule);
 		resizeObserver.observe(host ?? element);
 		window.addEventListener('resize', schedule);

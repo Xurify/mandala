@@ -1,10 +1,24 @@
-/** Smallest goal type, as a fraction of the design size, and never under 11px. */
-export const GOAL_TYPE_FLOOR = 0.7;
-export const GOAL_TYPE_MIN_PX = 11;
+export const GOAL_FONT_FLOOR_RATIO = 0.7;
+export const GOAL_FONT_MIN_PX = 11;
 
-export function goalTypeMin(maxPx: number): number {
+export type CellKind = 'goal' | 'pillar' | 'action';
+
+export function smallestFontSizeForSentence(maxPx: number, kind: CellKind): number {
 	if (!Number.isFinite(maxPx) || maxPx <= 0) return maxPx;
-	return Math.min(maxPx, Math.max(GOAL_TYPE_MIN_PX, maxPx * GOAL_TYPE_FLOOR));
+	const ratio = kind === 'pillar' ? 0.64 : kind === 'goal' ? 0.48 : 0.45;
+	const floor = kind === 'pillar' ? 7.5 : 6.5;
+	return Math.min(maxPx, Math.max(floor, maxPx * ratio));
+}
+
+export function fullLinesThatFit(available: number, lineHeight: number): number {
+	if (!Number.isFinite(available) || available <= 0) return 1;
+	const line = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight : available;
+	return Math.max(1, Math.floor((available + 0.5) / line));
+}
+
+export function smallestEditorGoalFontSize(maxPx: number): number {
+	if (!Number.isFinite(maxPx) || maxPx <= 0) return maxPx;
+	return Math.min(maxPx, Math.max(GOAL_FONT_MIN_PX, maxPx * GOAL_FONT_FLOOR_RATIO));
 }
 
 export const GOAL_FIT_KEY = 'mandala_goal_fit';
@@ -15,8 +29,7 @@ type StoredGoalFit = { k: string; cell?: string; field?: string };
 
 let fitKey = '';
 
-/** Same goal, mode, scale, and width bucket share one saved size. */
-export function goalFitKey(goal: string, mode: string, scale: string, width: number): string {
+export function sharedGoalFitKey(goal: string, mode: string, scale: string, width: number): string {
 	const bucket = Math.round(width / 40) * 40;
 	return `${mode}|${scale}|${bucket}|${goal}`;
 }
@@ -34,14 +47,9 @@ function readStored(): StoredGoalFit | null {
 	}
 }
 
-/**
- * Apply the last fitted size before the goal paints.
- * The app bundle is deferred and the body is empty until it runs, so this
- * does not block HTML. A matching key means the first paint is already correct.
- */
-export function bindGoalFit(goal: string, mode: string, scale: string, width: number): void {
+export function applySavedGoalFit(goal: string, mode: string, scale: string, width: number): void {
 	if (typeof document === 'undefined') return;
-	fitKey = goalFitKey(goal, mode, scale, width);
+	fitKey = sharedGoalFitKey(goal, mode, scale, width);
 	const stored = readStored();
 	const root = document.documentElement;
 	const match = stored?.k === fitKey ? stored : null;
@@ -51,8 +59,7 @@ export function bindGoalFit(goal: string, mode: string, scale: string, width: nu
 	else root.style.removeProperty('--goal-field-size');
 }
 
-/** Remember a measured size for the next visit. Skips the write when nothing changed. */
-export function rememberGoalFit(part: GoalFitPart, px: number): void {
+export function saveGoalFitForNextVisit(part: GoalFitPart, px: number): void {
 	if (!fitKey || typeof document === 'undefined' || !Number.isFinite(px) || px <= 0) return;
 	const value = `${px.toFixed(2)}px`;
 	const prop = part === 'cell' ? '--goal-cell-size' : '--goal-field-size';
@@ -68,8 +75,7 @@ export function rememberGoalFit(part: GoalFitPart, px: number): void {
 	}
 }
 
-/** Re-measure when a webfont settles. The fallback face is metric-matched, so this is a no-op when the size holds. */
-export function watchFaceSwap(measure: () => void): () => void {
+export function remeasureWhenFontSettles(measure: () => void): () => void {
 	if (typeof document === 'undefined' || !('fonts' in document)) return () => {};
 	const onFonts = (): void => measure();
 	document.fonts.addEventListener('loadingdone', onFonts);
@@ -77,8 +83,7 @@ export function watchFaceSwap(measure: () => void): () => void {
 	return () => document.fonts.removeEventListener('loadingdone', onFonts);
 }
 
-/** Largest size in [min, max] for which `fits` is true. Returns min when nothing fits. */
-export function largestFittingSize(min: number, max: number, fits: (size: number) => boolean): number {
+export function largestSizeThatFits(min: number, max: number, fits: (size: number) => boolean): number {
 	if (fits(max)) return max;
 	if (!fits(min)) return min;
 	let low = min;

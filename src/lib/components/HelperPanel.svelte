@@ -288,8 +288,8 @@
 			{/if}
 		</div>
 		<div class="mt-0.5 flex shrink-0 items-center gap-0.5">
-			<IconButton icon="info" label="What I know" onclick={() => helper.showFacts()} />
-			<IconButton icon="refresh" label="Start over" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
+			<IconButton icon="info" label="What I know about you" onclick={() => helper.showFacts()} />
+			<IconButton icon="refresh" label="Clear this chat" onclick={() => helper.reset()} disabled={helper.busy} class="disabled:pointer-events-none disabled:opacity-40" />
 			{#if onclose}
 				<IconButton icon="close" label="Close Bindu" onclick={onclose} />
 			{/if}
