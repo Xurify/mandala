@@ -514,7 +514,8 @@
 	</div>
 	{#snippet footer()}
 		<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (deleteOpen = false)}>Cancel</Button>
-		<Button size="sm" class="coarse:min-h-11" onclick={confirmDelete}>Delete chart</Button>
+		<!-- Undo and recently deleted make this safe to confirm with Enter. -->
+		<Button size="sm" class="coarse:min-h-11" data-autofocus onclick={confirmDelete}>Delete chart</Button>
 	{/snippet}
 </Dialog>
 

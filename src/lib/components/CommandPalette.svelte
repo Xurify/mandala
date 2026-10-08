@@ -17,6 +17,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
+	import { scrollFade } from './ui/styles';
 
 	interface Props {
 		open?: boolean;
@@ -115,7 +116,7 @@
 	}}
 	onclose={() => (open = false)}
 >
-	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreAbove ? 'shadow-edge-down' : ''}">
+	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6">
 		<span class="text-muted" aria-hidden="true">
 			<Icon name="command" size={16} />
 		</span>
@@ -135,6 +136,7 @@
 		/>
 	</div>
 
+	<div class="relative flex min-h-0 flex-1 flex-col">
 	<ul
 		bind:this={listElement}
 		id="command-list"
@@ -186,8 +188,11 @@
 			<li class="px-4 py-8 text-center text-[0.88rem] text-muted" role="presentation">No matches.</li>
 		{/each}
 	</ul>
+	<div class={scrollFade({ edge: 'top', on: moreAbove })} aria-hidden="true"></div>
+	<div class={scrollFade({ edge: 'bottom', on: moreBelow })} aria-hidden="true"></div>
+	</div>
 
-	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreBelow ? 'shadow-edge-up' : ''}" aria-hidden="true">
+	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted" aria-hidden="true">
 		<span><kbd class="font-semibold">↑↓</kbd> navigate</span>
 		<span><kbd class="font-semibold">↵</kbd> run</span>
 		<span><kbd class="font-semibold">esc</kbd> close</span>

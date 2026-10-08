@@ -236,6 +236,14 @@ describe('recently deleted', () => {
 		expect(next?.deleted[0]?.deletedAt).toBe(now);
 	});
 
+	it('opens the next chart down the list after deleting the open one, or the one above at the end', () => {
+		const [newest, middle, oldest] = [newRecord(emptyChart(), 3), newRecord(emptyChart(), 2), newRecord(emptyChart(), 1)];
+		const library = { activeId: middle.id, charts: [oldest, newest, middle], deleted: [] };
+		expect(deleteFromLibrary(library, middle.id, now)?.activeId).toBe(oldest.id);
+		expect(deleteFromLibrary({ ...library, activeId: oldest.id }, oldest.id, now)?.activeId).toBe(middle.id);
+		expect(deleteFromLibrary({ ...library, activeId: newest.id }, middle.id, now)?.activeId).toBe(newest.id);
+	});
+
 	it('restores a deleted chart as the active one', () => {
 		const library = emptyLibrary();
 		const removed = deleteFromLibrary(library, library.activeId, now);

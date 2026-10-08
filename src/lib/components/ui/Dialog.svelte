@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { cn } from './cn';
 	import IconButton from './IconButton.svelte';
-	import { dialog } from './styles';
+	import { dialog, scrollFade } from './styles';
 
 	type Props = {
 		open?: boolean;
@@ -62,8 +62,9 @@
 		if (!node) return;
 		if (open && !node.open) {
 			node.showModal();
-			// First control is Close. Focusing it paints a ring on open.
-			node.focus({ preventScroll: true });
+			// First control is Close, and focusing it paints a ring on open, so the panel takes focus. A dialog
+			// whose answer is safe to give with Enter (it can be undone) marks that button `data-autofocus`.
+			(node.querySelector<HTMLElement>('[data-autofocus]') ?? node).focus({ preventScroll: true });
 		} else if (!open && node.open) node.close();
 	});
 
@@ -82,7 +83,7 @@
 	onclose={() => (open = false)}
 >
 	<div class={styles.sheet()}>
-		<div class={cn(styles.head(), moreAbove && 'shadow-edge-down')}>
+		<div class={styles.head()}>
 			<div class="min-w-0">
 				<h2 id={uid} class={styles.title()}>{title}</h2>
 				{#if description}
@@ -91,11 +92,15 @@
 			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
-		<div class={styles.body()} data-dialog-scroll {@attach watchScroll}>
-			{@render children()}
+		<div class="relative flex min-h-0 flex-1 flex-col">
+			<div class={styles.body()} data-dialog-scroll {@attach watchScroll}>
+				{@render children()}
+			</div>
+			<div class={scrollFade({ edge: 'top', on: moreAbove })} aria-hidden="true"></div>
+			<div class={scrollFade({ edge: 'bottom', on: moreBelow })} aria-hidden="true"></div>
 		</div>
 		{#if footer}
-			<div class={cn(styles.foot(), moreBelow && 'shadow-edge-up')}>
+			<div class={styles.foot()}>
 				{@render footer()}
 			</div>
 		{/if}

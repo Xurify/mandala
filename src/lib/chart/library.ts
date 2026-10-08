@@ -230,8 +230,14 @@ function parseDeleted(value: unknown, liveIds: Set<string>): DeletedRecord[] {
 	return [...byId.values()];
 }
 
-function newestChart(charts: ChartRecord[]): ChartRecord {
-	return charts.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0]!;
+/**
+ * The chart that takes the place of a deleted one: the next one down the switcher's list (newest first), or
+ * the one above when it was last. Deleting down a list keeps your place.
+ */
+function neighborOf(charts: ChartRecord[], id: string): ChartRecord | null {
+	const order = charts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
+	const index = order.findIndex((chart) => chart.id === id);
+	return order[index + 1] ?? order[index - 1] ?? null;
 }
 
 /** Move one live chart into recently deleted. The last chart leaves a blank one open. */
@@ -257,7 +263,7 @@ export function deleteFromLibrary(
 		const blank = newRecord(emptyChart(), now);
 		return { activeId: blank.id, charts: [blank], deleted };
 	}
-	const activeId = library.activeId === id ? newestChart(remaining).id : library.activeId;
+	const activeId = library.activeId === id ? (neighborOf(library.charts, id) ?? remaining[0]!).id : library.activeId;
 	return { activeId, charts: remaining, deleted };
 }
 
