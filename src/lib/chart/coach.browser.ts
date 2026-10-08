@@ -1,6 +1,8 @@
 import { CoachStopped } from './coach-protocol.ts';
 import { ACTION_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
 import {
+	EXAMPLE_LINES,
+	REWRITE_EXAMPLES,
 	askMessages,
 	chartAnswerFacts,
 	chartBriefFacts,
@@ -215,7 +217,7 @@ async function writeLines(
 			maxTokens: 24 * need,
 			temperature: RETRY_TEMPERATURES[attempt]
 		});
-		const round = keptLines(raw, need, { max, kind, pillar, siblings: [...siblings, ...kept] });
+		const round = keptLines(raw, need, { max, kind, pillar, siblings: [...siblings, ...kept, ...EXAMPLE_LINES] });
 		kept.push(...round.kept);
 		rejected = round.rejected;
 	}
@@ -253,7 +255,7 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
 		if (!line) continue;
-		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text] });
+		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text, ...REWRITE_EXAMPLES, ...EXAMPLE_LINES] });
 		if (!fault && !line.toLowerCase().includes(original) && !ECHO.test(line)) return line;
 	}
 	return null;

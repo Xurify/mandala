@@ -1,7 +1,7 @@
 import { chart } from './chart.svelte';
 import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
-	aimOf,
+	aimParts,
 	askRoute,
 	briefOf,
 	chartAnswersFromText,
@@ -11,6 +11,8 @@ import {
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
 	extraChips,
+	followUpQuestion,
+	splitGoal,
 	fillPillarChip,
 	fillPlan,
 	greetingFor,
@@ -127,6 +129,8 @@ export class HelperStore {
 	#target: HelperTarget;
 	#seq = 1;
 	#direction = '';
+	/** What came with the goal: level, what is hard, a constraint. Kept for the plan and the brief. */
+	#said = '';
 	#sketch: ChartData | null = null;
 	#sketchId = 0;
 	#help = $state(false);
@@ -219,7 +223,7 @@ export class HelperStore {
 	#chips(): HelperChip[] {
 		if (this.busy) return [];
 		if (this.step === 'offer') return offerChips();
-		if (this.step === 'extra') return extraChips(this.#sketch !== null);
+		if (this.step === 'extra') return extraChips(this.#sketch !== null, this.#said);
 		if (this.step === 'direction') return [];
 		if (this.#lead) {
 			const lead = this.#lead;
@@ -236,7 +240,7 @@ export class HelperStore {
 
 	get placeholder(): string {
 		if (this.step === 'direction') return 'Run a half marathon, learn Spanish…';
-		if (this.step === 'extra') return 'A date, how much time you have, or write the actions';
+		if (this.step === 'extra') return 'Time a day, or a date';
 		return 'Ask, or say what you need';
 	}
 
@@ -300,9 +304,17 @@ export class HelperStore {
 				this.#aside('Draft cancelled.');
 				return;
 			}
-			this.#direction = text;
+			const parts = splitGoal(text);
+			this.#direction = parts.goal || text;
+			this.#said = parts.said;
+			const question = followUpQuestion(parts.said);
+			if (!question) {
+				this.step = 'idle';
+				await this.#withModel(() => this.#draft(chartAnswersFromText(this.#direction, '', this.#said)), 'draft');
+				return;
+			}
 			this.step = 'extra';
-			this.#say(DRAFT_QUESTIONS[1]);
+			this.#say(question);
 			return;
 		}
 		if (this.step === 'extra') {
@@ -316,7 +328,7 @@ export class HelperStore {
 				await this.#sketchAim();
 				return;
 			}
-			const answers = chartAnswersFromText(this.#direction, text);
+			const answers = chartAnswersFromText(this.#direction, text, this.#said);
 			if (this.#sketch) {
 				await this.#withModel(() => this.#fillSketch(answers), 'draft');
 				return;
@@ -389,13 +401,15 @@ export class HelperStore {
 			if (method.job) this.#lead = chipsFor(data).find((chip) => chip.act.kind === 'job' && chip.act.job === method.job) ?? null;
 			return;
 		}
-		const aim = route === 'aim' ? aimOf(text, data) : null;
+		const aim = route === 'aim' ? aimParts(text, data) : null;
 		if (aim) {
-			this.#direction = aim;
+			this.#direction = aim.aim;
+			this.#said = aim.said;
 			this.#sketch = null;
 			this.#sketchId = 0;
 			this.step = 'offer';
-			this.#say(data.goal.trim() ? 'That is a new chart. This one stays.' : 'I can sketch a chart for that.');
+			const opening = data.goal.trim() ? 'A new goal gets its own chart. Your current one stays.' : 'I can sketch a chart for that.';
+			this.#say(aim.said ? `${opening} I kept what you told me.` : opening);
 			return;
 		}
 		const mentioned = pillarMentioned(text, data);
@@ -449,6 +463,11 @@ export class HelperStore {
 		const message = this.messages.find((entry) => entry.id === id);
 		const card = message?.card;
 		if (!message || !card || message.state !== 'open') return;
+		if (card.kind === 'chart' && card.sketch) {
+			// A sketch has no actions yet. Using it means writing them first.
+			this.writeActions();
+			return;
+		}
 		if (card.kind === 'chart') {
 			if (!this.#target.applyDraft(card.data)) return;
 			// A draft can open as a new chart. The conversation that made it goes with it.
@@ -730,6 +749,7 @@ export class HelperStore {
 		this.#sketch = null;
 		this.#sketchId = 0;
 		this.#direction = '';
+		this.#said = '';
 	}
 
 	#dismissAim(): void {
@@ -738,9 +758,27 @@ export class HelperStore {
 		this.#say('Staying with this chart.');
 	}
 
-	#patchChart(id: number, data: ChartData): void {
+	/** Swaps the chart in a card. A sketch stays a sketch unless `sketch` says otherwise. */
+	#patchChart(id: number, data: ChartData, sketch?: boolean): void {
 		if (this.#stale) return;
-		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, card: { kind: 'chart', data } } : entry));
+		this.messages = this.messages.map((entry) => {
+			if (entry.id !== id) return entry;
+			const was = entry.card?.kind === 'chart' ? entry.card.sketch : undefined;
+			return { ...entry, card: { kind: 'chart', data, sketch: sketch ?? was } };
+		});
+	}
+
+	/** The sketch card's main button: write the actions for these pillars. */
+	writeActions(): void {
+		if (this.busy || !this.#sketch || this.step !== 'extra') return;
+		const answers = chartAnswersFromText(this.#direction, '', this.#said);
+		void this.#withModel(() => this.#fillSketch(answers), 'draft');
+	}
+
+	/** The sketch card's second button: eight different pillars for the same goal. */
+	otherPillars(): void {
+		if (this.busy || !this.#sketch) return;
+		void this.#sketchAim();
 	}
 
 	async #sketchAim(): Promise<void> {
@@ -748,7 +786,7 @@ export class HelperStore {
 		const again = this.#sketch !== null;
 		this.#help = false;
 		this.#pillarFill = null;
-		const answers = chartAnswersFromText(this.#direction, '');
+		const answers = chartAnswersFromText(this.#direction, '', this.#said);
 		await this.#withModel(async () => {
 			const coach = await loadCoachModule();
 			let draftId = again ? this.#sketchId : 0;
@@ -759,7 +797,7 @@ export class HelperStore {
 			const result = await coach.proposePillars(answers, (partial) => {
 				this.#sketch = partial;
 				if (!draftId) {
-					this.#say('Here are eight parts of the goal.', { kind: 'chart', data: partial });
+					this.#say('Here are eight parts of the goal.', { kind: 'chart', data: partial, sketch: true });
 					draftId = this.messages[this.messages.length - 1]?.id ?? 0;
 					this.#sketchId = draftId;
 					this.#settle(draftId, 'working');
@@ -778,7 +816,7 @@ export class HelperStore {
 			this.#sketch = result.chart;
 			if (draftId) this.#settle(draftId, 'open');
 			this.step = 'extra';
-			if (!again) this.#say(DRAFT_QUESTIONS[1]);
+			if (!again) this.#say(followUpQuestion(this.#said) ?? 'Write the actions when the pillars look right.');
 		}, 'draft');
 	}
 
@@ -790,6 +828,7 @@ export class HelperStore {
 		// The sketch card sits above the question. Fill it where the person is looking.
 		this.#bringDown(draftId);
 		this.messages = this.messages.map((entry) => (entry.id === draftId ? { ...entry, text: 'The actions, one pillar at a time.' } : entry));
+		this.#patchChart(draftId, draft, false);
 		this.#settle(draftId, 'working');
 		const filled = await coach.fillDraftActions(draft, answers, (partial) => {
 			this.#sketch = partial;

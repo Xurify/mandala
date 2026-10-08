@@ -7,7 +7,8 @@ const coach = vi.hoisted(() => ({
 	need: null as (() => Need | null) | null,
 	loaded: false,
 	answers: 0,
-	sketches: 0
+	sketches: 0,
+	asked: [] as { direction: string; situation: string }[]
 }));
 
 vi.mock('./coach.browser.ts', () => ({
@@ -26,14 +27,16 @@ vi.mock('./coach.browser.ts', () => ({
 		coach.answers++;
 		return 'Start with the pillar you skipped.';
 	},
-	proposePillars: async (answers: { direction: string }, onPartial: (draft: unknown) => void) => {
+	proposePillars: async (answers: { direction: string; situation: string }, onPartial: (draft: unknown) => void) => {
 		coach.loaded = true;
 		coach.sketches++;
+		coach.asked.push({ direction: answers.direction, situation: answers.situation });
 		const draft = sketchOf(answers.direction, coach.sketches);
 		onPartial(structuredClone(draft));
 		return { chart: draft, raw: '' };
 	},
-	fillDraftActions: async (draft: { actions: string[][] }, _answers: unknown, onPartial: (draft: unknown) => void) => {
+	fillDraftActions: async (draft: { actions: string[][] }, answers: { direction: string; situation: string }, onPartial: (draft: unknown) => void) => {
+		coach.asked.push({ direction: answers.direction, situation: answers.situation });
 		draft.actions = draft.actions.map((row, index) => row.map((_, action) => (index === 7 && action > 3 ? '' : `Step ${index}.${action}`)));
 		onPartial(structuredClone(draft));
 		return draft;
@@ -74,6 +77,7 @@ beforeEach(() => {
 	coach.loaded = false;
 	coach.answers = 0;
 	coach.sketches = 0;
+	coach.asked = [];
 });
 
 describe('HelperStore model consent', () => {
@@ -178,5 +182,63 @@ describe('HelperStore sketch, as in the Slovak report', () => {
 		expect(helper.messages.at(-1)?.id).toBe(card.id);
 		expect(helper.messages.at(-2)?.text).toBe('Here it is. Use this chart to keep it.');
 		expect(coach.answers).toBe(0);
+	});
+});
+
+describe('HelperStore sketch, from a message that says more than the goal', () => {
+	const SLOVAK =
+		'I want to learn Slovak. I am currently about a A1 maybe A2, but I have an insane lack of vocabulary and I am shit at reading as well as bad with having conversation';
+
+	function onChart() {
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		return store();
+	}
+
+	async function sketch(helper: InstanceType<typeof HelperStore>) {
+		await helper.send(SLOVAK);
+		helper.choose(helper.chips.find((chip) => chip.act.kind === 'sketch')!);
+		await vi.waitFor(() => expect(coach.sketches).toBe(1));
+		await vi.waitFor(() => expect(helper.busy).toBe(false));
+	}
+
+	it('keeps what was said, and the pillars hear it', async () => {
+		const helper = onChart();
+		await helper.send(SLOVAK);
+		expect(helper.messages.at(-1)?.text).toBe('A new goal gets its own chart. Your current one stays. I kept what you told me.');
+		helper.choose(helper.chips.find((chip) => chip.act.kind === 'sketch')!);
+		await vi.waitFor(() => expect(coach.sketches).toBe(1));
+		expect(coach.asked[0]?.direction).toBe('learn Slovak');
+		expect(coach.asked[0]?.situation).toMatch(/A1 maybe A2.*vocabulary.*reading.*conversation/);
+	});
+
+	it('asks only for time and a date, with chips, and the card writes the actions', async () => {
+		const helper = onChart();
+		await sketch(helper);
+		expect(helper.messages.at(-1)?.text).toBe('How much time can you give it a day, and is there a date?');
+		expect(helper.chips.map((chip) => chip.label)).toEqual(['15 minutes a day', '30 minutes a day', 'An hour a day', 'No date']);
+		const card = helper.messages.find((message) => message.card?.kind === 'chart')!;
+		expect(card.card?.kind === 'chart' && card.card.sketch).toBe(true);
+		await helper.send('30 minutes a day');
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		expect(coach.asked.at(-1)?.situation).toMatch(/conversation 30 minutes a day$/);
+		const filled = helper.messages.find((message) => message.card?.kind === 'chart')!;
+		expect(filled.card?.kind === 'chart' && filled.card.sketch).toBe(false);
+	});
+
+	it('writes the actions instead of keeping an empty chart when the sketch is used', async () => {
+		const helper = onChart();
+		await sketch(helper);
+		const card = helper.messages.find((message) => message.card?.kind === 'chart')!;
+		helper.use(card.id);
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		expect(helper.messages.some((message) => message.text.startsWith('Done.'))).toBe(false);
+	});
+
+	it('tries other pillars from the card', async () => {
+		const helper = onChart();
+		await sketch(helper);
+		helper.otherPillars();
+		await vi.waitFor(() => expect(coach.sketches).toBe(2));
+		expect(coach.asked[1]?.situation).toMatch(/vocabulary/);
 	});
 });

@@ -93,7 +93,7 @@
 	function primaryLabel(message: HelperMessage): string {
 		const card = message.card;
 		if (!card) return '';
-		if (card.kind === 'chart') return 'Use this chart';
+		if (card.kind === 'chart') return card.sketch ? 'Write the actions' : 'Use this chart';
 		if (card.kind === 'cells') return card.edits.length === 1 ? 'Change this line' : 'Change these lines';
 		if (card.kind === 'picks') return card.scope === 'today' ? "Pick today's three" : 'Plan this week';
 		if (card.kind === 'findings') return 'Rewrite them';
@@ -103,7 +103,7 @@
 
 	function skipLabel(message: HelperMessage): string {
 		const card = message.card;
-		if (card?.kind === 'chart') return 'Not this one';
+		if (card?.kind === 'chart') return card.sketch ? 'Other pillars' : 'Not this one';
 		if (card?.kind === 'findings') return 'Leave them';
 		if (card?.kind === 'cells') return 'Skip';
 		return 'Not now';
@@ -112,6 +112,11 @@
 	function primary(message: HelperMessage): void {
 		if (message.card?.kind === 'download') helper.allowDownload(message.id);
 		else helper.use(message.id);
+	}
+
+	function secondary(message: HelperMessage): void {
+		if (message.card?.kind === 'chart' && message.card.sketch) helper.otherPillars();
+		else helper.skip(message.id);
 	}
 </script>
 
@@ -142,7 +147,9 @@
 						<span class="text-[0.8rem] text-muted tabular-nums">{written} of 64</span>
 					</div>
 				{:else}
-					<p class="m-0 text-[0.8rem] text-muted">{written === 64 ? '64 actions included.' : `${written} of 64. The rest stayed blank.`}</p>
+					<p class="m-0 text-[0.8rem] text-muted">
+						{written === 64 ? '64 actions included.' : value.sketch ? `${written} of 64. Actions come next.` : `${written} of 64. The rest stayed blank.`}
+					</p>
 				{/if}
 			{:else if value.kind === 'cells'}
 				<ul class="m-0 flex list-none flex-col gap-2.5 p-0">
@@ -228,7 +235,7 @@
 			{#if message.state === 'open' && value.kind !== 'prompt'}
 				<div class="flex flex-wrap items-center gap-2">
 					<Button size="sm" onclick={() => primary(message)}>{primaryLabel(message)}</Button>
-					<Button size="sm" variant="ghost" onclick={() => helper.skip(message.id)}>{skipLabel(message)}</Button>
+					<Button size="sm" variant="ghost" onclick={() => secondary(message)}>{skipLabel(message)}</Button>
 				</div>
 			{:else if message.state === 'used' && value.kind !== 'download' && value.kind !== 'findings'}
 				<p class="m-0 text-[0.8rem] font-[560] text-success">Used.</p>

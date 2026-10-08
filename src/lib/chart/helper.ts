@@ -29,7 +29,8 @@ export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: stri
 export type CellEdit = { key: string; before: string; after: string; reason?: string };
 
 export type HelperCard =
-	| { kind: 'chart'; data: ChartData }
+	/** `sketch`: the goal and pillars only, while the person decides. Its buttons write the actions or try other pillars. */
+	| { kind: 'chart'; data: ChartData; sketch?: boolean }
 	| { kind: 'cells'; edits: CellEdit[] }
 	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
 	| { kind: 'findings'; findings: HelperFinding[] }
@@ -102,6 +103,35 @@ export type HelperPick = { key: string; text: string; pillarIndex: number; why: 
 
 export type FillPlan = { kind: 'pillars'; empty: number[] } | { kind: 'actions'; pillarIndex: number; empty: number[] };
 
+const DAILY_TIME = /\b\d+\s*(?:min|mins|minutes?|h|hrs?|hours?)\b|\b(?:minutes?|hours?|an hour)\s+(?:a|per|each)\s+(?:day|night|week|evening|morning)\b/i;
+
+/**
+ * The second draft question, asking only for what the person has not said yet. With nothing said beyond
+ * the goal, the open question. With time and a date both given, no question.
+ */
+export function followUpQuestion(said: string): string | null {
+	const text = said.trim();
+	if (!text) return DRAFT_QUESTIONS[1];
+	const time = DAILY_TIME.test(text);
+	const date = TIMELINE.test(text);
+	if (time && date) return null;
+	if (time) return 'Is there a date you want this by?';
+	if (date) return 'How much time can you give it a day?';
+	return 'How much time can you give it a day, and is there a date?';
+}
+
+/** Answers to the follow-up question, one tap each. */
+export function followUpChips(said: string): HelperChip[] {
+	const text = said.trim();
+	if (!text) return [];
+	const chips: HelperChip[] = [];
+	if (!DAILY_TIME.test(text)) {
+		for (const label of ['15 minutes a day', '30 minutes a day', 'An hour a day']) chips.push({ label, act: { kind: 'send', text: label } });
+	}
+	if (!TIMELINE.test(text)) chips.push({ label: 'No date', act: { kind: 'send', text: 'No date' } });
+	return chips;
+}
+
 export const DRAFT_QUESTIONS = [
 	'What is the goal? One line is enough.',
 	'Anything that would change the plan? A date, how much time you have, or write the actions.'
@@ -109,13 +139,15 @@ export const DRAFT_QUESTIONS = [
 
 const TIMELINE =
 	/\b(?:by|before|within|in)\s+((?:\d+|a|one|two|three|six|twelve)\s+(?:days?|weeks?|months?|years?)|(?:the end of )?(?:january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|fall|winter|next year|the year)(?:\s+\d{4})?|\d{4})\b/i;
-const SKIP = /^(go|skip|no|nope|nothing|none|just write it|write it|that's it|thats it|write the actions|-)\.?$/i;
+const SKIP = /^(go|skip|no|nope|nothing|none|just write it|write it|no date|no deadline|that's it|thats it|write the actions|-)\.?$/i;
 
-export function chartAnswersFromText(direction: string, extra: string): ChartAnswers {
+/** `said` is what came with the goal ("I'm A1, reading is hard"). `extra` answers the next question, or skips it. */
+export function chartAnswersFromText(direction: string, extra: string, said = ''): ChartAnswers {
 	const answers = emptyChartAnswers();
 	answers.direction = direction.replace(/\s+/g, ' ').trim();
-	const rest = extra.replace(/\s+/g, ' ').trim();
-	if (!rest || SKIP.test(rest)) return answers;
+	const answer = extra.replace(/\s+/g, ' ').trim();
+	const rest = [said.replace(/\s+/g, ' ').trim(), SKIP.test(answer) ? '' : answer].filter(Boolean).join(' ');
+	if (!rest) return answers;
 	const timeline = rest.match(TIMELINE);
 	if (timeline?.[1]) answers.timeline = timeline[1];
 	answers.situation = rest;
@@ -257,21 +289,39 @@ const COMPARISON_OR_INDECISION =
 	/\b(?:which|and\/or|\bor\b|should i|decide between|choose between|not sure which|versus|vs\.?)\b/i;
 
 /** A new direction, when the line is not already a job and is not the current goal. */
-export function aimOf(text: string, data: ChartData): string | null {
+/**
+ * The goal line and everything else said with it. The goal is the first sentence, up to a ", but".
+ * The rest ("I'm A1 maybe A2, but my vocabulary is thin") is kept for the plan, never dropped.
+ */
+export function splitGoal(text: string): { goal: string; said: string } {
+	const body = text.replace(/\s+/g, ' ').trim();
+	const sentence = body.match(/^(.+?[.!?])(?=\s|$)/)?.[1] ?? body;
+	const but = sentence.search(/[,.;]?\s+but\b/i);
+	const head = but >= 0 ? sentence.slice(0, but) : sentence;
+	const said = body
+		.slice(head.length)
+		.replace(/^[\s,.;:!?-]+/, '')
+		.replace(/^but\s+/i, '')
+		.trim();
+	return { goal: head.replace(/[.?!]+$/g, '').trim(), said };
+}
+
+/** A new goal in a message, with what came with it. Null when the message is not a new goal. */
+export function aimParts(text: string, data: ChartData): { aim: string; said: string } | null {
 	if (intentOf(text) !== 'ask' || isHelpRequest(text)) return null;
 	const trimmed = text.replace(/\s+/g, ' ').trim();
 	if (COMPARISON_OR_INDECISION.test(trimmed)) return null;
 	const match = trimmed.match(AIM_FRAME);
 	if (!match?.[1]) return null;
-	const aim = match[1]
-		.replace(/[,.]?\s+but\b[\s\S]*$/i, '')
-		.replace(/[.?!]+$/g, '')
-		.replace(/\s+/g, ' ')
-		.trim();
+	const { goal: aim, said } = splitGoal(match[1]);
 	if (aim.length < 3) return null;
 	const goal = data.goal.trim();
 	if (goal && norm(aim) === norm(goal)) return null;
-	return aim;
+	return { aim, said };
+}
+
+export function aimOf(text: string, data: ChartData): string | null {
+	return aimParts(text, data)?.aim ?? null;
 }
 
 const PILLAR_ACTION_FRAME = /\b(?:fill|finish|complete|write|suggest\s+actions?\s+for|work\s+on|focus\s+on)\b/i;
@@ -330,13 +380,18 @@ export function fillPlan(data: ChartData, preferredPillar: number | null = null)
 const CELL_RULES =
 	'Each line is something this person does, said the way you would say it: a verb and the thing it applies to. No results they cannot control, no "work hard", no "be more".';
 
+/** The worked example in the writer prompt. Its topic is one few people chart, so it does not leak into theirs. */
+export const EXAMPLE_LINES = [
+	'Test the tank water on Sunday morning',
+	'Rinse the filter sponge every other Friday',
+	'Feed a pinch of flakes at 8',
+	'Swap a quarter of the water on the 1st'
+] as const;
+
 const ACTION_EXAMPLE = [
 	"Someone else's chart. Do not copy it.",
-	'Pillar: Listen to Spanish for 15 minutes',
-	'- Play Spanish audio for 15 minutes at breakfast',
-	'- Shadow a two-minute clip after lunch',
-	'- Watch one show on Friday',
-	'- Note three phrases from the clip'
+	'Pillar: Keep the aquarium clean',
+	...EXAMPLE_LINES.map((line) => `- ${line}`)
 ].join('\n');
 
 export type LineReject = { text: string; reason: string };
@@ -397,6 +452,10 @@ export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 				'You are a Mandala Method coach.',
 				'The goal is one line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
 				'Each pillar is a short sentence this person could say: a verb and the thing it applies to, at most 32 characters. A follower count, a grade, or a finish time is not a pillar.',
+				'The goal is one step past where they stand now. When they name a level, the goal is above it.',
+				'When they say what is weak or hard, each of those gets its own pillar.',
+				'A pillar is a skill or a habit, not a tool: no apps, videos, podcasts or tests as pillars.',
+				'The goal already names the subject, so a pillar does not repeat it.',
 				'A constraint in the answers is a condition on the work, not eight products.',
 				'Return only this JSON: {"goal":"...","pillars":["...", 8 strings]}.'
 			].join('\n')
@@ -408,6 +467,26 @@ export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 				.join('\n')
 		}
 	];
+}
+
+const SUBJECT_STOP = new Set(['about', 'after', 'before', 'every', 'daily', 'weekly', 'more', 'with', 'your', 'from', 'into', 'than']);
+
+/**
+ * Drops a word the goal names when it repeats in most pillars: "Study Slovak vocabulary" under
+ * "Learn Slovak" becomes "Study vocabulary". The goal already says it, and the cell has 32 characters.
+ */
+export function dropSharedWord(goal: string, pillars: readonly string[]): string[] {
+	const goalWords = new Set(norm(goal).split(' ').filter((word) => word.length >= 4 && !SUBJECT_STOP.has(word)));
+	let result = [...pillars];
+	for (const word of goalWords) {
+		const pattern = new RegExp(`\\s*\\b${escapeRegExp(word)}\\b`, 'i');
+		const hits = result.filter((pillar) => pattern.test(pillar)).length;
+		if (hits < 5) continue;
+		const trimmed = result.map((pillar) => pillar.replace(pattern, '').replace(/\s+/g, ' ').trim());
+		// A pillar that was only the subject keeps it.
+		result = trimmed.map((pillar, index) => (pillar.split(' ').length >= 2 ? pillar : result[index]!));
+	}
+	return result;
 }
 
 export function goalAndPillars(raw: string): { goal: string; pillars: string[] } | null {
@@ -424,7 +503,7 @@ export function goalAndPillars(raw: string): { goal: string; pillars: string[] }
 		if (!pillar || pillar.length > PILLAR_MAX) continue;
 		if (!pillars.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) pillars.push(pillar);
 	}
-	return pillars.length >= 8 ? { goal, pillars: pillars.slice(0, 8) } : null;
+	return pillars.length >= 8 ? { goal, pillars: dropSharedWord(goal, pillars.slice(0, 8)) } : null;
 }
 
 function cleanLine(value: string): string {
@@ -624,6 +703,9 @@ export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
 	return findings.slice(0, limit);
 }
 
+/** The rewrite prompt's examples. A rewrite that copies one is rejected. */
+export const REWRITE_EXAMPLES = ['Block 25 minutes after lunch', 'Post one short video on Tuesday'] as const;
+
 export function rewriteMessages(data: ChartData, finding: HelperFinding, facts = '', again = false): ChatMessage[] {
 	const isPillar = finding.key.startsWith('p');
 	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
@@ -633,7 +715,7 @@ export function rewriteMessages(data: ChartData, finding: HelperFinding, facts =
 			content: [
 				'You replace one line of a Mandala chart with something this person does: a verb and the thing it applies to.',
 				'Return only the new line. Do not mention the problem.',
-				'"Work hard" → "Block 25 minutes after lunch". "Get 10 million views" → "Post one short video on Tuesday". Do not copy these.'
+				`"Work hard" → "${REWRITE_EXAMPLES[0]}". "Get 10 million views" → "${REWRITE_EXAMPLES[1]}". Do not copy these.`
 			].join('\n')
 		},
 		{
@@ -1007,9 +1089,10 @@ export function helpChips(): HelperChip[] {
 	return [jobChip('today', "Pick today's three"), jobChip('review', 'Review my chart')];
 }
 
-export function extraChips(sketch: boolean): HelperChip[] {
-	const chips: HelperChip[] = [{ label: 'Write the actions', act: { kind: 'send', text: 'go' } }];
-	if (sketch) chips.push({ label: 'Rename the pillars', act: { kind: 'sketch' } });
+/** Chips while the second draft question waits. A sketch card carries its own buttons. */
+export function extraChips(sketch: boolean, said = ''): HelperChip[] {
+	const chips = followUpChips(said);
+	if (!sketch) chips.push({ label: 'Write the actions', act: { kind: 'send', text: 'go' } });
 	return chips;
 }
 

@@ -124,7 +124,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 
 1. A crisis line answered by rule, before any model. A count question ("how many did I tick") routed to `progressReport`.
 2. Rules first, then the loaded 4B as a router for whatever the rules send to open chat.
-3. A copy of the worked example is a line fault, and the example moves off language learning.
+3. ~~A copy of the worked example is a line fault, and the example moves off language learning.~~ Done: the example is about an aquarium, and the writer and rewrite reject copies of either prompt's examples.
 4. Pillars get the same state check actions get ("Stay consistent", "Stay motivated").
 5. Spaces stop meaning words for Japanese and Chinese lines.
 6. `goalAndPillars` rejects a long pillar instead of clipping it, like the action writer.

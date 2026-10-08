@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	aimParts,
+	dropSharedWord,
+	EXAMPLE_LINES,
+	followUpQuestion,
+	splitGoal,
 	isMissingCard,
 	isRetry,
 	plainReply,
@@ -207,7 +212,7 @@ describe('facts, faults, and the prompts', () => {
 		const messages = fillActionsMessages(data, 0, 3, 'About this person:\n- Constraint: A bad knee');
 		const joined = messages.map((message) => message.content).join('\n');
 		expect(joined).toContain('A bad knee');
-		expect(joined).toContain('Play Spanish audio for 15 minutes at breakfast');
+		expect(joined).toContain('Test the tank water on Sunday morning');
 		expect(joined).not.toContain('at most');
 	});
 
@@ -424,8 +429,14 @@ describe('turn chips', () => {
 	it('offers sketch or stay, help on a full chart, and go after a sketch', () => {
 		expect(offerChips().map((chip) => chip.label)).toEqual(['Sketch the new one', 'Stay on this chart']);
 		expect(helpChips().map(chipJob)).toEqual(['today', 'review']);
-		expect(extraChips(true).map((chip) => chip.label)).toEqual(['Write the actions', 'Rename the pillars']);
+		expect(extraChips(true)).toEqual([]);
 		expect(extraChips(false).map((chip) => chip.label)).toEqual(['Write the actions']);
+		expect(extraChips(true, 'I am A1 and reading is hard').map((chip) => chip.label)).toEqual([
+			'15 minutes a day',
+			'30 minutes a day',
+			'An hour a day',
+			'No date'
+		]);
 	});
 });
 
@@ -443,7 +454,7 @@ describe('cell prompts', () => {
 		expect(pillars).not.toContain('three to seven');
 		expect(pillars).toContain('verb');
 		expect(actions).not.toContain('three to seven');
-		expect(actions).toContain('listen to spanish for 15 minutes');
+		expect(actions).toContain('keep the aquarium clean');
 		expect(askMessages(sample(), 'hello').map((message) => message.content).join('\n').toLowerCase()).not.toContain('fill the blanks');
 	});
 
@@ -981,5 +992,84 @@ describe('isRetry, isMissingCard, plainReply', () => {
 		expect(plainReply('**Study Slovak Daily:** (8 Actions) * **Practice Grammar:** (8 Actions)')).toBe('Study Slovak Daily: (8 Actions) Practice Grammar: (8 Actions)');
 		expect(plainReply('## Plan\n- Walk after dinner\n- Read one page')).toBe('Plan\nWalk after dinner\nRead one page');
 		expect(plainReply('Pick 2 - not 3 - today.')).toBe('Pick 2 - not 3 - today.');
+	});
+});
+
+const SLOVAK =
+	'I want to learn Slovak. I am currently about a A1 maybe A2, but I have an insane lack of vocabulary and I am shit at reading as well as bad with having conversation';
+
+describe('a new goal with more said', () => {
+	it('keeps the goal line short and everything else for the plan', () => {
+		const parts = aimParts(SLOVAK, sample());
+		expect(parts?.aim).toBe('learn Slovak');
+		expect(parts?.said).toMatch(/^I am currently about a A1 maybe A2, but I have an insane lack of vocabulary .* conversation$/);
+		expect(aimOf(SLOVAK, sample())).toBe('learn Slovak');
+	});
+
+	it('splits a typed goal the same way', () => {
+		expect(splitGoal('Run a half marathon by October. My knee is bad.')).toEqual({ goal: 'Run a half marathon by October', said: 'My knee is bad.' });
+		expect(splitGoal('Learn Slovak, but I only have evenings')).toEqual({ goal: 'Learn Slovak', said: 'I only have evenings' });
+		expect(splitGoal('Learn Slovak')).toEqual({ goal: 'Learn Slovak', said: '' });
+	});
+
+	it('puts what was said into the answers, and the follow-up answer after it', () => {
+		const answers = chartAnswersFromText('learn Slovak', '30 minutes a day', 'Reading is hard.');
+		expect(answers.direction).toBe('learn Slovak');
+		expect(answers.situation).toBe('Reading is hard. 30 minutes a day');
+		expect(chartAnswersFromText('learn Slovak', 'No date', 'Reading is hard.').situation).toBe('Reading is hard.');
+		expect(chartAnswersFromText('learn Slovak', 'go').situation).toBe('');
+	});
+
+	it('asks only for what is missing', () => {
+		expect(followUpQuestion('')).toMatch(/^Anything that would change the plan/);
+		expect(followUpQuestion('I am A1 and reading is hard')).toBe('How much time can you give it a day, and is there a date?');
+		expect(followUpQuestion('I have 20 minutes a day')).toBe('Is there a date you want this by?');
+		expect(followUpQuestion('I want it by March')).toBe('How much time can you give it a day?');
+		expect(followUpQuestion('20 minutes a day, by March')).toBeNull();
+	});
+});
+
+describe('pillars', () => {
+	it('drops the goal word that every pillar repeats', () => {
+		const pillars = [
+			'Study Slovak vocabulary',
+			'Practice Slovak grammar',
+			'Listen to Slovak podcasts',
+			'Watch Slovak videos',
+			'Speak Slovak daily',
+			'Take Slovak tests',
+			'Read Slovak texts',
+			'Use Slovak language apps'
+		];
+		expect(dropSharedWord('Learn Slovak to A2 level', pillars)).toEqual([
+			'Study vocabulary',
+			'Practice grammar',
+			'Listen to podcasts',
+			'Watch videos',
+			'Speak daily',
+			'Take tests',
+			'Read texts',
+			'Use language apps'
+		]);
+	});
+
+	it('leaves a word that only a few pillars share, and never leaves a one-word pillar', () => {
+		const pillars = ['Run easy', 'Run long', 'Lift twice a week', 'Sleep by 11', 'Eat before runs', 'Stretch daily', 'Rest Mondays', 'Track miles'];
+		expect(dropSharedWord('Run a half marathon', pillars)).toEqual(pillars);
+		const short = ['Slovak', 'Read Slovak', 'Speak Slovak', 'Write Slovak', 'Hear Slovak', 'Slovak words', 'Learn grammar', 'Rest'];
+		expect(dropSharedWord('Learn Slovak', short)).toEqual(short);
+	});
+
+	it('asks for a goal past the stated level, a pillar per weak spot, skills over tools', () => {
+		const system = pillarsMessages(emptyChartAnswers())[0]!.content;
+		expect(system).toMatch(/one step past where they stand now/);
+		expect(system).toMatch(/each of those gets its own pillar/);
+		expect(system).toMatch(/no apps, videos, podcasts or tests as pillars/);
+		expect(system).toMatch(/does not repeat it/);
+	});
+
+	it('rejects a line that copies the worked example', () => {
+		for (const line of EXAMPLE_LINES) expect(lineFault(line, { max: 48, kind: 'action', siblings: [...EXAMPLE_LINES] })?.code).toBe('repeated');
+		expect(fillActionsMessages(sample(), 0, 8).map((message) => message.content).join('\n')).not.toMatch(/Spanish/);
 	});
 });

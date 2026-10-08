@@ -33,8 +33,8 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | Pick today's three, with Swap on each pick (see "How picks work") | "Pick today's three" | No | `suggestToday`, `swap` |
 | Insights from today, yesterday and this week, in the greeting and in "How am I doing?" | Opening the panel, "How am I doing?" | No | `insightsFor` |
 | Fill empty pillars, or the empty actions of one pillar | "Suggest pillars", "Fill Health", or naming a pillar with "fill" | Yes | `fillPillars`, `fillActions` |
-| Draft a whole chart: two questions, then goal and pillars, then 64 actions | "Start a chart" (panel chip, or the empty chart's button) | Yes | `proposePillars`, `fillDraftActions` |
-| Spot a new goal in a message ("I want to learn Spanish") and offer to sketch it | Typing it | Detection no, sketch yes | `aimOf` |
+| Draft a whole chart: the goal, then only what is still missing (time a day, a date), then goal and pillars, then 64 actions | "Start a chart" (panel chip, or the empty chart's button) | Yes | `splitGoal`, `followUpQuestion`, `proposePillars`, `fillDraftActions` |
+| Spot a new goal in a message ("I want to learn Spanish") and offer to sketch it. The rest of the message (a level, what is hard) is kept for the pillars and the brief. The sketch card writes the actions or tries other pillars, and has no "Use" until it has actions | Typing it | Detection no, sketch yes | `aimParts`, `followUpQuestion` |
 | Paste a reply from another chat app and get a chart card | Pasting it | No | `parseDraftText` |
 | Copy the draft prompt for another chat app | Declining the download, or no WebGPU | No | `draftPrompt` |
 | How am I doing: ticks in the last 7 days, quiet pillars, streak, milestones | "How am I doing?", "which pillar have I been ignoring?" | No | `progressReport` |
