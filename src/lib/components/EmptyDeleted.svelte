@@ -24,10 +24,9 @@
 			<svg class="block overflow-visible" viewBox="0 0 100 100" width="76" height="76">
 				{#each segments as segment, index (index)}
 					<path
-						class="ring-track fill-none stroke-[9] [stroke-linecap:round] motion-safe:animate-pop-in"
+						class="ring-track fill-none stroke-[9] [stroke-linecap:round]"
 						d={segment.d}
 						style:--h={segment.hue}
-						style:animation-delay="{index * 35}ms"
 					/>
 				{/each}
 			</svg>
@@ -43,7 +42,7 @@
 	<div class="flex flex-col gap-1">
 		<p class="m-0 text-[1rem] font-[620] text-text">Nothing deleted</p>
 		<p class="m-0 max-w-[36ch] text-[0.9rem] leading-[1.45] text-balance text-muted">
-			Delete a chart from the menu and it waits here for {days} days, in case you want it back.
+			Delete a chart from the menu and it remains here for {days} days.
 		</p>
 	</div>
 </div>
