@@ -165,6 +165,15 @@ describe('clone isolation', () => {
 		live.goal = 'mutated';
 		expect(next[0]?.data.goal).toBe('Active now');
 	});
+
+	it('flushActive keeps the time when nothing changed', () => {
+		const a = newRecord(emptyChart(), 1);
+		a.data.goal = 'Same';
+		const live = cloneChart(a.data);
+		expect(flushActive([a], a.id, live, 99)[0]).toBe(a);
+		live.goal = 'Edited';
+		expect(flushActive([a], a.id, live, 99)[0]?.updatedAt).toBe(99);
+	});
 });
 
 describe('summarize', () => {

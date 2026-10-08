@@ -367,7 +367,11 @@ export function flushActive(
 	data: ChartData,
 	at = Date.now()
 ): ChartRecord[] {
-	return charts.map((chart) =>
-		chart.id === activeId ? { id: chart.id, updatedAt: at, data: cloneChart(data) } : chart
-	);
+	return charts.map((chart) => {
+		if (chart.id !== activeId) return chart;
+		const next = cloneChart(data);
+		// Opening, switching or autosaving an unchanged chart keeps its time, so the list doesn't reorder.
+		if (JSON.stringify(next) === JSON.stringify(chart.data)) return chart;
+		return { id: chart.id, updatedAt: at, data: next };
+	});
 }
