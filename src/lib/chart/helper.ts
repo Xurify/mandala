@@ -1,4 +1,3 @@
-import { nearCopy, norm, restated, UNCONTROLLED, UNTICKABLE } from './coach-score.ts';
 import {
 	ACTION_MAX,
 	chartAnswersMessage,
@@ -21,6 +20,52 @@ import {
 	type ChartBrief,
 	type ChartData
 } from './model.ts';
+
+/* Line primitives: the review, the writer, and the holdout all judge cells with these. */
+
+export const UNTICKABLE =
+	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder|get better|be more|be better)\b/i;
+export const UNCONTROLLED = /\b(\d[\d,.]*\s*(million|billion)\s+views|followers|go viral|get famous|get rich)\b/i;
+
+export function norm(value: string): string {
+	return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+const COPY_STOP = new Set([
+	'a', 'an', 'the', 'after', 'before', 'every', 'my', 'and', 'or', 'to', 'of', 'on', 'for', 'with', 'in', 'at', 'by', 'from',
+	'apply', 'use', 'wear', 'do', 'keep', 'get'
+]);
+
+function contentTokens(value: string): string[] {
+	return norm(value)
+		.split(' ')
+		.filter((token) => token !== '' && !COPY_STOP.has(token))
+		.map((token) => (token.length > 3 && token.endsWith('s') ? token.slice(0, -1) : token));
+}
+
+/** True when two cells are the same action with different filler words. */
+export function nearCopy(left: string, right: string): boolean {
+	const a = contentTokens(left);
+	const b = contentTokens(right);
+	if (a.length < 2 || a.length !== b.length) return false;
+	const bag = new Map<string, number>();
+	for (const token of a) bag.set(token, (bag.get(token) ?? 0) + 1);
+	for (const token of b) {
+		const count = bag.get(token) ?? 0;
+		if (count === 0) return false;
+		bag.set(token, count - 1);
+	}
+	return true;
+}
+
+export function restated(pillar: string, action: string): boolean {
+	const base = norm(pillar);
+	const cell = norm(action);
+	if (!base || !cell) return false;
+	if (cell === base) return true;
+	const stripped = cell.replace(/^(do|practice|work on|keep doing|focus on)\s+/, '');
+	return stripped !== cell && stripped === base;
+}
 
 export type HelperJob = 'draft' | 'fill' | 'review' | 'week' | 'today';
 export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel' | 'progress' | 'chat' | 'facts';
@@ -199,8 +244,9 @@ const REJECT_CARD =
 
 const RETRY =
 	/^(?:(?:please\s+)?try\s+(?:it\s+)?again|again|redo(?:\s+(?:it|that|them|the\s+pillars))?|another\s+(?:one|try|set)|different\s+(?:ones|pillars)|new\s+pillars|start\s+over)(?:\s+please)?[.!]*$/i;
+// "It" counts only after "can't see" or "can't find". "Where is it" could be about anything.
 const MISSING_CARD =
-	/\b(?:(?:do\s*n'?o?t|do\s+not|can'?t|cannot|can\s+not)\s+(?:see|find)|where(?:'s|\s+is|\s+are|\s+did)|show\s+me|lost|missing|disappeared|nothing\s+(?:showed|shows|appeared))\b.*\b(?:chart|card|draft|pillars|actions|it)\b|\b(?:chart|card|draft|pillars|actions)\b.*\b(?:disappeared|vanished|is\s+gone|went\s+away|is\s+missing|isn'?t\s+(?:there|showing)|not\s+showing)\b/i;
+	/\b(?:do\s*n'?o?t|do\s+not|can'?t|cannot|can\s+not)\s+(?:see|find)\b.*\b(?:chart|card|draft|pillars|actions|it)\b|\b(?:where(?:'s|\s+is|\s+are|\s+did)|show\s+me|lost|missing|disappeared|nothing\s+(?:showed|shows|appeared))\b.*\b(?:chart|card|draft|pillars|actions)\b|\b(?:chart|card|draft|pillars|actions)\b.*\b(?:disappeared|vanished|is\s+gone|went\s+away|is\s+missing|isn'?t\s+(?:there|showing)|not\s+showing)\b/i;
 
 /** "Try again" while a sketch waits: redo the pillars, not an answer to the next question. */
 export function isRetry(text: string): boolean {
@@ -499,27 +545,6 @@ export function pillarsMessages(answers: ChartAnswers, rejected: readonly LineRe
 	];
 }
 
-const SUBJECT_STOP = new Set(['about', 'after', 'before', 'every', 'daily', 'weekly', 'more', 'with', 'your', 'from', 'into', 'than']);
-
-/**
- * Drops a word the goal names when it repeats in most pillars: "Study Slovak vocabulary" under
- * "Learn Slovak" becomes "Study vocabulary". The goal already says it, and the cell has 32 characters.
- */
-export function dropSharedWord(goal: string, pillars: readonly string[]): string[] {
-	const goalWords = new Set(norm(goal).split(' ').filter((word) => word.length >= 4 && !SUBJECT_STOP.has(word)));
-	let result = [...pillars];
-	for (const word of goalWords) {
-		// "Write sentences in Slovak daily" drops "in Slovak". "Speak with Slovak friends" keeps "with".
-		const pattern = new RegExp(`(?:\\s+(?:in|into))?\\s*\\b${escapeRegExp(word)}\\b`, 'i');
-		const hits = result.filter((pillar) => pattern.test(pillar)).length;
-		if (hits < 5) continue;
-		const trimmed = result.map((pillar) => pillar.replace(pattern, '').replace(/\s+/g, ' ').trim());
-		// A pillar that was only the subject keeps it.
-		result = trimmed.map((pillar, index) => (pillar.split(' ').length >= 2 ? pillar : result[index]!));
-	}
-	return result;
-}
-
 /**
  * The goal and the pillar names in a reply. `pillars` fit the cell. `rejected` are too long or stop
  * mid-phrase, each with the reason, to go back to the model. Nothing is clipped here.
@@ -535,22 +560,14 @@ export function pillarHead(raw: string): { goal: string; pillars: string[]; reje
 		const pillar = typeof item === 'string' ? cleanLine(item) : '';
 		if (pillar && !named.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) named.push(pillar);
 	}
-	// Dropping the goal's subject word first can bring a long pillar under the cap.
-	const trimmed = dropSharedWord(goal, named);
 	const pillars: string[] = [];
 	const rejected: LineReject[] = [];
-	for (const pillar of trimmed) {
+	for (const pillar of named) {
 		if (pillar.length > PILLAR_MAX) rejected.push({ text: pillar, reason: `Over ${PILLAR_MAX} characters. Say it in fewer words.` });
 		else if (CUT_OFF.test(pillar)) rejected.push({ text: pillar, reason: 'Stops mid-phrase. Finish the thought.' });
 		else pillars.push(pillar);
 	}
 	return { goal, pillars, rejected };
-}
-
-/** Exactly eight pillars that fit, or null. */
-export function goalAndPillars(raw: string): { goal: string; pillars: string[] } | null {
-	const head = pillarHead(raw);
-	return head && head.pillars.length >= 8 ? { goal: head.goal, pillars: head.pillars.slice(0, 8) } : null;
 }
 
 /** Last resort for a pillar the model would not shorten: cut at a word, then drop words a phrase cannot end on. */
@@ -661,20 +678,9 @@ function splitLines(raw: string): string[] {
 		.filter((line) => line !== '' && !/^[[{\]}]/.test(line) && !/:$/.test(line));
 }
 
-/** Numbered or bulleted lines. A line past `max` is dropped, not cut. */
-export function replyLines(raw: string, count: number, max: number): string[] | null {
-	const unique: string[] = [];
-	for (const line of splitLines(raw)) {
-		if (line.length > max) continue;
-		if (!unique.some((seen) => norm(seen) === norm(line))) unique.push(line);
-	}
-	return unique.length >= count ? unique.slice(0, count) : null;
-}
-
 // A number, a length, a day, or a moment makes "more" and "be" lines tickable.
 const ANCHOR =
 	/\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred|once|twice|daily|weekly|monthly|every|each|minutes?|mins?|hours?|pages?|times?|mornings?|evenings?|nights?|tonight|today|tomorrow|noon|lunch|breakfast|dinner|bed|bedtime|weekends?|after|before|when|until|during|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b/i;
-/** A line that ends on a word no phrase ends on was cut short: "Track progress through". */
 /**
  * Words no line ends on. Prepositions are left out: "someone would pay for" and "follow through" are whole.
  * "Then with" is a short form, not a cut.

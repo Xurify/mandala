@@ -9,7 +9,6 @@ import {
 	editWords,
 	groupEdits,
 	aimParts,
-	dropSharedWord,
 	EXAMPLE_LINES,
 	followUpQuestion,
 	splitGoal,
@@ -37,7 +36,6 @@ import {
 	extraChips,
 	fillActionsMessages,
 	fillPlan,
-	goalAndPillars,
 	helpChips,
 	intentOf,
 	isCancellation,
@@ -52,7 +50,6 @@ import {
 	oneLine,
 	pillarMentioned,
 	pillarsMessages,
-	replyLines,
 	rewriteMessages,
 	reviewChart,
 	suggestToday,
@@ -171,19 +168,10 @@ describe('fillPlan', () => {
 	});
 });
 
-describe('replyLines and oneLine', () => {
-	it('reads numbered lines and drops repeats', () => {
-		expect(replyLines('1. Run 5k\n2. run 5k\n3. Stretch\n4. Sleep at ten', 3, 48)).toEqual(['Run 5k', 'Stretch', 'Sleep at ten']);
-		expect(replyLines('1. Only one', 2, 48)).toBeNull();
-	});
-
+describe('oneLine', () => {
 	it('takes the first clean line and refuses one that is too long', () => {
 		expect(oneLine('Rewrite: "Ask one question in each class."', 48)).toBe('Ask one question in each class');
 		expect(oneLine('Track expenses using an app to stay aware of every purchase this month', 48)).toBeNull();
-	});
-
-	it('drops a long line instead of cutting it', () => {
-		expect(replyLines('1. Track expenses using an app to stay aware of spending\n2. Note each coffee', 1, 48)).toEqual(['Note each coffee']);
 	});
 });
 
@@ -233,11 +221,11 @@ describe('facts, faults, and the prompts', () => {
 
 	it('refuses a goal that does not fit the cell', () => {
 		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
-		expect(goalAndPillars(JSON.stringify({ goal: 'x'.repeat(81), pillars }))).toBeNull();
+		expect(pillarHead(JSON.stringify({ goal: 'x'.repeat(81), pillars }))).toBeNull();
 	});
 });
 
-describe('truncateAtWordBoundary and goalAndPillars', () => {
+describe('truncateAtWordBoundary and pillarHead', () => {
 	it('never cuts mid-word', () => {
 		expect(truncateAtWordBoundary('Track expenses using an app to stay aware of spending', 48)).toBe('Track expenses using an app to stay aware of');
 		expect(truncateAtWordBoundary('Short one.', 48)).toBe('Short one');
@@ -245,12 +233,12 @@ describe('truncateAtWordBoundary and goalAndPillars', () => {
 
 	it('reads the head of a draft and needs eight distinct pillars', () => {
 		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
-		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }))).toEqual({ goal: 'Finish a half', pillars });
-		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars: [...pillars.slice(0, 7), 'speed'] }))).toBeNull();
-		expect(goalAndPillars('no json here')).toBeNull();
+		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))).toEqual({ goal: 'Finish a half', pillars, rejected: [] });
+		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars: [...pillars.slice(0, 7), 'speed'] }))?.pillars).toHaveLength(7);
+		expect(pillarHead('no json here')).toBeNull();
 	});
 
-	it('trims slightly long pillars to fit cell instead of failing', () => {
+	it('sends a long pillar back instead of clipping it', () => {
 		const pillars = [
 			'Easy runs',
 			'Speed intervals on track',
@@ -261,8 +249,7 @@ describe('truncateAtWordBoundary and goalAndPillars', () => {
 			'Shoes',
 			'Calendar'
 		];
-		// A long pillar is sent back to be said shorter, never clipped.
-		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }))).toBeNull();
+		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))?.pillars).toHaveLength(7);
 		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))?.rejected.map((item) => item.text)).toEqual(['Strength and conditioning session']);
 	});
 });
@@ -991,7 +978,9 @@ describe('isRetry, isMissingCard, plainReply', () => {
 		for (const text of ["I don't see the chart", 'i dont see it', 'where is the chart?', 'where did the actions go', "I can't find the draft", 'the chart disappeared']) {
 			expect(isMissingCard(text)).toBe(true);
 		}
-		for (const text of ['show me my progress', 'where do I start?', 'I see it now, thanks', 'how do I see my week']) expect(isMissingCard(text)).toBe(false);
+		for (const text of ['show me my progress', 'where do I start?', 'I see it now, thanks', 'how do I see my week', 'where is it', 'show me how to use it']) {
+			expect(isMissingCard(text)).toBe(false);
+		}
 	});
 
 	it('strips markdown the panel would show as is', () => {
@@ -1036,41 +1025,6 @@ describe('a new goal with more said', () => {
 });
 
 describe('pillars', () => {
-	it('drops the goal word that every pillar repeats', () => {
-		const pillars = [
-			'Study Slovak vocabulary',
-			'Practice Slovak grammar',
-			'Listen to Slovak podcasts',
-			'Watch Slovak videos',
-			'Speak Slovak daily',
-			'Take Slovak tests',
-			'Read Slovak texts',
-			'Use Slovak language apps'
-		];
-		expect(dropSharedWord('Learn Slovak to A2 level', pillars)).toEqual([
-			'Study vocabulary',
-			'Practice grammar',
-			'Listen to podcasts',
-			'Watch videos',
-			'Speak daily',
-			'Take tests',
-			'Read texts',
-			'Use language apps'
-		]);
-	});
-
-	it('takes the preposition in front of the word with it', () => {
-		const pillars = ['Write sentences in Slovak daily', 'Read Slovak texts', 'Speak with Slovak friends', 'Think about Slovak verbs', 'Learn Slovak words', 'Hear Slovak radio', 'Rest', 'Sleep'];
-		expect(dropSharedWord('Learn Slovak', pillars).slice(0, 6)).toEqual(['Write sentences daily', 'Read texts', 'Speak with friends', 'Think about verbs', 'Learn words', 'Hear radio']);
-	});
-
-	it('leaves a word that only a few pillars share, and never leaves a one-word pillar', () => {
-		const pillars = ['Run easy', 'Run long', 'Lift twice a week', 'Sleep by 11', 'Eat before runs', 'Stretch daily', 'Rest Mondays', 'Track miles'];
-		expect(dropSharedWord('Run a half marathon', pillars)).toEqual(pillars);
-		const short = ['Slovak', 'Read Slovak', 'Speak Slovak', 'Write Slovak', 'Hear Slovak', 'Slovak words', 'Learn grammar', 'Rest'];
-		expect(dropSharedWord('Learn Slovak', short)).toEqual(short);
-	});
-
 	it('asks for a goal past the stated level, a pillar per weak spot, skills over tools', () => {
 		const system = pillarsMessages(emptyChartAnswers())[0]!.content;
 		expect(system).toMatch(/one step past where they stand now/);
@@ -1173,7 +1127,7 @@ describe('lines cut short', () => {
 		}
 	});
 
-	it('keeps cut and long pillars out, and lets the subject word bring one under the cap', () => {
+	it('keeps cut and long pillars out, each with its reason', () => {
 		const head = pillarHead(
 			JSON.stringify({
 				goal: 'Learn Slovak',
@@ -1183,9 +1137,10 @@ describe('lines cut short', () => {
 		expect(head.pillars).not.toContain('Track progress with the');
 		expect(head.rejected).toEqual([
 			{ text: 'Track progress with the', reason: 'Stops mid-phrase. Finish the thought.' },
-			{ text: 'Practice speaking with language partners', reason: 'Over 32 characters. Say it in fewer words.' }
+			{ text: 'Practice speaking with language partners', reason: 'Over 32 characters. Say it in fewer words.' },
+			{ text: 'Use a Slovak tutor weekly on Sundays', reason: 'Over 32 characters. Say it in fewer words.' }
 		]);
-		expect(head.pillars).toContain('Use a tutor weekly on Sundays');
+		expect(head.pillars).toHaveLength(5);
 	});
 
 	it('shortens a pillar the model would not, without ending mid-phrase', () => {

@@ -19,8 +19,6 @@ export interface CoachProvider {
 	loaded(model?: string): boolean;
 	complete(model: string, messages: ChatMessage[], options: CompleteOptions): Promise<string>;
 	interrupt(): void;
-	/** Last speed or source line, for the lab. */
-	stats(): string;
 }
 
 export type Engine = { provider: 'builtin'; download: boolean } | { provider: 'webllm' } | null;

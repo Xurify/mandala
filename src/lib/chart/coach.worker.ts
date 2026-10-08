@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { CreateMLCEngine, prebuiltAppConfig, type MLCEngine, type CompletionUsage } from '@mlc-ai/web-llm';
+import { CreateMLCEngine, prebuiltAppConfig, type MLCEngine } from '@mlc-ai/web-llm';
 import type { CoachRequest, CoachResponse } from './coach-protocol.ts';
 import { replyText } from './coach-provider.ts';
 
@@ -15,13 +15,6 @@ function post(message: CoachResponse): void {
 
 function progressText(value: unknown): string {
 	return typeof value === 'string' ? value : '';
-}
-
-function usageStats(usage: CompletionUsage | undefined): string | undefined {
-	if (!usage) return undefined;
-	const prefill = Math.round(usage.extra.prefill_tokens_per_s);
-	const decode = Math.round(usage.extra.decode_tokens_per_s);
-	return `prefill ${prefill} tok/s, decode ${decode} tok/s`;
 }
 
 let loadToken = 0;
@@ -103,8 +96,7 @@ async function handle(request: Exclude<CoachRequest, { type: 'interrupt' }>): Pr
 		post({
 			type: 'done',
 			id: request.id,
-			text: replyText(content),
-			stats: usageStats(completion.usage)
+			text: replyText(content)
 		});
 	} catch (error) {
 		post({ type: 'error', id: request.id, text: error instanceof Error ? error.message : 'The coach stopped.' });

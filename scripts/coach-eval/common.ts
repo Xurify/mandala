@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { exampleChart } from '../../src/lib/chart/example.ts';
 import { dateKeyOffset, type ChartData } from '../../src/lib/chart/model.ts';
-import { norm, nearCopy } from '../../src/lib/chart/coach-score.ts';
+import { norm, nearCopy } from '../../src/lib/chart/helper.ts';
 
 export const OUT = process.env.COACH_EVAL_OUT ?? new URL('../../local/coach-eval/', import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });

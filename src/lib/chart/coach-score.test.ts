@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { coachFixtures } from './coach-fixtures.ts';
 import { holdoutDataset } from './coach-holdout.ts';
-import { holdoutChartMetrics, nearCopy, scoreChart, scoreReply, summarizeScores } from './coach-score.ts';
+import { holdoutChartMetrics, scoreChart, scoreReply, summarizeScores } from './coach-score.ts';
+import { nearCopy } from './helper.ts';
 import { parseDraftText } from './draft.ts';
 
 describe('scoreChart', () => {

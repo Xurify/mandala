@@ -18,7 +18,6 @@ export function createWebLLMProvider(onProgress: ProgressListener): WebLLMProvid
 	let seq = 1;
 	let ready = '';
 	let target = '';
-	let lastStats = '';
 	let inflight: { model: string; promise: Promise<void> } | null = null;
 
 	function connect(): Worker {
@@ -34,7 +33,6 @@ export function createWebLLMProvider(onProgress: ProgressListener): WebLLMProvid
 			if (!waiting) return;
 			pending.delete(message.id);
 			if (message.type === 'done') {
-				if (message.stats) lastStats = message.stats;
 				waiting.resolve(message.text);
 			} else waiting.reject(new Error(message.text));
 		};
@@ -82,7 +80,6 @@ export function createWebLLMProvider(onProgress: ProgressListener): WebLLMProvid
 		interrupt() {
 			worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
 		},
-		stats: () => lastStats,
 		current: () => target
 	};
 }

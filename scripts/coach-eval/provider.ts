@@ -73,8 +73,7 @@ export async function localProvider(name: string, options: { sampling?: 'request
 		load: async () => {},
 		loaded: () => true,
 		complete,
-		interrupt: () => {},
-		stats: () => name
+		interrupt: () => {}
 	};
 	return {
 		provider,

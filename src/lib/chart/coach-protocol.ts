@@ -22,5 +22,5 @@ export type CoachRequest =
 
 export type CoachResponse =
 	| { type: 'progress'; text: string; ratio?: number }
-	| { type: 'done'; id: number; text: string; stats?: string }
+	| { type: 'done'; id: number; text: string }
 	| { type: 'error'; id: number; text: string };

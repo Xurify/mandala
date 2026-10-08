@@ -138,7 +138,6 @@ export function createBuiltinProvider(onProgress: ProgressListener, api: Languag
 		complete,
 		interrupt() {
 			for (const controller of running) controller.abort();
-		},
-		stats: () => 'Built into the browser'
+		}
 	};
 }

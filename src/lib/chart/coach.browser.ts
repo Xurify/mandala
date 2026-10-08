@@ -122,11 +122,6 @@ export function coachLoaded(): boolean {
 	return active?.loaded() ?? false;
 }
 
-/** Last prefill and decode speed, or where the model runs. */
-export function coachStats(): string {
-	return active?.stats() ?? '';
-}
-
 /** What is loaded, or about to be, for the lab. */
 export function coachModel(): string {
 	if (active ? active.id === 'builtin' : prefer === 'builtin') return 'Built into the browser';
