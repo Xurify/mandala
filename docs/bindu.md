@@ -15,7 +15,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | `src/lib/chart/coach-provider.ts` | The provider interface, `chooseEngine`, and the message split for the Prompt API |
 | `src/lib/chart/coach-webllm.ts`, `coach.worker.ts` | Downloaded weights on WebGPU through web-llm, in a worker |
 | `src/lib/chart/coach-builtin.ts` | The browser's own model through Chrome's Prompt API (`LanguageModel`), when it exists |
-| `src/lib/chart/coach-model.ts` | The two tiers, the lab's candidates, and each model's download size |
+| `src/lib/chart/coach-model.ts` | Which model loads, the lab's candidates, and the download size on the consent card |
 | `src/lib/chart/coach-score.ts` | The phrase lists and copy checks that review and the writer share |
 | `src/lib/components/Helper.svelte`, `HelperPanel.svelte`, `HelperFace.svelte` | The button, the panel, the face and its moods |
 | `src/routes/dev/ai/+page.svelte` | The lab: every job against a sandbox chart, the model picker, the holdout run |
@@ -48,7 +48,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 
 On the 404 page, Bindu cycles through canned notes. It doesn't touch the store.
 
-Most of the jobs need no model. They run instantly, without a download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries. See "Tiers and providers".
+Most of the jobs need no model. They run instantly, without a download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries. See "Providers".
 
 ### How a message is routed
 
@@ -58,7 +58,7 @@ Most of the jobs need no model. They run instantly, without a download, and in b
 2. "No" or "skip" while a card is open.
 3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on to the model; then cancel, today, week, review, fill, progress, draft.
 4. `askRoute`: a bare ask for help, answered from the chart; a method question, answered from the written bank; a new goal (`aimOf`); a pillar name together with fill, finish or work on.
-5. Everything else goes to the model's talk tier. When nothing can run a model here, the reply says so. When the model still has to download, the reply is the download card, with that model's size.
+5. Everything else goes to the model. When nothing can run a model here, the reply says so. When the model still has to download, the reply is the download card.
 
 ### What Bindu remembers today
 
@@ -69,28 +69,23 @@ Most of the jobs need no model. They run instantly, without a download, and in b
 - Insights shown in a greeting are logged, so the greeting doesn't repeat one: a day-bound insight (today, yesterday, comeback) waits a day, the rest wait three.
 - The models the person agreed to download are stored as `mandala-helper-model`, comma-separated. An older value holds one id and reads the same. A model that fails to load is taken off the list.
 
-## Tiers and providers
+## Providers
 
-Each model job names a tier. A provider runs it.
-
-| Tier | Jobs | Model on web-llm | Download |
-| --- | --- | --- | --- |
-| Talk | Open questions (`answer`) | Qwen3 4B | 2.3 GB |
-| Write | Draft, sketch, fill, rewrite | Qwen3 4B | 2.3 GB |
-
-Both tiers load the same model, so there is one download. Talk was briefly Qwen3 1.7B. The run in `docs/bindu-models.md` found it invented counts and facts in open chat and wrote weaker lines, so it went back. The tiers stay so the lab can try another model on either one.
+A provider runs the model jobs. Every job uses the same model.
 
 | Provider | When | Download |
 | --- | --- | --- |
-| web-llm | WebGPU works | 2.3 GB, once |
+| web-llm, Qwen3 4B | WebGPU works | 2.3 GB, once |
 | Built-in (`LanguageModel`), ready | No WebGPU, and the browser has its model | None |
 | Built-in, still to fetch | No WebGPU, and the browser can fetch its model | The browser's, shared by every site |
 
-`chooseEngine` in `coach-provider.ts` holds this order. The built-in model comes second because it has only been tested through a stand-in. A built-in model that fails to load is skipped for the rest of the session. It gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. When `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
+`chooseEngine` in `coach-provider.ts` holds this order. The built-in model comes second because it has only been tested through a stand-in (`docs/bindu-models.md`). A built-in model that fails to load is skipped for the rest of the session. It gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. When `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
 
-`needFor(tier, agreed)` decides the provider and model before a job runs, and the job then runs on exactly that. The download card shows what `needFor` returned. Opening the panel warms the talk model only when that costs no new download, and starts the web-llm worker only for someone who already agreed to a download.
+`needFor()` decides the provider and model before a job runs, and the job then runs on exactly that. The download card shows what `needFor` returned. Opening the panel warms the model only when that costs no new download: one already agreed to, or the browser's own when it is there.
 
-The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. `scripts/coach-eval` runs the same coach code against GGUF models on the CPU. See `docs/bindu-models.md`.
+A smaller model for open questions was tried and taken out. The run in `docs/bindu-models.md` found Qwen3 1.7B invented counts and facts, and wrote weaker lines.
+
+The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. `scripts/coach-eval` runs the same coach code against GGUF models on the CPU.
 
 ## How picks work
 

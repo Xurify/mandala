@@ -3,15 +3,12 @@ import type { CoachProvider, CompleteOptions, ProgressListener } from './coach-p
 import type { ChatMessage } from './helper.ts';
 
 export type WebLLMProvider = CoachProvider & {
-	/** True when the weights are already on this device, so loading downloads nothing. */
-	cached(model: string): Promise<boolean>;
 	/** The model in memory, or being loaded. */
 	current(): string;
 };
 
 type Body =
 	| Omit<Extract<CoachRequest, { type: 'load' }>, 'id'>
-	| Omit<Extract<CoachRequest, { type: 'cached' }>, 'id'>
 	| Omit<Extract<CoachRequest, { type: 'complete' }>, 'id'>;
 
 /** Downloaded weights on WebGPU, in `coach.worker.ts`. One model is in memory at a time. Loading another unloads it. */
@@ -86,10 +83,6 @@ export function createWebLLMProvider(onProgress: ProgressListener): WebLLMProvid
 			worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
 		},
 		stats: () => lastStats,
-		async cached(model) {
-			if (ready === model) return true;
-			return (await request({ type: 'cached', model }).catch(() => 'no')) === 'yes';
-		},
 		current: () => target
 	};
 }

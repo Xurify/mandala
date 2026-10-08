@@ -18,7 +18,7 @@
 		suggestWeek
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
-	import { COACH_CANDIDATES, COACH_TIERS } from '$lib/chart/coach-model';
+	import { COACH_CANDIDATES } from '$lib/chart/coach-model';
 	import type { BuiltinState, ProviderChoice } from '$lib/chart/coach-provider';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
@@ -158,9 +158,6 @@
 		refresh();
 	}
 
-	function labelOf(id: string): string {
-		return COACH_CANDIDATES.find((choice) => choice.id === id && !choice.thinking)?.label ?? id;
-	}
 	let loaded = $state(false);
 	let modelName = $state('…');
 
@@ -224,7 +221,7 @@
 	let question = $state('Which pillar should I start with?');
 	let reply = $state('');
 
-	let candidate = $state(String(COACH_CANDIDATES.findIndex((choice) => choice.id === COACH_TIERS.write && !choice.thinking)));
+	let candidate = $state('0');
 	const modelOptions = COACH_CANDIDATES.map((choice, index) => ({
 		value: String(index),
 		label: choice.label
@@ -323,8 +320,8 @@
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">AI features</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Everything Bindu can do, against a sandbox chart. Rules run instantly. Bindu answers with {labelOf(COACH_TIERS.talk)} and writes
-				with {labelOf(COACH_TIERS.write)}, or uses the browser's own model when it has one. Your real charts are not touched here.
+				Everything Bindu can do, against a sandbox chart. Rules run instantly. Bindu writes with Qwen3 4B in this browser, or with the
+				browser's own model where WebGPU is missing. Your real charts are not touched here.
 			</p>
 		</div>
 	</header>
@@ -358,10 +355,6 @@
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">Built-in model</dt>
 				<dd class="m-0 font-[620]">{builtin === null ? 'Checking' : builtinLabels[builtin]}</dd>
-			</div>
-			<div class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-[0.76rem] text-muted">Tiers</dt>
-				<dd class="m-0 font-[620]">Talk {labelOf(COACH_TIERS.talk)} · Write {labelOf(COACH_TIERS.write)}</dd>
 			</div>
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">Model</dt>

@@ -1,20 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CoachTier } from './coach-model.ts';
 
-type Need = { tier: CoachTier; provider: 'webllm' | 'builtin'; model: string; download: string | null };
+type Need = { provider: 'webllm' | 'builtin'; model: string; download: string | null };
 
 const coach = vi.hoisted(() => ({
-	needs: [] as [CoachTier, readonly string[]][],
-	need: null as ((tier: CoachTier) => Need | null) | null,
+	needs: 0,
+	need: null as (() => Need | null) | null,
 	loaded: false,
 	answers: 0,
 	sketches: 0
 }));
 
 vi.mock('./coach.browser.ts', () => ({
-	needFor: async (tier: CoachTier, agreed: readonly string[]) => {
-		coach.needs.push([tier, [...agreed]]);
-		return coach.need?.(tier) ?? null;
+	needFor: async () => {
+		coach.needs++;
+		return coach.need?.() ?? null;
 	},
 	coachLoaded: () => coach.loaded,
 	resumeCoach: () => {},
@@ -67,45 +66,41 @@ function store() {
 	});
 }
 
-const webllm = (tier: CoachTier): Need =>
-	tier === 'talk'
-		? { tier, provider: 'webllm', model: 'Qwen3-1.7B-q4f16_1-MLC', download: '1 GB' }
-		: { tier, provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: '2.3 GB' };
+const webllm = (): Need => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: '2.3 GB' });
 
 beforeEach(() => {
-	coach.needs = [];
+	coach.needs = 0;
 	coach.need = webllm;
 	coach.loaded = false;
 	coach.answers = 0;
 	coach.sketches = 0;
 });
 
-describe('HelperStore model tiers', () => {
-	it('asks for the small download for an open question, then answers once agreed', async () => {
+describe('HelperStore model consent', () => {
+	it('asks before the download, then answers once agreed, and does not ask again', async () => {
 		const helper = store();
 		await helper.send('How do I stay motivated?');
 		const card = helper.messages.at(-1)!;
-		expect(coach.needs[0]?.[0]).toBe('talk');
-		expect(card.card).toEqual({ kind: 'download', size: '1 GB', builtin: false });
-		expect(card.text).toMatch(/^I answer with a small model/);
+		expect(card.card).toEqual({ kind: 'download', size: '2.3 GB', builtin: false });
+		expect(card.text).toMatch(/^I write with a small model/);
 
 		helper.allowDownload(card.id);
 		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toBe('Start with the pillar you skipped.'));
 
 		await helper.send('Should I run in the morning?');
-		expect(coach.needs.at(-1)).toEqual(['talk', ['Qwen3-1.7B-q4f16_1-MLC']]);
+		await vi.waitFor(() => expect(coach.answers).toBe(2));
 		expect(helper.messages.filter((message) => message.card?.kind === 'download')).toHaveLength(1);
 	});
 
-	it('asks for the writer before writing', async () => {
+	it('asks before writing too', async () => {
 		const helper = store();
 		await helper.start('fill');
-		expect(coach.needs[0]?.[0]).toBe('write');
+		expect(coach.needs).toBe(1);
 		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '2.3 GB', builtin: false });
 	});
 
 	it('runs straight away when nothing has to download', async () => {
-		coach.need = (tier) => ({ tier, provider: 'builtin', model: 'built-in', download: null });
+		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: null });
 		const helper = store();
 		await helper.send('How do I stay motivated?');
 		expect(helper.messages.some((message) => message.card?.kind === 'download')).toBe(false);
@@ -113,7 +108,7 @@ describe('HelperStore model tiers', () => {
 	});
 
 	it("offers the browser's own model when it still has to fetch it", async () => {
-		coach.need = (tier) => ({ tier, provider: 'builtin', model: 'built-in', download: '' });
+		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: '' });
 		const helper = store();
 		await helper.send('How do I stay motivated?');
 		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '', builtin: true });
@@ -143,7 +138,7 @@ describe('HelperStore sketch, as in the Slovak report', () => {
 	}
 
 	async function sketched() {
-		coach.need = (tier) => ({ tier, provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const helper = blank();
 		await helper.send('I want to learn Slovak');
 		const sketch = helper.chips.find((chip) => chip.act.kind === 'sketch');

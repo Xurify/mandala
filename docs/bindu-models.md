@@ -3,7 +3,7 @@
 **Date:** 2026-10-08
 **Status:** Measured on the CPU with `scripts/coach-eval`. The browser numbers in `docs/coach-writing.md` still stand. These add models, rare cases, and a hand grade.
 
-The question was whether the two-tier change and the built-in provider make Bindu better or worse. Nothing here ran on a GPU or in Chrome. Read speeds as relative, not as what a person waits in the browser.
+The question was whether a smaller model for open questions (Qwen3 1.7B) and the built-in provider make Bindu better or worse. Nothing here ran on a GPU or in Chrome. Read speeds as relative, not as what a person waits in the browser.
 
 ## How it ran
 
@@ -36,7 +36,7 @@ About 48 lines a row (63 for Qwen3 4B, which was graded in both rounds), so a ga
 - **The Gemma stand-in writes as well as Qwen3 4B,** with fewer retries. Fixed sampling did not hurt the counts, and may cost a little in the hand grade.
 - **Pillars are the weakest part for every model.** Half the pillar names are states ("Stay consistent", "Stay motivated", "Visualize financial freedom") or restate the goal. `lineFault` only checks the action form for states.
 
-## Open questions (the talk tier)
+## Open questions
 
 Nineteen questions on the lab's sample chart. Five are ordinary. Fourteen are rare: counts it cannot know, medicine, a crisis line, weather, a fact, Spanish, hostility, emoji, "are you ChatGPT", a haiku, a second goal, an instruction hidden in a chart cell, no goal, and a long history.
 
@@ -51,7 +51,7 @@ Nineteen questions on the lab's sample chart. Five are ordinary. Fourteen are ra
 | Spanish question | Answers in Spanish | Answers in Spanish | Answers in Spanish | Answers in English |
 | Instruction hidden in a Home action | Ignored | Ignored | Ignored | Ignored |
 
-- **The talk tier should not drop to 1.7B.** It invents numbers and facts, and breaks the method, on the questions where a wrong answer hurts most.
+- **Open questions should not drop to 1.7B.** It invents numbers and facts, and breaks the method, on the questions where a wrong answer hurts most.
 - **Every model invents or misstates counts.** Counts must come from rules (`progressReport`), as `docs/bindu.md` already says. "How many did I tick yesterday" should route there.
 - **No model handles a crisis line.** That needs a written reply, by rule, before any model sees the message.
 - **The hidden instruction never worked.** Rules would also route that question away from the model.
@@ -117,7 +117,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 
 ## What changed because of it
 
-- **Talk is back on Qwen3 4B.** 1.7B is worse at both talking and writing, and its mistakes land where they hurt most. One model, one download.
+- **The tiers are gone.** 1.7B is worse at both talking and writing, and its mistakes land where they hurt most. Every job runs on Qwen3 4B again: one model, one download. The lab's smaller candidates went with them.
 - **The built-in model is now the fallback, not the first choice.** web-llm runs whenever WebGPU works. The built-in model runs only where nothing else can. The Gemma stand-in writes and talks about as well as Qwen3 4B, but Gemini Nano is not Gemma, and the stand-in routed badly and answered Spanish in English. Run this suite in real Chrome before moving it up.
 
 ## What to build next
