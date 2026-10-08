@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	routeOf,
+	actionGaps,
+	editWords,
+	groupEdits,
 	aimParts,
 	dropSharedWord,
 	EXAMPLE_LINES,
@@ -1071,5 +1075,73 @@ describe('pillars', () => {
 	it('rejects a line that copies the worked example', () => {
 		for (const line of EXAMPLE_LINES) expect(lineFault(line, { max: 48, kind: 'action', siblings: [...EXAMPLE_LINES] })?.code).toBe('repeated');
 		expect(fillActionsMessages(sample(), 0, 8).map((message) => message.content).join('\n')).not.toMatch(/Spanish/);
+	});
+});
+
+describe('filling the whole chart', () => {
+	function gappy(): ChartData {
+		const data = sample();
+		data.actions[0] = data.actions[0]!.map((action, index) => (index < 6 ? action : ''));
+		data.actions[3] = data.actions[3]!.map(() => '');
+		data.actions[7] = data.actions[7]!.map((action, index) => (index === 0 ? '' : action));
+		return data;
+	}
+
+	it('plans every pillar with gaps when asked for all, one pillar otherwise', () => {
+		const data = gappy();
+		expect(actionGaps(data).map((row) => row.pillarIndex)).toEqual([0, 3, 7]);
+		expect(fillPlan(data, null, true)).toEqual({
+			kind: 'all',
+			rows: [
+				{ pillarIndex: 0, empty: [6, 7] },
+				{ pillarIndex: 3, empty: [0, 1, 2, 3, 4, 5, 6, 7] },
+				{ pillarIndex: 7, empty: [0] }
+			]
+		});
+		expect(fillPlan(data)).toEqual({ kind: 'actions', pillarIndex: 0, empty: [6, 7] });
+		const one = sample();
+		one.actions[2]![4] = '';
+		expect(fillPlan(one, null, true)).toEqual({ kind: 'actions', pillarIndex: 2, empty: [4] });
+	});
+
+	it('offers to fill all pillars beside the first one', () => {
+		const labels = chipsFor(gappy()).map((chip) => chip.label);
+		expect(labels.slice(0, 2)).toEqual(['Fill all 3 pillars', `Fill ${sample().pillars[0]}`]);
+		expect(chipsFor(gappy()).find((chip) => chip.label === 'Fill all 3 pillars')?.act).toEqual({ kind: 'job', job: 'fill', all: true });
+	});
+
+	it('routes the ways people ask for it to fill', () => {
+		for (const text of ['Write all the actions', 'Fill the whole chart', 'write the actions', 'fill in the actions', 'fill it', 'fill everything', 'fill the rest']) {
+			expect(routeOf(text, sample())).toBe('fill');
+		}
+		for (const text of ['write me a poem', 'fill me in on how this works', 'What should I write first?']) expect(routeOf(text, sample())).toBe('model');
+	});
+});
+
+describe('the cells card', () => {
+	const data = sample();
+	const name = (k: number) => data.pillars[k]!;
+
+	it('names each pillar once, in the order the lines came', () => {
+		const groups = groupEdits(data, [
+			{ key: 'a3_0', before: '', after: 'One' },
+			{ key: 'a3_1', before: '', after: 'Two' },
+			{ key: 'a5_0', before: '', after: 'Three' },
+			{ key: 'p2', before: '', after: 'A pillar' }
+		]);
+		expect(groups.map((group) => [group.label, group.pillarIndex, group.edits.length])).toEqual([
+			[name(3), 3, 2],
+			[name(5), 5, 1],
+			['Pillars', null, 1]
+		]);
+	});
+
+	it('says what the button does, and what happened, in the chart words', () => {
+		const adds = Array.from({ length: 8 }, (_, index) => ({ key: `a1_${index}`, before: '', after: `Line ${index}` }));
+		expect(editWords(data, adds)).toEqual({ button: 'Add to chart', done: `Added 8 actions to ${name(1)}.` });
+		expect(editWords(data, [...adds, { key: 'a2_0', before: '', after: 'More' }]).done).toBe('Added 9 actions.');
+		expect(editWords(data, [{ key: 'p4', before: '', after: 'Sleep' }])).toEqual({ button: 'Add to chart', done: 'Added 1 pillar.' });
+		expect(editWords(data, [{ key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Replace it', done: 'Replaced 1 action.' });
+		expect(editWords(data, adds.map((edit) => ({ ...edit, before: 'Old' }))).button).toBe('Replace them');
 	});
 });

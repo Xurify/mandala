@@ -101,7 +101,11 @@ export type HelperFinding = {
 
 export type HelperPick = { key: string; text: string; pillarIndex: number; why: string };
 
-export type FillPlan = { kind: 'pillars'; empty: number[] } | { kind: 'actions'; pillarIndex: number; empty: number[] };
+export type FillPlan =
+	| { kind: 'pillars'; empty: number[] }
+	| { kind: 'actions'; pillarIndex: number; empty: number[] }
+	/** Every pillar that has gaps, in order. Asked for as "fill the whole chart". */
+	| { kind: 'all'; rows: { pillarIndex: number; empty: number[] }[] };
 
 const DAILY_TIME = /\b\d+\s*(?:min|mins|minutes?|h|hrs?|hours?)\b|\b(?:minutes?|hours?|an hour)\s+(?:a|per|each)\s+(?:day|night|week|evening|morning)\b/i;
 
@@ -161,7 +165,7 @@ const WEEK_COMMAND =
 const REVIEW_COMMAND =
 	/\b(?:review(?:\s+(?:my|this|the))?\s+chart|check(?:\s+(?:my|this|the))?\s+chart|tighten(?:\s+(?:my|this|the))?\s+chart|audit(?:\s+(?:my|this|the))?\s+chart|feedback\s+on\s+(?:my|this|the)\s+chart|(?:review|check)\s+(?:my|the|these)\s+(?:actions|pillars|lines))\b|^(?:review|check)(?:\s+(?:it|this|everything))?[.!]*$/i;
 const FILL_COMMAND =
-	/\b(?:fill(?:\s+in)?(?:\s+(?:the|all|my))?\s+(?:blanks?|empty|missing|gaps|rest|chart)|(?:finish|complete)\s+(?:the|my|this)\s+chart|suggest\s+pillars)\b/i;
+	/\b(?:(?:fill|write)(?:\s+(?:in|out|up))?\s+(?:it|everything|(?:(?:all(?:\s+of)?|the\s+whole|the\s+entire|the\s+rest\s+of)\s+)?(?:(?:the|my|this)\s+)?(?:blanks?|empty(?:\s+ones)?|missing(?:\s+ones)?|gaps|rest|chart|grid|cells|actions))|(?:finish|complete)\s+(?:the|my|this)\s+chart|suggest\s+pillars)\b/i;
 const DRAFT_COMMAND =
 	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+|fresh\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over|start\s+again|(?:a\s+)?(?:new|different)\s+goal)\b/i;
 const PROGRESS_COMMAND = /^(?:(?:show\s+(?:me\s+)?)?(?:my\s+)?(?:progress|stats))[.!]*$/i;
@@ -339,8 +343,14 @@ const SHORT_STOP_WORDS = new Set([
 ]);
 
 /** A pillar already on the chart, named in the line. */
+/** A pillar a message is about, for a question or for a job like fill. */
 export function pillarMentioned(text: string, data: ChartData): number | null {
 	if (intentOf(text) !== 'ask') return null;
+	return pillarNamed(text, data);
+}
+
+/** The longest pillar name that appears in the text as words, whatever the message asks for. */
+export function pillarNamed(text: string, data: ChartData): number | null {
 	let bestIndex = -1;
 	let bestLength = 0;
 	for (let index = 0; index < data.pillars.length; index++) {
@@ -363,10 +373,25 @@ function filled(value: string | undefined): boolean {
 	return (value ?? '').trim() !== '';
 }
 
-export function fillPlan(data: ChartData, preferredPillar: number | null = null): FillPlan | null {
+/** Pillars with empty actions, and which ones are empty. */
+export function actionGaps(data: ChartData): { pillarIndex: number; empty: number[] }[] {
+	return [0, 1, 2, 3, 4, 5, 6, 7].flatMap((pillarIndex) => {
+		const empty = (data.actions[pillarIndex] ?? []).flatMap((action, index) => (filled(action) ? [] : [index]));
+		return filled(data.pillars[pillarIndex]) && empty.length > 0 ? [{ pillarIndex, empty }] : [];
+	});
+}
+
+/** Empty pillars come first. Then one pillar's actions, or with `all`, every pillar that has gaps. */
+export function fillPlan(data: ChartData, preferredPillar?: number | null, all?: false): Exclude<FillPlan, { kind: 'all' }> | null;
+export function fillPlan(data: ChartData, preferredPillar: number | null, all: boolean): FillPlan | null;
+export function fillPlan(data: ChartData, preferredPillar: number | null = null, all = false): FillPlan | null {
 	if (!filled(data.goal)) return null;
 	const emptyPillars = data.pillars.flatMap((pillar, index) => (filled(pillar) ? [] : [index]));
 	if (emptyPillars.length > 0) return { kind: 'pillars', empty: emptyPillars };
+	if (all) {
+		const rows = actionGaps(data);
+		if (rows.length > 1) return { kind: 'all', rows };
+	}
 	const order =
 		preferredPillar === null ? [0, 1, 2, 3, 4, 5, 6, 7] : [preferredPillar, ...[0, 1, 2, 3, 4, 5, 6, 7].filter((k) => k !== preferredPillar)];
 	for (const pillarIndex of order) {
@@ -1042,7 +1067,7 @@ export function greetingFor(data: ChartData, now: Date = new Date()): string {
 }
 
 export type ChipAct =
-	| { kind: 'job'; job: HelperJob; pillar?: number }
+	| { kind: 'job'; job: HelperJob; pillar?: number; all?: boolean }
 	| { kind: 'send'; text: string }
 	| { kind: 'sketch' }
 	| { kind: 'dismiss' }
@@ -1060,6 +1085,8 @@ export function chipsFor(data: ChartData, preferredPillar: number | null = null)
 	const plan = fillPlan(data, preferredPillar);
 	if (plan?.kind === 'pillars') chips.push(jobChip('fill', 'Suggest pillars'));
 	if (plan?.kind === 'actions') {
+		const gaps = actionGaps(data).length;
+		if (gaps > 1) chips.push({ label: `Fill all ${gaps} pillars`, act: { kind: 'job', job: 'fill', all: true } });
 		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
 		chips.push(jobChip('fill', name ? `Fill ${name}` : 'Fill empty actions', plan.pillarIndex));
 	}
@@ -1098,6 +1125,36 @@ export function extraChips(sketch: boolean, said = ''): HelperChip[] {
 
 export function fillPillarChip(name: string, pillar: number): HelperChip {
 	return jobChip('fill', `Fill ${name}`, pillar);
+}
+
+/** A cells card's edits, one group per pillar, so the pillar is named once. Pillar names form their own group. */
+export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: string; label: string; pillarIndex: number | null; edits: CellEdit[] }[] {
+	const groups: { key: string; label: string; pillarIndex: number | null; edits: CellEdit[] }[] = [];
+	for (const edit of edits) {
+		const isPillar = edit.key.startsWith('p');
+		const pillarIndex = isPillar ? null : Number(edit.key.slice(1).split('_')[0]);
+		const key = isPillar ? 'pillars' : `a${pillarIndex}`;
+		let group = groups.find((entry) => entry.key === key);
+		if (!group) {
+			const label = isPillar ? 'Pillars' : (data.pillars[pillarIndex!] ?? '').trim() || `Pillar ${pillarIndex! + 1}`;
+			group = { key, label, pillarIndex, edits: [] };
+			groups.push(group);
+		}
+		group.edits.push(edit);
+	}
+	return groups;
+}
+
+/** What a cells card does, in the chart's words: its button, and what Bindu says once it is used. */
+export function editWords(data: ChartData, edits: readonly CellEdit[]): { button: string; done: string } {
+	const count = edits.length;
+	const pillars = edits.every((edit) => edit.key.startsWith('p'));
+	const counted = pillars ? plural(count, 'pillar') : plural(count, 'action');
+	const replacing = edits.some((edit) => edit.before.trim());
+	if (replacing) return { button: count === 1 ? 'Replace it' : 'Replace them', done: `Replaced ${counted}.` };
+	const groups = groupEdits(data, edits);
+	const where = !pillars && groups.length === 1 ? ` to ${groups[0]!.label}` : '';
+	return { button: 'Add to chart', done: `Added ${counted}${where}.` };
 }
 
 export function describeKey(data: ChartData, key: string): string {

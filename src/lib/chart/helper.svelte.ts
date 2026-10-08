@@ -10,6 +10,7 @@ import {
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
+	editWords,
 	extraChips,
 	followUpQuestion,
 	splitGoal,
@@ -31,6 +32,7 @@ import {
 	moodFor,
 	offerChips,
 	pillarMentioned,
+	pillarNamed,
 	progressReport,
 	reviewChart,
 	suggestToday,
@@ -136,6 +138,7 @@ export class HelperStore {
 	#help = $state(false);
 	#pillarFill = $state<number | null>(null);
 	#fillPillar: number | null = null;
+	#fillAll = false;
 	#pending: { run: () => Promise<void>; need: CoachNeed } | null = null;
 	#consent = readConsent();
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -281,7 +284,7 @@ export class HelperStore {
 
 	choose(chip: HelperChip): void {
 		const act = chip.act;
-		if (act.kind === 'job') void this.start(act.job, act.pillar);
+		if (act.kind === 'job') void this.start(act.job, act.pillar, act.all);
 		else if (act.kind === 'send') void this.send(act.text);
 		else if (act.kind === 'sketch') void this.#sketchAim();
 		else if (act.kind === 'show') this.showCell(act.key);
@@ -385,6 +388,12 @@ export class HelperStore {
 			if (parsed) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data: parsed });
 			return;
 		}
+		if (intent === 'fill') {
+			// "Write actions for Sleep" fills Sleep. "Fill the whole chart" fills every pillar with gaps.
+			const named = pillarNamed(text, data);
+			await this.start('fill', named ?? undefined, named === null);
+			return;
+		}
 		if (intent !== 'ask') {
 			await this.start(intent);
 			return;
@@ -427,12 +436,13 @@ export class HelperStore {
 		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()));
 	}
 
-	async start(job: HelperJob, pillar?: number): Promise<void> {
+	async start(job: HelperJob, pillar?: number, all = false): Promise<void> {
 		if (this.busy) return;
 		this.#sorry = false;
 		this.#clearTurn();
 		this.step = 'idle';
 		this.#fillPillar = job === 'fill' ? (pillar ?? this.#target.selectedPillar()) : null;
+		this.#fillAll = job === 'fill' && all;
 		const data = this.#target.data();
 		if (job === 'draft') {
 			this.step = 'direction';
@@ -442,7 +452,7 @@ export class HelperStore {
 		if (job === 'review') return this.#review(data);
 		if (job === 'week') return this.#picks('week', data);
 		if (job === 'today') return this.#picks('today', data);
-		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar());
+		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
 		if (!plan) {
 			this.#say(data.goal.trim() ? 'Every line is filled. Review my chart instead?' : 'Give the chart a goal first, then I can fill the rest.');
 			return;
@@ -480,9 +490,10 @@ export class HelperStore {
 				card.data.brief ? 'Done. I kept your answers for later. Ask what I know any time.' : 'Done. Plan this week whenever you like.'
 			);
 		} else if (card.kind === 'cells') {
+			const words = editWords(this.#target.data(), card.edits);
 			this.#target.setCells(card.edits);
 			this.#settle(id, 'used');
-			this.#celebrate(card.edits.length === 1 ? 'Changed it.' : `Changed ${card.edits.length} lines.`);
+			this.#celebrate(words.done);
 		} else if (card.kind === 'picks') {
 			const keys = card.picks.map((pick) => pick.key);
 			if (card.scope === 'today') this.#target.setToday(keys);
@@ -635,26 +646,32 @@ export class HelperStore {
 	async #fill(): Promise<void> {
 		const coach = await loadCoachModule();
 		const data = this.#target.data();
-		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar());
+		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
 		if (!plan) return;
 		if (plan.kind === 'pillars') {
 			const lines = await coach.fillPillars(data, plan.empty.length);
 			if (!lines) return this.#fail('I could not name those pillars. Try once more?');
 			const edits = plan.empty.slice(0, lines.length).map((pillarIndex, index) => ({ key: `p${pillarIndex}`, before: '', after: lines[index] ?? '' }));
-			const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} left empty.` : '';
-			this.#say(`${edits.length} pillars for "${data.goal.trim()}". Keep the ones that matter.${short}`, { kind: 'cells', edits });
+			this.#say(`${edits.length} ${edits.length === 1 ? 'pillar' : 'pillars'}, ready to add.${stayedEmpty(plan.empty.length - lines.length)}`, { kind: 'cells', edits });
 			return;
 		}
-		const lines = await coach.fillActions(data, plan.pillarIndex, plan.empty.length);
-		if (!lines) return this.#fail('I could not finish that pillar. Try once more?');
-		const edits = plan.empty.slice(0, lines.length).map((actionIndex, index) => ({
-			key: `a${plan.pillarIndex}_${actionIndex}`,
-			before: '',
-			after: lines[index] ?? ''
-		}));
-		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
-		const short = lines.length < plan.empty.length ? ` ${plan.empty.length - lines.length} left empty.` : '';
-		this.#say(`${edits.length} for ${name}. Each one is something you can do.${short}`, { kind: 'cells', edits });
+		const rows = plan.kind === 'all' ? plan.rows : [{ pillarIndex: plan.pillarIndex, empty: plan.empty }];
+		// Each pillar is written with the ones before it in place, so two pillars do not get the same action.
+		const draft = structuredClone($state.snapshot(data)) as ChartData;
+		const edits: CellEdit[] = [];
+		let wanted = 0;
+		for (const row of rows) {
+			wanted += row.empty.length;
+			const lines = (await coach.fillActions(draft, row.pillarIndex, row.empty.length)) ?? [];
+			row.empty.slice(0, lines.length).forEach((actionIndex, index) => {
+				const after = lines[index] ?? '';
+				draft.actions[row.pillarIndex]![actionIndex] = after;
+				edits.push({ key: `a${row.pillarIndex}_${actionIndex}`, before: '', after });
+			});
+		}
+		if (edits.length === 0) return this.#fail(rows.length > 1 ? 'I could not fill those pillars. Try once more?' : 'I could not finish that pillar. Try once more?');
+		const across = rows.length > 1 ? ` across ${rows.length} pillars` : '';
+		this.#say(`${edits.length} ${edits.length === 1 ? 'action' : 'actions'}${across}, ready to add.${stayedEmpty(wanted - edits.length)}`, { kind: 'cells', edits });
 	}
 
 	async #rewrite(findings: HelperFinding[]): Promise<void> {
@@ -915,6 +932,10 @@ export class HelperStore {
 	}
 }
 
+function stayedEmpty(count: number): string {
+	return count > 0 ? ` ${count} stayed empty.` : '';
+}
+
 export const helper = new HelperStore({
 	data: () => chart.data,
 	selectedPillar: () => (chart.sel === 4 ? null : idx(chart.sel)),
@@ -923,7 +944,7 @@ export const helper = new HelperStore({
 		for (const edit of edits) chart.setText(edit.key, edit.after);
 		const first = edits[0];
 		if (first) chart.select(first.key.startsWith('p') ? 4 : blockOfK(Number(first.key.slice(1).split('_')[0])));
-		chart.say(edits.length === 1 ? 'Changed 1 line.' : `Changed ${edits.length} lines.`);
+		chart.say(editWords(chart.data, edits).done);
 	},
 	setToday: (keys) => {
 		chart.setFocus(todayKey(), keys, true);

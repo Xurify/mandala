@@ -8,7 +8,8 @@ const coach = vi.hoisted(() => ({
 	loaded: false,
 	answers: 0,
 	sketches: 0,
-	asked: [] as { direction: string; situation: string }[]
+	asked: [] as { direction: string; situation: string }[],
+	fills: [] as { pillarIndex: number; count: number; earlier: number }[]
 }));
 
 vi.mock('./coach.browser.ts', () => ({
@@ -21,6 +22,11 @@ vi.mock('./coach.browser.ts', () => ({
 	watchCoachProgress: () => () => {},
 	loadCoach: async () => {
 		coach.loaded = true;
+	},
+	fillActions: async (draft: { actions: string[][] }, pillarIndex: number, count: number) => {
+		coach.loaded = true;
+		coach.fills.push({ pillarIndex, count, earlier: draft.actions.flat().filter((action) => action.startsWith('New ')).length });
+		return Array.from({ length: count }, (_, index) => `New ${pillarIndex}.${index}`);
 	},
 	answer: async () => {
 		coach.loaded = true;
@@ -78,6 +84,7 @@ beforeEach(() => {
 	coach.answers = 0;
 	coach.sketches = 0;
 	coach.asked = [];
+	coach.fills = [];
 });
 
 describe('HelperStore model consent', () => {
@@ -240,5 +247,63 @@ describe('HelperStore sketch, from a message that says more than the goal', () =
 		helper.otherPillars();
 		await vi.waitFor(() => expect(coach.sketches).toBe(2));
 		expect(coach.asked[1]?.situation).toMatch(/vocabulary/);
+	});
+});
+
+describe('HelperStore fill the whole chart', () => {
+	function gappy() {
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		const data = emptyChart();
+		data.goal = 'Learn Slovak';
+		data.pillars = ['Words', 'Reading', 'Speaking', 'Listening', 'Grammar', 'Writing', 'Tutor', 'Review'];
+		data.actions[1] = data.actions[1]!.map(() => 'Read a page');
+		const changed: string[] = [];
+		const helper = new HelperStore({
+			data: () => data,
+			selectedPillar: () => null,
+			applyDraft: () => true,
+			setCells: (edits) => {
+				for (const edit of edits) changed.push(edit.key);
+			},
+			setToday: () => {},
+			pinWeek: () => {},
+			showCell: () => {}
+		});
+		return { helper, changed };
+	}
+
+	it('fills every pillar with gaps on one card, each pillar seeing the ones before', async () => {
+		const { helper, changed } = gappy();
+		await helper.send('Fill the whole chart');
+		await vi.waitFor(() => expect(helper.busy).toBe(false));
+		expect(coach.fills.map((fill) => fill.pillarIndex)).toEqual([0, 2, 3, 4, 5, 6, 7]);
+		expect(coach.fills.map((fill) => fill.earlier)).toEqual([0, 8, 16, 24, 32, 40, 48]);
+		const card = helper.messages.at(-1)!;
+		expect(card.text).toBe('56 actions across 7 pillars, ready to add.');
+		expect(card.card?.kind === 'cells' && card.card.edits.length).toBe(56);
+		helper.use(card.id);
+		expect(changed).toHaveLength(56);
+		expect(helper.messages.at(-1)?.text).toBe('Added 56 actions.');
+	});
+
+	it('fills only the pillar a message names', async () => {
+		const { helper } = gappy();
+		await helper.send('write actions for Speaking');
+		await vi.waitFor(() => expect(helper.busy).toBe(false));
+		expect(coach.fills.map((fill) => fill.pillarIndex)).toEqual([2]);
+		expect(helper.messages.at(-1)?.text).toBe('8 actions, ready to add.');
+		helper.use(helper.messages.at(-1)!.id);
+		expect(helper.messages.at(-1)?.text).toBe('Added 8 actions to Speaking.');
+	});
+
+	it('offers the whole chart as a chip', async () => {
+		const { helper } = gappy();
+		helper.show();
+		// Opening the panel warms the model. Wait for it, so the job's import is not a second, concurrent mocked import.
+		await vi.waitFor(() => expect(coach.needs).toBe(1));
+		const chip = helper.chips.find((entry) => entry.label === 'Fill all 7 pillars');
+		expect(chip).toBeDefined();
+		helper.choose(chip!);
+		await vi.waitFor(() => expect(coach.fills).toHaveLength(7));
 	});
 });

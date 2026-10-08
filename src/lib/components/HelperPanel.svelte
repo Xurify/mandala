@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
-	import { BRIEF_LABELS, describeKey } from '$lib/chart/helper';
+	import { BRIEF_LABELS, describeKey, editWords, groupEdits } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
 	import HelperFace from './HelperFace.svelte';
 	import BouncingDots from './ui/BouncingDots.svelte';
@@ -94,7 +94,7 @@
 		const card = message.card;
 		if (!card) return '';
 		if (card.kind === 'chart') return card.sketch ? 'Write the actions' : 'Use this chart';
-		if (card.kind === 'cells') return card.edits.length === 1 ? 'Change this line' : 'Change these lines';
+		if (card.kind === 'cells') return editWords(helper.data, card.edits).button;
 		if (card.kind === 'picks') return card.scope === 'today' ? "Pick today's three" : 'Plan this week';
 		if (card.kind === 'findings') return 'Rewrite them';
 		if (card.kind === 'download') return 'Download';
@@ -152,17 +152,32 @@
 					</p>
 				{/if}
 			{:else if value.kind === 'cells'}
-				<ul class="m-0 flex list-none flex-col gap-2.5 p-0">
-					{#each value.edits as edit (edit.key)}
-						<li class="flex min-w-0 flex-col gap-0.5 text-[0.9rem] leading-snug">
-							<span class="text-[0.74rem] font-semibold text-muted">{describeKey(helper.data, edit.key)}</span>
-							{#if edit.before}
-								<s class="text-muted decoration-line">{edit.before}</s>
+				<div class="flex flex-col gap-3.5">
+					{#each groupEdits(helper.data, value.edits) as group (group.key)}
+						<section class="flex min-w-0 flex-col gap-1.5" aria-label={group.label}>
+							{#if group.pillarIndex !== null}
+								<p class="m-0 flex items-center gap-2 text-[0.78rem] font-semibold text-muted">
+									<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
+									{group.label}
+								</p>
 							{/if}
-							<span class="text-pretty">{edit.after}</span>
-						</li>
+							<ul class="m-0 flex list-none flex-col gap-1.5 p-0">
+								{#each group.edits as edit (edit.key)}
+									{@const pillarOf = edit.key.startsWith('p') ? Number(edit.key.slice(1)) : null}
+									<li class="flex min-w-0 gap-2 text-[0.9rem] leading-snug">
+										{#if pillarOf !== null}{@render dot(pillarOf)}{/if}
+										<span class="flex min-w-0 flex-col">
+											{#if edit.before}
+												<s class="text-muted decoration-line">{edit.before}</s>
+											{/if}
+											<span class="text-pretty">{edit.after}</span>
+										</span>
+									</li>
+								{/each}
+							</ul>
+						</section>
 					{/each}
-				</ul>
+				</div>
 			{:else if value.kind === 'picks'}
 				<ul class="m-0 flex list-none flex-col gap-2.5 p-0">
 					{#each value.picks as pick (pick.key)}
@@ -237,8 +252,6 @@
 					<Button size="sm" onclick={() => primary(message)}>{primaryLabel(message)}</Button>
 					<Button size="sm" variant="ghost" onclick={() => secondary(message)}>{skipLabel(message)}</Button>
 				</div>
-			{:else if message.state === 'used' && value.kind !== 'download' && value.kind !== 'findings'}
-				<p class="m-0 text-[0.8rem] font-[560] text-success">Used.</p>
 			{:else if message.state === 'skipped' && value.kind !== 'prompt'}
 				<p class="m-0 text-[0.8rem] text-muted">Left as it was.</p>
 			{/if}
