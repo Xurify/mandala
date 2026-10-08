@@ -71,7 +71,6 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 
 - `--shadow-sm`: resting cards. In dark it's a 1px light hairline, because shadows vanish on dark paper.
 - `--shadow-md`: floating things (menus, dialogs, dock, toast).
-- `--shadow-edge-up` / `--shadow-edge-down`: the lip where a scrolling list passes under a footer or a header. Short and warm, no hairline. Shown only while that edge still has rows to scroll.
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
 - Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`. Opacity may still fade.
@@ -134,11 +133,11 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Menus
 
-`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on `--shadow-edge-up`: a lip draws a hairline next to the divider and the two read as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height.
 
 ### Dialogs
 
-`Dialog` is a native `<dialog>`. Header = heading + close; scrolling body; footer snippet for actions. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
+`Dialog` is a native `<dialog>`. Header = heading + close; scrolling body; footer snippet for actions. Header, body, and footer share the sheet's paper. No shadow, hairline, or fade where the body scrolls; the scrollbar says there is more. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
 
 ### Feedback
 

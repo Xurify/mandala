@@ -119,12 +119,12 @@ export const dialog = tv({
 		panel:
 			'm-auto h-fit overflow-clip rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
 		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-clip',
-		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px] motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui',
+		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px]',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
 		body: 'relative z-0 min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
-		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pt-2 pb-[22px] motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui'
+		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pt-4 pb-[22px]'
 	},
 	variants: {
 		size: {

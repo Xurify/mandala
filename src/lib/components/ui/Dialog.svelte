@@ -27,35 +27,8 @@
 	}: Props = $props();
 
 	let el = $state<HTMLDialogElement | null>(null);
-	let moreAbove = $state(false);
-	let moreBelow = $state(false);
 	const uid = $props.id();
 	const styles = $derived(dialog({ size, footer: Boolean(footer) }));
-
-	function watchScroll(node: HTMLElement): () => void {
-		const update = () => {
-			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
-			moreAbove = node.scrollTop > 8;
-			moreBelow = leftover > 8;
-		};
-		update();
-		node.addEventListener('scroll', update, { passive: true });
-		const observer = new ResizeObserver(update);
-		observer.observe(node);
-		for (const child of node.children) observer.observe(child);
-		const mutations = new MutationObserver(() => {
-			for (const child of node.children) observer.observe(child);
-			update();
-		});
-		mutations.observe(node, { childList: true });
-		const frame = requestAnimationFrame(update);
-		return () => {
-			cancelAnimationFrame(frame);
-			node.removeEventListener('scroll', update);
-			observer.disconnect();
-			mutations.disconnect();
-		};
-	}
 
 	$effect(() => {
 		const node = el;
@@ -82,7 +55,7 @@
 	onclose={() => (open = false)}
 >
 	<div class={styles.sheet()}>
-		<div class={cn(styles.head(), moreAbove && 'shadow-edge-down')}>
+		<div class={styles.head()}>
 			<div class="min-w-0">
 				<h2 id={uid} class={styles.title()}>{title}</h2>
 				{#if description}
@@ -91,11 +64,11 @@
 			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
-		<div class={styles.body()} data-dialog-scroll {@attach watchScroll}>
+		<div class={styles.body()} data-dialog-scroll>
 			{@render children()}
 		</div>
 		{#if footer}
-			<div class={cn(styles.foot(), moreBelow && 'shadow-edge-up')}>
+			<div class={styles.foot()}>
 				{@render footer()}
 			</div>
 		{/if}

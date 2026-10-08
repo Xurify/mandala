@@ -30,8 +30,6 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	let listElement = $state<HTMLUListElement | null>(null);
 	let active = $state(0);
-	let moreAbove = $state(false);
-	let moreBelow = $state(false);
 
 	const filtered = $derived.by((): CommandItem[] => {
 		const needle = query.trim().toLowerCase();
@@ -75,23 +73,6 @@
 		item.run();
 	}
 
-	function watchList(node: HTMLElement): () => void {
-		const update = () => {
-			moreAbove = node.scrollTop > 8;
-			moreBelow = node.scrollHeight - node.clientHeight - node.scrollTop > 8;
-		};
-		update();
-		node.addEventListener('scroll', update, { passive: true });
-		const observer = new ResizeObserver(update);
-		observer.observe(node);
-		const frame = requestAnimationFrame(update);
-		return () => {
-			cancelAnimationFrame(frame);
-			node.removeEventListener('scroll', update);
-			observer.disconnect();
-		};
-	}
-
 	function onInputKeydown(event: KeyboardEvent): void {
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
@@ -115,7 +96,7 @@
 	}}
 	onclose={() => (open = false)}
 >
-	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6 motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreAbove ? 'shadow-edge-down' : ''}">
+	<div class="relative z-20 flex shrink-0 items-center gap-3 bg-surface px-6">
 		<span class="text-muted" aria-hidden="true">
 			<Icon name="command" size={16} />
 		</span>
@@ -142,7 +123,6 @@
 		class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
 		role="listbox"
 		aria-label="Commands"
-		{@attach watchList}
 	>
 		{#each filtered as item, index (item.id)}
 			{@const showHeader = index === 0 || filtered[index - 1]!.section !== item.section}
@@ -187,7 +167,7 @@
 		{/each}
 	</ul>
 
-	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted motion-safe:transition-[box-shadow] motion-safe:duration-200 motion-safe:ease-ui {moreBelow ? 'shadow-edge-up' : ''}" aria-hidden="true">
+	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted" aria-hidden="true">
 		<span><kbd class="font-semibold">↑↓</kbd> navigate</span>
 		<span><kbd class="font-semibold">↵</kbd> run</span>
 		<span><kbd class="font-semibold">esc</kbd> close</span>
