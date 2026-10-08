@@ -10,7 +10,8 @@ const coach = vi.hoisted(() => ({
 	sketches: 0,
 	asked: [] as { direction: string; situation: string }[],
 	fills: [] as { pillarIndex: number; count: number; earlier: number }[],
-	gate: null as Promise<void> | null
+	gate: null as Promise<void> | null,
+	badPillar: ''
 }));
 
 vi.mock('./coach.browser.ts', () => ({
@@ -29,6 +30,10 @@ vi.mock('./coach.browser.ts', () => ({
 		coach.fills.push({ pillarIndex, count, earlier: draft.actions.flat().filter((action) => action.startsWith('New ')).length });
 		return Array.from({ length: count }, (_, index) => `New ${pillarIndex}.${index}`);
 	},
+	rewriteCell: async () => {
+		coach.loaded = true;
+		return 'Log progress on Sunday';
+	},
 	answer: async () => {
 		if (coach.gate) await coach.gate;
 		coach.loaded = true;
@@ -40,6 +45,7 @@ vi.mock('./coach.browser.ts', () => ({
 		coach.sketches++;
 		coach.asked.push({ direction: answers.direction, situation: answers.situation });
 		const draft = sketchOf(answers.direction, coach.sketches);
+		if (coach.badPillar) draft.pillars[0] = coach.badPillar;
 		onPartial(structuredClone(draft));
 		return { chart: draft, raw: '' };
 	},
@@ -88,6 +94,7 @@ beforeEach(() => {
 	coach.asked = [];
 	coach.fills = [];
 	coach.gate = null;
+	coach.badPillar = '';
 });
 
 describe('HelperStore model consent', () => {
@@ -347,5 +354,62 @@ describe('HelperStore while it works', () => {
 		expect(cards[0]!.state).toBe('open');
 		expect(cards[0]!.text).toBe('64 actions across 8 pillars, ready to add.');
 		expect(helper.messages.at(-1)?.id).toBe(cards[0]!.id);
+	});
+});
+
+describe('HelperStore review', () => {
+	function full() {
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		const data = emptyChart();
+		data.goal = 'Run a half marathon';
+		data.pillars = ['Easy runs', 'Speed work', 'Long runs', 'Strength', 'Sleep early', 'Eat well', 'Good shoes', 'Plan weeks'];
+		data.actions = data.actions.map((row, k) => row.map((_, j) => `Run ${k + 1}${j} minutes on day ${j + 1}`));
+		const changed: string[] = [];
+		const helper = new HelperStore({
+			data: () => data,
+			selectedPillar: () => null,
+			applyDraft: () => true,
+			setCells: (edits) => changed.push(...edits.map((edit) => edit.key)),
+			setToday: () => {},
+			pinWeek: () => {},
+			showCell: () => {}
+		});
+		return { helper, data, changed };
+	}
+
+	it('names the chart, does not repeat a clean verdict, and steps the chip aside', async () => {
+		const { helper } = full();
+		await helper.start('review');
+		expect(helper.messages.at(-1)?.text).toBe('Every line in "Run a half marathon" can be marked done, and it is yours to do.');
+		expect(helper.chips.some((chip) => chip.label === 'Review my chart')).toBe(false);
+		await helper.start('review');
+		expect(helper.messages.at(-1)?.text).toBe('Still clean. Nothing changed since the last check.');
+	});
+
+	it('reviews the open draft, and its rewrites change the draft, not the chart', async () => {
+		const { helper, changed } = full();
+		coach.badPillar = 'Track progress with the';
+		await helper.send('I want to learn Slovak');
+		helper.choose(helper.chips.find((chip) => chip.act.kind === 'sketch')!);
+		await vi.waitFor(() => expect(coach.sketches).toBe(1));
+		await vi.waitFor(() => expect(helper.busy).toBe(false));
+		await helper.send('go');
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		expect(helper.chips.some((chip) => chip.label === 'Review this draft')).toBe(true);
+
+		await helper.send('review my chart');
+		const findings = helper.messages.at(-1)!;
+		expect(findings.text).toMatch(/^\d+ lines in this draft could be clearer\./);
+		const flagged = findings.card?.kind === 'findings' ? findings.card.findings : [];
+		expect(flagged[0]).toMatchObject({ key: 'p0', code: 'cut' });
+
+		helper.use(findings.id);
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toBe('Here is how I would put them in the draft.'));
+		helper.use(helper.messages.at(-1)!.id);
+		expect(helper.messages.at(-1)?.text).toBe(`Replaced 1 pillar and ${flagged.length - 1} actions in the draft.`);
+		expect(changed).toEqual([]);
+		const draft = helper.messages.find((message) => message.card?.kind === 'chart')!;
+		expect(draft.card?.kind === 'chart' && draft.card.data.pillars[0]).toBe('Log progress on Sunday');
+		expect(draft.state).toBe('open');
 	});
 });

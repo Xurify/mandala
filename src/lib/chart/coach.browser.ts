@@ -9,7 +9,8 @@ import {
 	chartContextFacts,
 	fillActionsMessages,
 	fillPillarsMessages,
-	goalAndPillars,
+	pillarHead,
+	shortenPillar,
 	keptLines,
 	lineFault,
 	oneLine,
@@ -193,14 +194,6 @@ async function complete(messages: ChatMessage[], options: { maxTokens?: number; 
 
 const ECHO = /\b(tick|rewrite|reminder|cell)\b/i;
 
-async function retrying<T>(run: () => Promise<string>, parse: (raw: string) => T | null): Promise<T | null> {
-	for (let attempt = 0; attempt < 2; attempt++) {
-		const parsed = parse(await run());
-		if (parsed) return parsed;
-	}
-	return null;
-}
-
 async function writeLines(
 	count: number,
 	max: number,
@@ -271,6 +264,32 @@ export async function answer(
 	return plainReply(await complete(askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 }));
 }
 
+/**
+ * Goal and eight pillars that fit their cells. A pillar over the cap goes back to the model, named, to be
+ * said shorter. Only after three tries is a long one cut, at a word, never ending mid-phrase.
+ */
+async function namePillars(answers: ChartAnswers): Promise<{ goal: string; pillars: string[] } | null> {
+	let best: { goal: string; pillars: string[]; rejected: LineReject[] } | null = null;
+	let rejected: LineReject[] = [];
+	for (let attempt = 0; attempt < RETRY_TEMPERATURES.length; attempt++) {
+		const head = pillarHead(
+			await complete(pillarsMessages(answers, rejected), { maxTokens: 200, temperature: RETRY_TEMPERATURES[attempt] })
+		);
+		if (!head) continue;
+		if (head.pillars.length >= 8) return { goal: head.goal, pillars: head.pillars.slice(0, 8) };
+		if (!best || head.pillars.length > best.pillars.length) best = head;
+		rejected = head.rejected;
+	}
+	if (!best) return null;
+	const pillars = [...best.pillars];
+	for (const { text } of best.rejected) {
+		if (pillars.length >= 8) break;
+		const short = shortenPillar(text);
+		if (short.includes(' ')) pillars.push(short);
+	}
+	return pillars.length >= 8 ? { goal: best.goal, pillars: pillars.slice(0, 8) } : null;
+}
+
 /** Goal and eight pillars, with the actions still empty. */
 export async function proposePillars(
 	answers: ChartAnswers,
@@ -278,7 +297,7 @@ export async function proposePillars(
 ): Promise<{ chart: ChartData | null; raw: string }> {
 	resumeCoach();
 	onProgress(coachLoaded() ? 'Naming the pillars.' : 'Waking up.');
-	const head = await retrying(() => complete(pillarsMessages(answers), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
+	const head = await namePillars(answers);
 	if (!head) return { chart: null, raw: '' };
 	const draft = emptyChart();
 	draft.goal = head.goal;

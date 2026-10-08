@@ -27,8 +27,8 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | Use case | How you get there | Uses the model | Code |
 | --- | --- | --- | --- |
 | Greeting and next-step chips | Open the panel | No | `greetingFor`, `chipsFor` |
-| Review the chart: lines that can't be ticked, results you don't control, a line that repeats its pillar, duplicates, too long, one word | "Review my chart" chip or phrase | No | `reviewChart`, `lineFault` |
-| Rewrite the lines a review flagged | "Use" on the findings card | Yes | `rewriteCell` |
+| Review the chart, or the draft card that is open ("Review this draft"): lines that can't be ticked, results you don't control, a line that repeats its pillar, duplicates, too long, one word, cut off mid-phrase. The verdict names what it checked. Asking again with nothing changed says so instead of repeating, and the chip steps aside after a clean result | "Review my chart" chip or phrase, "review it again" | No | `reviewChart`, `lineFault` |
+| Rewrite the lines a review flagged. For a draft, the rewrites change the draft, not the chart behind it | "Rewrite them" on the findings card | Yes | `rewriteCell` |
 | Plan this week: about 6 actions, one per pillar, the ones that waited longest first | "Plan this week" | No | `suggestWeek` |
 | Pick today's three, with Swap on each pick (see "How picks work") | "Pick today's three" | No | `suggestToday`, `swap` |
 | Insights from today, yesterday and this week, in the greeting and in "How am I doing?" | Opening the panel, "How am I doing?" | No | `insightsFor` |

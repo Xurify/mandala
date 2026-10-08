@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	pillarHead,
+	shortenPillar,
 	routeOf,
 	actionGaps,
 	editWords,
@@ -259,9 +261,9 @@ describe('truncateAtWordBoundary and goalAndPillars', () => {
 			'Shoes',
 			'Calendar'
 		];
-		const result = goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }));
-		expect(result).not.toBeNull();
-		expect(result?.pillars[3]).toBe('Strength and conditioning');
+		// A long pillar is sent back to be said shorter, never clipped.
+		expect(goalAndPillars(JSON.stringify({ goal: 'Finish a half', pillars }))).toBeNull();
+		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))?.rejected.map((item) => item.text)).toEqual(['Strength and conditioning session']);
 	});
 });
 
@@ -1057,6 +1059,11 @@ describe('pillars', () => {
 		]);
 	});
 
+	it('takes the preposition in front of the word with it', () => {
+		const pillars = ['Write sentences in Slovak daily', 'Read Slovak texts', 'Speak with Slovak friends', 'Think about Slovak verbs', 'Learn Slovak words', 'Hear Slovak radio', 'Rest', 'Sleep'];
+		expect(dropSharedWord('Learn Slovak', pillars).slice(0, 6)).toEqual(['Write sentences daily', 'Read texts', 'Speak with friends', 'Think about verbs', 'Learn words', 'Hear radio']);
+	});
+
 	it('leaves a word that only a few pillars share, and never leaves a one-word pillar', () => {
 		const pillars = ['Run easy', 'Run long', 'Lift twice a week', 'Sleep by 11', 'Eat before runs', 'Stretch daily', 'Rest Mondays', 'Track miles'];
 		expect(dropSharedWord('Run a half marathon', pillars)).toEqual(pillars);
@@ -1143,5 +1150,47 @@ describe('the cells card', () => {
 		expect(editWords(data, [{ key: 'p4', before: '', after: 'Sleep' }])).toEqual({ button: 'Add to chart', done: 'Added 1 pillar.' });
 		expect(editWords(data, [{ key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Replace it', done: 'Replaced 1 action.' });
 		expect(editWords(data, adds.map((edit) => ({ ...edit, before: 'Old' }))).button).toBe('Replace them');
+		expect(editWords(data, [{ key: 'p0', before: 'Old', after: 'New' }, { key: 'a0_0', before: 'Old', after: 'New' }]).done).toBe('Replaced 1 pillar and 1 action.');
+	});
+});
+
+describe('asking for a review again', () => {
+	it('routes the ways people ask to review what is in front of them', () => {
+		for (const text of ['review it again', 'review this draft', 'check it again', 'review again', 'check the draft', 'please review it']) {
+			expect(routeOf(text, sample())).toBe('review');
+		}
+		for (const text of ['review the week with me', 'check in with me tomorrow']) expect(routeOf(text, sample())).not.toBe('review');
+	});
+});
+
+describe('lines cut short', () => {
+	it('flags a line that ends mid-phrase', () => {
+		for (const line of ['Learn words for the', 'Practice with your', 'Review notes and', 'Read a']) {
+			expect(lineFault(line, { max: 32, kind: 'pillar' })?.code).toBe('cut');
+		}
+		for (const line of ['Walk to work', 'Check in with Mom on Sunday', 'Follow through', 'List 3 skills someone would pay for', 'Listen once without subtitles, then with']) {
+			expect(lineFault(line, { max: 48, kind: 'action' })?.code ?? null).not.toBe('cut');
+		}
+	});
+
+	it('keeps cut and long pillars out, and lets the subject word bring one under the cap', () => {
+		const head = pillarHead(
+			JSON.stringify({
+				goal: 'Learn Slovak',
+				pillars: ['Track progress with the', 'Practice speaking with language partners', 'Learn Slovak words daily', 'Read Slovak texts', 'Speak Slovak daily', 'Write Slovak notes', 'Hear Slovak radio', 'Use a Slovak tutor weekly on Sundays']
+			})
+		)!;
+		expect(head.pillars).not.toContain('Track progress with the');
+		expect(head.rejected).toEqual([
+			{ text: 'Track progress with the', reason: 'Stops mid-phrase. Finish the thought.' },
+			{ text: 'Practice speaking with language partners', reason: 'Over 32 characters. Say it in fewer words.' }
+		]);
+		expect(head.pillars).toContain('Use a tutor weekly on Sundays');
+	});
+
+	it('shortens a pillar the model would not, without ending mid-phrase', () => {
+		expect(shortenPillar('Track progress through the weekly journal')).toBe('Track progress');
+		expect(shortenPillar('Develop memory for vocabulary words')).toBe('Develop memory for vocabulary');
+		expect(shortenPillar('Short one')).toBe('Short one');
 	});
 });

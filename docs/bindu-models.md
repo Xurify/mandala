@@ -127,7 +127,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 3. ~~A copy of the worked example is a line fault, and the example moves off language learning.~~ Done: the example is about an aquarium, and the writer and rewrite reject copies of either prompt's examples.
 4. Pillars get the same state check actions get ("Stay consistent", "Stay motivated").
 5. Spaces stop meaning words for Japanese and Chinese lines.
-6. `goalAndPillars` rejects a long pillar instead of clipping it, like the action writer.
+6. ~~`goalAndPillars` rejects a long pillar instead of clipping it, like the action writer.~~ Done: a long or cut-off pillar goes back to the model with its reason, up to three tries. On the CPU run, 6 briefs on Qwen3 4B gave no long or cut pillar, 3 of them after a retry.
 
 ## Rerun it
 

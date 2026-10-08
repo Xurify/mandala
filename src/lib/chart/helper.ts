@@ -31,9 +31,10 @@ export type CellEdit = { key: string; before: string; after: string; reason?: st
 export type HelperCard =
 	/** `sketch`: the goal and pillars only, while the person decides. Its buttons write the actions or try other pillars. */
 	| { kind: 'chart'; data: ChartData; sketch?: boolean }
-	| { kind: 'cells'; edits: CellEdit[] }
+	/** `draft`: the chart card these edits belong to, when they are for a draft and not the chart. */
+	| { kind: 'cells'; edits: CellEdit[]; draft?: number }
 	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
-	| { kind: 'findings'; findings: HelperFinding[] }
+	| { kind: 'findings'; findings: HelperFinding[]; draft?: number }
 	/** `size` is the weight download, or '' when the browser fetches its own model and the size is its business. */
 	| { kind: 'download'; size: string; builtin: boolean }
 	| { kind: 'prompt' }
@@ -96,7 +97,7 @@ export type HelperFinding = {
 	key: string;
 	text: string;
 	reason: string;
-	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague';
+	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague' | 'cut';
 };
 
 export type HelperPick = { key: string; text: string; pillarIndex: number; why: string };
@@ -163,7 +164,7 @@ const TODAY_COMMAND =
 const WEEK_COMMAND =
 	/\b(?:plan\s+(?:this\s+|the\s+|my\s+|next\s+)?week|this\s+week's\s+plan|picks?\s+for\s+the\s+week|week(?:ly)?\s+plan)\b/i;
 const REVIEW_COMMAND =
-	/\b(?:review(?:\s+(?:my|this|the))?\s+chart|check(?:\s+(?:my|this|the))?\s+chart|tighten(?:\s+(?:my|this|the))?\s+chart|audit(?:\s+(?:my|this|the))?\s+chart|feedback\s+on\s+(?:my|this|the)\s+chart|(?:review|check)\s+(?:my|the|these)\s+(?:actions|pillars|lines))\b|^(?:review|check)(?:\s+(?:it|this|everything))?[.!]*$/i;
+	/\b(?:(?:review|check|tighten|audit)(?:\s+(?:my|this|the))?\s+(?:chart|draft)|feedback\s+on\s+(?:my|this|the)\s+(?:chart|draft)|(?:review|check)\s+(?:my|the|these)\s+(?:actions|pillars|lines))\b|^(?:please\s+)?(?:review|check)(?:\s+(?:it|this|that|everything|the\s+draft|this\s+draft))?(?:\s+again)?(?:\s+please)?[.!]*$/i;
 const FILL_COMMAND =
 	/\b(?:(?:fill|write)(?:\s+(?:in|out|up))?\s+(?:it|everything|(?:(?:all(?:\s+of)?|the\s+whole|the\s+entire|the\s+rest\s+of)\s+)?(?:(?:the|my|this)\s+)?(?:blanks?|empty(?:\s+ones)?|missing(?:\s+ones)?|gaps|rest|chart|grid|cells|actions))|(?:finish|complete)\s+(?:the|my|this)\s+chart|suggest\s+pillars)\b/i;
 const DRAFT_COMMAND =
@@ -469,7 +470,7 @@ function rejectBlock(rejected: readonly LineReject[]): string[] {
 	return ['These were rejected. Write replacements. Do not repeat them.', ...rejected.map((item) => `Rejected: "${item.text}" — ${item.reason}`)];
 }
 
-export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
+export function pillarsMessages(answers: ChartAnswers, rejected: readonly LineReject[] = []): ChatMessage[] {
 	return [
 		{
 			role: 'system',
@@ -487,7 +488,11 @@ export function pillarsMessages(answers: ChartAnswers): ChatMessage[] {
 		},
 		{
 			role: 'user',
-			content: [chartAnswerFacts(answers), chartAnswersMessage(answers).replace('Return 8 pillars. Each pillar has exactly 8 actions.', 'Return the goal and 8 pillars.')]
+			content: [
+				chartAnswerFacts(answers),
+				chartAnswersMessage(answers).replace('Return 8 pillars. Each pillar has exactly 8 actions.', 'Return the goal and 8 pillars.'),
+				...rejectBlock(rejected)
+			]
 				.filter(Boolean)
 				.join('\n')
 		}
@@ -504,7 +509,8 @@ export function dropSharedWord(goal: string, pillars: readonly string[]): string
 	const goalWords = new Set(norm(goal).split(' ').filter((word) => word.length >= 4 && !SUBJECT_STOP.has(word)));
 	let result = [...pillars];
 	for (const word of goalWords) {
-		const pattern = new RegExp(`\\s*\\b${escapeRegExp(word)}\\b`, 'i');
+		// "Write sentences in Slovak daily" drops "in Slovak". "Speak with Slovak friends" keeps "with".
+		const pattern = new RegExp(`(?:\\s+(?:in|into))?\\s*\\b${escapeRegExp(word)}\\b`, 'i');
 		const hits = result.filter((pillar) => pattern.test(pillar)).length;
 		if (hits < 5) continue;
 		const trimmed = result.map((pillar) => pillar.replace(pattern, '').replace(/\s+/g, ' ').trim());
@@ -514,21 +520,44 @@ export function dropSharedWord(goal: string, pillars: readonly string[]): string
 	return result;
 }
 
-export function goalAndPillars(raw: string): { goal: string; pillars: string[] } | null {
+/**
+ * The goal and the pillar names in a reply. `pillars` fit the cell. `rejected` are too long or stop
+ * mid-phrase, each with the reason, to go back to the model. Nothing is clipped here.
+ */
+export function pillarHead(raw: string): { goal: string; pillars: string[]; rejected: LineReject[] } | null {
 	const value = jsonValue(raw);
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const record = value as Record<string, unknown>;
 	const goal = typeof record.goal === 'string' ? cleanLine(record.goal) : '';
 	if (!goal || goal.length > GOAL_MAX || !Array.isArray(record.pillars)) return null;
-	const pillars: string[] = [];
+	const named: string[] = [];
 	for (const item of record.pillars) {
-		const rawPillar = typeof item === 'string' ? cleanLine(item) : '';
-		if (!rawPillar) continue;
-		const pillar = rawPillar.length > PILLAR_MAX ? truncateAtWordBoundary(rawPillar, PILLAR_MAX) : rawPillar;
-		if (!pillar || pillar.length > PILLAR_MAX) continue;
-		if (!pillars.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) pillars.push(pillar);
+		const pillar = typeof item === 'string' ? cleanLine(item) : '';
+		if (pillar && !named.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) named.push(pillar);
 	}
-	return pillars.length >= 8 ? { goal, pillars: dropSharedWord(goal, pillars.slice(0, 8)) } : null;
+	// Dropping the goal's subject word first can bring a long pillar under the cap.
+	const trimmed = dropSharedWord(goal, named);
+	const pillars: string[] = [];
+	const rejected: LineReject[] = [];
+	for (const pillar of trimmed) {
+		if (pillar.length > PILLAR_MAX) rejected.push({ text: pillar, reason: `Over ${PILLAR_MAX} characters. Say it in fewer words.` });
+		else if (CUT_OFF.test(pillar)) rejected.push({ text: pillar, reason: 'Stops mid-phrase. Finish the thought.' });
+		else pillars.push(pillar);
+	}
+	return { goal, pillars, rejected };
+}
+
+/** Exactly eight pillars that fit, or null. */
+export function goalAndPillars(raw: string): { goal: string; pillars: string[] } | null {
+	const head = pillarHead(raw);
+	return head && head.pillars.length >= 8 ? { goal: head.goal, pillars: head.pillars.slice(0, 8) } : null;
+}
+
+/** Last resort for a pillar the model would not shorten: cut at a word, then drop words a phrase cannot end on. */
+export function shortenPillar(text: string): string {
+	let short = truncateAtWordBoundary(text, PILLAR_MAX);
+	while (DANGLING.test(short)) short = short.replace(DANGLING, '').trim();
+	return short;
 }
 
 function cleanLine(value: string): string {
@@ -645,6 +674,14 @@ export function replyLines(raw: string, count: number, max: number): string[] | 
 // A number, a length, a day, or a moment makes "more" and "be" lines tickable.
 const ANCHOR =
 	/\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred|once|twice|daily|weekly|monthly|every|each|minutes?|mins?|hours?|pages?|times?|mornings?|evenings?|nights?|tonight|today|tomorrow|noon|lunch|breakfast|dinner|bed|bedtime|weekends?|after|before|when|until|during|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b/i;
+/** A line that ends on a word no phrase ends on was cut short: "Track progress through". */
+/**
+ * Words no line ends on. Prepositions are left out: "someone would pay for" and "follow through" are whole.
+ * "Then with" is a short form, not a cut.
+ */
+const CUT_OFF = /(?<!\bthen)\s(?:a|an|the|and|or|but|your|my|their|our)$/i;
+/** After a known cut, a trailing preposition goes too. */
+const DANGLING = /\s(?:a|an|the|and|or|but|your|my|their|our|with|through|for|to|of|from|into|by|about|via|in|on|at)$/i;
 const OPEN_ENDED = /\b(?:more|less|fewer|better|healthier|harder|faster|stronger|regularly|consistently|properly)\b/i;
 const STATE = /^(?:be|become|stay|feel|remain|have\s+(?:a|an|more)|improve|master|get\s+(?:good|better)|work\s+on|focus\s+on)\b/i;
 const RESULT =
@@ -671,6 +708,7 @@ export function lineFault(
 	if (options.siblings?.some((seen) => norm(seen) === norm(value) || nearCopy(seen, value))) {
 		return { code: 'repeated', reason: options.kind === 'pillar' ? 'Same as a pillar you already have.' : 'Same afternoon as another action on the chart.' };
 	}
+	if (CUT_OFF.test(value.replace(/[.!?]+$/, ''))) return { code: 'cut', reason: 'This stops mid-phrase. Finish the thought.' };
 	if (options.kind === 'action' && !/\s/.test(value)) return { code: 'vague', reason: 'Too thin. Say what you do, and when.' };
 	if (value.length > options.max) {
 		return options.kind === 'pillar'
@@ -1148,8 +1186,11 @@ export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: 
 /** What a cells card does, in the chart's words: its button, and what Bindu says once it is used. */
 export function editWords(data: ChartData, edits: readonly CellEdit[]): { button: string; done: string } {
 	const count = edits.length;
-	const pillars = edits.every((edit) => edit.key.startsWith('p'));
-	const counted = pillars ? plural(count, 'pillar') : plural(count, 'action');
+	const pillarCount = edits.filter((edit) => edit.key.startsWith('p')).length;
+	const pillars = pillarCount === count;
+	const counted = [pillarCount ? plural(pillarCount, 'pillar') : '', count - pillarCount ? plural(count - pillarCount, 'action') : '']
+		.filter(Boolean)
+		.join(' and ');
 	const replacing = edits.some((edit) => edit.before.trim());
 	if (replacing) return { button: count === 1 ? 'Replace it' : 'Replace them', done: `Replaced ${counted}.` };
 	const groups = groupEdits(data, edits);

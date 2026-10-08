@@ -51,7 +51,7 @@ import {
 	type HelperMood
 } from './helper.ts';
 import { CoachStopped } from './coach-protocol.ts';
-import { blockOfK, idx, todayKey, type ChartBrief, type ChartData } from './model.ts';
+import { blockOfK, idx, setByKey, todayKey, type ChartBrief, type ChartData } from './model.ts';
 
 export type { CardState, CellEdit, HelperCard, HelperMessage, HelperMood };
 
@@ -141,6 +141,8 @@ export class HelperStore {
 	#pillarFill = $state<number | null>(null);
 	#fillPillar: number | null = null;
 	#fillAll = false;
+	/** What the last clean review looked at, so asking again does not repeat the same verdict. */
+	#cleanReview = '';
 	#pending: { run: () => Promise<void>; need: CoachNeed } | null = null;
 	#consent = readConsent();
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -226,6 +228,19 @@ export class HelperStore {
 	}
 
 	#chips(): HelperChip[] {
+		return this.#reviewChips(this.#baseChips());
+	}
+
+	/** The review chip names what it will check, and steps aside right after a clean review of the same thing. */
+	#reviewChips(chips: HelperChip[]): HelperChip[] {
+		const draft = this.#openDraft();
+		const signature = reviewSignature(draft?.data ?? this.#target.data(), draft?.id);
+		return chips
+			.filter((chip) => !(chip.act.kind === 'job' && chip.act.job === 'review' && signature === this.#cleanReview))
+			.map((chip) => (draft && chip.act.kind === 'job' && chip.act.job === 'review' ? { ...chip, label: 'Review this draft' } : chip));
+	}
+
+	#baseChips(): HelperChip[] {
 		if (this.busy) return [];
 		if (this.step === 'offer') return offerChips();
 		if (this.step === 'extra') return extraChips(this.#sketch !== null, this.#said);
@@ -451,7 +466,11 @@ export class HelperStore {
 			this.#say(DRAFT_QUESTIONS[0]);
 			return;
 		}
-		if (job === 'review') return this.#review(data);
+		if (job === 'review') {
+			// Review what is in front of the person: an open draft before the chart behind it.
+			const draft = this.#openDraft();
+			return this.#review(draft?.data ?? data, draft?.id);
+		}
 		if (job === 'week') return this.#picks('week', data);
 		if (job === 'today') return this.#picks('today', data);
 		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
@@ -491,6 +510,20 @@ export class HelperStore {
 			this.#celebrate(
 				card.data.brief ? 'Done. I kept your answers for later. Ask what I know any time.' : 'Done. Plan this week whenever you like.'
 			);
+		} else if (card.kind === 'cells' && card.draft) {
+			// Edits for a draft change the draft, not the chart behind it.
+			const draft = this.messages.find((entry) => entry.id === card.draft);
+			if (draft?.state !== 'open' || draft.card?.kind !== 'chart') {
+				this.#settle(id, 'skipped');
+				this.#aside('That draft is closed now, so nothing changed.');
+				return;
+			}
+			const next = structuredClone($state.snapshot(draft.card.data)) as ChartData;
+			for (const edit of card.edits) setByKey(next, edit.key, edit.after);
+			const words = editWords(next, card.edits);
+			this.#patchChart(draft.id, next);
+			this.#settle(id, 'used');
+			this.#celebrate(`${words.done.replace(/\.$/, '')} in the draft.`);
 		} else if (card.kind === 'cells') {
 			const words = editWords(this.#target.data(), card.edits);
 			this.#target.setCells(card.edits);
@@ -504,7 +537,7 @@ export class HelperStore {
 			this.#celebrate(card.scope === 'today' ? 'Today is set. One at a time.' : 'Pinned. They will lead your picks each day.');
 		} else if (card.kind === 'findings') {
 			this.#settle(id, 'used');
-			void this.#withModel(() => this.#rewrite(card.findings));
+			void this.#withModel(() => this.#rewrite(card.findings, card.draft));
 		}
 	}
 
@@ -555,15 +588,33 @@ export class HelperStore {
 		await coach.interruptCoach();
 	}
 
-	async #review(data: ChartData): Promise<void> {
+	async #review(data: ChartData, draftId?: number): Promise<void> {
 		const findings = reviewChart(data);
+		const where = draftId ? 'this draft' : data.goal.trim() ? `"${data.goal.trim()}"` : 'this chart';
+		const signature = reviewSignature(data, draftId);
 		if (findings.length === 0) {
-			this.#say('Every line can be marked done, and it is yours to do.');
+			if (this.#cleanReview === signature) {
+				this.#say('Still clean. Nothing changed since the last check.');
+				return;
+			}
+			this.#cleanReview = signature;
+			this.#say(`Every line in ${where} can be marked done, and it is yours to do.`);
 			this.#cheerOnly();
 			return;
 		}
+		this.#cleanReview = '';
 		const count = findings.length === 1 ? 'One line' : `${findings.length} lines`;
-		this.#say(`${count} could be clearer. I can rewrite them, and you choose what stays.`, { kind: 'findings', findings });
+		this.#say(`${count} in ${where} could be clearer. I can rewrite them, and you choose what stays.`, {
+			kind: 'findings',
+			findings,
+			draft: draftId
+		});
+	}
+
+	/** The newest chart card still waiting on a decision, if there is one. */
+	#openDraft(): { id: number; data: ChartData } | null {
+		const message = [...this.messages].reverse().find((entry) => entry.state === 'open' && entry.card?.kind === 'chart');
+		return message?.card?.kind === 'chart' ? { id: message.id, data: message.card.data } : null;
 	}
 
 	#picks(scope: 'today' | 'week', data: ChartData): void {
@@ -701,10 +752,11 @@ export class HelperStore {
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, text, card: { kind: 'cells', edits: [...edits] } } : entry));
 	}
 
-	async #rewrite(findings: HelperFinding[]): Promise<void> {
+	async #rewrite(findings: HelperFinding[], draftId?: number): Promise<void> {
 		this.pending = 'cells';
 		const coach = await loadCoachModule();
-		const data = this.#target.data();
+		const draft = draftId ? this.messages.find((entry) => entry.id === draftId)?.card : undefined;
+		const data = draft?.kind === 'chart' ? draft.data : this.#target.data();
 		const edits: CellEdit[] = [];
 		for (const finding of findings) {
 			if (textOfKey(data, finding.key) !== finding.text) continue;
@@ -712,7 +764,7 @@ export class HelperStore {
 			if (after) edits.push({ key: finding.key, before: finding.text, after, reason: finding.reason });
 		}
 		if (edits.length === 0) return this.#fail('I could not improve on those. They may be fine as they are.');
-		this.#say('Here is how I would put them.', { kind: 'cells', edits });
+		this.#say(draftId ? 'Here is how I would put them in the draft.' : 'Here is how I would put them.', { kind: 'cells', edits, draft: draftId });
 	}
 
 	async #answer(question: string, history: readonly ChatMessage[] = [], pillar: number | null = null): Promise<void> {
@@ -933,7 +985,9 @@ export class HelperStore {
 		if (!preserveSorry) this.#sorry = false;
 		if (card) {
 			if (this.messages.some((entry) => entry.state === 'open' && entry.card?.kind === 'download')) this.#pending = null;
-			this.messages = this.messages.map((entry) => (entry.state === 'open' ? { ...entry, state: 'skipped' } : entry));
+			// A card about a draft leaves that draft open.
+			const keep = card.kind === 'findings' || card.kind === 'cells' ? card.draft : undefined;
+			this.messages = this.messages.map((entry) => (entry.state === 'open' && entry.id !== keep ? { ...entry, state: 'skipped' } : entry));
 		}
 		this.#push({ from: 'helper', text, card, state: card ? 'open' : undefined });
 		if (!this.open) this.unread = true;
@@ -961,6 +1015,11 @@ export class HelperStore {
 		this.#say(text);
 		this.#cheerOnly();
 	}
+}
+
+/** What a review looked at: which chart, and every line on it. */
+function reviewSignature(data: ChartData, draftId?: number): string {
+	return `${draftId ?? 'chart'}:${JSON.stringify([data.goal, data.pillars, data.actions])}`;
 }
 
 function stayedEmpty(count: number): string {
