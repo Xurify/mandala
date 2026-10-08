@@ -67,7 +67,7 @@ For a chart that already exists and has no brief, build the line from the chart:
 
 Extract `lineFault(text, { pillar, siblings, max })` from the same rules `reviewChart` uses: uncontrolled, untickable, restated, repeated, vague (one word), long (over `max`). `reviewChart` calls it. The generator calls it before a line is kept.
 
-`replyLines` drops a line over the max as `long`, not a shortened sentence.
+`keptLines` drops a line over the max as `long`, not a shortened sentence.
 
 Flow in `fillActions` and `fillPillars`:
 
@@ -76,7 +76,7 @@ Flow in `fillActions` and `fillPillars`:
 3. If fewer than `count` remain, one retry. The user message lists each reject as `Rejected: "…" — {reason}` and asks for that many new lines, with the fact line repeated.
 4. If the retry is still short, return the lines that passed. The card says the pillar is short. An empty cell is better than a broken sentence.
 
-`goalAndPillars` treats an over-long goal or pillar the same way: reject and retry the head call, do not clip.
+`pillarHead` treats an over-long or cut-off pillar the same way: it rejects it with a reason, and `namePillars` retries the head call with those reasons. It does not clip.
 
 Cap the retry at one. A second retry on 1.5B repeats the same miss and burns the wait.
 

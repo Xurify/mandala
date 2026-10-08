@@ -1,58 +1,10 @@
 import { LlamaChatSession, QwenChatWrapper } from 'node-llama-cpp';
 import { localProvider } from './provider.ts';
 import { sampleChart, save, secs } from './common.ts';
-import { routingSet } from '../../src/lib/chart/bindu-eval.ts';
+import { routingSet, secondRoutingSet as freshSet } from '../../src/lib/chart/bindu-eval.ts';
 import { routeOf, type HelperRoute } from '../../src/lib/chart/helper.ts';
 
 /** Written for this test, after the rules, by someone who did not write them. Not tuned on. */
-export const freshSet: [string, HelperRoute][] = [
-	['whats on for today', 'today'],
-	['gimme 3 things to do rn', 'today'],
-	['I have an hour free tonight, what should I work on?', 'today'],
-	["what's my focus today?", 'today'],
-	['set me up for the next 7 days', 'week'],
-	['can u sketch out my week', 'week'],
-	['what should this week look like', 'week'],
-	['are my actions any good', 'review'],
-	['roast my chart', 'review'],
-	['which of my actions are too vague?', 'review'],
-	['my chart has holes, can you fill them', 'fill'],
-	['write the rest of the actions for me', 'fill'],
-	['suggest some pillars', 'fill'],
-	['scrap this and start over', 'draft'],
-	['I need a brand new chart', 'draft'],
-	["let's make a chart from scratch", 'draft'],
-	['am I on track?', 'progress'],
-	['show me how the last week went', 'progress'],
-	['what have I been slacking on', 'progress'],
-	['ty!', 'chat'],
-	['yo', 'chat'],
-	['sorry I disappeared for a week', 'chat'],
-	['ok cool', 'chat'],
-	['what do you know about me', 'facts'],
-	['what have I told you so far', 'facts'],
-	["I don't get how this works", 'help'],
-	['what can you even do?', 'help'],
-	['where do I start', 'help'],
-	['why eight pillars?', 'method'],
-	['is it ok to tick only one thing a day?', 'method'],
-	["what's the difference between a pillar and an action?", 'method'],
-	['how is this different from a to-do list?', 'method'],
-	['I wanna get into rock climbing', 'aim'],
-	['thinking of training for a triathlon next year', 'aim'],
-	['finish my Money pillar', 'pillar'],
-	['can you work on Career for me', 'pillar'],
-	['stop', 'cancel'],
-	['forget it', 'cancel'],
-	['how do I deal with a boss who micromanages?', 'model'],
-	['is 6 hours of sleep enough?', 'model'],
-	["what's a good way to save for a car?", 'model'],
-	['I feel overwhelmed by Career and Money at once', 'model'],
-	['plan my week but skip Home', 'week'],
-	['can you check whether Money makes sense and fill it', 'pillar'],
-	['help me pick something for this morning', 'today'],
-	['how many ticks this month?', 'progress']
-];
 
 const TOOLS: Record<Exclude<HelperRoute, 'chart'>, string> = {
 	today: "pick today's three actions",

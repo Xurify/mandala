@@ -2,10 +2,10 @@ import { chart } from './chart.svelte';
 import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
 	aimParts,
-	askRoute,
 	briefOf,
 	chartAnswersFromText,
 	chatReply,
+	clarifyOf,
 	conversationHistory,
 	chipsFor,
 	describeCoachProgress,
@@ -24,7 +24,6 @@ import {
 	insightSignature,
 	insightsFor,
 	methodAnswer,
-	intentOf,
 	isCancellation,
 	isCardRejection,
 	isMissingCard,
@@ -35,6 +34,7 @@ import {
 	pillarNamed,
 	progressReport,
 	reviewChart,
+	routeOf,
 	suggestToday,
 	suggestWeek,
 	textOfKey,
@@ -48,7 +48,8 @@ import {
 	type HelperFinding,
 	type HelperJob,
 	type HelperMessage,
-	type HelperMood
+	type HelperMood,
+	type HelperRoute
 } from './helper.ts';
 import { CoachStopped } from './coach-protocol.ts';
 import { blockOfK, idx, setByKey, todayKey, type ChartBrief, type ChartData } from './model.ts';
@@ -153,6 +154,8 @@ export class HelperStore {
 	#jobChart: string | null = null;
 	#thanks = 0;
 	#lead = $state<HelperChip | null>(null);
+	/** A message Bindu asked about, kept so a chip can act on it as first sent. */
+	#unsure = $state<{ text: string; history: ChatMessage[]; chips: HelperChip[] } | null>(null);
 	#swapped = new Set<string>();
 
 	constructor(target: HelperTarget) {
@@ -245,6 +248,7 @@ export class HelperStore {
 		if (this.step === 'offer') return offerChips();
 		if (this.step === 'extra') return extraChips(this.#sketch !== null, this.#said);
 		if (this.step === 'direction') return [];
+		if (this.#unsure) return this.#unsure.chips;
 		if (this.#lead) {
 			const lead = this.#lead;
 			const rest = chipsFor(this.#target.data(), this.#target.selectedPillar()).filter((chip) => chip.label !== lead.label);
@@ -305,6 +309,7 @@ export class HelperStore {
 		else if (act.kind === 'send') void this.send(act.text);
 		else if (act.kind === 'sketch') void this.#sketchAim();
 		else if (act.kind === 'show') this.showCell(act.key);
+		else if (act.kind === 'reading') void this.#pickReading(act.route);
 		else this.#dismissAim();
 	}
 
@@ -370,6 +375,7 @@ export class HelperStore {
 		this.#help = false;
 		this.#lead = null;
 		this.#pillarFill = null;
+		this.#unsure = null;
 
 		const openMessage = this.messages.find((entry) => entry.state === 'open');
 		if (openMessage && isCardRejection(text)) {
@@ -378,44 +384,61 @@ export class HelperStore {
 		}
 
 		const data = this.#target.data();
-		const intent = intentOf(text);
-		if (intent === 'cancel') {
+		const route = routeOf(text, data);
+		const unsure = route === 'clarify' ? clarifyOf(text) : null;
+		if (unsure) {
+			this.#unsure = { text, history, chips: unsure.chips };
+			this.#say(unsure.question);
+			return;
+		}
+		await this.#dispatch(route, text, data, history);
+	}
+
+	async #pickReading(route: HelperRoute): Promise<void> {
+		const unsure = this.#unsure;
+		if (!unsure || this.busy) return;
+		this.#unsure = null;
+		await this.#dispatch(route, unsure.text, this.#target.data(), unsure.history);
+	}
+
+	/** Does what `routeOf` decided. A reading with no written answer goes to the model. */
+	async #dispatch(route: HelperRoute, text: string, data: ChartData, history: ChatMessage[]): Promise<void> {
+		if (route === 'cancel') {
 			this.#clearTurn();
 			this.step = 'idle';
 			this.#aside('Nothing to cancel.');
 			return;
 		}
-		if (intent === 'chat') {
+		if (route === 'chat') {
 			const reply = chatReply(text, data, this.#thanks++);
 			this.#help = reply.nextStep;
 			this.#say(reply.text);
 			return;
 		}
-		if (intent === 'facts') {
+		if (route === 'facts') {
 			this.showFacts();
 			return;
 		}
-		if (intent === 'progress') {
+		if (route === 'progress') {
 			this.#say(progressReport(data));
 			this.#lead = insightChip(insightsFor(data).find((insight) => insight.key));
 			return;
 		}
-		if (intent === 'chart') {
+		if (route === 'chart') {
 			const parsed = parseDraftText(text);
 			if (parsed) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data: parsed });
 			return;
 		}
-		if (intent === 'fill') {
+		if (route === 'fill') {
 			// "Write actions for Sleep" fills Sleep. "Fill the whole chart" fills every pillar with gaps.
 			const named = pillarNamed(text, data);
 			await this.start('fill', named ?? undefined, named === null);
 			return;
 		}
-		if (intent !== 'ask') {
-			await this.start(intent);
+		if (route === 'today' || route === 'week' || route === 'review' || route === 'draft') {
+			await this.start(route);
 			return;
 		}
-		const route = askRoute(text, data);
 		if (route === 'help') {
 			this.#help = data.goal.trim() !== '' && !fillPlan(data);
 			this.#say(helpReply(data));
@@ -845,6 +868,7 @@ export class HelperStore {
 		this.#help = false;
 		this.#lead = null;
 		this.#pillarFill = null;
+		this.#unsure = null;
 		this.#sketch = null;
 		this.#sketchId = 0;
 		this.#direction = '';

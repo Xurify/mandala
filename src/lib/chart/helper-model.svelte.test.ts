@@ -7,6 +7,7 @@ const coach = vi.hoisted(() => ({
 	need: null as (() => Need | null) | null,
 	loaded: false,
 	answers: 0,
+	questions: [] as string[],
 	sketches: 0,
 	asked: [] as { direction: string; situation: string }[],
 	fills: [] as { pillarIndex: number; count: number; earlier: number }[],
@@ -34,10 +35,11 @@ vi.mock('./coach.browser.ts', () => ({
 		coach.loaded = true;
 		return 'Log progress on Sunday';
 	},
-	answer: async () => {
+	answer: async (_data: unknown, question: string) => {
 		if (coach.gate) await coach.gate;
 		coach.loaded = true;
 		coach.answers++;
+		coach.questions.push(question);
 		return 'Start with the pillar you skipped.';
 	},
 	proposePillars: async (answers: { direction: string; situation: string }, onPartial: (draft: unknown) => void) => {
@@ -90,6 +92,7 @@ beforeEach(() => {
 	coach.need = webllm;
 	coach.loaded = false;
 	coach.answers = 0;
+	coach.questions = [];
 	coach.sketches = 0;
 	coach.asked = [];
 	coach.fills = [];
@@ -118,6 +121,15 @@ describe('HelperStore model consent', () => {
 		await helper.start('fill');
 		expect(coach.needs).toBe(1);
 		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '2.3 GB', builtin: false });
+	});
+
+	it('answers the first message as written when the person picks Just answer', async () => {
+		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: null });
+		const helper = store();
+		await helper.send('help me plan the coming week');
+		helper.choose(helper.chips.find((chip) => chip.label === 'Just answer')!);
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toBe('Start with the pillar you skipped.'));
+		expect(coach.questions).toEqual(['help me plan the coming week']);
 	});
 
 	it('runs straight away when nothing has to download', async () => {

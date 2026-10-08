@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { HelperStore, type HelperTarget } from './helper.svelte.ts';
 import { dateKeyOf, emptyChart, setByKey, setMeta, type ChartData } from './model.ts';
 
@@ -136,6 +136,24 @@ describe('HelperStore memory and answers', () => {
 		await helper.send("what's a pillar?");
 		expect(texts(helper).at(-1)).toContain('one of the eight things');
 		expect(helper.chips.length).toBeGreaterThan(0);
+	});
+
+	it('reads a paraphrase it was not written for', async () => {
+		const { helper } = sandbox();
+		await helper.send('can u sketch out my week');
+		expect(helper.messages.at(-1)?.card?.kind).toBe('picks');
+		await helper.send('sorry I disappeared for a week');
+		expect(texts(helper).at(-1)).toMatch(/^A missed day/);
+	});
+
+	it('asks when unsure, then does what the chip names with the first message', async () => {
+		const { helper } = sandbox();
+		await helper.send('help me plan the coming week');
+		expect(texts(helper).at(-1)).toBe('Should I plan this week?');
+		expect(helper.chips.map((chip) => chip.label)).toEqual(['Plan this week', 'Just answer']);
+		helper.choose(helper.chips[0]!);
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.card).toMatchObject({ kind: 'picks', scope: 'week' }));
+		expect(helper.chips.some((chip) => chip.act.kind === 'reading')).toBe(false);
 	});
 
 	it('greets with an insight once, then not again the same day', () => {

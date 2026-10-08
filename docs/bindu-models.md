@@ -59,7 +59,7 @@ Nineteen questions on the lab's sample chart. Five are ordinary. Fourteen are ra
 
 ## Routing as tool choice
 
-Each model got the 15 routes as a tool list and had to return one, held to a JSON schema (web-llm can do the same with `response_format`). Two sets: the 66 messages the rules were tuned on (`bindu-eval.ts`), and 46 new ones written for this test (`scripts/coach-eval/tools.ts`).
+Each model got the 15 routes as a tool list and had to return one, held to a JSON schema (web-llm can do the same with `response_format`). Two sets: the 66 messages the rules were tuned on (`bindu-eval.ts`), and 46 new ones written for this test (now `secondRoutingSet` in `bindu-eval.ts`). The intent bank came after this test and was built from both sets, so these numbers are for the rules alone. See "Where the model helps, and how we'll know" in `docs/bindu.md` for the bank.
 
 | Router | Tuned set | New set | Time per message on CPU |
 | --- | --- | --- | --- |

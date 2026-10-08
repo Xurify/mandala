@@ -10,7 +10,8 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | File | What it holds |
 | --- | --- |
 | `src/lib/chart/helper.ts` | Pure logic: intent patterns, review checks, today and week picks, chips, greetings, every prompt the model sees |
-| `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: messages, cards, routing in `send()`, the download consent |
+| `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: messages, cards, the download consent. `send()` asks `routeOf` where a message goes |
+| `src/lib/chart/intents.ts` | The intent bank: example phrases per route, scored by overlap, for what the exact rules miss |
 | `src/lib/chart/coach.browser.ts` | Every model job, with retries and line checks. Picks the provider and the model for each call |
 | `src/lib/chart/coach-provider.ts` | The provider interface, `chooseEngine`, and the message split for the Prompt API |
 | `src/lib/chart/coach-webllm.ts`, `coach.worker.ts` | Downloaded weights on WebGPU through web-llm, in a worker |
@@ -52,13 +53,19 @@ Most of the jobs need no model. They run instantly, without a download, and in b
 
 ### How a message is routed
 
-`send()` in `helper.svelte.ts` checks, in this order:
+`send()` in `helper.svelte.ts` handles two things first:
 
 1. Mid-draft steps (the goal, then "anything that would change the plan"), and the new-chart offer.
 2. "No" or "skip" while a card is open.
-3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on to the model; then cancel, today, week, review, fill, progress, draft.
+
+Then `routeOf(text, data)` in `helper.ts` decides, in this order:
+
+3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on; then cancel, today, week, review, fill, progress, draft.
 4. `askRoute`: a bare ask for help, answered from the chart; a method question, answered from the written bank; a new goal (`aimOf`); a pillar name together with fill, finish or work on.
-5. Everything else goes to the model. When nothing can run a model here, the reply says so. When the model still has to download, the reply is the download card.
+5. The intent bank (`intents.ts`), for what the rules above miss. Each route has example phrases. A message is scored against each by weighted word overlap, after shorthand ("gimme", "rn", "u") is folded and words are stemmed. A strong, clear match acts. A likely match asks, naming each reading ("Should I plan this week?"), with a chip per reading and a "Just answer" chip, and the chip acts on the first message as sent. A weak match goes on.
+6. Everything else goes to the model. When nothing can run a model here, the reply says so. When the model still has to download, the reply is the download card.
+
+`HelperStore` follows the route in one place (`#dispatch`), for a typed message and for a clarify chip alike. When a phrasing lands in the wrong place, add it to the bank as an example rather than writing a pattern. Cancel stays out of the bank: "how do I stop procrastinating" is not a request to stop.
 
 ### What Bindu remembers today
 
@@ -266,12 +273,28 @@ The panel shows the facts under "What I know", each with Forget. The conversatio
 
 The rule side runs in `bun run test`, with these floors as assertions, so a change that makes Bindu worse fails. The model side runs on `/dev/ai`, like the holdout run, and the results go in this file.
 
-**Built so far:** `bindu-eval.ts` holds 66 routing messages and 50 lines, written after the rules by the same hand. First run, with three wrong labels corrected: 64 of 66 routed, 24 of 25 weak lines caught, 0 of 25 good lines flagged. The two routing misses ("start a fresh chart", "what did I tell you") were then fixed, so 66 of 66 is tuned, not earned. "Become a morning person" still passes review, because "morning" reads as a time. `bindu-eval.test.ts` holds the floors: 95% routed, 90% of weak lines caught, no good line flagged. Still missing: lines and messages written by someone else, the 200 and 300 sizes, a held-out half, and the model side on `/dev/ai`.
+**Built so far:** `bindu-eval.ts` holds 50 lines and three routing sets:
+
+- `routingSet`, 66 messages written after the rules by the same hand. The rules are tuned on it.
+- `secondRoutingSet`, 46 messages written later for the model test. The rules were not tuned on it, but the intent bank was built from it and from `routingSet`.
+- `unseenRoutingSet`, 51 messages written before the bank existed, including two that are not English. Nothing was built from it, but some rule fixes came after reading its misses, so its later scores are optimistic too.
+
+| Router | Tuned | Second | Unseen |
+| --- | --- | --- | --- |
+| Rules alone | 66 of 66 | 20 of 46 | 14 of 51 |
+| Rules and bank, first run | 65 of 66 | 43 of 46 | 20 of 51, the one clean measure |
+| Rules and bank, now | 65 of 66 | 44 of 46, 1 more asked | 24 of 51, 7 more asked |
+
+"Asked" means a clarify question whose chips include the right reading: one tap, not a wrong answer. On the unseen set, the rest goes to the model (19) or to fill instead of the named pillar (1, "write actions for Money", which fills Money either way). No open question in any set starts a job, except "give me three things", which is terse enough to read either way. The bank can't read the two messages that aren't English. Those go to the model, which can.
+
+Lines, first run, with three wrong labels corrected: 24 of 25 weak lines caught, 0 of 25 good lines flagged. "Become a morning person" still passes review, because "morning" reads as a time.
+
+`bindu-eval.test.ts` holds the floors: 95% of the tuned set, 90% of the second, 45% of the unseen set right and 60% right or asked well, no new open question sent to a job, 90% of weak lines caught, no good line flagged. Still missing: messages written by someone else, which is the honest measure, the 200 and 300 sizes, and the model side on `/dev/ai`.
 
 ## Order
 
 1. ~~Fix the three routing bugs, and add the message set as a test.~~ Done, with the progress reply, help from the chart, and thanks and hello.
-2. The intent bank and clarify chips. ~~Method answers~~ (15 of about 30).
+2. ~~The intent bank and clarify chips~~ (done; the loaded 4B as a tie-breaker for clarify is not built). ~~Method answers~~ (15 of about 30).
 3. ~~Insights: quiet pillar, picked not done, comeback, your own words, follow-through, ready to retire~~ (done, with better picks and Swap).
 4. Memory: ~~facts from the draft answers, shown under "What I know" with Forget; declined; seen~~. Facts from chat are next.
 5. Guided rewrite.

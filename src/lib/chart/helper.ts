@@ -1,3 +1,4 @@
+import { chatKind, guessIntent, type BankRoute } from './intents.ts';
 import {
 	ACTION_MAX,
 	chartAnswersMessage,
@@ -213,7 +214,7 @@ const REVIEW_COMMAND =
 const FILL_COMMAND =
 	/\b(?:(?:fill|write)(?:\s+(?:in|out|up))?\s+(?:it|everything|(?:(?:all(?:\s+of)?|the\s+whole|the\s+entire|the\s+rest\s+of)\s+)?(?:(?:the|my|this)\s+)?(?:blanks?|empty(?:\s+ones)?|missing(?:\s+ones)?|gaps|rest|chart|grid|cells|actions))|(?:finish|complete)\s+(?:the|my|this)\s+chart|suggest\s+pillars)\b/i;
 const DRAFT_COMMAND =
-	/\b(?:new\s+chart|start\s+(?:a\s+)?(?:new\s+|fresh\s+)?chart|make\s+(?:a\s+)?(?:new\s+)?chart|create\s+(?:a\s+)?(?:new\s+)?chart|write\s+(?:a\s+)?(?:new\s+)?chart|start\s+from\s+scratch|start\s+over|start\s+again|(?:a\s+)?(?:new|different)\s+goal)\b/i;
+	/\b(?:new\s+chart|(?:start|make|create|write)\s+(?:a\s+|another\s+|one\s+more\s+)?(?:new\s+|fresh\s+|second\s+)?chart|start\s+from\s+scratch|start\s+over|start\s+again|start\s+fresh|(?:a\s+)?(?:new|different)\s+goal(?!\s+is\b))\b/i;
 const PROGRESS_COMMAND = /^(?:(?:show\s+(?:me\s+)?)?(?:my\s+)?(?:progress|stats))[.!]*$/i;
 
 // Questions that ask for a job, not about one. "How should I plan my week?" stays a question.
@@ -237,7 +238,7 @@ const MISSED = /\bi\s+(?:missed|skipped|fell\s+off|lost\s+(?:track|my\s+streak|t
 const QUESTION_PATTERNS = /\?$|^(?:how|why|what|when|where|who|which|can you explain|could you explain|is it|are there|tell me about)\b/i;
 
 const CANCEL_COMMAND =
-	/^(?:cancel(?:\s+(?:this|it|that|the\s+draft|draft))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|exit|back|no\s+thanks)\.?$/i;
+	/^(?:cancel(?:\s+(?:this|it|that|the\s+draft|draft))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|nvm|abort|quit|forget\s+it|exit|back|no\s+thanks)\.?$/i;
 
 const REJECT_CARD =
 	/^(?:cancel(?:\s+(?:this|it|that))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|skip|no|nope|nah|not\s+now|not\s+this\s+one|leave\s+it|leave\s+them|discard|dismiss)\.?$/i;
@@ -304,8 +305,9 @@ const THANKS_REPLIES = ['Any time.', 'Glad it helped.', 'Happy to.'] as const;
 /** Thanks, hello, and "I missed a few days". No model. `nextStep` asks for today's and review chips. */
 export function chatReply(text: string, data: ChartData, turn = 0): { text: string; nextStep: boolean } {
 	const trimmed = text.replace(/\s+/g, ' ').trim();
-	if (HELLO.test(trimmed)) return { text: greetingFor(data), nextStep: false };
-	if (MISSED.test(trimmed)) {
+	const kind = HELLO.test(trimmed) ? 'hello' : MISSED.test(trimmed) ? 'missed' : THANKS.test(trimmed) ? 'thanks' : chatKind(trimmed);
+	if (kind === 'hello') return { text: greetingFor(data), nextStep: false };
+	if (kind === 'missed') {
 		return filled(data.goal)
 			? { text: 'A missed day tells you about the plan, not about you. Pick three small ones for today?', nextStep: true }
 			: { text: 'Nothing is lost. Tell me the goal, and we start from today.', nextStep: false };
@@ -334,8 +336,10 @@ export function helpReply(data: ChartData): string {
 }
 
 const AIM_FRAME =
-	/^(?:please\s+)?(?:can you help me\s+|could you help me\s+|help me\s+|i want to\s+|i wanna\s+|i'd like to\s+|i would like to\s+|i need to\s+|i want\s+|i am thinking of\s+|i'm thinking of\s+|i am thinking about\s+|i'm thinking about\s+|thinking of\s+|thinking about\s+|my goal is to\s+|my goal is\s+|let's make a chart for\s+|make a chart for\s+|can we make a chart for\s+|can we start a chart for\s+|start a chart for\s+|let's go with\s+|let's do\s+|i'll go with\s+|i will go with\s+|i choose\s+|i pick\s+)(.+)$/i;
+	/^(?:please\s+)?(?:can you help me\s+|could you help me\s+|help me\s+|i want to\s+|i wanna\s+|i'd like to\s+|i would like to\s+|i need to\s+|i want\s+|i am thinking of\s+|i'm thinking of\s+|i am thinking about\s+|i'm thinking about\s+|thinking of\s+|thinking about\s+|my (?:new |next )?goal is to\s+|my (?:new |next )?goal is\s+|let's make a chart for\s+|make a chart for\s+|can we make a chart for\s+|can we start a chart for\s+|start a chart for\s+|let's go with\s+|let's do\s+|i'll go with\s+|i will go with\s+|i choose\s+|i pick\s+)(.+)$/i;
 
+/** Verbs that, after "help me", ask Bindu for a job rather than name a goal. */
+const JOB_ASK = /^(?:pick|choose|plan|fill|review|check|finish|sort out|figure out what to do)\b/i;
 const COMPARISON_OR_INDECISION =
 	/\b(?:which|and\/or|\bor\b|should i|decide between|choose between|not sure which|versus|vs\.?)\b/i;
 
@@ -364,6 +368,8 @@ export function aimParts(text: string, data: ChartData): { aim: string; said: st
 	if (COMPARISON_OR_INDECISION.test(trimmed)) return null;
 	const match = trimmed.match(AIM_FRAME);
 	if (!match?.[1]) return null;
+	// "Help me pick something for this morning" asks for a job. "Help me run a marathon" names a goal.
+	if (/help me\s+$/i.test(match[0].slice(0, match[0].length - match[1].length)) && JOB_ASK.test(match[1])) return null;
 	const { goal: aim, said } = splitGoal(match[1]);
 	if (aim.length < 3) return null;
 	const goal = data.goal.trim();
@@ -1115,7 +1121,9 @@ export type ChipAct =
 	| { kind: 'send'; text: string }
 	| { kind: 'sketch' }
 	| { kind: 'dismiss' }
-	| { kind: 'show'; key: string };
+	| { kind: 'show'; key: string }
+	/** One reading of a message Bindu asked about. `model` answers it as written. */
+	| { kind: 'reading'; route: BankRoute | 'model' };
 
 export type HelperChip = { label: string; act: ChipAct };
 
@@ -1582,7 +1590,8 @@ export const BRIEF_LABELS: Record<keyof ChartBrief, string> = {
 	constraint: 'Something to work around'
 };
 
-export type AskRoute = 'help' | 'method' | 'aim' | 'pillar' | 'model';
+/** `clarify`: the intent bank found two close readings, so Bindu asks which. */
+export type AskRoute = 'help' | 'method' | 'aim' | 'pillar' | 'clarify' | 'model';
 export type HelperRoute = Exclude<HelperIntent, 'ask'> | AskRoute;
 
 /** Where a message that matched no job goes. `HelperStore.send` follows this order. */
@@ -1595,8 +1604,52 @@ export function askRoute(text: string, data: ChartData): AskRoute {
 	return 'model';
 }
 
-/** Where a message lands when nothing else is going on: a job, a written reply, or the model. */
+/** A reading Bindu can act on from a tap: the chip, and the same thing as Bindu asks it. */
+const READINGS: Partial<Record<BankRoute, { label: string; ask: string }>> = {
+	today: { label: "Pick today's three", ask: "pick today's three" },
+	week: { label: 'Plan this week', ask: 'plan this week' },
+	review: { label: 'Review my chart', ask: 'review the chart' },
+	fill: { label: 'Fill the gaps', ask: 'fill the gaps' },
+	draft: { label: 'Start a chart', ask: 'start a new chart' },
+	progress: { label: 'Show my progress', ask: 'show your progress' },
+	facts: { label: 'What you know about me', ask: 'show what I know about you' },
+	help: { label: 'Suggest a next step', ask: 'suggest a next step' }
+};
+
+/**
+ * When the bank is unsure: a question that names each reading, a chip per reading, then one that answers as
+ * written. Chat and method readings are the model's to answer, so they get no chip. Null when there is
+ * nothing to ask.
+ */
+export function clarifyOf(text: string): { question: string; chips: HelperChip[] } | null {
+	const guess = guessIntent(text);
+	if (guess.kind !== 'clarify') return null;
+	const readings = guess.routes.flatMap((route) => {
+		const reading = READINGS[route];
+		return reading ? [{ route, ...reading }] : [];
+	});
+	if (readings.length === 0) return null;
+	const asks = readings.map((reading) => reading.ask);
+	const options = asks.length < 3 ? asks.join(' or ') : `${asks.slice(0, -1).join(', ')}, or ${asks.at(-1)}`;
+	return {
+		question: `Should I ${options}?`,
+		chips: [
+			...readings.map((reading): HelperChip => ({ label: reading.label, act: { kind: 'reading', route: reading.route } })),
+			{ label: 'Just answer', act: { kind: 'reading', route: 'model' } }
+		]
+	};
+}
+
+/**
+ * Where a message lands when nothing else is going on: a job, a written reply, a question back, or the
+ * model. The exact rules go first, since they are rarely wrong. The intent bank reads what they miss.
+ */
 export function routeOf(text: string, data: ChartData): HelperRoute {
 	const intent = intentOf(text);
-	return intent === 'ask' ? askRoute(text, data) : intent;
+	if (intent !== 'ask') return intent;
+	const ask = askRoute(text, data);
+	if (ask !== 'model') return ask;
+	const guess = guessIntent(text);
+	if (guess.kind === 'route') return guess.route;
+	return clarifyOf(text) ? 'clarify' : 'model';
 }

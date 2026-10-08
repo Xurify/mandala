@@ -5,6 +5,7 @@ import {
 	pillarHead,
 	shortenPillar,
 	routeOf,
+	clarifyOf,
 	actionGaps,
 	editWords,
 	groupEdits,
@@ -1075,7 +1076,16 @@ describe('filling the whole chart', () => {
 		for (const text of ['Write all the actions', 'Fill the whole chart', 'write the actions', 'fill in the actions', 'fill it', 'fill everything', 'fill the rest']) {
 			expect(routeOf(text, sample())).toBe('fill');
 		}
-		for (const text of ['write me a poem', 'fill me in on how this works', 'What should I write first?']) expect(routeOf(text, sample())).toBe('model');
+		for (const text of ['write me a poem', 'What should I write first?']) expect(routeOf(text, sample())).toBe('model');
+		// Reads as "how does this work". Not a fill either way.
+		expect(routeOf('fill me in on how this works', sample())).toBe('clarify');
+	});
+
+	it('asks about close readings by name, and offers to just answer', () => {
+		const unsure = clarifyOf('how did my week go and what next');
+		expect(unsure?.question).toBe('Should I show your progress or plan this week?');
+		expect(unsure?.chips.map((chip) => chip.label)).toEqual(['Show my progress', 'Plan this week', 'Just answer']);
+		expect(clarifyOf('write me a poem')).toBeNull();
 	});
 });
 

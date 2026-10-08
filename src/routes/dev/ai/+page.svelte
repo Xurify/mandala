@@ -12,8 +12,8 @@
 		describeCoachProgress,
 		describeKey,
 		fillPlan,
-		intentOf,
 		reviewChart,
+		routeOf,
 		suggestToday,
 		suggestWeek
 	} from '$lib/chart/helper';
@@ -608,7 +608,7 @@
 				<span class="text-[0.82rem] font-semibold">A message to Bindu</span>
 				<input class={field} bind:value={probe} />
 			</label>
-			<p class="m-0 text-[0.9rem]">Routes to <b class="font-[620]">{intentOf(probe)}</b></p>
+			<p class="m-0 text-[0.9rem]">Routes to <b class="font-[620]">{routeOf(probe, sample)}</b></p>
 			<label class="flex flex-col gap-1.5">
 				<span class="text-[0.82rem] font-semibold">Paste a model reply</span>
 				<textarea class={area} rows="4" placeholder="JSON from any chat app" bind:value={pasted}></textarea>
