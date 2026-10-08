@@ -14,6 +14,7 @@
 		type DeletedSummary
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
@@ -601,14 +602,12 @@
 <Dialog
 	bind:open={deletedOpen}
 	title="Recently deleted"
-	description="Deleted charts stay here for {TRASH_DAYS} days."
+	description={chart.deletedCharts.length > 0 ? `Deleted charts stay here for ${TRASH_DAYS} days.` : undefined}
 	footer={chart.deletedCharts.length > 0 ? deletedFooter : undefined}
 	oncancel={holdForget}
 >
 	{#if chart.deletedCharts.length === 0}
-		<p class="m-0 max-w-[36ch] text-[0.9rem] leading-[1.45] text-pretty text-muted">
-			Nothing here yet. Delete a chart from the menu, and you can restore it from this list.
-		</p>
+		<EmptyDeleted days={TRASH_DAYS} />
 	{:else}
 		<div class="-mx-2.5">
 			{#each deletedGroups as group, groupIndex (group.label)}

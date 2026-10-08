@@ -27,6 +27,7 @@
 	import Select from '$lib/components/ui/Select.svelte';
 	import { dock, fieldInk, menu, textArea, textField } from '$lib/components/ui/styles';
 	import ToastLab from './ToastLab.svelte';
+	import EmptyDeleted from '$lib/components/EmptyDeleted.svelte';
 
 	const themes = [
 		{ value: 'system', label: 'Auto', icon: 'monitor' as const },
@@ -883,6 +884,23 @@
 				<Eyebrow pip="goal">Center goal</Eyebrow>
 				{#each POS as place, pillar (place)}
 					<Eyebrow pip={pillar}>Pillar {pillar + 1} · {place}</Eyebrow>
+				{/each}
+			</div>
+		</Card>
+
+		<Card id="empty-deleted" class="flex scroll-mt-6 flex-col gap-4">
+			<div class="flex max-w-[62ch] flex-col gap-1.5">
+				<Eyebrow>Recently deleted, empty</Eyebrow>
+				<p class="m-0 text-pretty text-muted">
+					The app uses the empty ring with the trash at its center. A dropped page over a slot read as something to drag.
+				</p>
+			</div>
+			<div class="grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
+				{#each ['ring', 'count', 'trash'] as const as take (take)}
+					<div class="rounded-[22px] bg-bg px-4 py-3">
+						<Eyebrow class="mb-1">{take}</Eyebrow>
+						<EmptyDeleted days={30} {take} />
+					</div>
 				{/each}
 			</div>
 		</Card>
