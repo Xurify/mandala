@@ -69,6 +69,20 @@ Most of the jobs need no model. They run instantly, without a download, and in b
 - Insights shown in a greeting are logged, so the greeting doesn't repeat one: a day-bound insight (today, yesterday, comeback) waits a day, the rest wait three.
 - The models the person agreed to download are stored as `mandala-helper-model`, comma-separated. An older value holds one id and reads the same. A model that fails to load is taken off the list.
 
+## While Bindu works
+
+Nothing a person waits on leaves blank space.
+
+| Wait | What shows |
+| --- | --- |
+| Download, loading, warming up | The header bar with the size and percent, and the download card's line |
+| Naming pillars, filling, rewriting | The step ("Naming the pillars", "Writing actions for Words") and the card on its way in outline, until the real one replaces it |
+| Writing a chart's actions | The chart card with a small 9×9 map that fills in pillar by pillar, the count, and the step |
+| Filling several pillars | One card that grows as each pillar lands ("2 of 7 pillars so far"), then becomes the card to add |
+| An open question | Moving dots where the answer will appear |
+
+While the conversation names the step, the header only says "Working", so the same news is not said twice. `HelperStore.pending` says which outline to hold: a chart, cells, or a reply.
+
 ## Providers
 
 A provider runs the model jobs. Every job uses the same model.

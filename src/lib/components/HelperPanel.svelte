@@ -2,7 +2,7 @@
 	import { fade } from 'svelte/transition';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
 	import { BRIEF_LABELS, describeKey, editWords, groupEdits } from '$lib/chart/helper';
-	import { HUES } from '$lib/chart/model';
+	import { cellKey, getByKey, HUES, info, type ChartData } from '$lib/chart/model';
 	import HelperFace from './HelperFace.svelte';
 	import BouncingDots from './ui/BouncingDots.svelte';
 	import Button from './ui/Button.svelte';
@@ -28,6 +28,18 @@
 	let scroller: HTMLDivElement | null = $state(null);
 
 	const chips = $derived(helper.chips);
+	const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	/** A job is running and nothing on screen shows it yet: hold its place in the conversation. */
+	const holding = $derived(
+		helper.busy &&
+			helper.pending !== null &&
+			helper.progress?.downloadFillRatio == null &&
+			!helper.messages.some((message) => message.state === 'working')
+	);
+	/** The conversation names the step in progress, so the header only says that Bindu is at work. */
+	const stepInChat = $derived(
+		(holding && helper.pending !== 'reply') || helper.messages.some((message) => message.state === 'working')
+	);
 	const isReady = $derived(Boolean(helper.progress?.label?.startsWith('Ready')));
 	const activeStatusLabel = $derived.by(() => {
 		if (isReady) return null;
@@ -124,33 +136,92 @@
 	<span class="pip mt-[0.38em] size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[pillarIndex]} aria-hidden="true"></span>
 {/snippet}
 
+{#snippet status()}
+	<span class="inline-flex min-w-0 items-center text-[0.8rem] text-muted">
+		<span class="truncate">{activeStatusLabel ?? 'Working'}</span>
+		<BouncingDots />
+	</span>
+{/snippet}
+
+{#snippet miniChart(data: ChartData, written: number)}
+	<!-- The chart itself, small: written actions take the pillar's tone, empty ones keep the light tint. -->
+	<div class="grid shrink-0 grid-cols-3 gap-[3px]" role="img" aria-label="{written} of 64 actions written">
+		{#each { length: 9 } as _, block (block)}
+			<div class="grid grid-cols-3 gap-px">
+				{#each { length: 9 } as _, cell (cell)}
+					{@const where = info(block, cell)}
+					{@const filled = getByKey(data, cellKey(block, cell)).trim() !== ''}
+					<span
+						class={cn(
+							'relative size-[9px] overflow-hidden rounded-[2.5px]',
+							where.type === 'goal' ? 'bg-ink' : where.type === 'pillar' ? 'bg-sunken' : 'pillar-action'
+						)}
+						style:--h={where.type === 'goal' ? undefined : HUES[where.k]}
+						style:--pip-h={where.type === 'goal' ? undefined : HUES[where.k]}
+					>
+						{#if filled && where.type !== 'goal'}
+							<span class={cn('absolute inset-0', where.type === 'pillar' ? 'pip' : 'pillar-cell')} in:fade={{ duration: reduceMotion ? 0 : 420 }}></span>
+						{/if}
+					</span>
+				{/each}
+			</div>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet placeholder()}
+	<!-- The card that is on its way, in outline. It is replaced by the real one. -->
+	<div class="mt-2 flex flex-col gap-3 rounded-[20px] bg-bg px-4 py-3.5 motion-safe:animate-pulse" aria-hidden="true">
+		{#if helper.pending === 'chart'}
+			<span class="h-3.5 w-3/5 rounded-full bg-sunken"></span>
+			<div class="grid grid-cols-2 gap-x-3 gap-y-2.5">
+				{#each HUES as hue, index (index)}
+					<span class="flex items-center gap-2">
+						<span class="pip size-2.5 shrink-0 rounded-full opacity-40" style:--pip-h={hue}></span>
+						<span class="h-2.5 rounded-full bg-sunken" style:width="{55 + ((index * 17) % 35)}%"></span>
+					</span>
+				{/each}
+			</div>
+		{:else}
+			<span class="h-2.5 w-2/5 rounded-full bg-sunken"></span>
+			{#each [80, 64, 72, 58] as width, index (index)}
+				<span class="h-3 rounded-full bg-sunken" style:width="{width}%"></span>
+			{/each}
+		{/if}
+	</div>
+{/snippet}
+
 {#snippet card(message: HelperMessage)}
 	{@const value = message.card}
 	{#if value}
 		<div class="mt-2 flex flex-col gap-3 rounded-[20px] bg-bg px-4 py-3.5">
 			{#if value.kind === 'chart'}
+				{@const written = value.data.actions.flat().filter((action) => action.trim()).length}
 				<p class="m-0 text-[1rem] leading-snug font-[620] text-pretty">{value.data.goal}</p>
+				<div class="flex items-center gap-3.5">
+					{@render miniChart(value.data, written)}
+					<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+						{#if message.state === 'working'}
+							<span class="text-[0.86rem] font-[560] tabular-nums">{written} of 64</span>
+							<span class="h-1.5 overflow-hidden rounded-full bg-sunken">
+								<span
+									class="block h-full rounded-full bg-ink motion-safe:transition-[width] motion-safe:duration-500 motion-safe:ease-ui"
+									style:width="{(written / 64) * 100}%"
+								></span>
+							</span>
+							{@render status()}
+						{:else}
+							<p class="m-0 text-[0.8rem] leading-snug text-muted">
+								{written === 64 ? '64 actions included.' : value.sketch ? `${written} of 64. Actions come next.` : `${written} of 64. The rest stayed blank.`}
+							</p>
+						{/if}
+					</div>
+				</div>
 				<ol class="m-0 grid list-none grid-cols-2 gap-x-3 gap-y-1 p-0 text-[0.86rem] leading-[1.35] max-[420px]:grid-cols-1">
 					{#each value.data.pillars as pillar, pillarIndex (pillarIndex)}
 						<li class="flex min-w-0 gap-2">{@render dot(pillarIndex)}<span class="min-w-0">{pillar}</span></li>
 					{/each}
 				</ol>
-				{@const written = value.data.actions.flat().filter((action) => action.trim()).length}
-				{#if message.state === 'working'}
-					<div class="flex items-center gap-2.5">
-						<span class="h-1.5 flex-1 overflow-hidden rounded-full bg-sunken">
-							<span
-								class="block h-full rounded-full bg-ink motion-safe:transition-[width] motion-safe:duration-500 motion-safe:ease-ui"
-								style:width="{(written / 64) * 100}%"
-							></span>
-						</span>
-						<span class="text-[0.8rem] text-muted tabular-nums">{written} of 64</span>
-					</div>
-				{:else}
-					<p class="m-0 text-[0.8rem] text-muted">
-						{written === 64 ? '64 actions included.' : value.sketch ? `${written} of 64. Actions come next.` : `${written} of 64. The rest stayed blank.`}
-					</p>
-				{/if}
 			{:else if value.kind === 'cells'}
 				<div class="flex flex-col gap-3.5">
 					{#each groupEdits(helper.data, value.edits) as group (group.key)}
@@ -177,6 +248,9 @@
 							</ul>
 						</section>
 					{/each}
+					{#if message.state === 'working'}
+						{@render status()}
+					{/if}
 				</div>
 			{:else if value.kind === 'picks'}
 				<ul class="m-0 flex list-none flex-col gap-2.5 p-0">
@@ -278,7 +352,7 @@
 			>
 				{#if activeStatusLabel}
 					<span class="inline-flex items-center">
-						{activeStatusLabel}
+						{stepInChat ? 'Working' : activeStatusLabel}
 						<BouncingDots />
 					</span>
 				{:else}
@@ -336,6 +410,17 @@
 					{/if}
 				</li>
 			{/each}
+			{#if holding}
+				<li class="flex min-w-0 origin-bottom-left flex-col motion-safe:animate-pop-in" out:fade={{ duration: 160 }}>
+					{#if helper.pending === 'reply'}
+						<!-- Where the answer will appear. The header names the step. -->
+						<span class="inline-flex h-6 items-center text-muted" aria-hidden="true"><BouncingDots class="ms-0 gap-1 [&>span]:size-1.5" /></span>
+					{:else}
+						{@render status()}
+						{@render placeholder()}
+					{/if}
+				</li>
+			{/if}
 		</ol>
 		{#if chips.length}
 			<div class="mt-3 flex flex-wrap gap-1.5">

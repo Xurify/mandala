@@ -110,6 +110,8 @@ export class HelperStore {
 	progress = $state<CoachLoad | null>(null);
 	unread = $state(false);
 	modelReady = $state(false);
+	/** What the job in progress will show, so the panel can hold its place until it arrives. */
+	pending = $state<'chart' | 'cells' | 'reply' | null>(null);
 	step = $state<'idle' | 'direction' | 'extra' | 'offer'>('idle');
 	#cheer = $state(false);
 	#sorry = $state(false);
@@ -580,6 +582,7 @@ export class HelperStore {
 	}
 
 	async #draft(answers: ReturnType<typeof chartAnswersFromText>): Promise<void> {
+		this.pending = 'chart';
 		const coach = await loadCoachModule();
 		let draftId = 0;
 		const result = await coach.proposeChart(answers, (partial) => {
@@ -644,6 +647,7 @@ export class HelperStore {
 	}
 
 	async #fill(): Promise<void> {
+		this.pending = 'cells';
 		const coach = await loadCoachModule();
 		const data = this.#target.data();
 		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
@@ -660,7 +664,8 @@ export class HelperStore {
 		const draft = structuredClone($state.snapshot(data)) as ChartData;
 		const edits: CellEdit[] = [];
 		let wanted = 0;
-		for (const row of rows) {
+		let cardId = 0;
+		for (const [done, row] of rows.entries()) {
 			wanted += row.empty.length;
 			const lines = (await coach.fillActions(draft, row.pillarIndex, row.empty.length)) ?? [];
 			row.empty.slice(0, lines.length).forEach((actionIndex, index) => {
@@ -668,13 +673,36 @@ export class HelperStore {
 				draft.actions[row.pillarIndex]![actionIndex] = after;
 				edits.push({ key: `a${row.pillarIndex}_${actionIndex}`, before: '', after });
 			});
+			// With several pillars, the card shows up after the first one and grows as each one lands.
+			if (rows.length > 1 && edits.length > 0 && done < rows.length - 1) {
+				const progress = `Writing actions. ${done + 1} of ${rows.length} pillars so far.`;
+				if (!cardId) {
+					this.#say(progress, { kind: 'cells', edits: [...edits] });
+					cardId = this.messages[this.messages.length - 1]?.id ?? 0;
+					this.#settle(cardId, 'working');
+				} else this.#patchCells(cardId, progress, edits);
+			}
 		}
-		if (edits.length === 0) return this.#fail(rows.length > 1 ? 'I could not fill those pillars. Try once more?' : 'I could not finish that pillar. Try once more?');
+		if (edits.length === 0) {
+			if (cardId) this.#settle(cardId, 'skipped');
+			return this.#fail(rows.length > 1 ? 'I could not fill those pillars. Try once more?' : 'I could not finish that pillar. Try once more?');
+		}
 		const across = rows.length > 1 ? ` across ${rows.length} pillars` : '';
-		this.#say(`${edits.length} ${edits.length === 1 ? 'action' : 'actions'}${across}, ready to add.${stayedEmpty(wanted - edits.length)}`, { kind: 'cells', edits });
+		const text = `${edits.length} ${edits.length === 1 ? 'action' : 'actions'}${across}, ready to add.${stayedEmpty(wanted - edits.length)}`;
+		if (cardId) {
+			this.#patchCells(cardId, text, edits);
+			this.#bringDown(cardId);
+			this.#settle(cardId, 'open');
+		} else this.#say(text, { kind: 'cells', edits });
+	}
+
+	#patchCells(id: number, text: string, edits: readonly CellEdit[]): void {
+		if (this.#stale) return;
+		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, text, card: { kind: 'cells', edits: [...edits] } } : entry));
 	}
 
 	async #rewrite(findings: HelperFinding[]): Promise<void> {
+		this.pending = 'cells';
 		const coach = await loadCoachModule();
 		const data = this.#target.data();
 		const edits: CellEdit[] = [];
@@ -688,6 +716,7 @@ export class HelperStore {
 	}
 
 	async #answer(question: string, history: readonly ChatMessage[] = [], pillar: number | null = null): Promise<void> {
+		this.pending = 'reply';
 		const coach = await loadCoachModule();
 		const reply = await coach.answer(this.#target.data(), question, history, pillar);
 		if (!reply) return this.#fail('I am not sure. Try asking another way.');
@@ -754,6 +783,7 @@ export class HelperStore {
 			}
 			this.#jobChart = null;
 			this.busy = false;
+			this.pending = null;
 			this.progress = null;
 			if (!this.open) this.unread = true;
 		}
@@ -805,6 +835,7 @@ export class HelperStore {
 		this.#pillarFill = null;
 		const answers = chartAnswersFromText(this.#direction, '', this.#said);
 		await this.#withModel(async () => {
+			this.pending = 'chart';
 			const coach = await loadCoachModule();
 			let draftId = again ? this.#sketchId : 0;
 			if (again && draftId) {

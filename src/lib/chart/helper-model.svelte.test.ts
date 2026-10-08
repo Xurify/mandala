@@ -9,7 +9,8 @@ const coach = vi.hoisted(() => ({
 	answers: 0,
 	sketches: 0,
 	asked: [] as { direction: string; situation: string }[],
-	fills: [] as { pillarIndex: number; count: number; earlier: number }[]
+	fills: [] as { pillarIndex: number; count: number; earlier: number }[],
+	gate: null as Promise<void> | null
 }));
 
 vi.mock('./coach.browser.ts', () => ({
@@ -29,6 +30,7 @@ vi.mock('./coach.browser.ts', () => ({
 		return Array.from({ length: count }, (_, index) => `New ${pillarIndex}.${index}`);
 	},
 	answer: async () => {
+		if (coach.gate) await coach.gate;
 		coach.loaded = true;
 		coach.answers++;
 		return 'Start with the pillar you skipped.';
@@ -85,6 +87,7 @@ beforeEach(() => {
 	coach.sketches = 0;
 	coach.asked = [];
 	coach.fills = [];
+	coach.gate = null;
 });
 
 describe('HelperStore model consent', () => {
@@ -305,5 +308,44 @@ describe('HelperStore fill the whole chart', () => {
 		expect(chip).toBeDefined();
 		helper.choose(chip!);
 		await vi.waitFor(() => expect(coach.fills).toHaveLength(7));
+	});
+});
+
+describe('HelperStore while it works', () => {
+	it('holds the place of a reply until it arrives', async () => {
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		let open = () => {};
+		coach.gate = new Promise((resolve) => (open = resolve));
+		const helper = store();
+		const sent = helper.send('How do I stay motivated?');
+		await vi.waitFor(() => expect(helper.pending).toBe('reply'));
+		expect(helper.busy).toBe(true);
+		open();
+		await sent;
+		expect(helper.pending).toBeNull();
+		expect(helper.messages.at(-1)?.text).toBe('Start with the pillar you skipped.');
+	});
+
+	it('grows one fill-all card instead of posting one per pillar', async () => {
+		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		const data = emptyChart();
+		data.goal = 'Learn Slovak';
+		data.pillars = ['Words', 'Reading', 'Speaking', 'Listening', 'Grammar', 'Writing', 'Tutor', 'Review'];
+		const helper = new HelperStore({
+			data: () => data,
+			selectedPillar: () => null,
+			applyDraft: () => true,
+			setCells: () => {},
+			setToday: () => {},
+			pinWeek: () => {},
+			showCell: () => {}
+		});
+		await helper.send('Fill the whole chart');
+		await vi.waitFor(() => expect(helper.busy).toBe(false));
+		const cards = helper.messages.filter((message) => message.card?.kind === 'cells');
+		expect(cards).toHaveLength(1);
+		expect(cards[0]!.state).toBe('open');
+		expect(cards[0]!.text).toBe('64 actions across 8 pillars, ready to add.');
+		expect(helper.messages.at(-1)?.id).toBe(cards[0]!.id);
 	});
 });
