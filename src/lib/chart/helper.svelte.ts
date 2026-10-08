@@ -24,6 +24,8 @@ import {
 	intentOf,
 	isCancellation,
 	isCardRejection,
+	isMissingCard,
+	isRetry,
 	moodFor,
 	offerChips,
 	pillarMentioned,
@@ -290,6 +292,8 @@ export class HelperStore {
 		this.#push({ from: 'you', text: text.length > 600 ? `${text.slice(0, 600)}…` : text });
 		this.#sorry = false;
 
+		if (isMissingCard(text) && this.#showChartCard()) return;
+
 		if (this.step === 'direction') {
 			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
 				this.step = 'idle';
@@ -307,6 +311,10 @@ export class HelperStore {
 				this.step = 'idle';
 				this.#clearTurn();
 				this.#aside('Draft cancelled.');
+				return;
+			}
+			if (this.#sketch && isRetry(text)) {
+				await this.#sketchAim();
 				return;
 			}
 			const answers = chartAnswersFromText(this.#direction, text);
@@ -747,7 +755,10 @@ export class HelperStore {
 		await this.#withModel(async () => {
 			const coach = await loadCoachModule();
 			let draftId = again ? this.#sketchId : 0;
-			if (again && draftId) this.#settle(draftId, 'working');
+			if (again && draftId) {
+				this.#bringDown(draftId);
+				this.#settle(draftId, 'working');
+			}
 			const result = await coach.proposePillars(answers, (partial) => {
 				this.#sketch = partial;
 				if (!draftId) {
@@ -779,6 +790,9 @@ export class HelperStore {
 		const draft = this.#sketch;
 		const draftId = this.#sketchId;
 		if (!draft || !draftId) return;
+		// The sketch card sits above the question. Fill it where the person is looking.
+		this.#bringDown(draftId);
+		this.messages = this.messages.map((entry) => (entry.id === draftId ? { ...entry, text: 'The actions, one pillar at a time.' } : entry));
 		this.#settle(draftId, 'working');
 		const filled = await coach.fillDraftActions(draft, answers, (partial) => {
 			this.#sketch = partial;
@@ -794,6 +808,26 @@ export class HelperStore {
 				? 'All 64 actions are in. Use this chart, or ask me to start again.'
 				: `${written} of 64 actions are in. The empty ones stayed empty.`
 		);
+	}
+
+	/** Moves a message to the end of the conversation, so a card being filled is in view. */
+	#bringDown(id: number): void {
+		const message = this.messages.find((entry) => entry.id === id);
+		if (!message || this.messages[this.messages.length - 1]?.id === id) return;
+		this.messages = [...this.messages.filter((entry) => entry.id !== id), message];
+	}
+
+	/** Answers "I don't see the chart" from the panel itself. False when there is no chart card to point at. */
+	#showChartCard(): boolean {
+		const card = [...this.messages].reverse().find((entry) => entry.card?.kind === 'chart' && entry.state !== 'skipped');
+		if (!card) return false;
+		if (card.state === 'used') {
+			this.#aside('It is on your chart now. Close this panel to see it.');
+			return true;
+		}
+		this.#aside(card.state === 'working' ? 'Here it is. It is still filling in.' : 'Here it is. Use this chart to keep it.');
+		this.#bringDown(card.id);
+		return true;
 	}
 
 	#push(entry: Omit<HelperMessage, 'id'>): HelperMessage {

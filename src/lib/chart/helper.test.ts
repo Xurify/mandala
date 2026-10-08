@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
+	isMissingCard,
+	isRetry,
+	plainReply,
 	askMessages,
 	chartBriefFacts,
 	chartContext,
@@ -958,5 +961,25 @@ describe('methodAnswer', () => {
 		expect(methodAnswer('Why 64?')?.text).toContain('Eight pillars with eight actions');
 		expect(methodAnswer('how many actions should I do a day?')?.job).toBe('today');
 		expect(methodAnswer('Should I run in the morning?')).toBeNull();
+	});
+});
+
+describe('isRetry, isMissingCard, plainReply', () => {
+	it('reads a retry', () => {
+		for (const text of ['Try again', 'try again please', 'again', 'redo', 'redo the pillars', 'different pillars', 'another one']) expect(isRetry(text)).toBe(true);
+		for (const text of ['Try again next week with Sunday runs', 'By March', 'go']) expect(isRetry(text)).toBe(false);
+	});
+
+	it('reads a missing card', () => {
+		for (const text of ["I don't see the chart", 'i dont see it', 'where is the chart?', 'where did the actions go', "I can't find the draft", 'the chart disappeared']) {
+			expect(isMissingCard(text)).toBe(true);
+		}
+		for (const text of ['show me my progress', 'where do I start?', 'I see it now, thanks', 'how do I see my week']) expect(isMissingCard(text)).toBe(false);
+	});
+
+	it('strips markdown the panel would show as is', () => {
+		expect(plainReply('**Study Slovak Daily:** (8 Actions) * **Practice Grammar:** (8 Actions)')).toBe('Study Slovak Daily: (8 Actions) Practice Grammar: (8 Actions)');
+		expect(plainReply('## Plan\n- Walk after dinner\n- Read one page')).toBe('Plan\nWalk after dinner\nRead one page');
+		expect(plainReply('Pick 2 - not 3 - today.')).toBe('Pick 2 - not 3 - today.');
 	});
 });

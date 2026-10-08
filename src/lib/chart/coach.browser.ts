@@ -12,6 +12,7 @@ import {
 	lineFault,
 	oneLine,
 	pillarsMessages,
+	plainReply,
 	rewriteMessages,
 	type ChatMessage,
 	type HelperFinding,
@@ -117,7 +118,16 @@ export async function needFor(
 	return { tier, provider: 'webllm', model, download: here ? null : downloadOf(model) || 'a few hundred MB' };
 }
 
+/** A provider from outside the app, such as `scripts/eval-coach.ts` running models on the CPU. Bindu never sets it. */
+let injected: CoachProvider | null = null;
+
+export function useProvider(provider: CoachProvider | null): void {
+	injected = provider;
+	active = provider;
+}
+
 async function runner(tier: CoachTier): Promise<{ provider: CoachProvider; model: string }> {
+	if (injected) return { provider: injected, model: pinned?.model ?? tierModel(tier) };
 	const decided = chosen[tier] ?? (await needFor(tier, [], { probeCache: false }));
 	if (!decided) throw new Error('Nothing can run a model in this browser.');
 	const model = decided.provider === 'webllm' ? (pinned?.model ?? decided.model) : decided.model;
@@ -284,7 +294,7 @@ export async function answer(
 	pillar: number | null = null
 ): Promise<string> {
 	onProgress('Thinking.');
-	return (await complete('talk', askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 })).trim();
+	return plainReply(await complete('talk', askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 }));
 }
 
 /** Goal and eight pillars, with the actions still empty. */

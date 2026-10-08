@@ -160,6 +160,33 @@ const CANCEL_COMMAND =
 const REJECT_CARD =
 	/^(?:cancel(?:\s+(?:this|it|that))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|skip|no|nope|nah|not\s+now|not\s+this\s+one|leave\s+it|leave\s+them|discard|dismiss)\.?$/i;
 
+const RETRY =
+	/^(?:(?:please\s+)?try\s+(?:it\s+)?again|again|redo(?:\s+(?:it|that|them|the\s+pillars))?|another\s+(?:one|try|set)|different\s+(?:ones|pillars)|new\s+pillars|start\s+over)(?:\s+please)?[.!]*$/i;
+const MISSING_CARD =
+	/\b(?:(?:do\s*n'?o?t|do\s+not|can'?t|cannot|can\s+not)\s+(?:see|find)|where(?:'s|\s+is|\s+are|\s+did)|show\s+me|lost|missing|disappeared|nothing\s+(?:showed|shows|appeared))\b.*\b(?:chart|card|draft|pillars|actions|it)\b|\b(?:chart|card|draft|pillars|actions)\b.*\b(?:disappeared|vanished|is\s+gone|went\s+away|is\s+missing|isn'?t\s+(?:there|showing)|not\s+showing)\b/i;
+
+/** "Try again" while a sketch waits: redo the pillars, not an answer to the next question. */
+export function isRetry(text: string): boolean {
+	return RETRY.test(text.trim());
+}
+
+/** "I don't see the chart": the card is in the panel, so a rule answers, not the model. */
+export function isMissingCard(text: string): boolean {
+	return MISSING_CARD.test(text.trim());
+}
+
+/** The panel shows text as is, so markdown from the model would show as asterisks. */
+export function plainReply(raw: string): string {
+	return raw
+		.replace(/\*\*|__/g, '')
+		.replace(/^\s{0,3}#{1,6}\s+/gm, '')
+		.replace(/(^|\s)[*•]\s+/g, '$1')
+		.replace(/^\s*-\s+/gm, '')
+		.replace(/[ \t]+/g, ' ')
+		.replace(/\s*\n\s*/g, '\n')
+		.trim();
+}
+
 export function isCancellation(text: string): boolean {
 	return CANCEL_COMMAND.test(text.replace(/\s+/g, ' ').trim());
 }
@@ -899,6 +926,8 @@ export function askMessages(
 		'- If the user asks about their current chart, actions, or progress, use the reference chart below.',
 		'- If the user wants to brainstorm, explore a new ambition, or decide between goals, discuss it thoughtfully. Never say a topic is "outside the chart\'s scope" or that you can only talk about the current chart.',
 		'- When they settle on a goal or want to start fresh, invite them to sketch or start a chart.',
+		"- You cannot see or change the screen. Charts and suggestions appear as cards in this panel. If they can't find one, say it is in the panel, and never write a chart out in text.",
+		'- Plain sentences only. No markdown, no asterisks.',
 		'',
 		...contextLines
 	].join('\n');
