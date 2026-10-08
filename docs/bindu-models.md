@@ -98,7 +98,7 @@ Each model got the 15 routes as a tool list and had to return one, held to a JSO
 
 The Gemma stand-in on the same briefs: it answered the Spanish brief wholly in English. It turned the crash diet into "Lose 10 kg for a perfect dress fit", dropped the two weeks, and wrote a sensible chart. It planned the marathon tomorrow without pushback, ignored the instruction in the goal, and rewrote "Be more confident" as "Drink water every morning". Qwen3 1.7B wrote "Constraint not given" and "Lose 10kg in 2 weeks" as pillars, and copied the rewrite prompt's example ("Block 25 minutes after lunch").
 
-- **Pillar names are still clipped.** `goalAndPillars` cuts a long pillar at a word boundary, which `docs/coach-writing.md` says the writer must never do. Gemma's charts show it: "Nurture joyful social", "Warm up thoroughly before each".
+- ~~**Pillar names are still clipped.**~~ Fixed. Pillars are short headings now, and a long one goes back to the model instead of being cut. Gemma's charts had shown it: "Nurture joyful social", "Warm up thoroughly before each".
 - **The worked example is about Spanish, so a language goal pulls it in.** Copies should be a line fault (`nearCopy` against the example), and the example should not share a topic with common goals.
 - **Bindu takes unsafe or impossible goals at face value.** A short rule list (a marathon with no running, large weight loss in weeks, fasting) could add one line before the chart, and keep lines like "Eat 500 calories a day" out.
 - **A rewrite needs the person's words.** The guided rewrite in `docs/bindu.md` keeps the verb. The model rewrite does not.
@@ -125,7 +125,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 1. A crisis line answered by rule, before any model. A count question ("how many did I tick") routed to `progressReport`.
 2. Rules first, then the loaded 4B as a router for whatever the rules send to open chat.
 3. ~~A copy of the worked example is a line fault, and the example moves off language learning.~~ Done: the example is about an aquarium, and the writer and rewrite reject copies of either prompt's examples.
-4. Pillars get the same state check actions get ("Stay consistent", "Stay motivated").
+4. ~~Pillars get the same state check actions get ("Stay consistent", "Stay motivated").~~ Done, with pillars as headings. See "Pillar headings" in `docs/coach-writing.md`.
 5. Spaces stop meaning words for Japanese and Chinese lines.
 6. ~~`goalAndPillars` rejects a long pillar instead of clipping it, like the action writer.~~ Done: a long or cut-off pillar goes back to the model with its reason, up to three tries. On the CPU run, 6 briefs on Qwen3 4B gave no long or cut pillar, 3 of them after a retry.
 
@@ -138,6 +138,7 @@ npm run holdout -- qwen3-4b requested 12
 npm run talk -- qwen3-4b
 npm run tools -- qwen3-4b
 npm run rare -- qwen3-4b
+npm run pillars -- qwen3-4b
 npm run rules
 ```
 

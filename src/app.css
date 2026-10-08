@@ -221,6 +221,10 @@
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 	color: oklch(var(--dot-fg-l) 0.09 var(--h));
 }
+/* A pillar's name as text, in its hue. At least 4.5:1 on bg and surface in both themes. */
+@utility pillar-ink {
+	color: oklch(var(--pillar-ink-l) var(--pillar-ink-c) var(--h));
+}
 @utility ring-track {
 	stroke: oklch(var(--ring-track-l) 0.035 var(--h));
 }
@@ -682,6 +686,8 @@
 	--dot-l: 0.925;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.4;
+	--pillar-ink-l: 0.5;
+	--pillar-ink-c: 0.12;
 	--ring-track-l: 0.915;
 	--ring-fill-l: 0.66;
 	--soft: var(--sunken);
@@ -741,6 +747,8 @@
 		--dot-l: 0.3;
 		--dot-c: 0.04;
 		--dot-fg-l: 0.86;
+		--pillar-ink-l: 0.78;
+		--pillar-ink-c: 0.11;
 		--ring-track-l: 0.3;
 		--ring-fill-l: 0.72;
 		--soft: oklch(0.36 0.012 65);
@@ -796,6 +804,8 @@
 	--dot-l: 0.3;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.86;
+	--pillar-ink-l: 0.78;
+	--pillar-ink-c: 0.11;
 	--ring-track-l: 0.3;
 	--ring-fill-l: 0.72;
 	--soft: oklch(0.36 0.012 65);

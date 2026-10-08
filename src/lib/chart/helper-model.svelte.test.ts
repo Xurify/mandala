@@ -193,23 +193,31 @@ describe('HelperStore sketch, as in the Slovak report', () => {
 		expect(card.card?.kind === 'chart' && card.card.data.actions.flat().every((action) => action === '')).toBe(true);
 	});
 
-	it('fills the actions in a card that sits next to the result', async () => {
+	it('fills the actions in the card, which becomes the result without saying the count twice', async () => {
 		const helper = await sketched();
 		await helper.send('go');
-		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^60 of 64 actions are in/));
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toBe('Here is your chart. Where I had no good line, I left it blank.'));
 		const card = lastCard(helper);
-		expect(helper.messages.at(-2)?.id).toBe(card.id);
+		expect(helper.messages.at(-1)?.id).toBe(card.id);
 		expect(card.state).toBe('open');
+		expect(helper.messages.some((message) => /of 64/.test(message.text))).toBe(false);
+	});
+
+	it('offers only the draft\'s own review under an open draft', async () => {
+		const helper = await sketched();
+		await helper.send('go');
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^Here is your chart/));
+		expect(helper.chips.map((chip) => chip.label)).toEqual(['Review this draft']);
 	});
 
 	it('answers "I don\'t see the chart" by bringing the card down, without the model', async () => {
 		const helper = await sketched();
 		await helper.send('go');
-		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^60 of 64/));
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^Here is your chart/));
 		await helper.send("I don't see the chart");
 		const card = lastCard(helper);
 		expect(helper.messages.at(-1)?.id).toBe(card.id);
-		expect(helper.messages.at(-2)?.text).toBe('Here it is. Use this chart to keep it.');
+		expect(helper.messages.at(-2)?.text).toBe('Here it is. It is not saved yet.');
 		expect(coach.answers).toBe(0);
 	});
 });
@@ -248,7 +256,7 @@ describe('HelperStore sketch, from a message that says more than the goal', () =
 		const card = helper.messages.find((message) => message.card?.kind === 'chart')!;
 		expect(card.card?.kind === 'chart' && card.card.sketch).toBe(true);
 		await helper.send('30 minutes a day');
-		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^Here is your chart/));
 		expect(coach.asked.at(-1)?.situation).toMatch(/conversation 30 minutes a day$/);
 		const filled = helper.messages.find((message) => message.card?.kind === 'chart')!;
 		expect(filled.card?.kind === 'chart' && filled.card.sketch).toBe(false);
@@ -259,7 +267,7 @@ describe('HelperStore sketch, from a message that says more than the goal', () =
 		await sketch(helper);
 		const card = helper.messages.find((message) => message.card?.kind === 'chart')!;
 		helper.use(card.id);
-		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^Here is your chart/));
 		expect(helper.messages.some((message) => message.text.startsWith('Done.'))).toBe(false);
 	});
 
@@ -400,13 +408,13 @@ describe('HelperStore review', () => {
 
 	it('reviews the open draft, and its rewrites change the draft, not the chart', async () => {
 		const { helper, changed } = full();
-		coach.badPillar = 'Track progress with the';
+		coach.badPillar = 'Plan the week with the';
 		await helper.send('I want to learn Slovak');
 		helper.choose(helper.chips.find((chip) => chip.act.kind === 'sketch')!);
 		await vi.waitFor(() => expect(coach.sketches).toBe(1));
 		await vi.waitFor(() => expect(helper.busy).toBe(false));
 		await helper.send('go');
-		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/of 64 actions are in/));
+		await vi.waitFor(() => expect(helper.messages.at(-1)?.text).toMatch(/^Here is your chart/));
 		expect(helper.chips.some((chip) => chip.label === 'Review this draft')).toBe(true);
 
 		await helper.send('review my chart');

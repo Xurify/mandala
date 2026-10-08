@@ -1,7 +1,8 @@
 import { CoachStopped } from './coach-protocol.ts';
-import { ACTION_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
+import { ACTION_MAX, GOAL_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
 import {
 	EXAMPLE_LINES,
+	PILLAR_EXAMPLES,
 	REWRITE_EXAMPLES,
 	askMessages,
 	chartAnswerFacts,
@@ -10,13 +11,15 @@ import {
 	fillActionsMessages,
 	fillPillarsMessages,
 	pillarHead,
-	shortenPillar,
 	keptLines,
 	lineFault,
+	nearCopy,
+	norm,
 	oneLine,
 	pillarsMessages,
 	plainReply,
 	rewriteMessages,
+	sameDriver,
 	type ChatMessage,
 	type HelperFinding,
 	type LineReject
@@ -31,13 +34,14 @@ import { emptyChart, type ChartData } from './model.ts';
 
 const RETRY_TEMPERATURES = [0.2, 0.6, 0.9];
 
-export type CoachProgress = { text: string; ratio: number | null };
+/** `pillar`: the pillar being written, so the status can name it in its own hue. */
+export type CoachProgress = { text: string; ratio: number | null; pillar?: { index: number; name: string } };
 
 const listeners = new Set<(update: CoachProgress) => void>();
 let stopped = false;
 
-function onProgress(text: string, ratio: number | null = null): void {
-	const update = { text, ratio };
+function onProgress(text: string, ratio: number | null = null, pillar?: CoachProgress['pillar']): void {
+	const update = { text, ratio, pillar };
 	for (const listener of listeners) listener(update);
 }
 
@@ -221,7 +225,7 @@ export async function fillPillars(data: ChartData, count: number, facts = ''): P
 
 export async function fillActions(data: ChartData, pillarIndex: number, count: number, facts = ''): Promise<string[] | null> {
 	const pillar = (data.pillars[pillarIndex] ?? '').trim();
-	onProgress(`Writing actions for ${pillar}.`);
+	onProgress(`Writing actions for ${pillar}.`, null, { index: pillarIndex, name: pillar });
 	const person = [facts.trim() || chartBriefFacts(data), chartContextFacts(data, pillarIndex)].filter(Boolean).join('\n');
 	const elsewhere = data.actions.flatMap((row, index) =>
 		index === pillarIndex ? [] : row.map((action) => action.trim()).filter((action) => action !== '')
@@ -243,7 +247,7 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	for (let attempt = 0; attempt < 2; attempt++) {
 		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
 		if (!line) continue;
-		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text, ...REWRITE_EXAMPLES, ...EXAMPLE_LINES] });
+		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text, ...REWRITE_EXAMPLES, ...PILLAR_EXAMPLES, ...EXAMPLE_LINES] });
 		if (!fault && !line.toLowerCase().includes(original) && !ECHO.test(line)) return line;
 	}
 	return null;
@@ -260,29 +264,58 @@ export async function answer(
 }
 
 /**
- * Goal and eight pillars that fit their cells. A pillar over the cap goes back to the model, named, to be
- * said shorter. Only after three tries is a long one cut, at a word, never ending mid-phrase.
+ * Goal and eight pillars. A pillar is never clipped: a cut one reads as a whole one that means something else.
+ * A reply that does not parse is asked for again. Otherwise there is one retry, with the rejected pillars and
+ * why, since more rarely changes what a small model writes and each costs seconds. Then the best set wins,
+ * filled from the rest: a pillar with a soft fault (a tool, a catch-all, a second heading for one driver)
+ * beats an empty one, and review flags it. A long or cut pillar never goes in. Only when that still leaves a
+ * gap are the missing pillars asked for alone.
  */
 async function namePillars(answers: ChartAnswers): Promise<{ goal: string; pillars: string[] } | null> {
-	let best: { goal: string; pillars: string[]; rejected: LineReject[] } | null = null;
+	const heads: NonNullable<ReturnType<typeof pillarHead>>[] = [];
+	let goal = '';
 	let rejected: LineReject[] = [];
 	for (let attempt = 0; attempt < RETRY_TEMPERATURES.length; attempt++) {
 		const head = pillarHead(
 			await complete(pillarsMessages(answers, rejected), { maxTokens: 200, temperature: RETRY_TEMPERATURES[attempt] })
 		);
 		if (!head) continue;
-		if (head.pillars.length >= 8) return { goal: head.goal, pillars: head.pillars.slice(0, 8) };
-		if (!best || head.pillars.length > best.pillars.length) best = head;
+		heads.push(head);
+		goal ||= head.goal;
+		if (goal && (head.pillars.length >= 8 || heads.length >= 2)) break;
 		rejected = head.rejected;
 	}
-	if (!best) return null;
-	const pillars = [...best.pillars];
-	for (const { text } of best.rejected) {
-		if (pillars.length >= 8) break;
-		const short = shortenPillar(text);
-		if (short.includes(' ')) pillars.push(short);
+	goal ||= ownGoal(answers.direction);
+	if (heads.length === 0 || !goal) return null;
+	const best = heads.reduce((most, head) => (head.pillars.length > most.pillars.length ? head : most));
+	const pillars = best.pillars.slice(0, 8);
+	const take = (text: string) => {
+		if (pillars.length < 8 && !pillars.some((seen) => norm(seen) === norm(text) || nearCopy(seen, text))) pillars.push(text);
+	};
+	for (const head of heads) for (const pillar of head.pillars) if (!sameDriver(pillar, pillars)) take(pillar);
+	for (const head of heads) {
+		for (const { text } of head.rejected) {
+			const code = lineFault(text, { max: PILLAR_MAX, kind: 'pillar' })?.code;
+			if (code !== 'long' && code !== 'cut') take(text);
+		}
 	}
-	return pillars.length >= 8 ? { goal: best.goal, pillars: pillars.slice(0, 8) } : null;
+	if (pillars.length < 8) {
+		const sofar = emptyChart();
+		sofar.goal = goal;
+		sofar.pillars = Array.from({ length: 8 }, (_, index) => pillars[index] ?? '');
+		const facts = chartAnswerFacts(answers);
+		const more = await writeLines(8 - pillars.length, PILLAR_MAX, 'pillar', '', pillars, (need, again) =>
+			fillPillarsMessages(sofar, need, facts, again)
+		);
+		pillars.push(...(more ?? []));
+	}
+	return pillars.length >= 8 ? { goal, pillars: pillars.slice(0, 8) } : null;
+}
+
+/** The person's own words, when every goal the model wrote was too long for the center. */
+function ownGoal(direction: string): string {
+	const text = direction.replace(/\s+/g, ' ').trim();
+	return text.length > 0 && text.length <= GOAL_MAX ? text[0]!.toUpperCase() + text.slice(1) : '';
 }
 
 /** Goal and eight pillars, with the actions still empty. */

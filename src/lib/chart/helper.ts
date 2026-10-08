@@ -12,6 +12,7 @@ import {
 import {
 	dateKeyOf,
 	getByKey,
+	hasContent,
 	isOpenFocus,
 	labelOfKey,
 	isRoutine,
@@ -143,7 +144,7 @@ export type HelperFinding = {
 	key: string;
 	text: string;
 	reason: string;
-	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague' | 'cut';
+	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague' | 'cut' | 'tool';
 };
 
 export type HelperPick = { key: string; text: string; pillarIndex: number; why: string };
@@ -528,8 +529,9 @@ export function pillarsMessages(answers: ChartAnswers, rejected: readonly LineRe
 			role: 'system',
 			content: [
 				'You are a Mandala Method coach.',
-				'The goal is one line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
-				'Each pillar is a short sentence this person could say: a verb and the thing it applies to, at most 32 characters. A follower count, a grade, or a finish time is not a pillar.',
+				'The goal is one short line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
+				`Each pillar is a short heading for one driver, one to three words. For an aquarium: ${PILLAR_EXAMPLES.map((example) => `"${example}"`).join(', ')}. The actions under it say what to do. A follower count, a grade, or a finish time is not a pillar.`,
+				'Eight different drivers: two pillars about the same thing are one pillar.',
 				'The goal is one step past where they stand now. When they name a level, the goal is above it.',
 				'When they say what is weak or hard, each of those gets its own pillar.',
 				'A pillar is a skill or a habit, not a tool: no apps, videos, podcasts or tests as pillars.',
@@ -552,35 +554,33 @@ export function pillarsMessages(answers: ChartAnswers, rejected: readonly LineRe
 }
 
 /**
- * The goal and the pillar names in a reply. `pillars` fit the cell. `rejected` are too long or stop
- * mid-phrase, each with the reason, to go back to the model. Nothing is clipped here.
+ * The goal and the pillar names in a reply. `pillars` pass the same judge as a review, and no two open on the
+ * same word. `rejected` go back to the model with the reason. Nothing is clipped. `goal` is empty when the
+ * written one is too long for the center.
  */
 export function pillarHead(raw: string): { goal: string; pillars: string[]; rejected: LineReject[] } | null {
 	const value = jsonValue(raw);
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const record = value as Record<string, unknown>;
-	const goal = typeof record.goal === 'string' ? cleanLine(record.goal) : '';
-	if (!goal || goal.length > GOAL_MAX || !Array.isArray(record.pillars)) return null;
+	if (!Array.isArray(record.pillars)) return null;
+	const written = typeof record.goal === 'string' ? cleanLine(record.goal) : '';
+	// A goal too long for the center does not cost the pillars. The caller finds a goal elsewhere.
+	const goal = written.length <= GOAL_MAX ? written : '';
 	const named: string[] = [];
 	for (const item of record.pillars) {
 		const pillar = typeof item === 'string' ? cleanLine(item) : '';
 		if (pillar && !named.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) named.push(pillar);
 	}
 	const pillars: string[] = [];
-	const rejected: LineReject[] = [];
+	const rejected: LineReject[] = goal || !written ? [] : [{ text: written, reason: `A goal over ${GOAL_MAX} characters. Say it in fewer words.` }];
 	for (const pillar of named) {
-		if (pillar.length > PILLAR_MAX) rejected.push({ text: pillar, reason: `Over ${PILLAR_MAX} characters. Say it in fewer words.` });
-		else if (CUT_OFF.test(pillar)) rejected.push({ text: pillar, reason: 'Stops mid-phrase. Finish the thought.' });
-		else pillars.push(pillar);
+		const fault = lineFault(pillar, { max: PILLAR_MAX, kind: 'pillar', siblings: pillars });
+		const twin = fault ? null : sameDriver(pillar, pillars);
+		if (twin) rejected.push({ text: pillar, reason: `Same driver as "${twin}". Name a different one.` });
+		else if (!fault) pillars.push(pillar);
+		else rejected.push({ text: pillar, reason: fault.code === 'long' ? `Over ${PILLAR_MAX} characters. Say it in fewer words.` : fault.reason });
 	}
 	return { goal, pillars, rejected };
-}
-
-/** Last resort for a pillar the model would not shorten: cut at a word, then drop words a phrase cannot end on. */
-export function shortenPillar(text: string): string {
-	let short = truncateAtWordBoundary(text, PILLAR_MAX);
-	while (DANGLING.test(short)) short = short.replace(DANGLING, '').trim();
-	return short;
 }
 
 function cleanLine(value: string): string {
@@ -593,6 +593,8 @@ export type CoachLoad = {
 	/** 0–1 when this step has a measurable fill. */
 	downloadFillRatio: number | null;
 	detail: string;
+	/** The pillar being written. */
+	pillar?: { index: number; name: string };
 };
 
 function clampRatio(ratio: number | null | undefined): number | null {
@@ -601,7 +603,7 @@ function clampRatio(ratio: number | null | undefined): number | null {
 }
 
 /** Turn a web-llm progress line into a short status. The reported ratio wins over the percent buried in the text. */
-export function describeCoachProgress(text: string, reportedFillRatio?: number | null): CoachLoad {
+export function describeCoachProgress(text: string, reportedFillRatio?: number | null, pillar?: CoachLoad['pillar']): CoachLoad {
 	const source = typeof text === 'string' ? text : '';
 	const cleaned = source.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
 	const fromReport = clampRatio(reportedFillRatio);
@@ -617,16 +619,7 @@ export function describeCoachProgress(text: string, reportedFillRatio?: number |
 	if (/shader/i.test(cleaned)) return { label: 'Getting ready.', downloadFillRatio, detail: '' };
 	if (/warming up/i.test(cleaned)) return { label: 'Warming up.', downloadFillRatio: null, detail: '' };
 	if (/coach is ready/i.test(cleaned)) return { label: 'Ready, on this device.', downloadFillRatio: null, detail: '' };
-	return { label: cleaned, downloadFillRatio: null, detail: '' };
-}
-
-/** Cut at the last whole word that fits. The writer does not use this. A long line is rejected. */
-export function truncateAtWordBoundary(value: string, max: number): string {
-	const text = value.replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '');
-	if (text.length <= max) return text;
-	const cut = text.slice(0, max + 1);
-	const space = cut.lastIndexOf(' ');
-	return (space > max * 0.5 ? cut.slice(0, space) : text.slice(0, max)).replace(/[\s,;:-]+$/, '');
+	return { label: cleaned, downloadFillRatio: null, detail: '', pillar };
 }
 
 export function fillPillarsMessages(data: ChartData, count: number, facts = '', rejected: readonly LineReject[] = []): ChatMessage[] {
@@ -634,7 +627,7 @@ export function fillPillarsMessages(data: ChartData, count: number, facts = '', 
 	return [
 		{
 			role: 'system',
-			content: `You name pillars for a Mandala chart. A pillar is one part of the goal. ${CELL_RULES} At most 32 characters. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
+			content: `You name pillars for a Mandala chart. A pillar is a short heading for one driver of the goal, one to three words, like "${PILLAR_EXAMPLES[0]}" or "${PILLAR_EXAMPLES[1]}" for an aquarium. No results they cannot control. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
 		},
 		{
 			role: 'user',
@@ -692,8 +685,22 @@ const ANCHOR =
  * "Then with" is a short form, not a cut.
  */
 const CUT_OFF = /(?<!\bthen)\s(?:a|an|the|and|or|but|your|my|their|our)$/i;
-/** After a known cut, a trailing preposition goes too. */
-const DANGLING = /\s(?:a|an|the|and|or|but|your|my|their|our|with|through|for|to|of|from|into|by|about|via|in|on|at)$/i;
+/** A pillar is a skill or a habit. The app or the medium goes in its actions. */
+const TOOL = /\b(?:apps?|podcasts?|videos?|flashcards?|youtube|duolingo|anki)\b/i;
+/** Pillars that would sit on any chart. The method keeps nice-to-haves out. */
+const CATCH_ALL =
+	/\b(?:consisten(?:t|cy)|motivat(?:ed|ion)|mindset|discipline|patien(?:t|ce)|positivity|track(?:ing)?\s+progress|progress\s+tracking|goal\s+setting|set(?:ting)?\s+(?:\w+\s+)?goals?)\b/i;
+const FREQUENCY = new Set(['daily', 'weekly', 'monthly', 'regular', 'new', 'more']);
+
+/**
+ * Two headings that open on the same word are one driver: "Reading practice" and "Reading comprehension".
+ * Only the writer checks this. A person's own chart can split a driver on purpose.
+ */
+export function sameDriver(pillar: string, others: readonly string[]): string | null {
+	const head = (text: string) => contentTokens(text).find((token) => !FREQUENCY.has(token)) ?? '';
+	const word = head(pillar);
+	return (word && others.find((other) => head(other) === word)) || null;
+}
 const OPEN_ENDED = /\b(?:more|less|fewer|better|healthier|harder|faster|stronger|regularly|consistently|properly)\b/i;
 const STATE = /^(?:be|become|stay|feel|remain|have\s+(?:a|an|more)|improve|master|get\s+(?:good|better)|work\s+on|focus\s+on)\b/i;
 const RESULT =
@@ -710,12 +717,16 @@ export function lineFault(
 	}
 	if (UNTICKABLE.test(value)) {
 		return options.kind === 'pillar'
-			? { code: 'untickable', reason: 'This cannot be marked done. Name what you do.' }
+			? { code: 'untickable', reason: 'This is a wish. Name the part of the goal it works on.' }
 			: { code: 'untickable', reason: 'This cannot be marked done. Write the session, not the wish.' };
 	}
-	if (options.kind === 'action' && (OPEN_ENDED.test(value) || STATE.test(value)) && !ANCHOR.test(value)) {
-		return { code: 'untickable', reason: 'This has no end. Say how much, or when.' };
+	if ((OPEN_ENDED.test(value) || STATE.test(value)) && !ANCHOR.test(value)) {
+		return options.kind === 'pillar'
+			? { code: 'untickable', reason: 'This has no end. Name the part of the goal it works on.' }
+			: { code: 'untickable', reason: 'This has no end. Say how much, or when.' };
 	}
+	if (options.kind === 'pillar' && TOOL.test(value)) return { code: 'tool', reason: 'This names a tool. Name the habit it serves.' };
+	if (options.kind === 'pillar' && CATCH_ALL.test(value)) return { code: 'vague', reason: 'This fits any goal. Name what drives this one.' };
 	if (options.kind === 'action' && options.pillar && restated(options.pillar, value)) return { code: 'restated', reason: 'This repeats the pillar. Write what makes it happen.' };
 	if (options.siblings?.some((seen) => norm(seen) === norm(value) || nearCopy(seen, value))) {
 		return { code: 'repeated', reason: options.kind === 'pillar' ? 'Same as a pillar you already have.' : 'Same afternoon as another action on the chart.' };
@@ -742,7 +753,9 @@ export function keptLines(
 	for (const line of splitLines(raw)) {
 		if (kept.length >= count) break;
 		const fault = lineFault(line, { ...options, siblings });
+		const twin = !fault && options.kind === 'pillar' ? sameDriver(line, siblings) : null;
 		if (fault) rejected.push({ text: line, reason: fault.reason });
+		else if (twin) rejected.push({ text: line, reason: `Same driver as "${twin}". Name a different one.` });
 		else kept.push(line);
 		siblings.push(line);
 	}
@@ -781,6 +794,9 @@ export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
 /** The rewrite prompt's examples. A rewrite that copies one is rejected. */
 export const REWRITE_EXAMPLES = ['Block 25 minutes after lunch', 'Post one short video on Tuesday'] as const;
 
+/** Pillars are headings, like the presets'. Their example shares the aquarium with the action writer's. */
+export const PILLAR_EXAMPLES = ['Water tests', 'Feeding', 'Tank cleaning'] as const;
+
 export function rewriteMessages(data: ChartData, finding: HelperFinding, facts = '', again = false): ChatMessage[] {
 	const isPillar = finding.key.startsWith('p');
 	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
@@ -788,9 +804,13 @@ export function rewriteMessages(data: ChartData, finding: HelperFinding, facts =
 		{
 			role: 'system',
 			content: [
-				'You replace one line of a Mandala chart with something this person does: a verb and the thing it applies to.',
+				isPillar
+					? 'You replace one pillar of a Mandala chart with a short heading for one driver of the goal, one to three words.'
+					: 'You replace one line of a Mandala chart with something this person does: a verb and the thing it applies to.',
 				'Return only the new line. Do not mention the problem.',
-				`"Work hard" → "${REWRITE_EXAMPLES[0]}". "Get 10 million views" → "${REWRITE_EXAMPLES[1]}". Do not copy these.`
+				isPillar
+					? `For an aquarium, "Be a better owner" → "${PILLAR_EXAMPLES[0]}". Do not copy this.`
+					: `"Work hard" → "${REWRITE_EXAMPLES[0]}". "Get 10 million views" → "${REWRITE_EXAMPLES[1]}". Do not copy these.`
 			].join('\n')
 		},
 		{
@@ -800,7 +820,7 @@ export function rewriteMessages(data: ChartData, finding: HelperFinding, facts =
 				`Goal: ${data.goal.trim()}`,
 				isPillar ? '' : `Pillar: ${(data.pillars[pillarIndex] ?? '').trim()}`,
 				`Replace: ${finding.text}`,
-				'This cannot be scheduled as written. Write the behaviour.',
+				isPillar ? finding.reason : 'This cannot be scheduled as written. Write the behaviour.',
 				again ? 'That still names the problem. Return only the new behaviour.' : ''
 			]
 				.filter(Boolean)
@@ -1195,6 +1215,19 @@ export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: 
 		group.edits.push(edit);
 	}
 	return groups;
+}
+
+/**
+ * A finished draft's button. `chart.applyDraft` fills an empty chart and opens the draft beside one that
+ * has anything on it, so the button says which, and that the current chart stays.
+ */
+export function draftButton(current: ChartData): string {
+	return hasContent(current) ? 'Open as a new chart' : 'Start this chart';
+}
+
+/** What a finished draft's card says above it. The card shows the count, so this says why lines are blank. */
+export function draftDone(written: number): string {
+	return written === 64 ? 'Here is your chart.' : 'Here is your chart. Where I had no good line, I left it blank.';
 }
 
 /** What a cells card does, in the chart's words: its button, and what Bindu says once it is used. */

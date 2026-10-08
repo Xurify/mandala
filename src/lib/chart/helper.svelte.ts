@@ -10,6 +10,7 @@ import {
 	chipsFor,
 	describeCoachProgress,
 	DRAFT_QUESTIONS,
+	draftDone,
 	editWords,
 	extraChips,
 	followUpQuestion,
@@ -231,16 +232,22 @@ export class HelperStore {
 	}
 
 	#chips(): HelperChip[] {
-		return this.#reviewChips(this.#baseChips());
+		return this.#draftChips(this.#baseChips());
 	}
 
-	/** The review chip names what it will check, and steps aside right after a clean review of the same thing. */
-	#reviewChips(chips: HelperChip[]): HelperChip[] {
+	/**
+	 * Under an open draft, chips are about the draft. Today, week and fill read the chart behind it, so they
+	 * wait until the draft is kept. The review chip names what it will check, and steps aside right after a
+	 * clean review of the same thing.
+	 */
+	#draftChips(chips: HelperChip[]): HelperChip[] {
 		const draft = this.#openDraft();
-		const signature = reviewSignature(draft?.data ?? this.#target.data(), draft?.id);
-		return chips
-			.filter((chip) => !(chip.act.kind === 'job' && chip.act.job === 'review' && signature === this.#cleanReview))
-			.map((chip) => (draft && chip.act.kind === 'job' && chip.act.job === 'review' ? { ...chip, label: 'Review this draft' } : chip));
+		const reviewed = reviewSignature(draft?.data ?? this.#target.data(), draft?.id) === this.#cleanReview;
+		const isJob = (chip: HelperChip, ...jobs: HelperJob[]) => chip.act.kind === 'job' && jobs.includes(chip.act.job);
+		// A sketch has its own chips while its question is open.
+		if (!draft || this.step !== 'idle') return chips.filter((chip) => !(reviewed && isJob(chip, 'review')));
+		const review: HelperChip[] = reviewed ? [] : [{ label: 'Review this draft', act: { kind: 'job', job: 'review' } }];
+		return [...review, ...chips.filter((chip) => !isJob(chip, 'review', 'today', 'week', 'fill'))];
 	}
 
 	#baseChips(): HelperChip[] {
@@ -674,12 +681,16 @@ export class HelperStore {
 			return;
 		}
 		const finished = { ...result.chart, brief: briefOf(answers) };
-		if (draftId) {
-			this.#patchChart(draftId, finished);
-			this.#settle(draftId, 'open');
-		} else this.#say('Here is a first chart.', { kind: 'chart', data: finished });
-		const written = result.chart.actions.flat().filter((action) => action.trim()).length;
-		this.#say(written === 64 ? 'All 64 actions are in. Use this chart, or ask me to start again.' : `${written} of 64 actions are in. The empty ones stayed empty.`);
+		const done = draftDone(finished.actions.flat().filter((action) => action.trim()).length);
+		if (draftId) this.#finishDraft(draftId, finished, done);
+		else this.#say(done, { kind: 'chart', data: finished });
+	}
+
+	/** The card that was filling becomes the result. Its text changes, so the count is not said twice. */
+	#finishDraft(id: number, data: ChartData, text: string): void {
+		this.#patchChart(id, data);
+		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, text } : entry));
+		this.#settle(id, 'open');
 	}
 
 	/** Loads the model when it costs no new download: one already agreed to, or the browser's own when it is there. */
@@ -695,7 +706,7 @@ export class HelperStore {
 			return;
 		}
 		const stop = coach.watchCoachProgress((update) => {
-			if (!this.busy) this.progress = describeCoachProgress(update.text, update.ratio);
+			if (!this.busy) this.progress = describeCoachProgress(update.text, update.ratio, update.pillar);
 		});
 		try {
 			await coach.loadCoach();
@@ -831,7 +842,7 @@ export class HelperStore {
 		this.#jobChart = this.#chartId;
 		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
 		this.#progressStop ??= coach.watchCoachProgress((update) => {
-			this.progress = describeCoachProgress(update.text, update.ratio);
+			this.progress = describeCoachProgress(update.text, update.ratio, update.pillar);
 		});
 		try {
 			await run();
@@ -958,16 +969,9 @@ export class HelperStore {
 			this.#sketch = partial;
 			this.#patchChart(draftId, partial);
 		});
-		this.#patchChart(draftId, { ...filled, brief: briefOf(answers) });
-		this.#settle(draftId, 'open');
 		this.step = 'idle';
 		this.#sketch = null;
-		const written = filled.actions.flat().filter((action) => action.trim()).length;
-		this.#say(
-			written === 64
-				? 'All 64 actions are in. Use this chart, or ask me to start again.'
-				: `${written} of 64 actions are in. The empty ones stayed empty.`
-		);
+		this.#finishDraft(draftId, { ...filled, brief: briefOf(answers) }, draftDone(filled.actions.flat().filter((action) => action.trim()).length));
 	}
 
 	/** Moves a message to the end of the conversation, so a card being filled is in view. */
@@ -985,7 +989,7 @@ export class HelperStore {
 			this.#aside('It is on your chart now. Close this panel to see it.');
 			return true;
 		}
-		this.#aside(card.state === 'working' ? 'Here it is. It is still filling in.' : 'Here it is. Use this chart to keep it.');
+		this.#aside(card.state === 'working' ? 'Here it is. It is still filling in.' : 'Here it is. It is not saved yet.');
 		this.#bringDown(card.id);
 		return true;
 	}

@@ -76,7 +76,7 @@ Flow in `fillActions` and `fillPillars`:
 3. If fewer than `count` remain, one retry. The user message lists each reject as `Rejected: "…" — {reason}` and asks for that many new lines, with the fact line repeated.
 4. If the retry is still short, return the lines that passed. The card says the pillar is short. An empty cell is better than a broken sentence.
 
-`pillarHead` treats an over-long or cut-off pillar the same way: it rejects it with a reason, and `namePillars` retries the head call with those reasons. It does not clip.
+`pillarHead` judges each pillar with `lineFault`, and with `sameDriver`: two headings that open on the same word are one driver. A goal too long for the center does not cost the pillars. `namePillars` asks again only when the reply does not parse; otherwise it retries once with the rejected pillars and why. Then the best set wins, filled from the rest. A pillar with a soft fault (a tool, a catch-all, a second heading for one driver) beats an empty one, and review flags it. A long or cut pillar never goes in. Nothing is clipped.
 
 Cap the retry at one. A second retry on 1.5B repeats the same miss and burns the wait.
 
@@ -193,6 +193,25 @@ A second pass of those same eight on 4B, inside the run below, filled the drivin
 The constraint word showed up on 38 of 50. Ten written charts missed it: Spanish, a month of rent, back pain, the windowsill garden, the tax papers, the weekly sister call, unused clothes, the resume, one loaf, the bus to the clinic. The probe is "did a long word from the constraint appear," not a reading of the chart. A miss can still be a chart that followed the idea in other words.
 
 That is not thin. Thin meant many empty cells, or the constraint turned into a shopping list. The shape is already reliable. Steps 2 through 7 above stay unbuilt: no teacher script, no pasted API key, no Colab LoRA, no browser compile. Real charts stay on the device. Bindu now loads this 4B. Thinking stays off. The 1.5B id is still in the lab picker.
+
+# Pillar headings, 2026-10-08
+
+Pillars had been "a short sentence this person could say: a verb and the thing it applies to." On Qwen3 4B that gave pillars that are actions in the wrong ring, and the same driver several times. For the driving test: "Practice parking daily", "Improve parking skills", "Focus on parking techniques", "Work on parking challenges", "Build confidence in parking". Elsewhere: "Stay consistent", "Track progress", "Keep going", "Avoid pain". Sentences also ran past 32 characters, which is what the clipping fallback cut into "Use flashcards for word".
+
+Pillars are now short headings, like the presets' ("Long runs", "Core phrases"), with an aquarium example in the prompt. Actions stay sentences. The judge adds three pillar rules: a tool ("podcasts", "flashcards", "app"), a catch-all that fits any goal ("consistency", "track progress", "set goals"), and an open state ("improve", "focus on") without a number or a time. The writer also rejects a second heading that opens on the same word ("Reading practice", "Reading comprehension"). Review does not, since a person can split a driver on purpose.
+
+Ten briefs, pillar step only, Qwen3 4B on the CPU (`npm run pillars`):
+
+| Prompt | Calls | Failed | Weak pillars left |
+| --- | --- | --- | --- |
+| Sentences, old judge | 13 | 0 | 13 (11 with no end, 2 tools), before catch-alls were counted |
+| Sentences, new judge, retry until clean | 29 | 1 | 0 |
+| Headings, retry until clean | 47 | 0 | 5 |
+| Headings, one retry, then the best set | 20 | 0 | 2 |
+
+Retrying until clean costs calls and does not pay: a small model repeats the same catch-all, so the last resort put it back anyway. The shipped policy asks again only when the reply does not parse, retries once with the rejected pillars and why, then keeps the best set, filled from the rest. A soft fault beats an empty pillar, and review flags it. A long or cut pillar never goes in. Two failures in the earlier runs were a goal over 80 characters throwing away eight good pillars. A long goal now goes back with its reason, and the person's own words are the fallback.
+
+Full charts, eight briefs, one draw each: sentences filled 465 of 512 actions, headings 447. The gap is the Slovak chart (44 against 30), where both lose lines to the 48-character cap because "Slovak" is in most of them; on five other briefs both filled 296 of 320. Time per chart was the same.
 
 # What hurt while building this
 

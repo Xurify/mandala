@@ -624,7 +624,7 @@
 			<Button variant="danger" icon="trash">Clear chart</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
-			<Button size="sm">Use this chart</Button>
+			<Button size="sm">Open as a new chart</Button>
 			<Button size="sm" variant="soft">Cancel</Button>
 			<Button size="sm" variant="ghost">Not now</Button>
 			<Button size="sm" variant="danger">Delete now</Button>

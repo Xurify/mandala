@@ -8,7 +8,8 @@
 		"talk": "node --experimental-strip-types --no-warnings talk.ts",
 		"tools": "node --experimental-strip-types --no-warnings tools.ts",
 		"rare": "node --experimental-strip-types --no-warnings rare.ts",
-		"rules": "node --experimental-strip-types --no-warnings rules.ts"
+		"rules": "node --experimental-strip-types --no-warnings rules.ts",
+		"pillars": "node --experimental-strip-types --no-warnings pillars.ts"
 	},
 	"dependencies": {
 		"node-llama-cpp": "3.22.1"

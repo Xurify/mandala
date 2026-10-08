@@ -160,7 +160,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ## Voice and copy
 
-Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI. A cell is a sentence you could say, inside the character cap.
+Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI. An action is a sentence you could say, inside the character cap. A pillar is a short heading for one driver, like the presets' "Long runs" or "Core phrases".
 
 **Bindu** is the on-device chart helper ("Talk to Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label. What Bindu does, and where it is going: [docs/bindu.md](docs/bindu.md).
 

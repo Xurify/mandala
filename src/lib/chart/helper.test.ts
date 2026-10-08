@@ -3,9 +3,10 @@ import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
 	pillarHead,
-	shortenPillar,
 	routeOf,
 	clarifyOf,
+	draftButton,
+	sameDriver,
 	actionGaps,
 	editWords,
 	groupEdits,
@@ -31,7 +32,6 @@ import {
 	type HelperMessage,
 	chartAnswersFromText,
 	chipsFor,
-	truncateAtWordBoundary,
 	describeCoachProgress,
 	chartAnswerFacts,
 	extraChips,
@@ -220,18 +220,16 @@ describe('facts, faults, and the prompts', () => {
 		expect(joined).not.toContain('Problem:');
 	});
 
-	it('refuses a goal that does not fit the cell', () => {
-		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
-		expect(pillarHead(JSON.stringify({ goal: 'x'.repeat(81), pillars }))).toBeNull();
+	it('keeps the pillars when the goal does not fit the cell, and sends the goal back', () => {
+		const pillars = ['Easy runs', 'Speed', 'Hills', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
+		const head = pillarHead(JSON.stringify({ goal: 'x'.repeat(81), pillars }))!;
+		expect(head.goal).toBe('');
+		expect(head.pillars).toEqual(pillars);
+		expect(head.rejected).toEqual([{ text: 'x'.repeat(81), reason: 'A goal over 80 characters. Say it in fewer words.' }]);
 	});
 });
 
-describe('truncateAtWordBoundary and pillarHead', () => {
-	it('never cuts mid-word', () => {
-		expect(truncateAtWordBoundary('Track expenses using an app to stay aware of spending', 48)).toBe('Track expenses using an app to stay aware of');
-		expect(truncateAtWordBoundary('Short one.', 48)).toBe('Short one');
-	});
-
+describe('pillarHead', () => {
 	it('reads the head of a draft and needs eight distinct pillars', () => {
 		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
 		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))).toEqual({ goal: 'Finish a half', pillars, rejected: [] });
@@ -435,7 +433,7 @@ describe('turn chips', () => {
 });
 
 describe('cell prompts', () => {
-	it('asks for a sentence, not a word count', () => {
+	it('asks for a heading per pillar and a sentence per action, with no long word range', () => {
 		const pillars = pillarsMessages(emptyChartAnswers())
 			.map((message) => message.content)
 			.join('\n')
@@ -446,7 +444,8 @@ describe('cell prompts', () => {
 			.toLowerCase();
 		expect(pillars).not.toContain('two to four');
 		expect(pillars).not.toContain('three to seven');
-		expect(pillars).toContain('verb');
+		expect(pillars).toContain('short heading');
+		expect(actions).toContain('a verb and the thing it applies to');
 		expect(actions).not.toContain('three to seven');
 		expect(actions).toContain('keep the aquarium clean');
 		expect(askMessages(sample(), 'hello').map((message) => message.content).join('\n').toLowerCase()).not.toContain('fill the blanks');
@@ -1081,6 +1080,17 @@ describe('filling the whole chart', () => {
 		expect(routeOf('fill me in on how this works', sample())).toBe('clarify');
 	});
 
+	it('says what keeping a draft does to the chart in view', () => {
+		expect(draftButton(emptyChart())).toBe('Start this chart');
+		expect(draftButton(sample())).toBe('Open as a new chart');
+	});
+
+	it('names the pillar being written in the status', () => {
+		const status = describeCoachProgress('Writing actions for Sleep.', null, { index: 4, name: 'Sleep' });
+		expect(status.pillar).toEqual({ index: 4, name: 'Sleep' });
+		expect(describeCoachProgress('Thinking.').pillar).toBeUndefined();
+	});
+
 	it('asks about close readings by name, and offers to just answer', () => {
 		const unsure = clarifyOf('how did my week go and what next');
 		expect(unsure?.question).toBe('Should I show your progress or plan this week?');
@@ -1146,16 +1156,45 @@ describe('lines cut short', () => {
 		)!;
 		expect(head.pillars).not.toContain('Track progress with the');
 		expect(head.rejected).toEqual([
-			{ text: 'Track progress with the', reason: 'Stops mid-phrase. Finish the thought.' },
+			{ text: 'Track progress with the', reason: 'This fits any goal. Name what drives this one.' },
 			{ text: 'Practice speaking with language partners', reason: 'Over 32 characters. Say it in fewer words.' },
 			{ text: 'Use a Slovak tutor weekly on Sundays', reason: 'Over 32 characters. Say it in fewer words.' }
 		]);
 		expect(head.pillars).toHaveLength(5);
 	});
 
-	it('shortens a pillar the model would not, without ending mid-phrase', () => {
-		expect(shortenPillar('Track progress through the weekly journal')).toBe('Track progress');
-		expect(shortenPillar('Develop memory for vocabulary words')).toBe('Develop memory for vocabulary');
-		expect(shortenPillar('Short one')).toBe('Short one');
+	it('sends back a pillar that names a tool or has no end, with the reason', () => {
+		const head = pillarHead(
+			JSON.stringify({
+				goal: 'Hold a conversation in Slovak',
+				pillars: ['Listen to Slovak podcasts daily', 'Focus on common phrases', 'Practice daily vocabulary recall', 'Read simple Slovak texts', 'Speak with a tutor weekly', 'Write a short diary entry', 'Shadow audio after lunch', 'Learn ten phrases a week']
+			})
+		)!;
+		expect(head.rejected).toEqual([
+			{ text: 'Listen to Slovak podcasts daily', reason: 'This names a tool. Name the habit it serves.' },
+			{ text: 'Focus on common phrases', reason: 'This has no end. Name the part of the goal it works on.' }
+		]);
+		expect(head.pillars).toHaveLength(6);
+	});
+
+	it('sends back a second heading for the same driver, and a catch-all', () => {
+		const head = pillarHead(
+			JSON.stringify({
+				goal: 'Hold a conversation in Slovak',
+				pillars: ['Vocabulary', 'Reading practice', 'Conversation practice', 'Reading comprehension', 'Daily listening', 'Grammar', 'Consistency habit', 'Pronunciation', 'Writing']
+			})
+		)!;
+		expect(head.rejected).toEqual([
+			{ text: 'Reading comprehension', reason: 'Same driver as "Reading practice". Name a different one.' },
+			{ text: 'Consistency habit', reason: 'This fits any goal. Name what drives this one.' }
+		]);
+		expect(head.pillars).toEqual(['Vocabulary', 'Reading practice', 'Conversation practice', 'Daily listening', 'Grammar', 'Pronunciation', 'Writing']);
+		expect(sameDriver('Daily listening', ['Daily reading'])).toBeNull();
+		expect(lineFault('Plan the week with the', { max: 32, kind: 'pillar' })?.code).toBe('cut');
+	});
+
+	it('passes every preset pillar', () => {
+		const flagged = PRESETS.flatMap((preset) => buildChart(preset).pillars.filter((pillar) => lineFault(pillar, { max: 32, kind: 'pillar' })));
+		expect(flagged).toEqual([]);
 	});
 });

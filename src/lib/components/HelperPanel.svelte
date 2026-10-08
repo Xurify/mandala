@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import type { HelperMessage, HelperStore } from '$lib/chart/helper.svelte';
-	import { BRIEF_LABELS, describeKey, editWords, groupEdits } from '$lib/chart/helper';
+	import { BRIEF_LABELS, describeKey, draftButton, editWords, groupEdits } from '$lib/chart/helper';
 	import { cellKey, getByKey, HUES, info, type ChartData } from '$lib/chart/model';
 	import HelperFace from './HelperFace.svelte';
 	import BouncingDots from './ui/BouncingDots.svelte';
@@ -105,7 +105,7 @@
 	function primaryLabel(message: HelperMessage): string {
 		const card = message.card;
 		if (!card) return '';
-		if (card.kind === 'chart') return card.sketch ? 'Write the actions' : 'Use this chart';
+		if (card.kind === 'chart') return card.sketch ? 'Write the actions' : draftButton(helper.data);
 		if (card.kind === 'cells') return editWords(helper.data, card.edits).button;
 		if (card.kind === 'picks') return card.scope === 'today' ? "Pick today's three" : 'Plan this week';
 		if (card.kind === 'findings') return 'Rewrite them';
@@ -137,9 +137,14 @@
 {/snippet}
 
 {#snippet status()}
-	<span class="inline-flex min-w-0 items-center text-[0.8rem] text-muted">
-		<span class="truncate">{activeStatusLabel ?? 'Working'}</span>
-		<BouncingDots />
+	{@const pillar = helper.progress?.pillar}
+	<!-- Wraps rather than cuts, so the pillar is named in full. -->
+	<span class="min-w-0 text-[0.8rem] leading-snug text-pretty text-muted">
+		{#if pillar}
+			Writing actions for <b class="pillar-ink font-[620]" style:--h={HUES[pillar.index]}>{pillar.name}</b>
+		{:else}
+			{activeStatusLabel ?? 'Working'}
+		{/if}<BouncingDots />
 	</span>
 {/snippet}
 
@@ -212,7 +217,7 @@
 							{@render status()}
 						{:else}
 							<p class="m-0 text-[0.8rem] leading-snug text-muted">
-								{written === 64 ? '64 actions included.' : value.sketch ? `${written} of 64. Actions come next.` : `${written} of 64. The rest stayed blank.`}
+								{written === 64 ? '64 actions included.' : value.sketch ? `${written} of 64. Actions come next.` : `${written} of 64 actions.`}
 							</p>
 						{/if}
 					</div>
