@@ -480,8 +480,9 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
+<!-- The Bindu launcher sits at the right of the row above the dock on a phone: 50px, plus a 16px gap. -->
 <div
-	class="page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class="page-gutter mx-auto max-w-295 max-[600px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
@@ -741,7 +742,7 @@
 	</main>
 
 	{#if updateReady}
-		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 print:hidden">
+		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 max-[600px]:pr-[calc(1rem+var(--dock-aside,0px))] print:hidden">
 			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
 				<span>Mandala was updated.</span>
 				<button
