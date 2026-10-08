@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { builtinPrompt, chooseEngine, replyText } from './coach-provider.ts';
 
 describe('chooseEngine', () => {
-	it('takes a built-in model that is already there over a download', () => {
-		expect(chooseEngine('available', true)).toEqual({ provider: 'builtin', download: false });
+	it('prefers the measured model on WebGPU, even when the built-in model is ready', () => {
+		expect(chooseEngine('available', true)).toEqual({ provider: 'webllm' });
 		expect(chooseEngine('available', false)).toEqual({ provider: 'builtin', download: false });
 	});
 

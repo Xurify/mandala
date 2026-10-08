@@ -1,0 +1,16 @@
+{
+	"name": "mandala-coach-eval",
+	"private": true,
+	"type": "module",
+	"description": "Runs Bindu's real coach code against GGUF models on the CPU. Kept apart so the app does not install llama.cpp.",
+	"scripts": {
+		"holdout": "node --experimental-strip-types --no-warnings holdout.ts",
+		"talk": "node --experimental-strip-types --no-warnings talk.ts",
+		"tools": "node --experimental-strip-types --no-warnings tools.ts",
+		"rare": "node --experimental-strip-types --no-warnings rare.ts",
+		"rules": "node --experimental-strip-types --no-warnings rules.ts"
+	},
+	"dependencies": {
+		"node-llama-cpp": "3.22.1"
+	}
+}

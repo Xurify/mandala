@@ -20,6 +20,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | `src/lib/components/Helper.svelte`, `HelperPanel.svelte`, `HelperFace.svelte` | The button, the panel, the face and its moods |
 | `src/routes/dev/ai/+page.svelte` | The lab: every job against a sandbox chart, the model picker, the holdout run |
 | `docs/coach-writing.md` | Why the writer is built the way it is, and the holdout results |
+| `docs/bindu-models.md`, `scripts/coach-eval/` | Every model and rare case measured on the CPU, and the harness that reruns it |
 
 ## What it does today
 
@@ -47,7 +48,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 
 On the 404 page, Bindu cycles through canned notes. It doesn't touch the store.
 
-Most of the jobs need no model. They run instantly, without a download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries. Open questions use a smaller model still. See "Tiers and providers".
+Most of the jobs need no model. They run instantly, without a download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries. See "Tiers and providers".
 
 ### How a message is routed
 
@@ -74,22 +75,22 @@ Each model job names a tier. A provider runs it.
 
 | Tier | Jobs | Model on web-llm | Download |
 | --- | --- | --- | --- |
-| Talk | Open questions (`answer`) | Qwen3 1.7B | 1 GB |
+| Talk | Open questions (`answer`) | Qwen3 4B | 2.3 GB |
 | Write | Draft, sketch, fill, rewrite | Qwen3 4B | 2.3 GB |
 
-The writer stays at 4B because writing holds several rules at once (`docs/coach-writing.md`). Talk holds one: short and warm. Talk borrows the writer when the writer is already loaded, cached, or agreed to, so nobody is asked for a second download. Only one web-llm model is in memory at a time. Moving between tiers reloads from the cache, which takes seconds.
+Both tiers load the same model, so there is one download. Talk was briefly Qwen3 1.7B. The run in `docs/bindu-models.md` found it invented counts and facts in open chat and wrote weaker lines, so it went back. The tiers stay so the lab can try another model on either one.
 
 | Provider | When | Download |
 | --- | --- | --- |
-| Built-in (`LanguageModel`) | The browser reports its model `available` | None |
-| web-llm | WebGPU works | The tier's size, once |
+| web-llm | WebGPU works | 2.3 GB, once |
+| Built-in (`LanguageModel`), ready | No WebGPU, and the browser has its model | None |
 | Built-in, still to fetch | No WebGPU, and the browser can fetch its model | The browser's, shared by every site |
 
-`chooseEngine` in `coach-provider.ts` holds this order. A built-in model that fails to load is skipped for the rest of the session. The built-in model gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. Pages may not always set temperature; when `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
+`chooseEngine` in `coach-provider.ts` holds this order. The built-in model comes second because it has only been tested through a stand-in. A built-in model that fails to load is skipped for the rest of the session. It gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. When `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
 
 `needFor(tier, agreed)` decides the provider and model before a job runs, and the job then runs on exactly that. The download card shows what `needFor` returned. Opening the panel warms the talk model only when that costs no new download, and starts the web-llm worker only for someone who already agreed to a download.
 
-The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. Still to measure there: the holdout on the built-in model and on Qwen3 1.7B, and open questions on 0.6B and 1.7B side by side. If 1.7B writes nearly as well as 4B, write can drop to it and the largest download becomes 1 GB.
+The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. `scripts/coach-eval` runs the same coach code against GGUF models on the CPU. See `docs/bindu-models.md`.
 
 ## How picks work
 

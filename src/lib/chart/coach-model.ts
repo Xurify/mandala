@@ -17,9 +17,12 @@ export const COACH_CANDIDATES: readonly CoachCandidate[] = [
 	{ id: 'Qwen3-4B-q4f16_1-MLC', label: 'Qwen3 4B, thinking', thinking: true, download: '2.3 GB' }
 ];
 
-/** What each tier loads. The writer needs 4B to hold its rules (`docs/coach-writing.md`). Talk is one rule: short and warm. */
+/**
+ * What each tier loads. Both are 4B: on the 2026-10-08 run (`docs/bindu-models.md`) 1.7B invented counts and
+ * facts in open chat and wrote weaker lines. The lab can still put another model on either tier.
+ */
 export const COACH_TIERS: Readonly<Record<CoachTier, string>> = {
-	talk: 'Qwen3-1.7B-q4f16_1-MLC',
+	talk: 'Qwen3-4B-q4f16_1-MLC',
 	write: 'Qwen3-4B-q4f16_1-MLC'
 };
 

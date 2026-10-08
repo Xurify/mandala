@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { COACH_CANDIDATES, COACH_TIERS, downloadOf, tierModel } from './coach-model.ts';
 
 describe('coach tiers', () => {
-	it('talks on the small model and writes on the large one', () => {
+	it('talks and writes on 4B, one download', () => {
 		expect(tierModel('talk')).toBe(COACH_TIERS.talk);
 		expect(tierModel('write')).toBe(COACH_TIERS.write);
-		expect(downloadOf(COACH_TIERS.talk)).toBe('1 GB');
+		expect(COACH_TIERS.talk).toBe(COACH_TIERS.write);
 		expect(downloadOf(COACH_TIERS.write)).toBe('2.3 GB');
 	});
 
