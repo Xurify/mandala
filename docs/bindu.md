@@ -11,8 +11,11 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | --- | --- |
 | `src/lib/chart/helper.ts` | Pure logic: intent patterns, review checks, today and week picks, chips, greetings, every prompt the model sees |
 | `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: messages, cards, routing in `send()`, the download consent |
-| `src/lib/chart/coach.browser.ts`, `coach.worker.ts` | The on-device model (Qwen3 4B through web-llm, in a worker), retries and line checks around each call |
-| `src/lib/chart/coach-model.ts` | Which model loads, and the download size on the consent card |
+| `src/lib/chart/coach.browser.ts` | Every model job, with retries and line checks. Picks the provider and the model for each call |
+| `src/lib/chart/coach-provider.ts` | The provider interface, `chooseEngine`, and the message split for the Prompt API |
+| `src/lib/chart/coach-webllm.ts`, `coach.worker.ts` | Downloaded weights on WebGPU through web-llm, in a worker |
+| `src/lib/chart/coach-builtin.ts` | The browser's own model through Chrome's Prompt API (`LanguageModel`), when it exists |
+| `src/lib/chart/coach-model.ts` | The two tiers, the lab's candidates, and each model's download size |
 | `src/lib/chart/coach-score.ts` | The phrase lists and copy checks that review and the writer share |
 | `src/lib/components/Helper.svelte`, `HelperPanel.svelte`, `HelperFace.svelte` | The button, the panel, the face and its moods |
 | `src/routes/dev/ai/+page.svelte` | The lab: every job against a sandbox chart, the model picker, the holdout run |
@@ -44,7 +47,7 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 
 On the 404 page, Bindu cycles through canned notes. It doesn't touch the store.
 
-Most of the jobs need no model. They run instantly, without the 2.3 GB download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries.
+Most of the jobs need no model. They run instantly, without a download, and in browsers without WebGPU. Draft, fill and rewrite are the jobs that need it, and they suit a small model: short output, one job, a rule check on every line, and retries. Open questions use a smaller model still. See "Tiers and providers".
 
 ### How a message is routed
 
@@ -54,7 +57,7 @@ Most of the jobs need no model. They run instantly, without the 2.3 GB download,
 2. "No" or "skip" while a card is open.
 3. `intentOf`: a pasted chart; thanks, hello, a missed day; questions that ask for a job ("What should I do today?", "Is my chart any good?", "How am I doing?"); any other question, which goes on to the model; then cancel, today, week, review, fill, progress, draft.
 4. `askRoute`: a bare ask for help, answered from the chart; a method question, answered from the written bank; a new goal (`aimOf`); a pillar name together with fill, finish or work on.
-5. Everything else goes to the model. With no WebGPU, the reply says so. Without the download, the reply is the download card.
+5. Everything else goes to the model's talk tier. When nothing can run a model here, the reply says so. When the model still has to download, the reply is the download card, with that model's size.
 
 ### What Bindu remembers today
 
@@ -63,7 +66,30 @@ Most of the jobs need no model. They run instantly, without the 2.3 GB download,
 - Open chat also gets the chart: each pillar with its action count and how often it was used in the last 7 days, the actions of the pillar the question names (or the selected one), and today's picks.
 - The draft answers (timeline, situation, focus, constraint) are saved on the chart as `brief`. Fills, rewrites and answers get them as one line. The brief syncs between your devices and stays out of share links. "What I know" shows it, and Forget removes a line.
 - Insights shown in a greeting are logged, so the greeting doesn't repeat one: a day-bound insight (today, yesterday, comeback) waits a day, the rest wait three.
-- The download consent is stored as `mandala-helper-model`.
+- The models the person agreed to download are stored as `mandala-helper-model`, comma-separated. An older value holds one id and reads the same. A model that fails to load is taken off the list.
+
+## Tiers and providers
+
+Each model job names a tier. A provider runs it.
+
+| Tier | Jobs | Model on web-llm | Download |
+| --- | --- | --- | --- |
+| Talk | Open questions (`answer`) | Qwen3 1.7B | 1 GB |
+| Write | Draft, sketch, fill, rewrite | Qwen3 4B | 2.3 GB |
+
+The writer stays at 4B because writing holds several rules at once (`docs/coach-writing.md`). Talk holds one: short and warm. Talk borrows the writer when the writer is already loaded, cached, or agreed to, so nobody is asked for a second download. Only one web-llm model is in memory at a time. Moving between tiers reloads from the cache, which takes seconds.
+
+| Provider | When | Download |
+| --- | --- | --- |
+| Built-in (`LanguageModel`) | The browser reports its model `available` | None |
+| web-llm | WebGPU works | The tier's size, once |
+| Built-in, still to fetch | No WebGPU, and the browser can fetch its model | The browser's, shared by every site |
+
+`chooseEngine` in `coach-provider.ts` holds this order. A built-in model that fails to load is skipped for the rest of the session. The built-in model gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. Pages may not always set temperature; when `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
+
+`needFor(tier, agreed)` decides the provider and model before a job runs, and the job then runs on exactly that. The download card shows what `needFor` returned. Opening the panel warms the talk model only when that costs no new download, and starts the web-llm worker only for someone who already agreed to a download.
+
+The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. Still to measure there: the holdout on the built-in model and on Qwen3 1.7B, and open questions on 0.6B and 1.7B side by side. If 1.7B writes nearly as well as 4B, write can drop to it and the largest download becomes 1 GB.
 
 ## How picks work
 

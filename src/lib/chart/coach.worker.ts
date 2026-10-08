@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
-import { CreateMLCEngine, prebuiltAppConfig, type MLCEngine, type CompletionUsage } from '@mlc-ai/web-llm';
+import { CreateMLCEngine, hasModelInCache, prebuiltAppConfig, type MLCEngine, type CompletionUsage } from '@mlc-ai/web-llm';
 import type { CoachRequest, CoachResponse } from './coach-protocol.ts';
+import { replyText } from './coach-provider.ts';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 let engine: MLCEngine | null = null;
@@ -16,17 +17,15 @@ function progressText(value: unknown): string {
 	return typeof value === 'string' ? value : '';
 }
 
-function replyText(value: unknown): string {
-	const text = typeof value === 'string' ? value : '';
-	return text.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
-}
-
 function usageStats(usage: CompletionUsage | undefined): string | undefined {
 	if (!usage) return undefined;
 	const prefill = Math.round(usage.extra.prefill_tokens_per_s);
 	const decode = Math.round(usage.extra.decode_tokens_per_s);
 	return `prefill ${prefill} tok/s, decode ${decode} tok/s`;
 }
+
+// Cache.add rejects Hugging Face's redirected shard responses as a network error.
+const appConfig = { ...prebuiltAppConfig, cacheBackend: 'indexeddb' as const };
 
 let loadToken = 0;
 
@@ -47,8 +46,7 @@ function load(model: string): Promise<MLCEngine> {
 			loadedId = '';
 		}
 		const created = await CreateMLCEngine(model, {
-			// Cache.add rejects Hugging Face's redirected shard responses as a network error.
-			appConfig: { ...prebuiltAppConfig, cacheBackend: 'indexeddb' },
+			appConfig,
 			initProgressCallback: (report) =>
 				post({ type: 'progress', text: progressText(report.text), ratio: report.progress })
 		});
@@ -83,11 +81,21 @@ scope.onmessage = (event: MessageEvent<CoachRequest>) => {
 		void engine?.interruptGenerate().catch(() => {});
 		return;
 	}
+	// A cache probe must not wait behind a download that is still running.
+	if (request.type === 'cached') {
+		void handle(request);
+		return;
+	}
 	tail = tail.then(() => handle(request)).catch(() => {});
 };
 
 async function handle(request: Exclude<CoachRequest, { type: 'interrupt' }>): Promise<void> {
 	try {
+		if (request.type === 'cached') {
+			const cached = await hasModelInCache(request.model, appConfig).catch(() => false);
+			post({ type: 'done', id: request.id, text: cached ? 'yes' : 'no' });
+			return;
+		}
 		if (request.type === 'load') {
 			await load(request.model);
 			post({ type: 'done', id: request.id, text: '' });

@@ -44,7 +44,7 @@ import {
 	type HelperMessage,
 	type HelperMood
 } from './helper.ts';
-import { COACH_MODEL_ID } from './coach-model.ts';
+import type { CoachTier } from './coach-model.ts';
 import { CoachStopped } from './coach-protocol.ts';
 import { blockOfK, idx, todayKey, type ChartBrief, type ChartData } from './model.ts';
 
@@ -70,6 +70,7 @@ export type HelperTarget = {
 };
 
 type Coach = typeof import('./coach.browser.ts');
+type CoachNeed = NonNullable<Awaited<ReturnType<Coach['needFor']>>>;
 
 const CONSENT_KEY = 'mandala-helper-model';
 
@@ -77,27 +78,22 @@ function loadCoachModule(): Promise<Coach> {
 	return import('./coach.browser.ts');
 }
 
-function readConsent(): boolean {
+/** Model ids the person agreed to download, comma-separated. An older value holds one id, which reads the same. */
+function readConsent(): string[] {
 	try {
-		return typeof localStorage !== 'undefined' && localStorage.getItem(CONSENT_KEY) === COACH_MODEL_ID;
+		const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(CONSENT_KEY) : null;
+		return stored ? stored.split(',').filter(Boolean) : [];
 	} catch {
-		return false;
+		return [];
 	}
 }
 
-function persistModelConsent(): void {
+function writeConsent(models: readonly string[]): void {
 	try {
-		localStorage.setItem(CONSENT_KEY, COACH_MODEL_ID);
+		if (models.length > 0) localStorage.setItem(CONSENT_KEY, models.join(','));
+		else localStorage.removeItem(CONSENT_KEY);
 	} catch {
 		// Private mode keeps the consent for this session only.
-		return;
-	}
-}
-
-function clearModelConsent(): void {
-	try {
-		localStorage.removeItem(CONSENT_KEY);
-	} catch {
 		return;
 	}
 }
@@ -108,7 +104,6 @@ export class HelperStore {
 	busy = $state(false);
 	progress = $state<CoachLoad | null>(null);
 	unread = $state(false);
-	webgpu = $state<boolean | null>(null);
 	modelReady = $state(false);
 	step = $state<'idle' | 'direction' | 'extra' | 'offer'>('idle');
 	#cheer = $state(false);
@@ -136,7 +131,7 @@ export class HelperStore {
 	#help = $state(false);
 	#pillarFill = $state<number | null>(null);
 	#fillPillar: number | null = null;
-	#pending: (() => Promise<void>) | null = null;
+	#pending: { run: () => Promise<void>; need: CoachNeed } | null = null;
 	#consent = readConsent();
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
 	#warming = false;
@@ -316,11 +311,11 @@ export class HelperStore {
 			}
 			const answers = chartAnswersFromText(this.#direction, text);
 			if (this.#sketch) {
-				await this.#withModel(() => this.#fillSketch(answers), 'draft');
+				await this.#withModel(() => this.#fillSketch(answers), 'write', 'draft');
 				return;
 			}
 			this.step = 'idle';
-			await this.#withModel(() => this.#draft(answers), 'draft');
+			await this.#withModel(() => this.#draft(answers), 'write', 'draft');
 			return;
 		}
 		if (this.step === 'offer') {
@@ -408,7 +403,7 @@ export class HelperStore {
 			this.#say(`${name} is already full. We can review its actions or pick one for today.`);
 			return;
 		}
-		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()));
+		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()), 'talk');
 	}
 
 	async start(job: HelperJob, pillar?: number): Promise<void> {
@@ -431,15 +426,16 @@ export class HelperStore {
 			this.#say(data.goal.trim() ? 'Every line is filled. Review my chart instead?' : 'Give the chart a goal first, then I can fill the rest.');
 			return;
 		}
-		await this.#withModel(() => this.#fill());
+		await this.#withModel(() => this.#fill(), 'write');
 	}
 
 	allowDownload(id: number): void {
-		this.#consent = true;
 		this.#settle(id, 'used');
-		const run = this.#pending;
+		const pending = this.#pending;
 		this.#pending = null;
-		if (run) void this.#run(run);
+		if (!pending) return;
+		this.#agree(pending.need.model);
+		void this.#run(pending.run, pending.need);
 	}
 
 	use(id: number): void {
@@ -469,7 +465,7 @@ export class HelperStore {
 			this.#celebrate(card.scope === 'today' ? 'Today is set. One at a time.' : 'Pinned. They will lead your picks each day.');
 		} else if (card.kind === 'findings') {
 			this.#settle(id, 'used');
-			void this.#withModel(() => this.#rewrite(card.findings));
+			void this.#withModel(() => this.#rewrite(card.findings), 'write');
 		}
 	}
 
@@ -572,32 +568,42 @@ export class HelperStore {
 		this.#say(written === 64 ? 'All 64 actions are in. Use this chart, or ask me to start again.' : `${written} of 64 actions are in. The empty ones stayed empty.`);
 	}
 
+	/** Loads what open chat would use, when it costs no new download. The worker is not started for someone who never agreed. */
 	async #warm(): Promise<void> {
-		if (this.#warming || !this.#consent) return;
+		if (this.#warming) return;
 		this.#warming = true;
 		const coach = await loadCoachModule();
-		if (this.webgpu === null) this.webgpu = await coach.detectWebGPU();
-		if (!this.webgpu || coach.coachLoaded()) {
-			this.modelReady = coach.coachLoaded();
+		const need = await coach.needFor('talk', this.#consent, { probeCache: this.#consent.length > 0 });
+		const allowed = need !== null && (need.download === null || this.#consent.includes(need.model));
+		if (!need || !allowed || (need.provider === 'webllm' && this.#consent.length === 0) || coach.coachLoaded('talk')) {
+			this.modelReady = coach.coachLoaded('talk');
+			this.#warming = false;
 			return;
 		}
 		const stop = coach.watchCoachProgress((update) => {
 			if (!this.busy) this.progress = describeCoachProgress(update.text, update.ratio);
 		});
 		try {
-			await coach.loadCoach();
+			await coach.loadCoach('talk');
 			this.modelReady = true;
-			persistModelConsent();
+			this.#agree(need.model);
 		} catch {
 			this.#warming = false;
-			if (!coach.coachLoaded()) {
-				this.#consent = false;
-				clearModelConsent();
-			}
+			if (!coach.coachLoaded('talk')) this.#disagree(need.model);
 		} finally {
 			stop();
 			if (!this.busy) this.progress = null;
 		}
+	}
+
+	#agree(model: string): void {
+		if (!this.#consent.includes(model)) this.#consent = [...this.#consent, model];
+		writeConsent(this.#consent);
+	}
+
+	#disagree(model: string): void {
+		this.#consent = this.#consent.filter((agreed) => agreed !== model);
+		writeConsent(this.#consent);
 	}
 
 	async #fill(): Promise<void> {
@@ -645,10 +651,10 @@ export class HelperStore {
 		this.#say(reply);
 	}
 
-	async #withModel(run: () => Promise<void>, job?: HelperJob): Promise<void> {
+	async #withModel(run: () => Promise<void>, tier: CoachTier, job?: HelperJob): Promise<void> {
 		const coach = await loadCoachModule();
-		if (this.webgpu === null) this.webgpu = await coach.detectWebGPU();
-		if (!this.webgpu) {
+		const need = await coach.needFor(tier, this.#consent);
+		if (!need) {
 			this.#say(
 				job === 'draft'
 					? "This browser can't run me on the device. Copy the prompt into any chat app, then paste the reply here."
@@ -657,27 +663,35 @@ export class HelperStore {
 			);
 			return;
 		}
-		if (!coach.coachLoaded() && !this.#consent) {
-			this.#say('I write with a small model that lives in this browser. It is a one-time download.', { kind: 'download' });
-			this.#pending = run;
+		if (need.download !== null && !this.#consent.includes(need.model)) {
+			const builtin = need.provider === 'builtin';
+			this.#say(
+				builtin
+					? 'Your browser has a model of its own. It downloads once, and every site shares it.'
+					: tier === 'talk'
+						? 'I answer with a small model that lives in this browser. It is a one-time download.'
+						: 'I write with a model that lives in this browser. It is a one-time download.',
+				{ kind: 'download', size: need.download, builtin }
+			);
+			this.#pending = { run, need };
 			return;
 		}
-		await this.#run(run);
+		await this.#run(run, need);
 	}
 
-	async #run(run: () => Promise<void>): Promise<void> {
+	async #run(run: () => Promise<void>, need: CoachNeed): Promise<void> {
 		const coach = await loadCoachModule();
 		coach.resumeCoach();
 		this.busy = true;
 		this.#jobChart = this.#chartId;
-		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
+		this.progress = describeCoachProgress(coach.coachLoaded(need.tier) ? 'Thinking.' : 'Waking up.');
 		this.#progressStop ??= coach.watchCoachProgress((update) => {
 			this.progress = describeCoachProgress(update.text, update.ratio);
 		});
 		try {
 			await run();
 			this.modelReady = coach.coachLoaded();
-			if (this.modelReady) persistModelConsent();
+			if (coach.coachLoaded(need.tier)) this.#agree(need.model);
 		} catch (error) {
 			if (this.#stale) return;
 			if (error instanceof CoachStopped) {
@@ -689,10 +703,7 @@ export class HelperStore {
 				this.#sorry = true;
 				this.#aside('Stopped.', true);
 			} else {
-				if (!coach.coachLoaded()) {
-					this.#consent = false;
-					clearModelConsent();
-				}
+				if (!coach.coachLoaded(need.tier)) this.#disagree(need.model);
 				this.#fail('Something stopped me. Try again in a moment.');
 			}
 		} finally {
@@ -760,7 +771,7 @@ export class HelperStore {
 			if (draftId) this.#settle(draftId, 'open');
 			this.step = 'extra';
 			if (!again) this.#say(DRAFT_QUESTIONS[1]);
-		}, 'draft');
+		}, 'write', 'draft');
 	}
 
 	async #fillSketch(answers: ChartAnswers): Promise<void> {

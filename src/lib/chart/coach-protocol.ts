@@ -9,6 +9,8 @@ export class CoachStopped extends Error {
 
 export type CoachRequest =
 	| { type: 'load'; id: number; model: string }
+	/** Answers "yes" when the weights are already on this device. */
+	| { type: 'cached'; id: number; model: string }
 	| {
 			type: 'complete';
 			id: number;

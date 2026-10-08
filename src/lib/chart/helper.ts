@@ -33,7 +33,8 @@ export type HelperCard =
 	| { kind: 'cells'; edits: CellEdit[] }
 	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
 	| { kind: 'findings'; findings: HelperFinding[] }
-	| { kind: 'download' }
+	/** `size` is the weight download, or '' when the browser fetches its own model and the size is its business. */
+	| { kind: 'download'; size: string; builtin: boolean }
 	| { kind: 'prompt' }
 	| { kind: 'facts' };
 
@@ -428,6 +429,7 @@ export function describeCoachProgress(text: string, reportedFillRatio?: number |
 
 	if (/start to fetch/i.test(cleaned)) return { label: 'Starting the download.', downloadFillRatio: downloadFillRatio ?? 0, detail: '' };
 	if (/fetching param/i.test(cleaned)) return { label: 'Downloading.', downloadFillRatio, detail };
+	if (/downloading the built-in model/i.test(cleaned)) return { label: 'Downloading.', downloadFillRatio, detail: '' };
 	if (/loading model from cache/i.test(cleaned)) return { label: 'Loading', downloadFillRatio, detail };
 	if (/shader/i.test(cleaned)) return { label: 'Getting ready.', downloadFillRatio, detail: '' };
 	if (/warming up/i.test(cleaned)) return { label: 'Warming up.', downloadFillRatio: null, detail: '' };

@@ -18,7 +18,8 @@
 		suggestWeek
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
-	import { COACH_CANDIDATES } from '$lib/chart/coach-model';
+	import { COACH_CANDIDATES, COACH_TIERS } from '$lib/chart/coach-model';
+	import type { BuiltinState, ProviderChoice } from '$lib/chart/coach-provider';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
@@ -130,9 +131,43 @@
 	const today = $derived(suggestToday(sample));
 	const plan = $derived(fillPlan(sample, preferred));
 
+	const providers = [
+		{ value: 'auto', label: 'Auto' },
+		{ value: 'webllm', label: 'Downloaded' },
+		{ value: 'builtin', label: 'Built-in' }
+	];
+	const builtinLabels: Record<BuiltinState, string> = {
+		available: 'Ready',
+		downloadable: 'Needs a download',
+		downloading: 'Downloading',
+		unavailable: 'Not in this browser'
+	};
+
 	let coach: Coach | null = $state(null);
 	let webgpu = $state<boolean | null>(null);
+	let builtin = $state<BuiltinState | null>(null);
+	let provider = $state<ProviderChoice>('auto');
+	const canRun = $derived(
+		provider === 'webllm' ? webgpu === true : provider === 'builtin' ? builtin !== null && builtin !== 'unavailable' : webgpu === true || (builtin !== null && builtin !== 'unavailable')
+	);
+
+	function pickProvider(value: string): void {
+		if (value !== 'auto' && value !== 'webllm' && value !== 'builtin') return;
+		provider = value;
+		coach?.selectProvider(value);
+		refresh();
+	}
+
+	function labelOf(id: string): string {
+		return COACH_CANDIDATES.find((choice) => choice.id === id && !choice.thinking)?.label ?? id;
+	}
 	let loaded = $state(false);
+	let modelName = $state('…');
+
+	function refresh(): void {
+		loaded = coach?.coachLoaded() ?? false;
+		modelName = coach?.coachModel() ?? '…';
+	}
 	let progressText = $state('');
 	let progressRatio = $state<number | null>(null);
 	const load = $derived(progressText ? describeCoachProgress(progressText, progressRatio) : null);
@@ -143,12 +178,13 @@
 		let stop = () => {};
 		void import('$lib/chart/coach.browser').then(async (module) => {
 			coach = module;
-			loaded = module.coachLoaded();
+			refresh();
 			stop = module.watchCoachProgress((update) => {
 				progressText = update.text;
 				progressRatio = update.ratio;
 			});
 			webgpu = await module.detectWebGPU();
+			builtin = await module.builtinState();
 		});
 		return () => stop();
 	});
@@ -168,7 +204,7 @@
 			return null;
 		} finally {
 			elapsed = { ...elapsed, [id]: Math.round(performance.now() - started) };
-			loaded = coach.coachLoaded();
+			refresh();
 			running = null;
 		}
 	}
@@ -188,7 +224,7 @@
 	let question = $state('Which pillar should I start with?');
 	let reply = $state('');
 
-	let candidate = $state('2');
+	let candidate = $state(String(COACH_CANDIDATES.findIndex((choice) => choice.id === COACH_TIERS.write && !choice.thinking)));
 	const modelOptions = COACH_CANDIDATES.map((choice, index) => ({
 		value: String(index),
 		label: choice.label
@@ -214,7 +250,8 @@
 		const started = performance.now();
 		try {
 			await coach.selectCoachModel(choice.id, choice.thinking);
-			loaded = coach.coachLoaded();
+			refresh();
+			const label = coach.coachProvider() === 'builtin' ? 'Built-in' : choice.label;
 			const setups = holdoutDataset.slice(0, count);
 			for (const setup of setups) {
 				const mark = performance.now();
@@ -223,7 +260,7 @@
 					? holdoutChartMetrics(result.chart, setup.constraint)
 					: { filled: 0, faults: 1, copies: 0, constraint: false };
 				const row: HoldoutRow = {
-					model: choice.label,
+					model: label,
 					direction: setup.direction,
 					...report,
 					seconds: Math.round((performance.now() - mark) / 1000)
@@ -234,7 +271,7 @@
 			if (!(error instanceof CoachStopped)) holdoutNote = error instanceof Error ? error.message : 'The run stopped.';
 		} finally {
 			elapsed = { ...elapsed, holdout: Math.round(performance.now() - started) };
-			loaded = coach.coachLoaded();
+			refresh();
 			running = null;
 		}
 	}
@@ -286,8 +323,8 @@
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">AI features</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Everything Bindu can do, against a sandbox chart. Rules run instantly. Bindu writes with Qwen3 4B in this browser. Your
-				real charts are not touched here.
+				Everything Bindu can do, against a sandbox chart. Rules run instantly. Bindu answers with {labelOf(COACH_TIERS.talk)} and writes
+				with {labelOf(COACH_TIERS.write)}, or uses the browser's own model when it has one. Your real charts are not touched here.
 			</p>
 		</div>
 	</header>
@@ -296,20 +333,39 @@
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<Eyebrow>Engine</Eyebrow>
 			<div class="flex gap-2">
-				<Button size="sm" variant="soft" disabled={!coach || !webgpu || loaded || running !== null} onclick={() => timed('load', (module) => module.loadCoach())}>
+				<Button size="sm" variant="soft" disabled={!coach || !canRun || loaded || running !== null} onclick={() => timed('load', (module) => module.loadCoach())}>
 					{loaded ? 'Loaded' : running === 'load' ? 'Loading' : 'Load the model'}
 				</Button>
 				<Button size="sm" variant="ghost" disabled={!running} onclick={() => coach?.interruptCoach()}>Stop</Button>
 			</div>
 		</div>
-		<dl class="m-0 grid grid-cols-2 gap-x-6 gap-y-3 text-[0.88rem] sm:grid-cols-4">
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+			<span class="text-[0.82rem] font-semibold">Runs on</span>
+			<SegmentedControl
+				class="max-w-full"
+				label="Where the model runs"
+				size="sm"
+				options={providers}
+				value={provider}
+				onchange={pickProvider}
+			/>
+		</div>
+		<dl class="m-0 grid grid-cols-2 gap-x-6 gap-y-3 text-[0.88rem] sm:grid-cols-3">
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">WebGPU</dt>
 				<dd class="m-0 font-[620]">{webgpu === null ? 'Checking' : webgpu ? 'Available' : 'Not available'}</dd>
 			</div>
 			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">Built-in model</dt>
+				<dd class="m-0 font-[620]">{builtin === null ? 'Checking' : builtinLabels[builtin]}</dd>
+			</div>
+			<div class="flex min-w-0 flex-col gap-0.5">
+				<dt class="text-[0.76rem] text-muted">Tiers</dt>
+				<dd class="m-0 font-[620]">Talk {labelOf(COACH_TIERS.talk)} · Write {labelOf(COACH_TIERS.write)}</dd>
+			</div>
+			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">Model</dt>
-				<dd class="m-0 font-[620] break-all">{coach?.coachModel() ?? '…'}</dd>
+				<dd class="m-0 font-[620] break-all">{modelName}</dd>
 			</div>
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">State</dt>
@@ -345,10 +401,10 @@
 				/>
 			</div>
 			<div class="flex h-[42px] items-center gap-2">
-				<Button disabled={!webgpu || running !== null} onclick={() => scoreHoldout(8)}>
+				<Button disabled={!canRun || running !== null} onclick={() => scoreHoldout(8)}>
 					{running === 'holdout' ? 'Scoring' : 'Score 8'}
 				</Button>
-				<Button variant="soft" disabled={!webgpu || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
+				<Button variant="soft" disabled={!canRun || running !== null} onclick={() => scoreHoldout(50)}>Score 50</Button>
 				{#if seconds('holdout')}
 					<span class="text-[0.82rem] text-muted tabular-nums">{seconds('holdout')}</span>
 				{/if}
@@ -447,7 +503,7 @@
 			<div class="flex flex-wrap items-center gap-3">
 				<Button
 					size="sm"
-					disabled={!webgpu || running !== null || !answers.direction}
+					disabled={!canRun || running !== null || !answers.direction}
 					onclick={async () => (drafted = await timed('draft', (module) => module.proposeChart(answers)))}
 				>
 					{running === 'draft' ? 'Writing' : 'Write the chart'}
@@ -487,7 +543,7 @@
 					<Button
 						size="sm"
 						variant="soft"
-						disabled={!webgpu || running !== null || !plan}
+						disabled={!canRun || running !== null || !plan}
 						onclick={async () => {
 							if (!plan) return;
 							const current = plan;
@@ -512,7 +568,7 @@
 					<Button
 						size="sm"
 						variant="soft"
-						disabled={!webgpu || running !== null || findings.length === 0}
+						disabled={!canRun || running !== null || findings.length === 0}
 						onclick={async () => {
 							const list = findings.slice(0, 3);
 							rewrites =
@@ -540,7 +596,7 @@
 					<Button
 						size="sm"
 						variant="soft"
-						disabled={!webgpu || running !== null || !question.trim()}
+						disabled={!canRun || running !== null || !question.trim()}
 						onclick={async () => (reply = (await timed('ask', (module) => module.answer(sample, question))) ?? '')}
 					>
 						{running === 'ask' ? 'Thinking' : 'Ask'}

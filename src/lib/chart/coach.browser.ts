@@ -1,4 +1,4 @@
-import { CoachStopped, type CoachRequest, type CoachResponse } from './coach-protocol.ts';
+import { CoachStopped } from './coach-protocol.ts';
 import { ACTION_MAX, PILLAR_MAX, type ChartAnswers } from './draft.ts';
 import {
 	askMessages,
@@ -17,7 +17,10 @@ import {
 	type HelperFinding,
 	type LineReject
 } from './helper.ts';
-import { COACH_CANDIDATES, COACH_MODEL_ID } from './coach-model.ts';
+import { BUILTIN_MODEL, COACH_CANDIDATES, downloadOf, tierModel, type CoachTier } from './coach-model.ts';
+import { chooseEngine, type CoachProvider, type ProviderChoice, type ProviderId } from './coach-provider.ts';
+import { builtinState, createBuiltinProvider } from './coach-builtin.ts';
+import { createWebLLMProvider, type WebLLMProvider } from './coach-webllm.ts';
 
 export { COACH_CANDIDATES };
 import { emptyChart, type ChartData } from './model.ts';
@@ -27,15 +30,7 @@ const RETRY_TEMPERATURES = [0.2, 0.6, 0.9];
 export type CoachProgress = { text: string; ratio: number | null };
 
 const listeners = new Set<(update: CoachProgress) => void>();
-const pending = new Map<number, { resolve: (text: string) => void; reject: (error: Error) => void }>();
-let worker: Worker | null = null;
-let ready = false;
-let seq = 1;
-let lastStats = '';
-let activeModel = COACH_MODEL_ID;
-let thinking = false;
 let stopped = false;
-let inflightLoad: { model: string; promise: Promise<void> } | null = null;
 
 function onProgress(text: string, ratio: number | null = null): void {
 	const update = { text, ratio };
@@ -59,77 +54,127 @@ export async function detectWebGPU(): Promise<boolean> {
 	}
 }
 
-function connect(): Worker {
-	if (worker) return worker;
-	worker = new Worker(new URL('./coach.worker.ts', import.meta.url), { type: 'module' });
-	worker.onmessage = (event: MessageEvent<CoachResponse>) => {
-		const message = event.data;
-		if (message.type === 'progress') {
-			onProgress(typeof message.text === 'string' ? message.text : '', message.ratio ?? null);
-			return;
-		}
-		const waiting = pending.get(message.id);
-		if (!waiting) return;
-		pending.delete(message.id);
-		if (message.type === 'done') {
-			if (message.stats) lastStats = message.stats;
-			waiting.resolve(message.text);
-		} else waiting.reject(new Error(message.text));
-	};
-	return worker;
+let webllm: WebLLMProvider | null = null;
+let builtin: CoachProvider | null = null;
+let webgpu: Promise<boolean> | null = null;
+/** Set when the built-in model failed once, so this session stops offering it. */
+let builtinBroken = false;
+let prefer: ProviderChoice = 'auto';
+/** The lab's model, used for every tier. */
+let pinned: { model: string; thinking: boolean } | null = null;
+/** What `needFor` decided per tier, so the job runs on the model the person agreed to. */
+const chosen: Partial<Record<CoachTier, { provider: ProviderId; model: string }>> = {};
+let active: CoachProvider | null = null;
+
+function webllmProvider(): WebLLMProvider {
+	webllm ??= createWebLLMProvider(onProgress);
+	return webllm;
 }
 
-function request(
-	body: Omit<Extract<CoachRequest, { type: 'load' }>, 'id'> | Omit<Extract<CoachRequest, { type: 'complete' }>, 'id'>
-): Promise<string> {
-	const target = connect();
-	const id = seq++;
-	return new Promise((resolve, reject) => {
-		pending.set(id, { resolve, reject });
-		target.postMessage({ ...body, id } as CoachRequest);
-	});
+function builtinProvider(): CoachProvider {
+	builtin ??= createBuiltinProvider(onProgress);
+	return builtin;
 }
 
-export function coachLoaded(): boolean {
-	return ready;
+function providerOf(id: ProviderId): CoachProvider {
+	return id === 'builtin' ? builtinProvider() : webllmProvider();
 }
 
-/** Last prefill and decode speed the worker reported. */
+/** A job's provider and model, and what it still has to download. `download` is null when nothing is fetched. */
+export type CoachNeed = { tier: CoachTier; provider: ProviderId; model: string; download: string | null };
+
+/**
+ * What a job on `tier` would run on, or null when nothing can run here. `agreed` lists the models
+ * the person already said yes to; talk borrows the writer when it is among them, or cached, or loaded.
+ * `probeCache: false` skips the cache check, which starts the worker and its 6 MB runtime.
+ */
+export async function needFor(
+	tier: CoachTier,
+	agreed: readonly string[] = [],
+	options: { probeCache?: boolean } = {}
+): Promise<CoachNeed | null> {
+	webgpu ??= detectWebGPU();
+	const engine = chooseEngine(builtinBroken ? 'unavailable' : await builtinState(), await webgpu, prefer);
+	if (!engine) return null;
+	if (engine.provider === 'builtin') {
+		const need: CoachNeed = {
+			tier,
+			provider: 'builtin',
+			model: BUILTIN_MODEL,
+			download: engine.download && !builtinProvider().loaded() ? '' : null
+		};
+		chosen[tier] = { provider: 'builtin', model: BUILTIN_MODEL };
+		return need;
+	}
+	const provider = webllmProvider();
+	const probe = options.probeCache !== false;
+	const loaded = provider.current();
+	const writer = tierModel('write');
+	const writerHere = loaded === writer || agreed.includes(writer) || (tier === 'talk' && probe && (await provider.cached(writer)));
+	const model = pinned?.model ?? tierModel(tier, writerHere ? [writer] : []);
+	const here = provider.loaded(model) || (probe && (await provider.cached(model)));
+	chosen[tier] = { provider: 'webllm', model };
+	return { tier, provider: 'webllm', model, download: here ? null : downloadOf(model) || 'a few hundred MB' };
+}
+
+async function runner(tier: CoachTier): Promise<{ provider: CoachProvider; model: string }> {
+	const decided = chosen[tier] ?? (await needFor(tier, [], { probeCache: false }));
+	if (!decided) throw new Error('Nothing can run a model in this browser.');
+	const model = decided.provider === 'webllm' ? (pinned?.model ?? decided.model) : decided.model;
+	return { provider: providerOf(decided.provider), model };
+}
+
+/** Whether the model for `tier` is in memory. With no tier, whether any is. */
+export function coachLoaded(tier?: CoachTier): boolean {
+	if (!tier) return active?.loaded() ?? false;
+	const decided = chosen[tier];
+	if (decided?.provider === 'builtin') return builtin?.loaded() ?? false;
+	const model = pinned?.model ?? decided?.model;
+	return model ? (webllm?.loaded(model) ?? false) : false;
+}
+
+/** Last prefill and decode speed, or where the model runs. */
 export function coachStats(): string {
-	return lastStats;
+	return active?.stats() ?? '';
 }
 
+/** What is loaded, or about to be, for the lab. */
 export function coachModel(): string {
-	return activeModel;
+	if (active ? active.id === 'builtin' : prefer === 'builtin') return 'Built into the browser';
+	return webllm?.current() || pinned?.model || tierModel('write');
 }
 
-/** Loads `model` in the worker. Bindu keeps the default. The lab passes a candidate. */
-export function loadCoach(model = activeModel): Promise<void> {
-	if (ready && model === activeModel) return Promise.resolve();
-	if (inflightLoad?.model === model) return inflightLoad.promise;
-
-	const requested = model;
-	ready = false;
-	activeModel = requested;
-	const earlier = inflightLoad;
-	const promise = (async () => {
-		await earlier?.promise.catch(() => undefined);
-		if (activeModel !== requested) throw new Error('Switched model before this load finished.');
-		await request({ type: 'load', model: requested });
-		if (activeModel !== requested) throw new Error('Switched model before this load finished.');
-		ready = true;
-		onProgress('Coach is ready.');
-	})().finally(() => {
-		if (inflightLoad?.promise === promise) inflightLoad = null;
-	});
-	inflightLoad = { model: requested, promise };
-	return promise;
+export function coachProvider(): ProviderId | null {
+	return active?.id ?? null;
 }
 
+/** Loads the model for `tier`. The lab passes nothing and gets its pinned model, or the writer. */
+export async function loadCoach(tier: CoachTier = 'write'): Promise<void> {
+	const { provider, model } = await runner(tier);
+	active = provider;
+	try {
+		await provider.load(model);
+	} catch (error) {
+		if (provider.id === 'builtin') builtinBroken = true;
+		throw error;
+	}
+	onProgress('Coach is ready.');
+}
+
+/** The lab's pick: one model for every tier. */
 export async function selectCoachModel(model: string, enableThinking = false): Promise<void> {
-	thinking = enableThinking;
-	await loadCoach(model);
+	pinned = { model, thinking: enableThinking };
+	await loadCoach();
 }
+
+/** The lab's provider pick. `auto` is what Bindu does. */
+export function selectProvider(choice: ProviderChoice): void {
+	prefer = choice;
+	active = null;
+	for (const tier of Object.keys(chosen) as CoachTier[]) delete chosen[tier];
+}
+
+export { builtinState };
 
 export function resumeCoach(): void {
 	stopped = false;
@@ -137,18 +182,23 @@ export function resumeCoach(): void {
 
 export async function interruptCoach(): Promise<void> {
 	stopped = true;
-	worker?.postMessage({ type: 'interrupt' } satisfies CoachRequest);
+	webllm?.interrupt();
+	builtin?.interrupt();
 }
 
-async function complete(messages: ChatMessage[], options: { maxTokens?: number; temperature?: number } = {}): Promise<string> {
+async function complete(
+	tier: CoachTier,
+	messages: ChatMessage[],
+	options: { maxTokens?: number; temperature?: number } = {}
+): Promise<string> {
 	if (stopped) throw new CoachStopped();
-	await loadCoach(activeModel);
+	const { provider, model } = await runner(tier);
+	if (!provider.loaded(model)) await loadCoach(tier);
+	active = provider;
 	if (stopped) throw new CoachStopped();
+	const thinking = provider.id === 'webllm' && pinned?.thinking === true;
 	const maxTokens = options.maxTokens ?? 512;
-	const text = await request({
-		type: 'complete',
-		model: activeModel,
-		messages,
+	const text = await provider.complete(model, messages, {
 		maxTokens: thinking ? Math.min(4096, Math.max(maxTokens * 8, 512)) : maxTokens,
 		temperature: options.temperature ?? 0.2,
 		thinking
@@ -179,7 +229,7 @@ async function writeLines(
 	let rejected: LineReject[] = [];
 	for (let attempt = 0; attempt < RETRY_TEMPERATURES.length && kept.length < count; attempt++) {
 		const need = count - kept.length;
-		const raw = await complete(messages(need, attempt === 0 ? [] : rejected), {
+		const raw = await complete('write', messages(need, attempt === 0 ? [] : rejected), {
 			maxTokens: 24 * need,
 			temperature: RETRY_TEMPERATURES[attempt]
 		});
@@ -219,7 +269,7 @@ export async function rewriteCell(data: ChartData, finding: HelperFinding): Prom
 	const facts = [chartBriefFacts(data), chartContextFacts(data, kind === 'action' ? pillarIndex : undefined)].filter(Boolean).join('\n');
 	const original = finding.text.toLowerCase();
 	for (let attempt = 0; attempt < 2; attempt++) {
-		const line = oneLine(await complete(rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
+		const line = oneLine(await complete('write', rewriteMessages(data, finding, facts, attempt === 1), { maxTokens: 40, temperature: 0.2 }), max);
 		if (!line) continue;
 		const fault = lineFault(line, { max, kind, pillar, siblings: [finding.text] });
 		if (!fault && !line.toLowerCase().includes(original) && !ECHO.test(line)) return line;
@@ -234,7 +284,7 @@ export async function answer(
 	pillar: number | null = null
 ): Promise<string> {
 	onProgress('Thinking.');
-	return (await complete(askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 })).trim();
+	return (await complete('talk', askMessages(data, question, history, pillar), { maxTokens: 180, temperature: 0.6 })).trim();
 }
 
 /** Goal and eight pillars, with the actions still empty. */
@@ -243,8 +293,8 @@ export async function proposePillars(
 	onPartial: (draft: ChartData) => void = () => {}
 ): Promise<{ chart: ChartData | null; raw: string }> {
 	resumeCoach();
-	onProgress(ready ? 'Naming the pillars.' : 'Waking up.');
-	const head = await retrying(() => complete(pillarsMessages(answers), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
+	onProgress(coachLoaded('write') ? 'Naming the pillars.' : 'Waking up.');
+	const head = await retrying(() => complete('write', pillarsMessages(answers), { maxTokens: 200, temperature: 0.2 }), goalAndPillars);
 	if (!head) return { chart: null, raw: '' };
 	const draft = emptyChart();
 	draft.goal = head.goal;
