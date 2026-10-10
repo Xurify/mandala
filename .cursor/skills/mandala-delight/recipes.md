@@ -215,3 +215,15 @@ When the list is `$derived` from the chart, fixing the thing removes the row. Gi
 
 Each step is a `relative` row with its marker (`size-7`, `z-[1]`) and the thread from the marker down. The check inside a done marker is a polyline with `pathLength="1"` playing `seal-draw`.
 
+## A view that becomes another
+
+`morph(update, type?)` in `src/lib/chart/morph.ts` wraps `document.startViewTransition` and applies the change inside `flushSync`, so the new DOM is there when the browser takes the after picture. `chart.setViewMode`, `setTheme`, and `setAccent` go through it.
+
+- Name what travels: `[view-transition-name:focus-block]` on the chart's selected block in chart view, and on the editor's 3×3 when the editor is alone. Never on two visible elements at once, or the browser skips the transition.
+- Name the stage, `main`, so it gets its own fade and rise, and turn the root's animation off so the header does not crossfade.
+- Fade the travelling thing's old face out in about 180ms. The group still moves over 440ms; the stretched old picture should be gone before it reads as blur.
+- A `type` ("theme") lets the stylesheet style one kind of change on its own: `:root:active-view-transition-type(theme)::view-transition-new(root)`.
+- Browsers without the API, and reduced motion, just apply the change.
+
+When testing with Playwright, wait for a menu's own open animation before clicking inside it. Clicking mid-animation can scroll the page, and it looks like the transition did it.
+

@@ -84,6 +84,7 @@ Show one representative of every group. The rest is one gesture away. A door say
 - Something that opens out from nothing (a back button) animates `grid-template-columns` from `0fr` to `1fr`, with opacity. Clip it with `overflow-clip` and `overflow-clip-margin`, not `overflow-hidden`, or its focus ring is cut.
 - A ring that closes in on a mark animates `outline-offset` and `outline-color`. An outline draws outside the element's own clip, so it reads on a cell a few pixels wide.
 - A line that stops applying (a fixed finding) folds out: it fades first, then its height closes so the rest move up together.
+- A change of view goes through `morph` (a view transition), not a Svelte transition. Give the thing the person was looking at the same `view-transition-name` in both views, so it travels. Keep the chrome out of the crossfade: a title that rewraps between views doubles when faded.
 
 ## 9. Direct manipulation, with parity
 

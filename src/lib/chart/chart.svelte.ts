@@ -1,3 +1,4 @@
+import { morph } from "./morph";
 import {
   blockOfK,
   blockOfKey,
@@ -506,14 +507,18 @@ export class ChartStore {
   }
 
   setViewMode(mode: ViewMode): void {
-    this.viewMode = mode;
-    document.documentElement.dataset.view = mode;
-    try {
-      localStorage.setItem("mandala_view_mode", mode);
-    } catch {
-      // storage blocked
-    }
-    this.#applySavedGoalFit();
+    const apply = (): void => {
+      this.viewMode = mode;
+      document.documentElement.dataset.view = mode;
+      try {
+        localStorage.setItem("mandala_view_mode", mode);
+      } catch {
+        // storage blocked
+      }
+      this.#applySavedGoalFit();
+    };
+    if (mode === this.viewMode) apply();
+    else morph(apply);
   }
 
   setViewScale(scale: ViewScale): void {
@@ -934,34 +939,40 @@ export class ChartStore {
   }
 
   setTheme(theme: AppTheme): void {
-    this.theme = theme;
-    try {
-      if (theme === "system") {
-        localStorage.removeItem("theme");
-        document.documentElement.removeAttribute("data-theme");
-      } else {
-        localStorage.setItem("theme", theme);
-        document.documentElement.setAttribute("data-theme", theme);
+    if (theme === this.theme) return;
+    morph(() => {
+      this.theme = theme;
+      try {
+        if (theme === "system") {
+          localStorage.removeItem("theme");
+          document.documentElement.removeAttribute("data-theme");
+        } else {
+          localStorage.setItem("theme", theme);
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+      } catch {
+        // private mode / storage blocked
       }
-    } catch {
-      // private mode / storage blocked
-    }
-    this.bumpTheme();
+      this.bumpTheme();
+    }, "theme");
   }
 
   setAccent(accent: AccentId): void {
-    this.accent = accent;
-    try {
-      if (accent === "ink") {
-        localStorage.removeItem("accent");
-        document.documentElement.removeAttribute("data-accent");
-      } else {
-        localStorage.setItem("accent", accent);
-        document.documentElement.setAttribute("data-accent", accent);
+    if (accent === this.accent) return;
+    morph(() => {
+      this.accent = accent;
+      try {
+        if (accent === "ink") {
+          localStorage.removeItem("accent");
+          document.documentElement.removeAttribute("data-accent");
+        } else {
+          localStorage.setItem("accent", accent);
+          document.documentElement.setAttribute("data-accent", accent);
+        }
+      } catch {
+        // private mode / storage blocked
       }
-    } catch {
-      // private mode / storage blocked
-    }
+    }, "theme");
   }
 
   applyPreset(preset: Preset): boolean {

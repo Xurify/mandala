@@ -93,6 +93,7 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | `pageIn` / `pageOut` | Turning pages inside a panel. In: slides about 28px from the side it comes from. Out: fades in place and drifts a few pixels the other way |
 | `foldOut` | A row leaving a live list because it no longer applies. Fades, then its height closes up |
 | `slipOut` | A slip being replaced. Fades without travel |
+| `morph` (`src/lib/chart/morph.ts`) | Switching views, theme, or accent, as one view transition. The chrome swaps at once, the stage (`main`) fades out fast and rises in, and the selected block travels between the chart and the editor (`view-transition-name: focus-block`). A theme or accent change crossfades the whole page. A name is only on one element at a time, so a block that is on screen twice (split) carries none |
 
 ## Typography
 

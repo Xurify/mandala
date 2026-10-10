@@ -17,6 +17,9 @@
 	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 
+	/** True when the editor is the only thing on screen, so its block can be the chart's block grown large. */
+	let { alone = false }: { alone?: boolean } = $props();
+
 	const actionKinds = [
 		{ value: 'standard', label: 'Standard' },
 		{ value: 'routine', label: 'Routine' },
@@ -339,7 +342,8 @@
 				</button>
 			{/each}
 		</div>
-		<div class="inline-flex shrink-0 gap-0.5">
+		<!-- The pills already reach every section. On a narrow panel the arrows only crowd the eighth one. -->
+		<div class="inline-flex shrink-0 gap-0.5 @max-[440px]:hidden">
 			<button
 				type="button"
 				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
@@ -396,7 +400,7 @@
 		</div>
 	{/if}
 
-	<div class="grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5">
+	<div class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
 		{#each Array(9) as _, cellIndex (cellIndex)}
 			<div
 				class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
@@ -438,11 +442,11 @@
 				<textarea
 					bind:this={textareaElements[cellIndex]}
 					class={cn(
-						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
+						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
 						info(chart.sel, cellIndex).type === 'goal' &&
 							'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 						info(chart.sel, cellIndex).type === 'pillar' &&
-							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
+							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px]',
 						info(chart.sel, cellIndex).type === 'action' &&
 							'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 						info(chart.sel, cellIndex).type === 'action' &&

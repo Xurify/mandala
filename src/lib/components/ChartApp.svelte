@@ -41,6 +41,7 @@
 	import IconButton from './ui/IconButton.svelte';
 	import Dock from './ui/Dock.svelte';
 	import DockTab from './ui/DockTab.svelte';
+	import { slipOut } from './ui/motion';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
@@ -67,6 +68,11 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
+	/** The ways to start have left, once the chart has a line. */
+	let startsGone = $state(chart.dirty);
+	$effect(() => {
+		if (!chart.dirty) startsGone = false;
+	});
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
 	let shareOpen = $state(false);
@@ -567,9 +573,15 @@
 				<ChartSwitcher />
 				{#if effectiveViewMode !== 'today'}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
-						<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-						<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
-						<MethodGuide />
+						<!-- Ways to start belong to an empty chart. Once it has a line, New chart in the menu starts another. -->
+						{#if !chart.dirty}
+							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
+								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
+								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
+							</div>
+						{/if}
+						<!-- Alone, the ghost button's label lines up with the title instead of its padding. -->
+						<MethodGuide class={startsGone ? '-ms-[18px]' : undefined} />
 					</div>
 				{/if}
 			</div>
@@ -667,7 +679,7 @@
 
 	<main
 		class={cn(
-			'flex w-full flex-wrap items-start gap-7 print:!m-0 print:!block print:!gap-0 max-[900px]:block',
+			'flex w-full flex-wrap items-start gap-7 [view-transition-name:stage] print:!m-0 print:!block print:!gap-0 max-[900px]:block',
 			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'flex-col items-center'
 		)}
 	>
@@ -705,7 +717,7 @@
 				)}
 			>
 				{#key chart.activeId}
-					<SidePanel />
+					<SidePanel alone={effectiveViewMode === 'edit'} />
 				{/key}
 				<textarea
 					class={cn(

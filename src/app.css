@@ -609,6 +609,56 @@
 		stroke-dashoffset: 0;
 	}
 }
+/* Switching views (chart, edit, today) is one view transition, started by `morph`. The stage fades out
+   quickly and the new view rises into place. The selected block travels between the chart and the editor. */
+::view-transition-group(*) {
+	animation-duration: 440ms;
+	animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-old(stage) {
+	animation: 160ms cubic-bezier(0.4, 0, 1, 1) both view-out;
+}
+::view-transition-new(stage) {
+	animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both view-in;
+}
+/* The chrome around the stage swaps at once, as it did before. A crossfade there only doubles the title. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+}
+/* The block's old face leaves early, so the zoomed copy never lingers over the new one. */
+::view-transition-old(focus-block) {
+	animation: 180ms cubic-bezier(0.4, 0, 1, 1) both view-out;
+}
+::view-transition-new(focus-block) {
+	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
+}
+/* A theme or accent change crossfades the whole page in place. Nothing travels. */
+:root:active-view-transition-type(theme)::view-transition-old(root),
+:root:active-view-transition-type(theme)::view-transition-old(stage) {
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-out;
+}
+:root:active-view-transition-type(theme)::view-transition-new(root),
+:root:active-view-transition-type(theme)::view-transition-new(stage) {
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
+}
+@keyframes view-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes view-fade {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes view-in {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+}
+
 @utility dialog-backdrop {
 	&::backdrop {
 		background: oklch(0.2 0.02 60 / 0.42);

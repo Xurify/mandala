@@ -63,6 +63,8 @@
 
 	$effect(() => {
 		void active;
+		// Closed, the list still re-renders when commands change, and scrolling to it would move the page.
+		if (!open) return;
 		listElement
 			?.querySelector('[aria-selected="true"]')
 			?.scrollIntoView({ block: 'nearest' });

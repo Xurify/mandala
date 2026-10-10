@@ -128,6 +128,8 @@
 			view ? 'gap-[5px] rounded-[22px] p-2' : 'gap-[3px] rounded-[18px] p-1.5',
 			'max-[900px]:gap-0.5 max-[900px]:rounded-[13px] max-[900px]:p-1',
 			selected && 'sel shadow-[var(--shadow-sm),0_0_0_2px_var(--ink)]',
+			// The same name as the editor's block, so switching views carries one into the other.
+			selected && view && '[view-transition-name:focus-block]',
 			highlighted &&
 				!selected &&
 				'can-hover:shadow-[var(--shadow-sm),0_0_0_2px_oklch(var(--p-l-hover)_var(--p-c-hover)_var(--block-h)/0.55)]',
