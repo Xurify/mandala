@@ -5,7 +5,6 @@ import {
 	PRESETS,
 	buildChart,
 	getPreset,
-	isPresetId,
 	listPresets,
 	type PresetId
 } from './presets/index.ts';
@@ -84,8 +83,6 @@ describe('presets', () => {
 
 	it('looks up ids', () => {
 		expect(getPreset('nope')).toBeUndefined();
-		expect(isPresetId('fitness')).toBe(true);
-		expect(isPresetId('nope')).toBe(false);
 	});
 
 	it('keeps the language preset language-agnostic', () => {

@@ -1,29 +1,38 @@
+import { morph } from "./morph";
+import { newTool, opened } from "./tools";
 import {
   blockOfK,
   blockOfKey,
+  clockOf,
+  completedBy,
   emptyChart,
   exportText,
   filledCount,
+  getByKey,
   getDayLog,
   getMeta,
   getWeekReflection,
-  getByKey,
   hasContent,
   idx,
   pillarActivityLast7,
   progressMilestones,
+  reflectionWeekOf,
   searchHits,
   setByKey,
   setMeta,
   STORAGE_KEY,
   todayKey,
-  clockOf,
+  weekHadTicks,
   weekStartKey,
+  wholeness,
   type ActionMeta,
   type ChartBrief,
   type ChartData,
   type DayLog,
   type Milestones,
+  type ReflectAt,
+  type Tool,
+  type ToolKind,
   type WeekReflection,
 } from "./model.ts";
 import { isAccent, type AccentId } from "./accent.ts";
@@ -39,6 +48,7 @@ import {
   newRecord,
   parseLibrary,
   purgeLibrary,
+  reconcile,
   restoreManyFromLibrary,
   summarize,
   summarizeDeleted,
@@ -81,7 +91,7 @@ import {
 } from "./backup.ts";
 
 export type AppTheme = "system" | "light" | "dark";
-export type ViewMode = "view" | "edit" | "split" | "today" | "year";
+export type ViewMode = "view" | "edit" | "split" | "today" | "calendar";
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
 
@@ -115,12 +125,14 @@ function loadInitialViewMode(): ViewMode {
   if (typeof window === "undefined") return "view";
   try {
     const storedMode = localStorage.getItem("mandala_view_mode");
+    // The year view became the calendar.
+    if (storedMode === "year") return "calendar";
     if (
       storedMode === "view" ||
       storedMode === "edit" ||
       storedMode === "split" ||
       storedMode === "today" ||
-      storedMode === "year"
+      storedMode === "calendar"
     ) {
       return storedMode;
     }
@@ -163,6 +175,26 @@ const bootLibrary = loadInitialLibrary();
 
 // Per-chart share state (published id, last push time, auto-republish flag).
 const SHARE_STATE_KEY = "mandala-share-state-v1";
+const REFLECT_KEY = "mandala_reflect";
+
+function loadInitialReflectAt(): ReflectAt {
+  const fallback: ReflectAt = { day: 0, hour: 18 };
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(REFLECT_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<ReflectAt>;
+    const day = Number(parsed.day);
+    const hour = Number(parsed.hour);
+    if (!Number.isInteger(day) || day < 0 || day > 6) return fallback;
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) return fallback;
+    return { day, hour };
+  } catch {
+    return fallback;
+  }
+}
+/** How long typing pauses before a line that made something whole counts as written. */
+const HOLD_MS = 1400;
 
 export class ChartStore {
   #library: ChartLibrary = $state(bootLibrary);
@@ -189,6 +221,9 @@ export class ChartStore {
   focusedKey = $state<string | null>(null);
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The library JSON this tab last wrote or read, so a change in storage can be told from its own. */
+  #seen = "";
+  #watching = false;
   #statusTimer: ReturnType<typeof setTimeout> | null = null;
   #slipSeq = 1;
   #toastsHeld = false;
@@ -235,23 +270,52 @@ export class ChartStore {
 
   todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
+  /**
+   * What writing just made whole: pillars that got their last line, and the chart if it filled. It clears
+   * itself after the moment, and it is never saved, so a reload does not replay it.
+   */
+  /** The weekly reflection is open. Any view can open it. */
+  reflecting = $state(false);
+
+  landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
+    null,
+  );
+  #landedTimer: ReturnType<typeof setTimeout> | null = null;
+  /** What typing made whole, held while the person is still typing. It lands when the pen lifts. */
+  #held: { done: { pillars: number[]; chart: boolean }; timer: ReturnType<typeof setTimeout> } | null = null;
+
+  /** Now, as of the last time anything asked. A page left open overnight still sees the new offer. */
+  #clockTick = $state(Date.now());
+  /** When the week's reflection is offered. The person's own, so it holds across charts. */
+  reflectAt: ReflectAt = $state(loadInitialReflectAt());
+  /** The week whose reflection is on offer: the one whose offer time passed last. */
+  reflectionWeek: string = $derived(reflectionWeekOf(this.reflectAt, new Date(this.#clockTick)));
   weekReflectionDue: boolean = $derived.by(() => {
     if (typeof window === "undefined") return false;
-    const now = new Date();
-    if (now.getDay() !== 0) return false;
-    const weekKey = weekStartKey(now);
+    const weekKey = this.reflectionWeek;
     const reflection = getWeekReflection(this.data, weekKey);
-    if (reflection.dismissed) return false;
-    const hasDayLogThisWeek = this.pillarActivity.some((count) => count > 0);
-    return hasDayLogThisWeek;
+    if (reflection.dismissed || reflection.savedAt) return false;
+    return weekHadTicks(this.data, weekKey);
   });
 
+  setReflectAt(patch: Partial<ReflectAt>): void {
+    this.reflectAt = { ...this.reflectAt, ...patch };
+    this.#clockTick = Date.now();
+    try {
+      localStorage.setItem(REFLECT_KEY, JSON.stringify(this.reflectAt));
+    } catch {
+      // storage blocked
+    }
+  }
+
   load(): void {
+    this.#watchStorage();
     try {
       const rawLibrary = localStorage.getItem(LIBRARY_KEY);
       if (rawLibrary) {
         const parsed = parseLibrary(rawLibrary);
         if (parsed) {
+          this.#seen = rawLibrary;
           const next = purgeLibrary(parsed);
           this.#adopt(next);
           if (next !== parsed) this.#writeLibrary();
@@ -321,12 +385,16 @@ export class ChartStore {
     this.focusedKey = null;
   }
 
-  #flush(): void {
+  /** Puts the open chart's lines into its record. True when they had changed since the last flush. */
+  #flush(): boolean {
+    const changed =
+      JSON.stringify(activeRecord(this.#library).data) !== JSON.stringify(this.data);
     this.#library.charts = flushActive(
       this.#library.charts,
       this.#library.activeId,
       this.data,
     );
+    return changed;
   }
 
   saveNow(): void {
@@ -334,9 +402,12 @@ export class ChartStore {
       clearTimeout(this.#saveTimer);
       this.#saveTimer = null;
     }
-    this.#flush();
+    const edited = this.#flush();
+    this.#catchUp(edited ? this.#library.activeId : null);
     try {
-      localStorage.setItem(LIBRARY_KEY, JSON.stringify(this.#library));
+      const raw = JSON.stringify(this.#library);
+      localStorage.setItem(LIBRARY_KEY, raw);
+      this.#seen = raw;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
     } catch {
       if (!this.saveWarned) {
@@ -351,8 +422,11 @@ export class ChartStore {
 
   /** Persist the library without treating the open chart as edited. */
   #writeLibrary(): void {
+    this.#catchUp(null);
     try {
-      localStorage.setItem(LIBRARY_KEY, JSON.stringify(this.#library));
+      const raw = JSON.stringify(this.#library);
+      localStorage.setItem(LIBRARY_KEY, raw);
+      this.#seen = raw;
     } catch {
       if (!this.saveWarned) {
         this.saveWarned = true;
@@ -362,6 +436,62 @@ export class ChartStore {
       }
     }
     if (this.backupState === "on") void this.#writeBackup();
+  }
+
+  /**
+   * Another tab may have written the library since this tab last looked: a chart it made, edited, deleted or
+   * restored. Writing over that loses it, so what storage holds comes in first. `keep` names the chart being
+   * edited here, whose lines stay this tab's.
+   */
+  #catchUp(keep: string | null): void {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(LIBRARY_KEY);
+    } catch {
+      return;
+    }
+    if (!raw || raw === this.#seen) return;
+    this.#seen = raw;
+    const stored = parseLibrary(raw);
+    if (!stored) return;
+    const was = this.#library.activeId;
+    this.#library = reconcile(this.#library, stored, keep);
+    this.#follow(was, keep !== null);
+  }
+
+  /** Storage changed under this tab: the library another tab wrote comes in, and the chart in view follows. */
+  #absorb(raw: string): void {
+    if (raw === this.#seen) return;
+    this.#seen = raw;
+    const stored = parseLibrary(raw);
+    if (!stored) return;
+    const editing = this.#flush() || this.#saveTimer !== null;
+    const was = this.#library.activeId;
+    this.#library = reconcile(this.#library, stored, editing ? was : null);
+    this.#follow(was, editing);
+    // Lines written here and not yet saved ride on top, and go out with the next save.
+    if (editing) this.save();
+  }
+
+  /** The chart in view after a merge: another one if its own went away, or its lines if they changed elsewhere. */
+  #follow(was: string, editing: boolean): void {
+    const record = activeRecord(this.#library);
+    if (record.id !== was) {
+      this.data = cloneChart(record.data);
+      this.#resetView();
+      this.#adoptShareState();
+      this.#applySavedGoalFit();
+    } else if (!editing && JSON.stringify(record.data) !== JSON.stringify(this.data)) {
+      this.data = cloneChart(record.data);
+    }
+  }
+
+  #watchStorage(): void {
+    if (this.#watching || typeof window === "undefined") return;
+    this.#watching = true;
+    window.addEventListener("storage", (event) => {
+      if (event.key === LIBRARY_KEY && event.newValue) this.#absorb(event.newValue);
+    });
   }
 
   purgeExpired(): void {
@@ -505,15 +635,20 @@ export class ChartStore {
     this.sel = blockIndex;
   }
 
-  setViewMode(mode: ViewMode): void {
-    this.viewMode = mode;
-    document.documentElement.dataset.view = mode;
-    try {
-      localStorage.setItem("mandala_view_mode", mode);
-    } catch {
-      // storage blocked
-    }
-    this.#applySavedGoalFit();
+  /** `animate` false switches at once, for setup code that changes more right after. */
+  setViewMode(mode: ViewMode, animate = true): void {
+    const apply = (): void => {
+      this.viewMode = mode;
+      document.documentElement.dataset.view = mode;
+      try {
+        localStorage.setItem("mandala_view_mode", mode);
+      } catch {
+        // storage blocked
+      }
+      this.#applySavedGoalFit();
+    };
+    if (mode === this.viewMode || !animate) apply();
+    else morph(apply);
   }
 
   setViewScale(scale: ViewScale): void {
@@ -532,10 +667,65 @@ export class ChartStore {
     this.query = value;
   }
 
-  setText(key: string, value: string): void {
+  /**
+   * `quiet` when the caller says what happened itself, as Bindu's moment does: the ring still plays, and
+   * lines landing together make one moment at once. A typed line waits for the pen to lift instead.
+   */
+  setText(key: string, value: string, quiet = false): void {
+    const before = wholeness(this.data);
     setByKey(this.data, key, value);
     this.save();
     if (key === "g") this.#applySavedGoalFit();
+    const after = wholeness(this.data);
+    const done = completedBy(before, after);
+    if (quiet) {
+      if (done.pillars.length > 0 || done.chart) this.#land(done, quiet);
+      return;
+    }
+    this.#hold(done, after);
+  }
+
+  /** Keeps what typing made whole until typing pauses or the field is left. A line cleared again lets go. */
+  #hold(done: { pillars: number[]; chart: boolean }, now: { pillars: boolean[]; chart: boolean }): void {
+    const held = this.#held;
+    if (held) clearTimeout(held.timer);
+    const pillars = [...new Set([...(held?.done.pillars ?? []), ...done.pillars])]
+      .filter((pillarIndex) => now.pillars[pillarIndex])
+      .sort((a, b) => a - b);
+    const chart = (Boolean(held?.done.chart) || done.chart) && now.chart;
+    this.#held =
+      pillars.length > 0 || chart
+        ? { done: { pillars, chart }, timer: setTimeout(() => this.settle(), HOLD_MS) }
+        : null;
+  }
+
+  /** The pen lifted: the field was left, or typing paused. What it made whole lands now, if it still is. */
+  settle(): void {
+    const held = this.#held;
+    if (!held) return;
+    clearTimeout(held.timer);
+    this.#held = null;
+    const now = wholeness(this.data);
+    const done = {
+      pillars: held.done.pillars.filter((pillarIndex) => now.pillars[pillarIndex]),
+      chart: held.done.chart && now.chart,
+    };
+    if (done.pillars.length > 0 || done.chart) this.#land(done, false);
+  }
+
+  /** Writing made something whole. Several lines landing together (a fill) read as one moment. */
+  #land(done: { pillars: number[]; chart: boolean }, quiet: boolean): void {
+    const current = this.landed;
+    this.landed = {
+      id: (current?.id ?? 0) + 1,
+      pillars: [...new Set([...(current?.pillars ?? []), ...done.pillars])].sort(
+        (a, b) => a - b,
+      ),
+      chart: Boolean(current?.chart) || done.chart,
+    };
+    if (done.chart && !quiet) this.say("Chart complete. All 64 actions are written.");
+    if (this.#landedTimer) clearTimeout(this.#landedTimer);
+    this.#landedTimer = setTimeout(() => (this.landed = null), 3200);
   }
 
   textOf(key: string): string {
@@ -618,6 +808,57 @@ export class ChartStore {
     this.save();
   }
 
+  /** A link that arrived by share or paste, waiting for a shelf. */
+  pendingLink = $state<string | null>(null);
+
+  offerLink(url: string): void {
+    this.pendingLink = url;
+  }
+
+  addTool(pillarIndex: number, url: string, title = "", kind: ToolKind = "repeat"): Tool {
+    const tool = newTool(url, title, kind);
+    const key = `p${pillarIndex}`;
+    const tools = { ...this.data.tools, [key]: [...(this.data.tools?.[key] ?? []), tool] };
+    this.data = { ...this.data, tools };
+    this.save();
+    return tool;
+  }
+
+  updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
+    this.#patchTool(pillarIndex, id, (tool) => {
+      const next = { ...tool, ...patch };
+      // Clearing a field removes it, so the saved chart stays small.
+      for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
+      return next;
+    });
+  }
+
+  removeTool(pillarIndex: number, id: string): void {
+    const key = `p${pillarIndex}`;
+    const rest = (this.data.tools?.[key] ?? []).filter((tool) => tool.id !== id);
+    const tools = { ...this.data.tools };
+    if (rest.length > 0) tools[key] = rest;
+    else delete tools[key];
+    this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+    this.save();
+  }
+
+  /** The person opened it. Today is logged, and a once tool leaves the rotation. */
+  openTool(pillarIndex: number, id: string): void {
+    this.#patchTool(pillarIndex, id, (tool) => opened(tool));
+  }
+
+  #patchTool(pillarIndex: number, id: string, change: (tool: Tool) => Tool): void {
+    const key = `p${pillarIndex}`;
+    const list = this.data.tools?.[key];
+    if (!list?.some((tool) => tool.id === id)) return;
+    this.data = {
+      ...this.data,
+      tools: { ...this.data.tools, [key]: list.map((tool) => (tool.id === id ? change(tool) : tool)) },
+    };
+    this.save();
+  }
+
   /** Replaces what Bindu kept from the draft. An empty brief is removed. */
   setBrief(brief: ChartBrief | undefined): void {
     const next = brief && Object.values(brief).some((value) => value?.trim()) ? brief : undefined;
@@ -631,7 +872,7 @@ export class ChartStore {
   ): void {
     if (!this.data.weeks) this.data.weeks = {};
     const existing = getWeekReflection(this.data, weekKey);
-    const week: WeekReflection = { ...existing, ...patch };
+    const week: WeekReflection = { ...existing, ...patch, savedAt: todayKey() };
     this.data.weeks[weekKey] = week;
     this.data = { ...this.data };
     this.save();
@@ -934,34 +1175,40 @@ export class ChartStore {
   }
 
   setTheme(theme: AppTheme): void {
-    this.theme = theme;
-    try {
-      if (theme === "system") {
-        localStorage.removeItem("theme");
-        document.documentElement.removeAttribute("data-theme");
-      } else {
-        localStorage.setItem("theme", theme);
-        document.documentElement.setAttribute("data-theme", theme);
+    if (theme === this.theme) return;
+    morph(() => {
+      this.theme = theme;
+      try {
+        if (theme === "system") {
+          localStorage.removeItem("theme");
+          document.documentElement.removeAttribute("data-theme");
+        } else {
+          localStorage.setItem("theme", theme);
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+      } catch {
+        // private mode / storage blocked
       }
-    } catch {
-      // private mode / storage blocked
-    }
-    this.bumpTheme();
+      this.bumpTheme();
+    }, "theme");
   }
 
   setAccent(accent: AccentId): void {
-    this.accent = accent;
-    try {
-      if (accent === "ink") {
-        localStorage.removeItem("accent");
-        document.documentElement.removeAttribute("data-accent");
-      } else {
-        localStorage.setItem("accent", accent);
-        document.documentElement.setAttribute("data-accent", accent);
+    if (accent === this.accent) return;
+    morph(() => {
+      this.accent = accent;
+      try {
+        if (accent === "ink") {
+          localStorage.removeItem("accent");
+          document.documentElement.removeAttribute("data-accent");
+        } else {
+          localStorage.setItem("accent", accent);
+          document.documentElement.setAttribute("data-accent", accent);
+        }
+      } catch {
+        // private mode / storage blocked
       }
-    } catch {
-      // private mode / storage blocked
-    }
+    }, "theme");
   }
 
   applyPreset(preset: Preset): boolean {
@@ -1006,10 +1253,11 @@ export class ChartStore {
     return this.#fillOrSpawn(importedData, message);
   }
 
-  applyDraft(next: ChartData): boolean {
+  /** `quiet` when the caller says it itself, as Bindu does with its own moment. */
+  applyDraft(next: ChartData, quiet = false): boolean {
     return this.#fillOrSpawn(
       next,
-      "Draft ready. Edit any cell to make it yours.",
+      quiet ? null : "Draft ready. Edit any cell to make it yours.",
     );
   }
 
@@ -1114,12 +1362,12 @@ export class ChartStore {
     this.#applyNote(held, "Removed", batch.subject, titles.length, batch.mixed);
   }
 
-  #fillOrSpawn(next: ChartData, message: string): boolean {
+  #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
       this.data = cloneChart(next);
       this.#resetView();
       this.saveNow();
-      this.say(message);
+      if (message) this.say(message);
       return true;
     }
     this.#flush();
@@ -1129,7 +1377,7 @@ export class ChartStore {
     this.data = cloneChart(next);
     this.#resetView();
     this.saveNow();
-    this.say(message);
+    if (message) this.say(message);
     return true;
   }
 

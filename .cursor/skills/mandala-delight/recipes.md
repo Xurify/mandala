@@ -1,6 +1,6 @@
 # Recipes
 
-Working versions of these live in `src/lib/components/FocusPicker.svelte`.
+Working versions of the drag recipes live in `src/lib/components/FocusPicker.svelte`. The page, swap, sweep, and thread recipes live in the `Helper*.svelte` components.
 
 ## Pointer drag as an attachment
 
@@ -123,3 +123,107 @@ card.dispatchEvent(new PointerEvent('pointerup', opts(x1, y1, 0)));
 ```
 
 This doesn't test touch. Touch has to be checked on a real phone or with CDP touch emulation.
+
+## Pages that turn
+
+The store keeps `page` and `direction` (1 going in, -1 going back). The panel stacks the old and new page in one grid cell and eases its own height to the new one.
+
+```svelte
+<script lang="ts">
+	let height = $state<number | null>(null);
+	let settled = $state(false); // no height transition on first paint
+	onMount(() => { const f = requestAnimationFrame(() => (settled = true)); return () => cancelAnimationFrame(f); });
+
+	function measure(node: HTMLElement) {
+		const update = () => { if (node.dataset.view === view) height = node.offsetHeight; }; // ignore the page that is leaving
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		update();
+		return () => observer.disconnect();
+	}
+</script>
+
+<div class={cn('min-h-0 shrink overflow-y-auto', settled && 'motion-safe:transition-[height] motion-safe:duration-[420ms] motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)]')}
+	style:height={height === null ? undefined : `${height}px`}>
+	<div class="grid">
+		{#key view}
+			<section class="min-w-0 self-start [grid-area:1/1]" data-view={view}
+				in:pageIn={{ direction: store.direction }} out:pageOut={{ direction: store.direction }} {@attach measure}>
+				…
+			</section>
+		{/key}
+	</div>
+</div>
+```
+
+`pageIn` and `pageOut` are in `ui/motion.ts`. In: 380ms expo-out, 70ms late, from `28px * direction`. Out: 220ms, fading in place and drifting `-14px * direction`. Under reduced motion both are a short fade.
+
+## A button that opens out
+
+```svelte
+<div class={cn('grid motion-safe:transition-[grid-template-columns,opacity] motion-safe:duration-300',
+	open ? 'grid-cols-[1fr]' : 'grid-cols-[0fr] opacity-0')}>
+	<div class="min-w-0 overflow-clip [overflow-clip-margin:4px]">
+		<IconButton data-back icon="arrow-left" label="Back" inert={!open} onclick={back} />
+	</div>
+</div>
+```
+
+`inert` keeps the hidden button out of the tab order. The clip margin leaves room for the focus ring.
+
+## Swap a card in place
+
+```svelte
+{#each picks as pick, index (index)}          <!-- keyed by slot, so the slot stays -->
+	<li class="grid motion-safe:animate-deal-in" style:animation-delay="{60 + index * 70}ms">
+		{#key pick.key}                          <!-- keyed by card, so the face is replaced -->
+			<div class={cn('[grid-area:1/1]', swapped.has(pick.key) && 'origin-top motion-safe:animate-flip-in')}
+				out:fade={{ duration: 160 }}>…</div>
+		{/key}
+	</li>
+{/each}
+```
+
+Only cards that came from a swap get `flip-in`; the first hand is dealt. After the swap, `await tick()` and focus the new card's button by its label (`CSS.escape` the label).
+
+## Sweep, then mark
+
+`MiniChart.svelte` with `play="read"`: every written cell plays `scan` with a delay of `block * 42 + cell * 7` ms, so the light moves in reading order. Flagged cells carry an outline and play `mark-in` after the sweep ends:
+
+```css
+@keyframes mark-in {
+	from { outline-color: transparent; outline-offset: 7px; }
+}
+```
+
+Turn `play` off about a second after the page opens, so later changes to the data show without replaying the sweep.
+
+## A live list
+
+When the list is `$derived` from the chart, fixing the thing removes the row. Give the row `out:foldOut`: opacity goes first, then the height closes, so the rows below move up once. A transition is local, so it plays when the row leaves and not when the page does.
+
+## Steps on a thread
+
+```svelte
+{#snippet thread(done: boolean)}
+	<span class="absolute start-[13px] top-7 bottom-0 w-0.5 -translate-x-1/2 overflow-hidden rounded-full bg-sunken">
+		<span class={cn('absolute inset-0 origin-top bg-ink motion-safe:transition-[scale] motion-safe:duration-500',
+			done ? 'scale-y-100' : 'scale-y-0')}></span>
+	</span>
+{/snippet}
+```
+
+Each step is a `relative` row with its marker (`size-7`, `z-[1]`) and the thread from the marker down. The check inside a done marker is a polyline with `pathLength="1"` playing `seal-draw`.
+
+## A view that becomes another
+
+`morph(update, type?)` in `src/lib/chart/morph.ts` wraps `document.startViewTransition` and applies the change inside `flushSync`, so the new DOM is there when the browser takes the after picture. `chart.setViewMode`, `setTheme`, and `setAccent` go through it.
+
+- Name what travels: `[view-transition-name:focus-block]` on the chart's selected block in chart view, and on the editor's 3×3 when the editor is alone. Never on two visible elements at once, or the browser skips the transition.
+- Name the stage, `main`, so it gets its own fade and rise, and turn the root's animation off so the header does not crossfade.
+- Fade the travelling thing's old face out in about 180ms. The group still moves over 440ms; the stretched old picture should be gone before it reads as blur.
+- A `type` ("theme") lets the stylesheet style one kind of change on its own: `:root:active-view-transition-type(theme)::view-transition-new(root)`.
+- Browsers without the API, and reduced motion, just apply the change.
+
+When testing with Playwright, wait for a menu's own open animation before clicking inside it. Clicking mid-animation can scroll the page, and it looks like the transition did it.
+

@@ -5,7 +5,9 @@
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
 	import Icon from './Icon.svelte';
-	import WeeklyReflection from './WeeklyReflection.svelte';
+	import ToolFace from './ToolFace.svelte';
+	import IconButton from './ui/IconButton.svelte';
+	import { dealTools, toolsFor } from '$lib/chart/tools';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -13,7 +15,8 @@
 	import { cn } from './ui/cn';
 
 	const dateKey = todayKey();
-	let reflectionOpen = $state(false);
+	/** Tools passed over with "Another" this visit, per action. Forgotten on reload, so nothing is lost. */
+	let passed = $state<Map<string, Set<string>>>(new Map());
 
 	type ActionEntry = {
 		key: string;
@@ -45,6 +48,14 @@
 	});
 
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
+	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
+	const dealt = $derived(dealTools(chart.data, [...habits, ...allActions.filter((entry) => !isRoutine(entry.meta))].map((entry) => entry.key), new Date(), passed));
+
+	function passOver(key: string, id: string): void {
+		const next = new Map(passed);
+		next.set(key, new Set([...(passed.get(key) ?? []), id]));
+		passed = next;
+	}
 
 	function openKeys(keys: string[]): string[] {
 		return keys.filter((key) => {
@@ -136,15 +147,17 @@
 
 	const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
+	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	/** The line as one string, for the seal's label. On the page the names wear their pillar's hue. */
 	const movedLine = $derived.by((): string => {
-		const names = movedPillars.map(
-			(pillarIndex) => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`
-		);
+		const names = movedPillars.map(pillarName);
 		if (names.length === 1) return `${names[0]} moved forward.`;
 		if (names.length === 2) return `${names[0]} and ${names[1]} moved forward.`;
 		if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} moved forward.`;
 		return `${COUNT_WORDS[names.length]} pillars moved forward.`;
 	});
+	/** What comes before each named pillar in the line: nothing, "and", or a comma. */
+	const joiner = (index: number, count: number): string => (index === 0 ? '' : count === 2 ? ' and ' : index === count - 1 ? ', and ' : ', ');
 
 	function rise(seconds: number): { class: string; delay: string | undefined } {
 		return celebrate
@@ -188,9 +201,10 @@
 {#snippet checkRow(entry: ActionEntry)}
 	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
+	{@const tool = dealt.get(entry.key) ?? null}
 	<button
 		type="button"
-		class={cn(rowClass, entry.meta?.note ? 'items-start' : 'items-center')}
+		class={cn(rowClass, entry.meta?.note || tool ? 'items-start rounded-[22px]' : 'items-center')}
 		onclick={() => toggleChecked(entry.key)}
 		aria-pressed={isChecked}
 	>
@@ -219,6 +233,34 @@
 					'text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
 					isChecked && 'text-muted line-through'
 				)}>{entry.text}</span>
+			{#if tool}
+				<!-- The material this action uses today. Opening it is logged; the tick above stays the person's. -->
+				<span class="mt-1 flex min-w-0 items-center gap-2" role="group" aria-label="Today's tool for {entry.text}">
+					<a
+						href={tool.url}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="flex min-w-0 flex-1 items-center rounded-[12px] py-0.5 pe-2 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+						onclick={(event) => {
+							event.stopPropagation();
+							chart.openTool(entry.pillarIndex, tool.id);
+						}}
+					>
+						<ToolFace {tool} class="min-w-0 flex-1" />
+					</a>
+					{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
+						<IconButton
+							icon="refresh"
+							label="Another tool for {entry.text}"
+							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+							onclick={(event) => {
+								event.stopPropagation();
+								passOver(entry.key, tool.id);
+							}}
+						/>
+					{/if}
+				</span>
+			{/if}
 			{#if entry.meta?.note}
 				<span class="text-[0.78rem] leading-snug text-muted">
 					{#if isUrl(entry.meta.note)}
@@ -241,7 +283,7 @@
 		<span
 			class={cn(
 				'pip size-2 shrink-0 rounded-full motion-safe:transition-opacity motion-safe:duration-200',
-				entry.meta?.note && 'mt-1.5',
+				(entry.meta?.note || tool) && 'mt-1.5',
 				isChecked && 'opacity-40'
 			)}
 			style:--pip-h={HUES[entry.pillarIndex]}
@@ -258,6 +300,10 @@
 		picking && !closed ? 'max-w-[1040px]' : 'max-w-[620px]'
 	)}
 >
+	<!-- The days behind this one. Looked at often, so it sits where the eye lands before the list. -->
+	<div class={cn('mb-2 flex w-full justify-end max-[900px]:mb-1', !(picking && !closed) && 'mx-auto max-w-[520px]')}>
+		<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
+	</div>
 	{#if chart.weekReflectionDue}
 		<div class="mb-5 max-w-[620px]">
 			<Notice>
@@ -265,7 +311,7 @@
 					Take a moment to reflect on your week.
 				{/snippet}
 				{#snippet action()}
-					<Button size="sm" variant="soft" onclick={() => (reflectionOpen = true)}>
+					<Button size="sm" variant="soft" onclick={() => (chart.reflecting = true)}>
 						Reflect
 					</Button>
 				{/snippet}
@@ -303,7 +349,14 @@
 				class={cn('mt-3 mb-0 max-w-[42ch] text-[1rem] text-pretty text-muted', line.class)}
 				style:animation-delay={line.delay}
 			>
-				{movedLine}
+				{#if movedPillars.length <= 3}
+					{#each movedPillars as pillarIndex, index (pillarIndex)}{joiner(index, movedPillars.length)}<span
+							class="pillar-ink font-[600]"
+							style:--h={HUES[pillarIndex]}>{pillarName(pillarIndex)}</span
+						>{/each}{' '}moved forward.
+				{:else}
+					{movedLine}
+				{/if}
 			</p>
 		</section>
 
@@ -440,7 +493,6 @@
 		</section>
 	{/if}
 
-	<WeeklyReflection bind:open={reflectionOpen} />
 </div>
 
 <Dialog

@@ -17,7 +17,6 @@ function sandbox() {
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
-		selectedPillar: () => null,
 		applyDraft: (next) => {
 			charts.three = next;
 			active = 'three';
@@ -40,9 +39,6 @@ function sandbox() {
 			const log = data.days[key] ?? { focus: [], checked: [] };
 			data.days[key] = { ...log, shown: [...(log.shown ?? []), signature] };
 		},
-		setBrief: (brief) => {
-			charts[active]!.brief = brief;
-		},
 		chartId: () => active
 	};
 	const helper = new HelperStore(target);
@@ -57,95 +53,189 @@ function sandbox() {
 	};
 }
 
-const texts = (helper: HelperStore) => helper.messages.map((message) => message.text);
+function reply(data: ChartData, extra: Record<string, unknown> = {}): string {
+	return 'Here it is:\n```json\n' + JSON.stringify({ goal: data.goal, pillars: data.pillars, actions: data.actions, ...extra }) + '\n```';
+}
 
-describe('HelperStore conversations', () => {
-	it('keeps one conversation per chart', async () => {
-		const { helper, switchTo } = sandbox();
+describe('HelperStore pages', () => {
+	it('opens on the home page and holds the insight it opened with', () => {
+		const { helper, charts, calls } = sandbox();
+		const today = dateKeyOf(new Date());
+		const yesterday = dateKeyOf(new Date(Date.now() - 86_400_000));
+		charts.one!.days = { [yesterday]: { focus: ['a0_0'], checked: ['a0_0'] }, [today]: { focus: ['a1_0'], checked: ['a1_0'] } };
 		helper.show();
-		await helper.send('how am I doing?');
-		const first = texts(helper);
-		switchTo('two');
-		expect(texts(helper)).toHaveLength(1);
-		expect(texts(helper)[0]).toContain('Hi again');
-		switchTo('one');
-		expect(texts(helper)).toEqual(first);
+		expect(helper.page).toBe('home');
+		expect(helper.lead?.id).toBe('today');
+		expect(calls.shown).toHaveLength(1);
+		// Marking it seen does not swap it out while the panel is open.
+		expect(helper.lead?.id).toBe('today');
 	});
 
-	it('takes the conversation along when a draft opens as a new chart', () => {
+	it('turns to a page and back, and remembers the direction', () => {
 		const { helper } = sandbox();
 		helper.show();
-		helper.messages = [...helper.messages, { id: 99, from: 'helper', text: 'Here is a first chart.', card: { kind: 'chart', data: chartData('Cook dinner') }, state: 'open' }];
-		helper.use(99);
-		const before = texts(helper);
-		helper.follow('three');
-		expect(texts(helper)).toEqual(before);
+		helper.go('review');
+		expect(helper.page).toBe('review');
+		expect(helper.direction).toBe(1);
+		expect(helper.mood).toBe('idle');
+		helper.back();
+		expect(helper.page).toBe('home');
+		expect(helper.direction).toBe(-1);
+	});
+
+	it('reopens where it was left, so the reply box is waiting', () => {
+		const { helper } = sandbox();
+		helper.show('write', 'fill');
+		helper.markCopied();
+		helper.hide();
+		helper.show();
+		expect(helper.page).toBe('write');
+		expect(helper.mood).toBe('curious');
+	});
+
+	it('starts over on the home page when the chart changes', () => {
+		const { helper, switchTo } = sandbox();
+		helper.show('today');
+		switchTo('two');
+		expect(helper.page).toBe('home');
+		expect(helper.picks).toBeNull();
+	});
+
+	it('looks puzzled on a review with lines to tighten', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[0]![0] = 'Be healthier';
+		helper.show('review');
+		expect(helper.mood).toBe('puzzled');
 	});
 });
 
 describe('HelperStore picks', () => {
-	it('swaps one pick and records it as declined today', async () => {
+	it("deals today's three from different pillars, and puts them on today", () => {
 		const { helper, calls } = sandbox();
-		await helper.send("Pick today's three");
-		const card = helper.messages.at(-1)!;
-		const before = card.card?.kind === 'picks' ? card.card.picks.map((pick) => pick.key) : [];
-		helper.swap(card.id, before[0]!);
-		const after = helper.messages.find((entry) => entry.id === card.id)!.card;
-		const keys = after?.kind === 'picks' ? after.picks.map((pick) => pick.key) : [];
-		expect(keys).toHaveLength(3);
-		expect(keys).not.toContain(before[0]);
-		expect(keys.slice(1)).toEqual(before.slice(1));
-		expect(calls.declined).toEqual([[before[0]]]);
+		helper.show('today');
+		const picks = helper.picks!.picks;
+		expect(picks).toHaveLength(3);
+		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(3);
+		expect(helper.mood).toBe('offering');
+		helper.commit();
+		expect(calls.today).toEqual([picks.map((pick) => pick.key)]);
+		expect(helper.moment?.title).toBe('Today is set');
+		expect(helper.moment?.pillars).toEqual(picks.map((pick) => pick.pillarIndex));
+		expect(helper.mood).toBe('happy');
+		helper.finish();
+		expect(helper.open).toBe(false);
+		expect(helper.page).toBe('home');
+		expect(helper.moment).toBeNull();
 	});
 
-	it('declines the three on Not now, but not a week plan', async () => {
+	it('swaps one pick for another from an unused pillar, and turns the old one down for today', () => {
 		const { helper, calls } = sandbox();
-		await helper.send('plan my week');
-		helper.skip(helper.messages.at(-1)!.id);
-		const week = helper.messages.at(-1)!;
-		expect(week.state).toBe('skipped');
-		expect(calls.declined).toEqual([]);
-		await helper.send("Pick today's three");
-		const today = helper.messages.at(-1)!;
-		helper.skip(today.id);
-		expect(calls.declined).toHaveLength(1);
-		expect(calls.declined[0]).toHaveLength(3);
+		helper.show('today');
+		const [first, ...rest] = helper.picks!.picks;
+		helper.swap(first!.key);
+		const now = helper.picks!.picks;
+		expect(now).toHaveLength(3);
+		expect(now.map((pick) => pick.key)).not.toContain(first!.key);
+		expect(now.slice(1)).toEqual(rest);
+		expect(new Set(now.map((pick) => pick.pillarIndex)).size).toBe(3);
+		expect(calls.declined).toEqual([[first!.key]]);
 	});
 
-	it('does not repeat the card button as a chip', async () => {
-		const { helper } = sandbox();
-		await helper.send("Pick today's three");
-		const jobs = helper.chips.flatMap((chip) => (chip.act.kind === 'job' ? [chip.act.job] : []));
-		expect(jobs).not.toContain('today');
-		expect(jobs).toContain('week');
+	it('turns down all of today with Not now, and goes home', () => {
+		const { helper, calls } = sandbox();
+		helper.show('today');
+		const keys = helper.picks!.picks.map((pick) => pick.key);
+		helper.decline();
+		expect(calls.declined).toEqual([keys]);
+		expect(helper.page).toBe('home');
+	});
+
+	it('pins the week', () => {
+		const { helper, charts } = sandbox();
+		helper.show('week');
+		const keys = helper.picks!.picks.map((pick) => pick.key);
+		expect(keys.length).toBeGreaterThanOrEqual(5);
+		helper.commit();
+		expect(keys.every((key) => charts.one!.meta?.[key]?.pinned)).toBe(true);
+		expect(helper.moment?.title).toBe(`${keys.length} pinned for this week`);
 	});
 });
 
-describe('HelperStore memory and answers', () => {
-	it('shows what it kept and forgets a line', async () => {
+describe('HelperStore hands writing to a chat app', () => {
+	it('picks the prompt that fits: a new chart, the gaps, or a question', () => {
 		const { helper, charts } = sandbox();
-		charts.one!.brief = { timeline: 'October', constraint: 'A bad knee' };
-		await helper.send('what do you know about me?');
-		expect(helper.messages.at(-1)?.card?.kind).toBe('facts');
-		helper.forget('constraint');
-		expect(charts.one!.brief).toEqual({ timeline: 'October' });
+		helper.show('write');
+		expect(helper.mode).toBe('ask');
+		charts.one!.actions[2]![5] = '';
+		helper.back();
+		helper.go('write');
+		expect(helper.mode).toBe('fill');
+		expect(helper.prompt()).toContain('word for word');
+		charts.one = emptyChart();
+		helper.back();
+		helper.go('write');
+		expect(helper.mode).toBe('new');
+		helper.goal = 'Learn Slovak';
+		expect(helper.prompt()).toContain('My goal: Learn Slovak');
+		helper.question = 'Which pillar first?';
+		expect(helper.prompt('ask')).toContain('My question: Which pillar first?');
 	});
 
-	it('answers a method question without the model', async () => {
-		const { helper } = sandbox();
-		await helper.send("what's a pillar?");
-		expect(texts(helper).at(-1)).toContain('one of the eight things');
-		expect(helper.chips.length).toBeGreaterThan(0);
+	it('reads a reply for this chart as lines for its empty cells, and keeps only those', () => {
+		const { helper, charts } = sandbox();
+		const filledIn = structuredClone(charts.one!);
+		charts.one!.actions[2]![5] = '';
+		charts.one!.actions[3]![0] = '';
+		filledIn.actions[2]![5] = 'New 2.5';
+		filledIn.actions[3]![0] = 'New 3.0';
+		filledIn.actions[0]![0] = 'Rewritten, and ignored';
+		helper.show('write', 'fill');
+		helper.reply = reply(filledIn);
+		expect(helper.outcome).toEqual({
+			kind: 'cells',
+			edits: [
+				{ key: 'a2_5', before: '', after: 'New 2.5' },
+				{ key: 'a3_0', before: '', after: 'New 3.0' }
+			]
+		});
+		helper.applyReply();
+		expect(charts.one!.actions[2]![5]).toBe('New 2.5');
+		expect(charts.one!.actions[0]![0]).toBe('Easy runs step 1');
+		// Those were the last two gaps, so the bigger news is a full chart.
+		expect(helper.moment?.title).toBe('Every line is written');
+		expect(helper.moment?.pillars).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+		expect(helper.reply).toBe('');
 	});
 
-	it('greets with an insight once, then not again the same day', () => {
-		const { helper, charts, calls } = sandbox();
-		const today = dateKeyOf(new Date());
-		charts.one!.days = { [today]: { focus: ['a0_0'], checked: ['a0_0'] } };
+	it('says so when a reply adds nothing, or is not a chart', () => {
+		const { helper, charts } = sandbox();
+		helper.show('write');
+		helper.reply = reply(charts.one!);
+		expect(helper.outcome).toEqual({ kind: 'nothing' });
+		helper.reply = 'Sure! What is your goal?';
+		expect(helper.outcome).toEqual({ kind: 'unread' });
+	});
+
+	it('opens a reply for another goal as a new chart, with what the person said', () => {
+		const { helper, charts } = sandbox();
+		helper.show('write', 'new');
+		const other = structuredClone(charts.two!);
+		helper.reply = reply(other, { brief: { timeline: 'By June', situation: 'A2' } });
+		expect(helper.outcome?.kind).toBe('chart');
+		helper.applyReply();
+		expect(charts.three?.goal).toBe('Learn Spanish');
+		expect(charts.three?.brief).toEqual({ timeline: 'By June', situation: 'A2' });
+		expect(helper.moment?.title).toBe('Your chart is ready');
+	});
+
+	it('catches a reply pasted anywhere in the panel', () => {
+		const { helper, charts } = sandbox();
 		helper.show();
-		expect(texts(helper)[0]).toBe("Hi again. Today's pick is done.");
-		expect(calls.shown).toEqual(['today:']);
-		helper.reset();
-		expect(texts(helper)[0]).not.toContain("Today's pick is done");
+		expect(helper.receive('just some words')).toBe(false);
+		expect(helper.page).toBe('home');
+		expect(helper.receive(reply(charts.two!))).toBe(true);
+		expect(helper.page).toBe('write');
+		expect(helper.mode).toBe('new');
+		expect(helper.outcome?.kind).toBe('chart');
 	});
 });

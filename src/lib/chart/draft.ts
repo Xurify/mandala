@@ -1,4 +1,4 @@
-import { emptyChart, TEXT_MAX, type ChartData } from './model.ts';
+import { emptyChart, parseBrief, TEXT_MAX, type ChartBrief, type ChartData } from './model.ts';
 
 export const GOAL_MAX = 80;
 export const PILLAR_MAX = 32;
@@ -9,120 +9,93 @@ function clip(value: unknown, max: number): string {
 	return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-/** What the person says before a chart exists: direction, timeline, where they stand, focus, and a constraint. */
-export type ChartAnswers = {
-	direction: string;
-	timeline: string;
-	situation: string;
-	focus: string;
-	constraint: string;
-};
+/** What the prompt says before the person's part: what a chart is, in plain words, since no chat app knows the method by name. */
+const PROMPT_INTRO = [
+	'I am making a Mandala chart: one goal in the center, eight pillars around it, and eight actions under each pillar. 73 cells. I tick the actions off day by day.',
+	'',
+	'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
+	'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
+	'',
+];
 
-export function emptyChartAnswers(): ChartAnswers {
-	return { direction: '', timeline: '', situation: '', focus: '', constraint: '' };
-}
+/** How to fill a chart, the tests every line passes, and the JSON shape to return. */
+const PROMPT_METHOD = [
+	'',
+	'[How to fill it]',
+	'Use the same question twice.',
+	'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
+	'2. Actions. For each pillar, ask what has to happen in order to do that pillar. Write eight facilitators. Do not restate the pillar in eight wordings.',
+	'Write each pillar as a short heading for one driver, a few words: "Speaking time", "Core phrases". Write each action as a sentence you could say: a verb and the thing it applies to. "Play Spanish audio for 15 minutes at breakfast."',
+	'',
+	'[Tests]',
+	'Every action must pass both tests. Every pillar must pass the second:',
+	'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
+	'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
+	'If a named aim is a result, write the behaviour that produces it, and keep the aim recognizable.',
+	'',
+	'[Don\'t]',
+	'- Do not stop at the wish. "I want top grades" is the center, not a plan.',
+	'- Do not fill a line with a nice-to-have. If it would not change the outcome, leave it out.',
+	'- Do not write one habit twice. "Study 30 minutes a day" and "study 5 hours a week" are the same driver.',
+	'- Do not write a line you cannot mark done. "Do better in geography" fails. "Ask more questions" fails, because there is always one more.',
+	'- Do not write a result this person cannot control. "Get 10 million views a month" fails. A finish time, a grade, or a follower count is not a pillar or an action.',
+	'- Do not restate a pillar as its eight actions.',
+	'- Do not merge two named aims into one pillar.',
+	'- Do not use "work hard", "be successful", or "stay positive".',
+	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
+	'',
+	'[Rules]',
+	'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',
+	'- If something is missing, make a reasonable assumption and create a first draft.',
+	'- Keep it realistic for their current situation.',
+	'- Return only this JSON, with no commentary:',
+	'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
+	`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
+];
 
-/** Rules for the in-browser model. Shorter than {@link draftPrompt} so a 4096-token window can still finish the chart. */
-export function draftSystemPrompt(): string {
+/** The new chart's reply also carries what the person said, so later prompts can use it. */
+const BRIEF_RULE =
+	'- Add "brief" to the JSON with what I told you, a few words each: {"timeline":"...","situation":"...","focus":"...","constraint":"..."}. Leave out a field I did not answer.';
+
+/** The prompt for a new chart. The chat app asks what would change the plan, then writes all of it. */
+export function newChartPrompt(goal = ''): string {
+	const aim = goal.replace(/\s+/g, ' ').trim().slice(0, 200);
 	return [
-		'You are a Mandala Method coach.',
+		...PROMPT_INTRO,
+		'Help me make my chart.',
 		'',
-		'Create a personalised 9×9 chart from what this person said.',
-		'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
-		'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
-		'',
-		'[How to fill it]',
-		'1. Pillars. Ask what actually has to happen for the direction to come true. Keep the eight that would make a real difference. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
-		'2. Actions. For each pillar, write eight facilitators of that behaviour. Do not restate the pillar in eight wordings.',
-		'Write each pillar and each action as a sentence you could say: a verb and the thing it applies to. "Listen to Spanish for 15 minutes." "Play Spanish audio for 15 minutes at breakfast."',
-		'',
-		'[Tests]',
-		'Every pillar and every action must pass both tests:',
-		'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
-		'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
-		'',
-		"[Don't]",
-		'- Do not use "work hard", "be successful", or "stay positive".',
-		'- Do not write a line you cannot mark done.',
-		'- Do not write a result this person cannot control.',
-		'- Do not restate a pillar as its eight actions.',
-		'- Do not return only the first week. The chart holds all 64.',
-		'',
-		'[Rules]',
-		'- If something is missing, make a reasonable assumption and create a first draft.',
-		'- Return only this JSON, with no commentary:',
-		'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
-		`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`,
-		'- actions is 8 arrays. Each array has 8 strings. Do not stop after one or two.'
+		'[Before you write]',
+		aim ? `My goal: ${aim}` : 'I have not said my goal yet. Ask for it first.',
+		'Then ask me up to three short questions in one message: how much time I have on a normal day, whether there is a date, where I stand now, and anything to work around. Wait for my answers. If I say "just write it", make reasonable assumptions.',
+		...PROMPT_METHOD,
+		BRIEF_RULE
 	].join('\n');
 }
 
-export function chartAnswersMessage(answers: ChartAnswers): string {
-	const line = (label: string, value: string) => {
-		const text = value.replace(/\s+/g, ' ').trim();
-		return `- ${label}: ${text || 'Not given. Make a reasonable assumption.'}`;
-	};
+/** The prompt that completes a chart: every written line stays as it is, every empty one gets filled. */
+export function fillPrompt(data: ChartData): string {
+	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [
-		'Create the chart from these answers.',
-		line('Direction', answers.direction),
-		line('Timeline', answers.timeline),
-		line('Current situation', answers.situation),
-		line('Focus right now', answers.focus),
-		line('Constraint', answers.constraint),
-		'Return 8 pillars. Each pillar has exactly 8 actions.'
+		...PROMPT_INTRO,
+		"Complete this person's chart. Keep every line that is already written, word for word. Fill every empty string, in the same voice.",
+		...briefLines(data.brief),
+		'',
+		'[Their chart so far]',
+		sofar,
+		...PROMPT_METHOD
 	].join('\n');
 }
 
-export function draftPrompt(): string {
-	return [
-		'You are a Mandala Method coach.',
-		'',
-		'Create a personalised 9×9 chart from the information below.',
-		'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
-		'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
-		'',
-		'[User information]',
-		'- Direction:',
-		'- Timeline:',
-		'- Current situation:',
-		'- Focus right now:',
-		'- Body:',
-		'- Money or career:',
-		'- Habit to change:',
-		'- Skill to develop:',
-		'- Life to build:',
-		'',
-		'[How to fill it]',
-		'Use the same question twice.',
-		'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
-		'2. Actions. For each pillar, ask what has to happen in order to do that pillar. Write eight facilitators. Do not restate the pillar in eight wordings.',
-		'Write each pillar and each action as a sentence you could say: a verb and the thing it applies to. "Listen to Spanish for 15 minutes." "Play Spanish audio for 15 minutes at breakfast."',
-		'',
-		'[Tests]',
-		'Every pillar and every action must pass both tests:',
-		'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
-		'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
-		'If a named aim is a result, write the behaviour that produces it, and keep the aim recognizable.',
-		'',
-		'[Don\'t]',
-		'- Do not stop at the wish. "I want top grades" is the center, not a plan.',
-		'- Do not fill a line with a nice-to-have. If it would not change the outcome, leave it out.',
-		'- Do not write one habit twice. "Study 30 minutes a day" and "study 5 hours a week" are the same driver.',
-		'- Do not write a line you cannot mark done. "Do better in geography" fails. "Ask more questions" fails, because there is always one more.',
-		'- Do not write a result this person cannot control. "Get 10 million views a month" fails. A finish time, a grade, or a follower count is not a pillar or an action.',
-		'- Do not restate a pillar as its eight actions.',
-		'- Do not merge two named aims into one pillar.',
-		'- Do not use "work hard", "be successful", or "stay positive".',
-		'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
-		'',
-		'[Rules]',
-		'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',
-		'- If something is missing, make a reasonable assumption and create a first draft.',
-		'- Keep it realistic for their current situation.',
-		'- Return only this JSON, with no commentary:',
-		'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
-		`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
-	].join('\n');
+/** What the person told the chat app when the chart was made, for the prompts that come after. */
+export function briefLines(brief: ChartBrief | undefined): string[] {
+	if (!brief) return [];
+	const said = [
+		brief.timeline && `- Timeline: ${brief.timeline}`,
+		brief.situation && `- Where they stand: ${brief.situation}`,
+		brief.focus && `- Focus right now: ${brief.focus}`,
+		brief.constraint && `- To work around: ${brief.constraint}`
+	].filter((line): line is string => Boolean(line));
+	return said.length ? ['', '[What they told you before]', ...said] : [];
 }
 
 function asStringList(value: unknown, count: number, max: number): string[] | null {
@@ -150,48 +123,48 @@ export function chartFromDraft(value: unknown): ChartData | null {
 	chart.goal = goal;
 	chart.pillars = pillars;
 	chart.actions = actions;
+	const brief = parseBrief(record.brief);
+	if (brief) chart.brief = brief;
 	return chart;
+}
+
+export type ChatApp = 'claude' | 'chatgpt' | 'mistral' | 'perplexity' | 'grok';
+
+/** The chat apps that take a prompt in the link, in the order they are offered. None of them documents it. */
+export const CHAT_APPS: readonly { id: ChatApp; label: string; url: string }[] = [
+	{ id: 'claude', label: 'Claude', url: 'https://claude.ai/new?q=' },
+	{ id: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/?q=' },
+	{ id: 'mistral', label: 'Mistral', url: 'https://chat.mistral.ai/chat?q=' },
+	{ id: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/search?q=' },
+	{ id: 'grok', label: 'Grok', url: 'https://grok.com/?q=' }
+];
+
+/** A chat app opened with the prompt already in its box. The person still presses send there. */
+export function chatLink(app: ChatApp, prompt: string): string {
+	return `${CHAT_APPS.find((entry) => entry.id === app)!.url}${encodeURIComponent(prompt)}`;
+}
+
+/**
+ * The prompt that reviews a chart: every line against the two tests, in whatever language it is written.
+ * The reply is the whole chart again, so the lines that changed can be shown and kept.
+ */
+export function reviewPrompt(data: ChartData): string {
+	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
+	return [
+		...PROMPT_INTRO,
+		"Review this person's chart, in the language it is written in. Keep every line that passes both tests word for word. Rewrite only the lines that fail, in the same language and voice, keeping what the person meant. Leave an empty string empty.",
+		...briefLines(data.brief),
+		'',
+		'[Their chart]',
+		sofar,
+		...PROMPT_METHOD
+	].join('\n');
 }
 
 export function parseDraftText(raw: string): ChartData | null {
 	const value = jsonValue(raw);
 	if (!value) return null;
 	return chartFromDraft(value);
-}
-
-export function partialDraft(raw: string): { goal: string; pillars: string[]; actions: string[][] } | null {
-	const value = jsonValue(raw);
-	if (!value || typeof value !== 'object') return null;
-	const record = value as Record<string, unknown>;
-	const goal = clip(record.goal, Math.min(GOAL_MAX, TEXT_MAX));
-	if (!goal) return null;
-	const pillars = asStringList(record.pillars, 8, PILLAR_MAX);
-	if (!pillars) return null;
-	if (!Array.isArray(record.actions)) return null;
-	const actions = record.actions.slice(0, 8).map((row) => {
-		if (!Array.isArray(row)) return [];
-		return row
-			.map((item) => clip(item, Math.min(ACTION_MAX, TEXT_MAX)))
-			.filter((item) => item !== '');
-	});
-	while (actions.length < 8) actions.push([]);
-	return { goal, pillars, actions };
-}
-
-/** Eight action lines, either a JSON array or a numbered list. */
-export function eightActions(raw: string): string[] | null {
-	const value = jsonValue(raw);
-	const fromJson = Array.isArray(value)
-		? value.map((item) => clip(item, Math.min(ACTION_MAX, TEXT_MAX))).filter((item) => item !== '')
-		: [];
-	if (fromJson.length >= 8) return fromJson.slice(0, 8);
-	const lines = raw
-		.split('\n')
-		.map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim())
-		.map((line) => clip(line, Math.min(ACTION_MAX, TEXT_MAX)))
-		.filter((line) => line !== '' && !line.startsWith('{') && !line.startsWith('['));
-	if (lines.length >= 8) return lines.slice(0, 8);
-	return null;
 }
 
 export function jsonValue(raw: string): unknown {

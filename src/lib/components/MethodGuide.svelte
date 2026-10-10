@@ -4,6 +4,8 @@
 	import Dialog from './ui/Dialog.svelte';
 	import { cn } from './ui/cn';
 
+	let { class: className }: { class?: string } = $props();
+
 	let open = $state(false);
 	let focusK = $state<number | null>(null);
 
@@ -53,7 +55,7 @@
 	});
 </script>
 
-<Button variant="ghost" icon="info" aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = true)}>
+<Button variant="ghost" icon="info" class={className} aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = true)}>
 	How it works
 </Button>
 

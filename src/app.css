@@ -77,24 +77,19 @@
 	--animate-seal-in: seal-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 	--animate-seal-draw: seal-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) both;
 	--animate-pop-in: pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-	--animate-deal-in: deal-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-deal-in: deal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 	--animate-card-in: card-in 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
-	--animate-spread: spread 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-spread: spread 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 	--animate-toast-tick: toast-tick 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 	--animate-sheet-in: sheet-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
 	--animate-ring-drain: ring-drain 1s linear both;
 	--animate-seed-fold: seed-fold 2.4s cubic-bezier(0.2, 0, 0, 1) both;
 	--animate-blink: blink 5.6s ease-in-out infinite;
-	--animate-think: think 1.4s ease-in-out infinite;
 	--animate-hop: hop 0.52s cubic-bezier(0.34, 1.56, 0.64, 1);
 	--animate-cheer: cheer 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 	--animate-joy: joy 1.2s ease-in-out infinite;
 	--animate-listen: listen 3.8s ease-in-out infinite;
 	--animate-listen-blink: listen-blink 3.8s ease-in-out infinite;
-	--animate-breathe: breathe 4.8s ease-in-out infinite;
-	--animate-wait: wait 6s ease-in-out infinite;
-	--animate-sigh: sigh 4.6s ease-in-out infinite;
-	--animate-sorry-blink: sorry-blink 4.6s ease-in-out infinite;
 	--animate-puzzle: puzzle 4.2s ease-in-out infinite;
 	--animate-squint: squint 4.2s ease-in-out infinite;
 	--animate-nod: nod 4.4s cubic-bezier(0.2, 0, 0, 1) infinite;
@@ -103,6 +98,13 @@
 	--animate-curious-blink: curious-blink 3.6s ease-in-out infinite;
 	--animate-note-in: note-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 	--animate-dot-bounce: dot-bounce 1.2s ease-in-out infinite;
+	--animate-stack-in: stack-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-scan: scan 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-mark-in: mark-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-flip-in: flip-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-swell: swell 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-stamp: stamp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-glow: glow 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @custom-variant coarse (@media (pointer: coarse));
@@ -214,6 +216,10 @@
 @utility dot-fill {
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 	color: oklch(var(--dot-fg-l) 0.09 var(--h));
+}
+/* A pillar's name as text, in its hue. At least 4.5:1 on bg and surface in both themes. */
+@utility pillar-ink {
+	color: oklch(var(--pillar-ink-l) var(--pillar-ink-c) var(--h));
 }
 @utility ring-track {
 	stroke: oklch(var(--ring-track-l) 0.035 var(--h));
@@ -341,16 +347,6 @@
 	}
 }
 
-@keyframes wait {
-	0%,
-	88%,
-	100% {
-		transform: scaleY(1);
-	}
-	94% {
-		transform: scaleY(0.18);
-	}
-}
 
 @keyframes listen {
 	0%,
@@ -376,39 +372,8 @@
 	}
 }
 
-@keyframes breathe {
-	0%,
-	100% {
-		transform: translateY(0);
-	}
-	50% {
-		transform: translateY(1.4px);
-	}
-}
 
-@keyframes sigh {
-	0%,
-	100% {
-		transform: translateY(0) rotate(0deg);
-	}
-	35% {
-		transform: translateY(1.8px) rotate(-1.5deg);
-	}
-	70% {
-		transform: translateY(0.5px) rotate(0.5deg);
-	}
-}
 
-@keyframes sorry-blink {
-	0%,
-	82%,
-	100% {
-		transform: scaleY(1);
-	}
-	88% {
-		transform: scaleY(0.12);
-	}
-}
 
 @keyframes puzzle {
 	0%,
@@ -521,15 +486,6 @@
 	}
 }
 
-@keyframes think {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.28;
-	}
-}
 
 @keyframes dot-bounce {
 	0%,
@@ -576,10 +532,11 @@
 	}
 }
 
+/* A card landing: a short rise, no spin. The tilt it keeps is the card's own. */
 @keyframes deal-in {
 	from {
 		opacity: 0;
-		transform: translateY(28px) rotate(-6deg) scale(0.9);
+		transform: translateY(10px) scale(0.98);
 	}
 	to {
 		opacity: 1;
@@ -600,10 +557,92 @@
 @keyframes spread {
 	from {
 		opacity: 0;
-		transform: translateY(-18px) scale(0.94);
+		transform: translateY(-6px);
 	}
 	to {
 		opacity: 1;
+	}
+}
+
+@keyframes stack-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px) scale(0.4);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes scan {
+	from {
+		opacity: 0;
+		transform: scale(0.5);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes mark-in {
+	from {
+		outline-color: transparent;
+		outline-offset: 7px;
+	}
+}
+
+/* An arc that just became whole swells once while it draws. */
+@keyframes swell {
+	40% {
+		stroke-width: 15px;
+	}
+}
+
+/* A check pressed onto a pill: it comes down large and tilted, and lands flat. */
+@keyframes stamp {
+	from {
+		opacity: 0;
+		transform: scale(2.4) rotate(-24deg);
+	}
+	60% {
+		opacity: 1;
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* A block that just became whole: a ring of its own hue spreads out and fades. */
+@keyframes glow {
+	0% {
+		box-shadow:
+			var(--shadow-sm),
+			0 0 0 0 oklch(var(--ring-fill-l) 0.13 var(--block-h, 60) / 0.6);
+	}
+	35% {
+		box-shadow:
+			var(--shadow-sm),
+			0 0 0 8px oklch(var(--ring-fill-l) 0.13 var(--block-h, 60) / 0.32);
+	}
+	100% {
+		box-shadow:
+			var(--shadow-sm),
+			0 0 0 16px oklch(var(--ring-fill-l) 0.13 var(--block-h, 60) / 0);
+	}
+}
+
+/* A card turned over in place: the old face is gone, the new one swings in and lands. */
+@keyframes flip-in {
+	from {
+		opacity: 0;
+		transform: perspective(600px) rotateX(-38deg) translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
 	}
 }
 
@@ -615,6 +654,92 @@
 		stroke-dashoffset: 0;
 	}
 }
+/* Switching views (chart, edit, today) is one view transition, started by `morph`. The stage fades out
+   quickly and the new view rises into place. The selected block travels between the chart and the editor. */
+::view-transition-group(*) {
+	animation-duration: 440ms;
+	animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-old(stage) {
+	animation: 160ms cubic-bezier(0.4, 0, 1, 1) both view-out;
+}
+::view-transition-new(stage) {
+	animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both view-in;
+}
+/* The chrome around the stage swaps at once, as it did before. A crossfade there only doubles the title. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+}
+/* The block's old face leaves early, so the zoomed copy never lingers over the new one. */
+::view-transition-old(travel),
+::view-transition-old(focus-block) {
+	animation: 180ms cubic-bezier(0.4, 0, 1, 1) both view-out;
+}
+::view-transition-new(travel),
+::view-transition-new(focus-block) {
+	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
+}
+/* Floating chrome (the dock with its toast, Bindu, an open menu) has its own layer, so it stays on top and
+   still while the stage changes under it. The menu sits above the rest: it is what the person is using. */
+::view-transition-group(dock),
+::view-transition-group(bindu-launcher),
+::view-transition-group(bindu-panel),
+::view-transition-group(menu) {
+	z-index: 1;
+	animation: none;
+}
+::view-transition-group(menu) {
+	z-index: 2;
+}
+::view-transition-old(dock),
+::view-transition-old(bindu-launcher),
+::view-transition-old(bindu-panel),
+::view-transition-old(menu) {
+	animation: none;
+	opacity: 0;
+}
+::view-transition-new(dock),
+::view-transition-new(bindu-launcher),
+::view-transition-new(bindu-panel),
+::view-transition-new(menu) {
+	animation: none;
+}
+/* A theme or accent change crossfades the whole page in place. Nothing travels. */
+:root:active-view-transition-type(theme)::view-transition-old(root),
+:root:active-view-transition-type(theme)::view-transition-old(stage),
+:root:active-view-transition-type(theme)::view-transition-old(dock),
+:root:active-view-transition-type(theme)::view-transition-old(bindu-launcher),
+:root:active-view-transition-type(theme)::view-transition-old(bindu-panel),
+:root:active-view-transition-type(theme)::view-transition-old(menu) {
+	opacity: 1;
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-out;
+}
+:root:active-view-transition-type(theme)::view-transition-new(root),
+:root:active-view-transition-type(theme)::view-transition-new(stage),
+:root:active-view-transition-type(theme)::view-transition-new(dock),
+:root:active-view-transition-type(theme)::view-transition-new(bindu-launcher),
+:root:active-view-transition-type(theme)::view-transition-new(bindu-panel),
+:root:active-view-transition-type(theme)::view-transition-new(menu) {
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
+}
+@keyframes view-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes view-fade {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes view-in {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+}
+
 @utility dialog-backdrop {
 	&::backdrop {
 		background: oklch(0.2 0.02 60 / 0.42);
@@ -676,6 +801,8 @@
 	--dot-l: 0.925;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.4;
+	--pillar-ink-l: 0.5;
+	--pillar-ink-c: 0.12;
 	--ring-track-l: 0.915;
 	--ring-fill-l: 0.66;
 	--soft: var(--sunken);
@@ -733,6 +860,8 @@
 		--dot-l: 0.3;
 		--dot-c: 0.04;
 		--dot-fg-l: 0.86;
+		--pillar-ink-l: 0.78;
+		--pillar-ink-c: 0.11;
 		--ring-track-l: 0.3;
 		--ring-fill-l: 0.72;
 		--soft: oklch(0.36 0.012 65);
@@ -786,6 +915,8 @@
 	--dot-l: 0.3;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.86;
+	--pillar-ink-l: 0.78;
+	--pillar-ink-c: 0.11;
 	--ring-track-l: 0.3;
 	--ring-fill-l: 0.72;
 	--soft: oklch(0.36 0.012 65);

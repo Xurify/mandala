@@ -6,6 +6,7 @@
 		| 'chevron-left'
 		| 'chevron-right'
 		| 'arrow-right'
+		| 'arrow-up-right'
 		| 'arrow-left'
 		| 'target'
 		| 'grid'
@@ -88,6 +89,9 @@
 	{:else if name === 'arrow-right'}
 		<line x1="5" y1="12" x2="19" y2="12" />
 		<polyline points="12 5 19 12 12 19" />
+	{:else if name === 'arrow-up-right'}
+		<line x1="7" y1="17" x2="17" y2="7" />
+		<polyline points="8 7 17 7 17 16" />
 	{:else if name === 'arrow-left'}
 		<line x1="19" y1="12" x2="5" y2="12" />
 		<polyline points="12 19 5 12 12 5" />

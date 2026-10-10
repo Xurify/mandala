@@ -28,8 +28,12 @@
 	}
 </script>
 
+<!--
+	On a phone the row above the dock can hold a control at its right edge. `--dock-aside` is the room it
+	needs, set by the page. The slip centers in the space beside it, so it never covers it.
+-->
 <div
-	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(26rem,calc(100vw-2rem))] justify-items-center transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
+	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(26rem,calc(100vw-2rem))] grid-cols-[minmax(0,1fr)] justify-items-center max-[600px]:left-[calc(50%-var(--dock-aside,0px)/2)] max-[600px]:max-w-[calc(100vw-2rem-var(--dock-aside,0px))] transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
 		? 'pointer-events-auto'
 		: 'pointer-events-none'}"
 	style:translate="-50% 0"

@@ -7,16 +7,17 @@
 		moved: number[];
 		play?: boolean;
 		label: string;
+		/** Seconds between arcs as they draw. */
+		step?: number;
 		class?: string;
 	};
 
-	let { moved, play = false, label, class: className }: Props = $props();
+	let { moved, play = false, label, step = 0.16, class: className }: Props = $props();
 
 	const VIEW = 100;
 	const CENTER = VIEW / 2;
 	const GEOMETRY = { radius: 42, stroke: 7, gap: 7 };
 	const DRAW_START = 0.35;
-	const DRAW_STEP = 0.16;
 
 	const segments = $derived(
 		HUES.map((hue, pillarIndex) => {
@@ -26,7 +27,7 @@
 	);
 
 	const drawOrder = $derived([...moved].sort((a, b) => a - b));
-	const checkDelay = $derived(DRAW_START + drawOrder.length * DRAW_STEP + 0.1);
+	const checkDelay = $derived(DRAW_START + drawOrder.length * step + 0.1);
 </script>
 
 <div
@@ -51,7 +52,7 @@
 					d={segment.d}
 					pathLength="1"
 					style:--h={segment.hue}
-					style:animation-delay={play ? `${DRAW_START + order * DRAW_STEP}s` : undefined}
+					style:animation-delay={play ? `${DRAW_START + order * step}s` : undefined}
 				/>
 			{/if}
 		{/each}

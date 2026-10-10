@@ -37,7 +37,13 @@ src/
     ring.ts                   ring geometry (PILLAR_ANGLES, pillarArc, arcPath) + OKLCH→sRGB + BRAND colors
     library.ts                multiple saved charts
     presets/                  starter charts
-    draft.ts                  "get a prompt" / paste-back flow
+    draft.ts                  prompts for a chat app, and reading the pasted reply
+    helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
+    helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
+    morph.ts                  view transitions for view, theme and accent changes
+    tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
+    calendar.ts               a month of days and what was finished on each (pure, tested)
+    demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
@@ -45,8 +51,12 @@ src/
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
-    ChartSwitcher, PresetPicker, DraftDialog, MethodGuide, Icon
-    ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, …). Catalog: /dev/ui
+    Helper*.svelte            Bindu: launcher, panel, and one component per page
+    EmptyChart, WeeklyReflection, WeekStrip, MiniChart, CalendarView
+    Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
+    ChartSwitcher, PresetPicker, MethodGuide, Icon
+    ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
+  routes/dev/demo             one-click situations for trying every interaction
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 ```
 
@@ -55,7 +65,8 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - 9 blocks × 9 cells. Block 4 / cell 4 is the goal. Pillar `k` (0–7) is row-major around the center: TL, T, TR, L, R, BL, B, BR. Convert with the helpers in `model.ts`; don't re-derive indices inline.
 - Pillar `k` owns hue `HUES[k]`. Anything that shows a pillar uses that hue, and nothing else does.
 - Anything arranged in a circle (ring, mark, icon) places pillar `k` at `PILLAR_ANGLES[k]`, so it matches the grid spatially.
-- All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves.
+- All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
+- A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 
 ## Conventions
 
@@ -72,7 +83,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 
 1. `bun run check` passes with 0 errors and 0 warnings.
 2. `bun run test` passes (add tests beside `model.ts` / `library.ts` / `draft.ts` when you change them).
-3. UI changes are looked at, not assumed: light and dark theme, desktop (split mode) and a ≤900px mobile width, keyboard focus visible. Use the browser tools to screenshot if you have them.
+3. UI changes are looked at, not assumed: light and dark theme, desktop (split mode) and a ≤900px mobile width, keyboard focus visible. Use the browser tools to screenshot if you have them. A new interaction gets a card on `/dev/demo`.
 4. The change passes the checklist in `.cursor/skills/mandala-ui-review/SKILL.md`.
 
 ## Skills in this repo

@@ -61,9 +61,11 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
-| `--dot-l` / `--dot-c` / `--dot-fg-l` | Small pillar dots, pips |
+| `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
+
+A dot that marks a pillar beside text (a pick, a finding, a legend) is the `pip` utility with `--pip-h`, which holds its lightness in both themes. Pillar names set in their hue use `pillar-ink`.
 
 Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline per element. Outside CSS (PNG icons, poster export), convert with `oklchToRgb` from `src/lib/chart/ring.ts`. Don't hand-pick hex.
 
@@ -74,6 +76,28 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
 - Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`. Opacity may still fade.
+- A container whose content changes size eases to the new height (about 420ms, expo-out) instead of jumping. It never animates from zero on first paint.
+
+Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-*`; Svelte transitions live in `src/lib/components/ui/motion.ts`.
+
+| Motion | Use it for |
+| --- | --- |
+| `pop-in` | A line or row arriving. Stagger a list by index, 40–50ms apart |
+| `deal-in` | A hand of cards arriving, 70ms apart. Overshoots |
+| `flip-in` | One card replaced in place (a swap). The old face fades where it is; the new one swings in |
+| `stack-in` | Pips stacking into a column, staggered by column, then by row |
+| `scan` + `mark-in` | Reading a chart: cells light in reading order, then each flagged cell gets a ring that closes in |
+| `seal-in` + `seal-draw` | A moment: the ring arrives, its arcs draw in pillar order, the check is the last stroke |
+| `done-in` | The words of a moment, after the picture |
+| `note-in` / `noteOut` | A floating panel opening from its corner, and folding back |
+| `pageIn` / `pageOut` | Turning pages inside a panel. In: slides about 28px from the side it comes from. Out: fades in place and drifts a few pixels the other way |
+| `foldOut` | A row leaving a live list because it no longer applies. Fades, then its height closes up |
+| `slipOut` | A slip being replaced. Fades without travel |
+| `morph` (`src/lib/chart/morph.ts`) | Switching views, theme, or accent, as one view transition. The chrome swaps at once, the stage (`main`) fades out fast and rises in, and the selected block travels between the chart and the editor (`view-transition-name: focus-block`). A search hit travels into its cell (`travel`). A theme or accent change crossfades the whole page. Morphs called in the same moment join one transition. A name is only on one element at a time, so a block that is on screen twice (split) carries none |
+| `swell` + `seal-draw` on the hero ring | A pillar that just got its last line redraws its arc, swelling once. A full chart redraws all eight in order, then the count steps aside for a check |
+| `stamp` | A check pressed onto a pill: it comes down large and tilted, and lands flat |
+| `glow` | A block whose pillar just became whole: a ring of its hue spreads out and fades |
+| Spatial slide (`SidePanel.svelte`) | The editor's block arrives from where it sits on the map: pillar 1 from the top left, pillar 8 from the bottom right. A Web Animations call, since the direction is computed |
 
 ## Typography
 
@@ -139,15 +163,66 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 `Dialog` is a native `<dialog>`. Header = heading + close; scrolling body; footer snippet for actions. Header, body, and footer share the sheet's paper. No shadow, hairline, or fade where the body scrolls; the scrollbar says there is more. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
 
+### Pages in a panel
+
+A floating panel with more than one job is a few pages, not a chat and not tabs. Bindu is the worked example (`HelperPanel.svelte`).
+
+- **The first page** says one thing and offers one move: a note (what is true right now, in a sentence), one primary button for the next move, then a door per job. Each door says what it would find, from the data ("From Health, Words and Sleep", "5 lines to tighten"), not what the feature is called.
+- **Each job is its own page**, with at most one primary button. A page that is long keeps its actions in a sticky row at the bottom, on the panel's paper.
+- **Turning.** The new page slides in from the side it comes from while the old one fades where it is. Both sit in one grid cell, so nothing jumps. The panel eases to the new page's height.
+- **The header stays.** The back button opens out from nothing beside the face, and the title crossfades. Its focus ring is not clipped.
+- **Keys and focus.** Escape goes back a page, then closes. Opening a page focuses its back button. Going back focuses the door it came from. A control that a page replaces (a swapped card) hands focus to its replacement.
+- **Reopening** returns to the page that was left, so a person who stepped away to paste something finds the box waiting. A finished moment does not wait for a reopen.
+- **A moment** takes the page when something becomes true: the ring draws the pillars it touched, then the words, then Done. The moment says it, so no toast says it again.
+- **Steps on a thread.** A round trip of a few steps (copy, paste there, paste back) is numbered markers joined by a thread. Done is an ink disc with a drawn check, the current step an ink ring, the rest recessed. The thread fills in ink below each done step.
+- **Pages in a dialog.** The weekly reflection is the same pattern inside `Dialog`: a row of marks for where you are (the current page a longer mark, the read ones ink), one page at a time through `Pages`, and the footer's two buttons relabelled rather than replaced, so focus stays put as pages turn. Saving lands on a moment inside the dialog, with Done as its only door.
+- **`Pages`** (`ui/Pages.svelte`) is the primitive: a `view`, a `direction`, a snippet per page. It turns, eases its height, and scrolls each new page to the top.
+
+### Floating chrome
+
+The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through.
+
+### Moments on the chart
+
+Writing the last line of a pillar, or of the chart, is a moment too, without a layout of its own, because the person is at the keyboard. It plays where the data already shows: the editor's pill stamps its check, the block glows once in its hue, and the hero ring redraws the arc. A full chart redraws all eight and ends on a check, and says so in one toast. `chart.landed` carries it for three seconds and is never saved, so a reload does not replay it. Several lines landing together (a fill) make one moment at once. A typed line waits for the pen to lift: the field is left, or typing pauses for a beat (`chart.settle`). A line cleared again before that lets go, so a half-typed word never stamps.
+
+### The calendar
+
+Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which stays four doors wide.
+
+### When the week is offered
+
+The weekly reflection is offered from an hour of a weekday the person chooses (Sunday from 6 pm to start), in the reflection's first page. The offer stands until the next one: a Monday morning still gets the week that just ended. It is offered only for a week with a tick, and goes quiet once saved or set aside.
+
+### Tools on a shelf
+
+A video, a text, a site is a **tool**: material behind a pillar, not a cell. The cell stays a sentence you can tick ("Play 15 minutes of audio at breakfast"); the shelf under the pillar holds what it plays. Thirty videos never become thirty actions.
+
+- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, the site's name when it does not. Its caption is one string built in script, since Svelte trims the space at the start of a block.
+- **Two kinds and one exit.** `once` retires itself the first time it is opened. `repeat` stays in rotation until the person presses **Know this**. "Watch daily" and "until it sticks" are both repeat; the difference is whether that button ever gets pressed.
+- **Who hands it out.** A tool named for an action is handed out by that action. An unassigned tool is handed out by any routine in its pillar. Today shows the day's tool under the action's row, with one tap to open it and an arrow for another. Opening is logged; the tick stays the person's.
+- **Rotation.** Never opened first, then the one that waited longest, holding still within a day and seeded by the action, so two routines on one shelf do not hand out the same thing.
+- **Known by now.** A repeat tool opened on 10 of the last 14 days gets a line on the shelf and a note from Bindu. The shelf has the button.
+- **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
+- Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
+
+### The empty chart
+
+A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.
+
 ### Feedback
 
-- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock.
+- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock. On a phone it shares the row above the dock with the Bindu launcher, so it centers in the space beside the launcher (`--dock-aside`), never over it.
 - `Notice` for persistent inline info with an optional small primary or soft `Button`.
 
 ### Brand
 
 - `BrandMark.svelte`: eight arcs + goal dot, same geometry as `ProgressRing.svelte`, both from `src/lib/chart/ring.ts` (`PILLAR_ANGLES`, `pillarArc`, `arcPath`). Arc positions are **spatial**: each pillar's arc sits at the angle where that pillar sits in the grid.
 - App icons, `favicon.svg`, and `logo.svg` are generated by `bun run gen:icons` (`scripts/generate-pwa-icons.ts`). Don't edit the outputs by hand; change the script or `ring.ts` and regenerate.
+
+## Trying it
+
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 
@@ -159,9 +234,9 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ## Voice and copy
 
-Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI. A cell is a sentence you could say, inside the character cap.
+Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI. An action is a sentence you could say, inside the character cap. A pillar is a short heading for one driver, like the presets' "Long runs" or "Core phrases".
 
-**Bindu** is the on-device chart helper ("Talk to Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label. What Bindu does, and where it is going: [docs/bindu.md](docs/bindu.md).
+**Bindu** is the chart helper ("Open Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label. Bindu is a small notebook of pages, not a chat: a note and one next move on the first page, a door per job below it, and each job on a page of its own. Pages turn sideways and the panel eases to the new page's height. A thing that just became true (today set, a chart kept, lines added) takes the page as a moment: the ring draws the pillars it touched, then the words, then Done. Writing lines goes to the person's own chat app as a prompt, and the reply is pasted back. What Bindu does: [docs/bindu.md](docs/bindu.md).
 
 ## Accessibility
 

@@ -132,7 +132,3 @@ export function downloadText(filename: string, text: string, mime = 'application
 	downloadLink.click();
 	URL.revokeObjectURL(downloadUrl);
 }
-
-export function downloadChartJson(data: ChartData): void {
-	downloadText(exportFilename(data), exportJson(data));
-}
