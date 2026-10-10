@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-type Need = { provider: 'webllm' | 'builtin'; model: string; download: string | null };
+type Need = { model: string; download: string | null };
 
 const coach = vi.hoisted(() => ({
 	needs: 0,
@@ -85,7 +85,7 @@ function store() {
 	});
 }
 
-const webllm = (): Need => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: '2.3 GB' });
+const webllm = (): Need => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: '2.3 GB' });
 
 beforeEach(() => {
 	coach.needs = 0;
@@ -105,7 +105,7 @@ describe('HelperStore model consent', () => {
 		const helper = store();
 		await helper.send('How do I stay motivated?');
 		const card = helper.messages.at(-1)!;
-		expect(card.card).toEqual({ kind: 'download', size: '2.3 GB', builtin: false });
+		expect(card.card).toEqual({ kind: 'download', size: '2.3 GB' });
 		expect(card.text).toMatch(/^I write with a small model/);
 
 		helper.allowDownload(card.id);
@@ -120,11 +120,11 @@ describe('HelperStore model consent', () => {
 		const helper = store();
 		await helper.start('fill');
 		expect(coach.needs).toBe(1);
-		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '2.3 GB', builtin: false });
+		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '2.3 GB' });
 	});
 
 	it('answers the first message as written when the person picks Just answer', async () => {
-		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const helper = store();
 		await helper.send('help me plan the coming week');
 		helper.choose(helper.chips.find((chip) => chip.label === 'Just answer')!);
@@ -133,19 +133,11 @@ describe('HelperStore model consent', () => {
 	});
 
 	it('runs straight away when nothing has to download', async () => {
-		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const helper = store();
 		await helper.send('How do I stay motivated?');
 		expect(helper.messages.some((message) => message.card?.kind === 'download')).toBe(false);
 		expect(helper.messages.at(-1)?.text).toBe('Start with the pillar you skipped.');
-	});
-
-	it("offers the browser's own model when it still has to fetch it", async () => {
-		coach.need = () => ({ provider: 'builtin', model: 'built-in', download: '' });
-		const helper = store();
-		await helper.send('How do I stay motivated?');
-		expect(helper.messages.at(-1)?.card).toEqual({ kind: 'download', size: '', builtin: true });
-		expect(helper.messages.at(-1)?.text).toMatch(/model of its own/);
 	});
 
 	it('says so when nothing can run here', async () => {
@@ -171,7 +163,7 @@ describe('HelperStore sketch, as in the Slovak report', () => {
 	}
 
 	async function sketched() {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const helper = blank();
 		await helper.send('I want to learn Slovak');
 		const sketch = helper.chips.find((chip) => chip.act.kind === 'sketch');
@@ -227,7 +219,7 @@ describe('HelperStore sketch, from a message that says more than the goal', () =
 		'I want to learn Slovak. I am currently about a A1 maybe A2, but I have an insane lack of vocabulary and I am shit at reading as well as bad with having conversation';
 
 	function onChart() {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		return store();
 	}
 
@@ -282,7 +274,7 @@ describe('HelperStore sketch, from a message that says more than the goal', () =
 
 describe('HelperStore fill the whole chart', () => {
 	function gappy() {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const data = emptyChart();
 		data.goal = 'Learn Slovak';
 		data.pillars = ['Words', 'Reading', 'Speaking', 'Listening', 'Grammar', 'Writing', 'Tutor', 'Review'];
@@ -340,7 +332,7 @@ describe('HelperStore fill the whole chart', () => {
 
 describe('HelperStore while it works', () => {
 	it('holds the place of a reply until it arrives', async () => {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		let open = () => {};
 		coach.gate = new Promise((resolve) => (open = resolve));
 		const helper = store();
@@ -354,7 +346,7 @@ describe('HelperStore while it works', () => {
 	});
 
 	it('grows one fill-all card instead of posting one per pillar', async () => {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const data = emptyChart();
 		data.goal = 'Learn Slovak';
 		data.pillars = ['Words', 'Reading', 'Speaking', 'Listening', 'Grammar', 'Writing', 'Tutor', 'Review'];
@@ -379,7 +371,7 @@ describe('HelperStore while it works', () => {
 
 describe('HelperStore review', () => {
 	function full() {
-		coach.need = () => ({ provider: 'webllm', model: 'Qwen3-4B-q4f16_1-MLC', download: null });
+		coach.need = () => ({ model: 'Qwen3-4B-q4f16_1-MLC', download: null });
 		const data = emptyChart();
 		data.goal = 'Run a half marathon';
 		data.pillars = ['Easy runs', 'Speed work', 'Long runs', 'Strength', 'Sleep early', 'Eat well', 'Good shoes', 'Plan weeks'];

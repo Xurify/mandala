@@ -19,11 +19,8 @@ export type CallLog = { promptTokens: number; outTokens: number; ms: number; ove
 
 const llama = await getLlama({ gpu: false });
 
-/**
- * A CoachProvider over llama.cpp on the CPU. `builtin` sampling mimics a web page on Chrome's
- * Prompt API: the requested temperature is ignored and the browser's defaults apply.
- */
-export async function localProvider(name: string, options: { sampling?: 'requested' | 'builtin' } = {}) {
+/** A CoachProvider over llama.cpp on the CPU, with the sampling the app asks for. */
+export async function localProvider(name: string) {
 	const model: LlamaModel = await llama.loadModel({ modelPath: DIR + (MODELS[name] ?? `${name}.gguf`) });
 	const context: LlamaContext = await model.createContext({ contextSize: WINDOW, threads: 4 });
 	const sequence = context.getSequence();
@@ -55,10 +52,7 @@ export async function localProvider(name: string, options: { sampling?: 'request
 		session.setChatHistory(history(before));
 		const started = performance.now();
 		let out = '';
-		const sampling =
-			options.sampling === 'builtin'
-				? { temperature: 1, topK: 3 }
-				: { temperature: opts.temperature, topP: qwen ? 0.95 : undefined };
+		const sampling = { temperature: opts.temperature, topP: qwen ? 0.95 : undefined };
 		try {
 			out = await session.prompt(last.content, { maxTokens: opts.maxTokens, ...sampling });
 		} finally {

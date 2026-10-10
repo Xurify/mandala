@@ -118,7 +118,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 ## What changed because of it
 
 - **The tiers are gone.** 1.7B is worse at both talking and writing, and its mistakes land where they hurt most. Every job runs on Qwen3 4B again: one model, one download. The lab's smaller candidates went with them.
-- **The built-in model is now the fallback, not the first choice.** web-llm runs whenever WebGPU works. The built-in model runs only where nothing else can. The Gemma stand-in writes and talks about as well as Qwen3 4B, but Gemini Nano is not Gemma, and the stand-in routed badly and answered Spanish in English. Run this suite in real Chrome before moving it up.
+- ~~**The built-in model is now the fallback, not the first choice.**~~ Later removed. Browsers with the Prompt API also have WebGPU, so the fallback almost never ran, and the stand-in routed badly and answered Spanish in English. Without WebGPU, Bindu offers the prompt for another chat app.
 
 ## What to build next
 
@@ -134,7 +134,7 @@ Messages that reach the model because no rule reads them: any non-English reques
 ```sh
 cd scripts/coach-eval && npm install
 mkdir -p ../../local/models   # put GGUF files here, names in provider.ts
-npm run holdout -- qwen3-4b requested 12
+npm run holdout -- qwen3-4b 12
 npm run talk -- qwen3-4b
 npm run tools -- qwen3-4b
 npm run rare -- qwen3-4b

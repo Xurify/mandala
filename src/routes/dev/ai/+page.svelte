@@ -19,7 +19,6 @@
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
 	import { COACH_CANDIDATES } from '$lib/chart/coach-model';
-	import type { BuiltinState, ProviderChoice } from '$lib/chart/coach-provider';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
@@ -131,32 +130,9 @@
 	const today = $derived(suggestToday(sample));
 	const plan = $derived(fillPlan(sample, preferred));
 
-	const providers = [
-		{ value: 'auto', label: 'Auto' },
-		{ value: 'webllm', label: 'Downloaded' },
-		{ value: 'builtin', label: 'Built-in' }
-	];
-	const builtinLabels: Record<BuiltinState, string> = {
-		available: 'Ready',
-		downloadable: 'Needs a download',
-		downloading: 'Downloading',
-		unavailable: 'Not in this browser'
-	};
-
 	let coach: Coach | null = $state(null);
 	let webgpu = $state<boolean | null>(null);
-	let builtin = $state<BuiltinState | null>(null);
-	let provider = $state<ProviderChoice>('auto');
-	const canRun = $derived(
-		provider === 'webllm' ? webgpu === true : provider === 'builtin' ? builtin !== null && builtin !== 'unavailable' : webgpu === true || (builtin !== null && builtin !== 'unavailable')
-	);
-
-	function pickProvider(value: string): void {
-		if (value !== 'auto' && value !== 'webllm' && value !== 'builtin') return;
-		provider = value;
-		coach?.selectProvider(value);
-		refresh();
-	}
+	const canRun = $derived(webgpu === true);
 
 	let loaded = $state(false);
 	let modelName = $state('…');
@@ -181,7 +157,6 @@
 				progressRatio = update.ratio;
 			});
 			webgpu = await module.detectWebGPU();
-			builtin = await module.builtinState();
 		});
 		return () => stop();
 	});
@@ -248,7 +223,7 @@
 		try {
 			await coach.selectCoachModel(choice.id, choice.thinking);
 			refresh();
-			const label = coach.coachProvider() === 'builtin' ? 'Built-in' : choice.label;
+			const label = choice.label;
 			const setups = holdoutDataset.slice(0, count);
 			for (const setup of setups) {
 				const mark = performance.now();
@@ -336,25 +311,10 @@
 				<Button size="sm" variant="ghost" disabled={!running} onclick={() => coach?.interruptCoach()}>Stop</Button>
 			</div>
 		</div>
-		<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-			<span class="text-[0.82rem] font-semibold">Runs on</span>
-			<SegmentedControl
-				class="max-w-full"
-				label="Where the model runs"
-				size="sm"
-				options={providers}
-				value={provider}
-				onchange={pickProvider}
-			/>
-		</div>
 		<dl class="m-0 grid grid-cols-2 gap-x-6 gap-y-3 text-[0.88rem] sm:grid-cols-3">
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">WebGPU</dt>
 				<dd class="m-0 font-[620]">{webgpu === null ? 'Checking' : webgpu ? 'Available' : 'Not available'}</dd>
-			</div>
-			<div class="flex min-w-0 flex-col gap-0.5">
-				<dt class="text-[0.76rem] text-muted">Built-in model</dt>
-				<dd class="m-0 font-[620]">{builtin === null ? 'Checking' : builtinLabels[builtin]}</dd>
 			</div>
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<dt class="text-[0.76rem] text-muted">Model</dt>

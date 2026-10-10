@@ -24,9 +24,8 @@ import {
 	type HelperFinding,
 	type LineReject
 } from './helper.ts';
-import { BUILTIN_MODEL, COACH_CANDIDATES, COACH_MODEL_ID, COACH_WEIGHT_DOWNLOAD } from './coach-model.ts';
-import { chooseEngine, type CoachProvider, type ProviderChoice, type ProviderId } from './coach-provider.ts';
-import { builtinState, createBuiltinProvider } from './coach-builtin.ts';
+import { COACH_CANDIDATES, COACH_MODEL_ID, COACH_WEIGHT_DOWNLOAD } from './coach-model.ts';
+import type { CoachProvider } from './coach-provider.ts';
 import { createWebLLMProvider, type WebLLMProvider } from './coach-webllm.ts';
 
 export { COACH_CANDIDATES };
@@ -63,15 +62,9 @@ export async function detectWebGPU(): Promise<boolean> {
 }
 
 let webllm: WebLLMProvider | null = null;
-let builtin: CoachProvider | null = null;
 let webgpu: Promise<boolean> | null = null;
-/** Set when the built-in model failed once, so this session stops offering it. */
-let builtinBroken = false;
-let prefer: ProviderChoice = 'auto';
 /** The lab's model, in place of `COACH_MODEL_ID`. */
 let pinned: { model: string; thinking: boolean } | null = null;
-/** What `needFor` decided, so the job runs on what the person agreed to. */
-let chosen: { provider: ProviderId; model: string } | null = null;
 let active: CoachProvider | null = null;
 
 function webllmProvider(): WebLLMProvider {
@@ -79,31 +72,19 @@ function webllmProvider(): WebLLMProvider {
 	return webllm;
 }
 
-function builtinProvider(): CoachProvider {
-	builtin ??= createBuiltinProvider(onProgress);
-	return builtin;
-}
+/** A job's model, and what it still has to download. `download` is null when nothing is fetched. */
+export type CoachNeed = { model: string; download: string | null };
 
-function providerOf(id: ProviderId): CoachProvider {
-	return id === 'builtin' ? builtinProvider() : webllmProvider();
-}
-
-/** A job's provider and model, and what it still has to download. `download` is null when nothing is fetched. */
-export type CoachNeed = { provider: ProviderId; model: string; download: string | null };
-
-/** What a model job would run on, or null when nothing can run here. */
+/**
+ * What a model job would run on, or null without WebGPU. Then Bindu offers the prompt for another chat
+ * app instead. Chrome's own model (the Prompt API) was tried as a fallback and removed: browsers that
+ * have it also have WebGPU, and its stand-in routed 12 of 66 messages (`docs/bindu-models.md`).
+ */
 export async function needFor(): Promise<CoachNeed | null> {
 	webgpu ??= detectWebGPU();
-	const engine = chooseEngine(builtinBroken ? 'unavailable' : await builtinState(), await webgpu, prefer);
-	if (!engine) return null;
-	if (engine.provider === 'builtin') {
-		chosen = { provider: 'builtin', model: BUILTIN_MODEL };
-		// The browser decides its model's size, so the card names none.
-		return { ...chosen, download: engine.download && !builtinProvider().loaded() ? '' : null };
-	}
+	if (!(await webgpu)) return null;
 	const model = pinned?.model ?? COACH_MODEL_ID;
-	chosen = { provider: 'webllm', model };
-	return { ...chosen, download: webllmProvider().loaded(model) ? null : COACH_WEIGHT_DOWNLOAD };
+	return { model, download: webllmProvider().loaded(model) ? null : COACH_WEIGHT_DOWNLOAD };
 }
 
 /** A provider from outside the app, such as `scripts/coach-eval` running models on the CPU. Bindu never sets it. */
@@ -115,11 +96,10 @@ export function useProvider(provider: CoachProvider | null): void {
 }
 
 async function runner(): Promise<{ provider: CoachProvider; model: string }> {
-	if (injected) return { provider: injected, model: pinned?.model ?? COACH_MODEL_ID };
-	const decided = chosen ?? (await needFor());
-	if (!decided) throw new Error('Nothing can run a model in this browser.');
-	const model = decided.provider === 'webllm' ? (pinned?.model ?? decided.model) : decided.model;
-	return { provider: providerOf(decided.provider), model };
+	const model = pinned?.model ?? COACH_MODEL_ID;
+	if (injected) return { provider: injected, model };
+	if (!(await (webgpu ??= detectWebGPU()))) throw new Error('Nothing can run a model in this browser.');
+	return { provider: webllmProvider(), model };
 }
 
 export function coachLoaded(): boolean {
@@ -128,24 +108,14 @@ export function coachLoaded(): boolean {
 
 /** What is loaded, or about to be, for the lab. */
 export function coachModel(): string {
-	if (active ? active.id === 'builtin' : prefer === 'builtin') return 'Built into the browser';
 	return webllm?.current() || pinned?.model || COACH_MODEL_ID;
-}
-
-export function coachProvider(): ProviderId | null {
-	return active?.id ?? null;
 }
 
 /** Loads the model. The lab gets its pinned model. */
 export async function loadCoach(): Promise<void> {
 	const { provider, model } = await runner();
 	active = provider;
-	try {
-		await provider.load(model);
-	} catch (error) {
-		if (provider.id === 'builtin') builtinBroken = true;
-		throw error;
-	}
+	await provider.load(model);
 	onProgress('Coach is ready.');
 }
 
@@ -155,15 +125,6 @@ export async function selectCoachModel(model: string, enableThinking = false): P
 	await loadCoach();
 }
 
-/** The lab's provider pick. `auto` is what Bindu does. */
-export function selectProvider(choice: ProviderChoice): void {
-	prefer = choice;
-	active = null;
-	chosen = null;
-}
-
-export { builtinState };
-
 export function resumeCoach(): void {
 	stopped = false;
 }
@@ -171,7 +132,6 @@ export function resumeCoach(): void {
 export async function interruptCoach(): Promise<void> {
 	stopped = true;
 	webllm?.interrupt();
-	builtin?.interrupt();
 }
 
 async function complete(messages: ChatMessage[], options: { maxTokens?: number; temperature?: number } = {}): Promise<string> {

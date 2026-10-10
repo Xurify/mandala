@@ -693,7 +693,7 @@ export class HelperStore {
 		this.#settle(id, 'open');
 	}
 
-	/** Loads the model when it costs no new download: one already agreed to, or the browser's own when it is there. */
+	/** Loads the model when it costs no new download: one already agreed to. */
 	async #warm(): Promise<void> {
 		if (this.#warming) return;
 		this.#warming = true;
@@ -822,13 +822,7 @@ export class HelperStore {
 			return;
 		}
 		if (need.download !== null && !this.#consent.includes(need.model)) {
-			const builtin = need.provider === 'builtin';
-			this.#say(
-				builtin
-					? 'Your browser has a model of its own. It downloads once, and every site shares it.'
-					: 'I write with a small model that lives in this browser. It is a one-time download.',
-				{ kind: 'download', size: need.download, builtin }
-			);
+			this.#say('I write with a small model that lives in this browser. It is a one-time download.', { kind: 'download', size: need.download });
 			this.#pending = { run, need };
 			return;
 		}

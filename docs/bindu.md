@@ -12,10 +12,9 @@ Bindu is the helper in the corner of the chart ("Talk to Bindu"). It plans the d
 | `src/lib/chart/helper.ts` | Pure logic: intent patterns, review checks, today and week picks, chips, greetings, every prompt the model sees |
 | `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: messages, cards, the download consent. `send()` asks `routeOf` where a message goes |
 | `src/lib/chart/intents.ts` | The intent bank: example phrases per route, scored by overlap, for what the exact rules miss |
-| `src/lib/chart/coach.browser.ts` | Every model job, with retries and line checks. Picks the provider and the model for each call |
-| `src/lib/chart/coach-provider.ts` | The provider interface, `chooseEngine`, and the message split for the Prompt API |
+| `src/lib/chart/coach.browser.ts` | Every model job, with retries and line checks |
+| `src/lib/chart/coach-provider.ts` | The provider interface. The CPU scripts plug in through `useProvider` |
 | `src/lib/chart/coach-webllm.ts`, `coach.worker.ts` | Downloaded weights on WebGPU through web-llm, in a worker |
-| `src/lib/chart/coach-builtin.ts` | The browser's own model through Chrome's Prompt API (`LanguageModel`), when it exists |
 | `src/lib/chart/coach-model.ts` | Which model loads, the lab's candidates, and the download size on the consent card |
 | `src/lib/chart/coach-score.ts` | The phrase lists and copy checks that review and the writer share |
 | `src/lib/components/Helper.svelte`, `HelperPanel.svelte`, `HelperFace.svelte` | The button, the panel, the face and its moods |
@@ -92,21 +91,13 @@ While the conversation names the step, the header only says "Working", so the sa
 
 ## Providers
 
-A provider runs the model jobs. Every job uses the same model.
+Model jobs run on web-llm with Qwen3 4B, on WebGPU, after a 2.3 GB download the person agrees to once. Without WebGPU, `needFor()` returns null and Bindu offers the prompt for another chat app instead. Opening the panel warms the model only when that costs no new download.
 
-| Provider | When | Download |
-| --- | --- | --- |
-| web-llm, Qwen3 4B | WebGPU works | 2.3 GB, once |
-| Built-in (`LanguageModel`), ready | No WebGPU, and the browser has its model | None |
-| Built-in, still to fetch | No WebGPU, and the browser can fetch its model | The browser's, shared by every site |
-
-`chooseEngine` in `coach-provider.ts` holds this order. The built-in model comes second because it has only been tested through a stand-in (`docs/bindu-models.md`). A built-in model that fails to load is skipped for the rest of the session. It gets the same messages, line checks and retries as web-llm. The Prompt API has no output cap, so the reply is cut at about four characters a token. When `LanguageModel.params()` is missing, the browser's own sampling applies, and the writer's three temperatures become three tries at the same one.
-
-`needFor()` decides the provider and model before a job runs, and the job then runs on exactly that. The download card shows what `needFor` returned. Opening the panel warms the model only when that costs no new download: one already agreed to, or the browser's own when it is there.
+Chrome's own model (the Prompt API) was tried as a fallback and taken out. Browsers that have it also have WebGPU, so it only ran where WebGPU was switched off, and its stand-in routed 12 of 66 messages and answered a Spanish brief in English (`docs/bindu-models.md`). The provider interface stays: it is how `scripts/coach-eval` runs the same coach code on the CPU.
 
 A smaller model for open questions was tried and taken out. The run in `docs/bindu-models.md` found Qwen3 1.7B invented counts and facts, and wrote weaker lines.
 
-The lab (`/dev/ai`) can force either provider, and its holdout labels each row with what actually ran. `scripts/coach-eval` runs the same coach code against GGUF models on the CPU.
+The lab (`/dev/ai`) runs every job against a sandbox chart. `scripts/coach-eval` runs the same coach code against GGUF models on the CPU.
 
 ## How picks work
 

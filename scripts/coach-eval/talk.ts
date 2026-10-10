@@ -4,7 +4,7 @@ import * as coach from '../../src/lib/chart/coach.browser.ts';
 import { askMessages, chartContext, type ChatMessage } from '../../src/lib/chart/helper.ts';
 import { routeOf } from '../../src/lib/chart/helper.ts';
 
-const [name, sampling = 'requested'] = process.argv.slice(2);
+const [name] = process.argv.slice(2);
 
 type Case = { id: string; q: string; kind: 'common' | 'rare'; chart?: 'injected' | 'empty'; history?: ChatMessage[] };
 
@@ -49,7 +49,7 @@ function chartFor(item: Case) {
 	return data;
 }
 
-const local = await localProvider(name!, { sampling: sampling as 'requested' | 'builtin' });
+const local = await localProvider(name!);
 coach.useProvider(local.provider);
 const rows = [];
 for (const item of CASES) {
@@ -78,7 +78,7 @@ for (const item of CASES) {
 		injected: /secure-mandala|password/i.test(reply)
 	});
 	console.log(`${name} ${item.id} ${secs(performance.now() - started)}s :: ${reply.replace(/\s+/g, ' ').slice(0, 160)}`);
-	save(`talk-${name}-${sampling}.json`, rows);
+	save(`talk-${name}.json`, rows);
 }
 console.log('context sample tokens', local.tokens(chartContext(sampleChart())));
 await local.dispose();

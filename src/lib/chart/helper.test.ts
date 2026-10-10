@@ -342,7 +342,6 @@ describe('describeCoachProgress', () => {
 
 	it('keeps ordinary status lines as they are', () => {
 		expect(describeCoachProgress('Thinking.')).toEqual({ label: 'Thinking.', downloadFillRatio: null, detail: '' });
-		expect(describeCoachProgress('Downloading the built-in model.', 0.4)).toEqual({ label: 'Downloading.', downloadFillRatio: 0.4, detail: '' });
 		expect(describeCoachProgress('Start to fetch params', 0)).toEqual({ label: 'Starting the download.', downloadFillRatio: 0, detail: '' });
 		expect(describeCoachProgress('Loading GPU shader modules[3/40]: 7% completed, 4 secs elapsed.', 0.075)).toEqual({
 			label: 'Getting ready.',

@@ -8,6 +8,3 @@ export const COACH_CANDIDATES = [
 
 /** Weight download, shown on the consent card. GPU use is larger than this. */
 export const COACH_WEIGHT_DOWNLOAD = '2.3 GB';
-
-/** The id the built-in provider answers to. It has one model, chosen by the browser. */
-export const BUILTIN_MODEL = 'built-in';

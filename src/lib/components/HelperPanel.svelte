@@ -288,16 +288,12 @@
 			{:else if value.kind === 'download'}
 				{@const fetching = message.state === 'used' && (helper.progress?.label === 'Downloading.' || helper.progress?.label === 'Starting the download.')}
 				<p class="m-0 text-[0.86rem] leading-snug text-pretty text-muted">
-					{#if value.builtin}
-						{fetching ? 'Downloading.' : 'The browser decides the size.'} Your chart never leaves this device.
-					{:else}
-						{fetching
-							? helper.progress?.detail
-								? `${helper.progress.detail} of about ${value.size}.`
-								: 'Starting the download.'
-							: `About ${value.size}, once.`}
-						After that I start in seconds, even offline. Your chart never leaves this device.
-					{/if}
+					{fetching
+						? helper.progress?.detail
+							? `${helper.progress.detail} of about ${value.size}.`
+							: 'Starting the download.'
+						: `About ${value.size}, once.`}
+					After that I start in seconds, even offline. Your chart never leaves this device.
 				</p>
 			{:else if value.kind === 'facts'}
 				{@const brief = helper.data.brief}

@@ -6,7 +6,7 @@ import { lineFault, reviewChart } from '../../src/lib/chart/helper.ts';
 import { exampleChart } from '../../src/lib/chart/example.ts';
 import { ACTION_MAX } from '../../src/lib/chart/draft.ts';
 
-const [name, sampling = 'requested'] = process.argv.slice(2);
+const [name] = process.argv.slice(2);
 
 const briefs: (ChartAnswers & { id: string })[] = [
 	{ id: 'spanish', direction: 'Aprender a tocar la guitarra', timeline: 'Seis meses', situation: 'Tengo una guitarra', focus: 'Acordes básicos', constraint: 'Solo veinte minutos al día' },
@@ -26,7 +26,7 @@ const rewrites = [
 	{ key: 'a4_0', text: 'Stop being lazy' }
 ];
 
-const local = await localProvider(name!, { sampling: sampling as 'requested' | 'builtin' });
+const local = await localProvider(name!);
 coach.useProvider(local.provider);
 const rows: unknown[] = [];
 for (const brief of briefs) {
@@ -47,7 +47,7 @@ for (const brief of briefs) {
 		seconds: secs(performance.now() - started)
 	});
 	console.log(`${name} brief ${brief.id}: ${chart ? `${chart.goal} | ${chart.pillars.join(', ')} | ${lines.length}/64` : 'NO CHART'} ${secs(performance.now() - started)}s`);
-	save(`rare-${name}-${sampling}.json`, rows);
+	save(`rare-${name}.json`, rows);
 }
 for (const item of rewrites) {
 	const data = exampleChart();
@@ -59,6 +59,6 @@ for (const item of rewrites) {
 	const after = finding ? await coach.rewriteCell(data, finding) : null;
 	rows.push({ kind: 'rewrite', before: item.text, flagged: Boolean(finding), fault: fault?.code ?? null, after });
 	console.log(`${name} rewrite "${item.text}" (${fault?.code ?? 'not flagged'}) -> ${JSON.stringify(after)}`);
-	save(`rare-${name}-${sampling}.json`, rows);
+	save(`rare-${name}.json`, rows);
 }
 await local.dispose();
