@@ -9,7 +9,7 @@
 	import Pages from './ui/Pages.svelte';
 	import { cn } from './ui/cn';
 
-	const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+	const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 	/** Pips a day shows before it says how many more. */
 	const SHOWN = 4;
 
@@ -56,10 +56,13 @@
 		const date = new Date(2000, 0, 1, hours ?? 0, minutes ?? 0);
 		return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' AM', ' am').replace(' PM', ' pm');
 	}
+
+	/** One geometry for the day list: a 20px mark, a 12px gap, the words, lined up with the heading. */
+	const row = 'flex min-h-11 w-full min-w-0 items-center gap-3 rounded-[14px] px-3 py-1.5';
 </script>
 
-<div class="mx-auto w-full max-w-[640px] px-4 py-6 max-[900px]:px-0 max-[900px]:py-2">
-	<div class="mb-4 flex items-end justify-between gap-3">
+<div class="mx-auto w-full max-w-[560px] px-4 py-6 max-[900px]:px-0 max-[900px]:py-2">
+	<div class="mb-5 flex items-end justify-between gap-3 px-1">
 		<div class="min-w-0">
 			<Eyebrow class="mb-1.5">Calendar</Eyebrow>
 			<h2 class="m-0 font-serif text-[1.9rem] leading-[1.1] font-[480] tracking-[-0.025em] text-text max-[900px]:text-[1.6rem]">{current.title}</h2>
@@ -71,16 +74,17 @@
 		</div>
 	</div>
 
-	<div class="rounded-[28px] bg-surface p-3 shadow-card max-[900px]:rounded-3xl max-[900px]:p-2">
-		<div class="grid grid-cols-7 gap-1 px-1 pb-1" aria-hidden="true">
-			{#each WEEKDAYS as weekday (weekday)}
-				<span class="py-1 text-center text-[0.7rem] font-[620] tracking-[0.06em] text-muted uppercase">{weekday}</span>
+	<!-- The month: a quiet grid of numbers, a pip per thing finished, today in ink. -->
+	<div class="rounded-[26px] bg-surface px-3 pt-3 pb-2 shadow-card select-none max-[900px]:rounded-3xl max-[900px]:px-2 max-[900px]:pt-2">
+		<div class="grid grid-cols-7 pb-1" aria-hidden="true">
+			{#each WEEKDAYS as weekday, index (index)}
+				<span class="py-1 text-center text-[0.7rem] font-[620] tracking-[0.08em] text-muted">{weekday}</span>
 			{/each}
 		</div>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<Pages view={current.title} {direction} label={current.title} class="overflow-x-clip">
 			{#snippet page()}
-				<div class="grid grid-cols-7 gap-1" role="grid" tabindex="-1" aria-label={current.title} onkeydown={walk}>
+				<div class="grid grid-cols-7" role="grid" tabindex="-1" aria-label={current.title} onkeydown={walk}>
 					{#each current.weeks as week, rowIndex (week[0]?.key)}
 						{#each week as day, columnIndex (day.key)}
 							{@const quiet = !day.inMonth || day.future}
@@ -90,29 +94,33 @@
 								role="gridcell"
 								data-day={day.key}
 								class={cn(
-									'relative flex aspect-[1/0.9] min-h-11 cursor-pointer flex-col items-start gap-1 rounded-[14px] border-0 bg-transparent p-1.5 text-start font-sans text-text focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[12px] max-[900px]:p-1',
-									!quiet && 'hover:bg-sunken',
-									quiet && 'cursor-default text-muted opacity-50',
-									chosen && 'bg-sunken',
-									day.today && 'shadow-[inset_0_0_0_1.5px_var(--ink)]'
+									'relative flex h-[66px] cursor-pointer flex-col items-center justify-start gap-1.5 rounded-[14px] border-0 bg-transparent px-1 pt-2 pb-1.5 font-sans text-text focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:h-[58px] max-[900px]:rounded-[12px]',
+									!quiet && !chosen && 'hover:bg-sunken',
+									quiet && 'cursor-default',
+									chosen && 'bg-sunken'
 								)}
 								aria-selected={chosen}
 								aria-label="{dayTitle(day.key)}: {day.done.length === 0 ? 'nothing finished' : day.done.length === 1 ? '1 thing finished' : `${day.done.length} things finished`}"
 								disabled={quiet}
 								onclick={() => open(day)}
 							>
-								<span class={cn('text-[0.8rem] leading-none font-[620] tabular-nums', day.today && 'text-text')}>{day.day}</span>
+								<span
+									class={cn(
+										'grid size-6 place-items-center rounded-full text-[0.82rem] leading-none font-[600] tabular-nums',
+										day.today ? 'bg-ink text-on-ink' : quiet ? 'text-muted opacity-45' : 'text-text'
+									)}>{day.day}</span
+								>
 								{#if day.inMonth && day.done.length > 0}
-									<span class="flex flex-wrap items-center gap-[3px]">
+									<span class="flex h-2 items-center gap-[3px]">
 										{#each day.done.slice(0, SHOWN) as entry, pip (entry.key)}
 											<span
-												class="pip size-[7px] rounded-full motion-safe:animate-stack-in"
+												class="pip size-[6px] rounded-full motion-safe:animate-stack-in"
 												style:--pip-h={HUES[entry.pillarIndex]}
-												style:animation-delay="{(rowIndex * 7 + columnIndex) * 10 + pip * 40}ms"
+												style:animation-delay="{rowIndex * 40 + columnIndex * 12 + pip * 30}ms"
 											></span>
 										{/each}
 										{#if day.done.length > SHOWN}
-											<span class="text-[0.62rem] leading-none font-[620] text-muted tabular-nums">+{day.done.length - SHOWN}</span>
+											<span class="ms-px text-[0.6rem] leading-none font-[620] text-muted tabular-nums">+{day.done.length - SHOWN}</span>
 										{/if}
 									</span>
 								{/if}
@@ -126,38 +134,37 @@
 
 	{#if picked}
 		{#key picked.key}
-			<section class="mt-4 rounded-[22px] bg-surface p-4 shadow-card motion-safe:animate-pop-in" aria-labelledby="calendar-day">
-				<div class="flex items-baseline justify-between gap-3">
+			<section class="mt-4 rounded-[22px] bg-surface px-4 pt-4 pb-3 shadow-card motion-safe:animate-pop-in" aria-labelledby="calendar-day">
+				<div class="flex items-baseline justify-between gap-3 pb-1.5">
 					<h3 id="calendar-day" class="m-0 text-[0.98rem] leading-tight font-[620]">{picked.today ? 'Today' : dayTitle(picked.key)}</h3>
 					{#if picked.done.length > 0}
 						<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{picked.done.length} finished</span>
 					{/if}
 				</div>
 				{#if picked.done.length === 0}
-					<p class="m-0 mt-2 text-[0.9rem] leading-snug text-pretty text-muted">{picked.today ? 'Nothing finished yet today.' : 'Nothing finished this day.'}</p>
+					<p class="m-0 mt-1 pb-1.5 text-[0.9rem] leading-snug text-pretty text-muted">{picked.today ? 'Nothing finished yet today.' : 'Nothing finished this day.'}</p>
 					{#if picked.today}
-						<Button class="mt-3" size="sm" variant="soft" icon="calendar" onclick={() => chart.setViewMode('today')}>Open today</Button>
+						<Button class="mt-2 mb-1" size="sm" variant="soft" icon="calendar" onclick={() => chart.setViewMode('today')}>Open today</Button>
 					{/if}
 				{:else}
-					<ul class="-mx-2 m-0 mt-2 flex list-none flex-col gap-0.5 p-0">
-						{#each picked.done as entry, position (entry.key)}
+					<ul class="-mx-3 m-0 flex list-none flex-col gap-px p-0">
+						{#each picked.done as entry (entry.key)}
 							<li>
 								<button
 									type="button"
-									class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2 py-1.5 text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+									class={cn(row, 'cursor-pointer border-0 bg-transparent text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink')}
 									onclick={() => chart.jumpToKey(entry.key)}
 								>
-									<span
-										class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface motion-safe:animate-stamp"
-										style:animation-delay="{80 + position * 70}ms"
-										aria-hidden="true"
-									>
+									<span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface" aria-hidden="true">
 										<Icon name="check" size={12} strokeWidth={2.6} />
 									</span>
-									<span class="flex min-w-0 flex-1 flex-col">
+									<span class="flex min-w-0 flex-1 flex-col gap-px">
 										<span class="text-[0.92rem] leading-snug text-pretty">{entry.text}</span>
-										<span class="pillar-ink truncate text-[0.74rem] font-[620]" style:--h={HUES[entry.pillarIndex]}>
-											{chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`}{entry.milestone ? ' · milestone' : ''}
+										<span class="flex items-center gap-1.5 text-[0.74rem] leading-tight font-[620]">
+											<span class="pillar-ink truncate" style:--h={HUES[entry.pillarIndex]}>{chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`}</span>
+											{#if entry.milestone}
+												<span class="shrink-0 rounded-full bg-sunken px-1.5 py-px text-[0.66rem] font-[620] tracking-[0.04em] text-muted uppercase">Milestone</span>
+											{/if}
 										</span>
 									</span>
 									{#if entry.at}

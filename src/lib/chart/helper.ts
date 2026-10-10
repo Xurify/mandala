@@ -51,7 +51,7 @@ export function restated(pillar: string, action: string): boolean {
 /** The pages of Bindu's panel. */
 export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'review' | 'write';
 /** What the prompt for a chat app is for. */
-export type WriteMode = 'new' | 'fill' | 'ask';
+export type WriteMode = 'new' | 'fill' | 'review' | 'ask';
 
 export type CellEdit = { key: string; before: string; after: string };
 
@@ -446,6 +446,23 @@ export function fillEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	);
 	return edits;
 }
+/** The lines a reviewed chart changes: cells written here and written differently there. Empty cells here are filled too. */
+export function reviseEdits(current: ChartData, reply: ChartData): CellEdit[] {
+	const edits: CellEdit[] = [];
+	const differs = (before: string, after: string) => after !== '' && norm(before) !== norm(after);
+	current.pillars.forEach((pillar, pillarIndex) => {
+		const after = (reply.pillars[pillarIndex] ?? '').trim();
+		if (differs(pillar.trim(), after)) edits.push({ key: `p${pillarIndex}`, before: pillar.trim(), after });
+	});
+	current.actions.forEach((row, pillarIndex) =>
+		row.forEach((action, actionIndex) => {
+			const after = (reply.actions[pillarIndex]?.[actionIndex] ?? '').trim();
+			if (differs(action.trim(), after)) edits.push({ key: `a${pillarIndex}_${actionIndex}`, before: action.trim(), after });
+		})
+	);
+	return edits;
+}
+
 /** A question for a chat app, with the chart it is about. Without one, the person asks it there. */
 export function askPrompt(data: ChartData, question = ''): string {
 	const asked = question.replace(/\s+/g, ' ').trim().slice(0, 600);
@@ -495,7 +512,7 @@ export function editWords(data: ChartData, edits: readonly CellEdit[]): { button
 		.filter(Boolean)
 		.join(' and ');
 	const replacing = edits.some((edit) => edit.before.trim());
-	if (replacing) return { button: count === 1 ? 'Replace it' : 'Replace them', done: `Replaced ${counted}.` };
+	if (replacing) return { button: count === 1 ? 'Keep the rewrite' : `Keep ${count} rewrites`, done: `Rewrote ${counted}.` };
 	const groups = groupEdits(data, edits);
 	const where = !pillars && groups.length === 1 ? ` to ${groups[0]!.label}` : '';
 	return { button: 'Add to chart', done: `Added ${counted}${where}.` };
@@ -853,10 +870,6 @@ export function foreignShare(data: ChartData): number {
 	const foreign = lines.filter((line) => /[^\u0000-\u007F\u2018-\u201F\u2013\u2014\u2026]/.test(line)).length;
 	return foreign / lines.length;
 }
-
-/** The question for a chat app that runs the review in any language. */
-export const REVIEW_QUESTION =
-	'Run the two tests on every pillar and action: can it be scheduled and marked done, and is it something I can do myself? List the lines that fail, with a rewrite for each.';
 
 /** A repeat tool opened most days lately has probably sunk in. The shelf has the button. */
 function knownByNow(data: ChartData, now: Date): HelperInsight[] {

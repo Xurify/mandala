@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { HelperStore, WriteMode } from '$lib/chart/helper.svelte';
+	import { CHAT_APPS } from '$lib/chart/draft';
 	import { draftButton, editWords, gapsOf, groupEdits } from '$lib/chart/helper';
+	import { hasContent } from '$lib/chart/model';
 	import { HUES, setByKey } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import MiniChart from './MiniChart.svelte';
@@ -12,11 +14,14 @@
 	let { helper }: { helper: HelperStore } = $props();
 
 	const gaps = $derived(gapsOf(helper.data).total);
+	const written = $derived(hasContent(helper.data));
 	const options = $derived([
 		{ value: 'new', label: 'New chart' },
 		...(gaps > 0 ? [{ value: 'fill', label: 'Fill the gaps' }] : []),
+		...(written ? [{ value: 'review', label: 'Review' }] : []),
 		{ value: 'ask', label: 'Ask' }
 	]);
+	let moreApps = $state(false);
 	const outcome = $derived(helper.outcome);
 	/** The chart as it would be, so a pillar the reply names is called by that name. */
 	const preview = $derived.by(() => {
@@ -43,10 +48,12 @@
 				? 'It asks you a few questions first, then writes the whole chart.'
 				: mode === 'fill'
 					? `It keeps your lines and writes only the ${gaps === 1 ? 'one that is' : `${gaps} that are`} empty.`
-					: 'It reads your chart with the question. The answer stays there.';
+					: mode === 'review'
+						? 'It runs the two tests on every line, in any language, and rewrites the ones that fail.'
+						: 'It reads your chart with the question. The answer stays there.';
 		return { there };
 	});
-	const APPS = { claude: 'Claude', chatgpt: 'ChatGPT' } as const;
+	const APPS = Object.fromEntries(CHAT_APPS.map((app) => [app.id, app.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
 
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
@@ -101,7 +108,9 @@
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
 				<p class="m-0 text-[0.95rem] leading-tight font-[620]">Copy the prompt</p>
-				{#if helper.mode === 'new'}
+				{#if helper.mode === 'review'}
+					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
+				{:else if helper.mode === 'new'}
 					<input
 						class={textField}
 						type="text"
@@ -128,8 +137,16 @@
 				<div class="flex flex-wrap items-center gap-x-1 gap-y-1.5">
 					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
 					<!-- The same prompt, straight into a chat app's box. The person still presses send there. -->
-					<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in Claude" onclick={() => helper.openIn('claude')}>Claude</Button>
-					<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in ChatGPT" onclick={() => helper.openIn('chatgpt')}>ChatGPT</Button>
+					{#each CHAT_APPS.slice(0, 2) as app (app.id)}
+						<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in {app.label}" onclick={() => helper.openIn(app.id)}>{app.label}</Button>
+					{/each}
+					{#if !moreApps}
+						<Button size="sm" variant="ghost" aria-label="More chat apps" onclick={() => (moreApps = true)}>More</Button>
+					{:else}
+						{#each CHAT_APPS.slice(2) as app (app.id)}
+							<Button size="sm" variant="ghost" icon="arrow-up-right" class="motion-safe:animate-pop-in" aria-label="Open the prompt in {app.label}" onclick={() => helper.openIn(app.id)}>{app.label}</Button>
+						{/each}
+					{/if}
 					{#if failed}
 						<span class="basis-full text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
 					{/if}
@@ -189,9 +206,14 @@
 												<span class="text-muted">{group.label}</span>
 											{/if}
 										</p>
-										<ul class="m-0 flex list-none flex-col gap-0.5 p-0 ps-3.5">
+										<ul class="m-0 flex list-none flex-col gap-1 p-0 ps-3.5">
 											{#each group.edits as edit (edit.key)}
-												<li class="text-[0.88rem] leading-snug text-pretty">{edit.after}</li>
+												<li class="flex flex-col text-[0.88rem] leading-snug text-pretty">
+													{#if edit.before.trim()}
+														<span class="text-[0.8rem] text-muted line-through">{edit.before}</span>
+													{/if}
+													<span>{edit.after}</span>
+												</li>
 											{/each}
 										</ul>
 									</section>

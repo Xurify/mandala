@@ -83,6 +83,29 @@ export function nextTool(data: ChartData, key: string, now: Date = new Date(), s
 	return [...pool].sort((a, b) => last(a).localeCompare(last(b)) || jitter(`${today}:${key}:${a.id}`) - jitter(`${today}:${key}:${b.id}`))[0] ?? null;
 }
 
+/**
+ * What each of several actions hands out today, dealt in order, so two routines on one shelf never hold the
+ * same tool at once. `passed` is what the person passed over per action; when passing has used a shelf up,
+ * it starts round again rather than showing nothing.
+ */
+export function dealTools(
+	data: ChartData,
+	keys: readonly string[],
+	now: Date = new Date(),
+	passed: ReadonlyMap<string, ReadonlySet<string>> = new Map()
+): Map<string, Tool | null> {
+	const out = new Map<string, Tool | null>();
+	const taken = new Set<string>();
+	for (const key of keys) {
+		const own = passed.get(key) ?? new Set<string>();
+		const tool =
+			nextTool(data, key, now, new Set([...own, ...taken])) ?? nextTool(data, key, now, taken) ?? nextTool(data, key, now, own) ?? nextTool(data, key, now);
+		out.set(key, tool);
+		if (tool) taken.add(tool.id);
+	}
+	return out;
+}
+
 /** The tool after it was opened: today logged, and a once tool out of the rotation. */
 export function opened(tool: Tool, now: Date = new Date()): Tool {
 	const today = dateKeyOf(now);

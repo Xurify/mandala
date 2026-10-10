@@ -128,12 +128,37 @@ export function chartFromDraft(value: unknown): ChartData | null {
 	return chart;
 }
 
-export type ChatApp = 'claude' | 'chatgpt';
+export type ChatApp = 'claude' | 'chatgpt' | 'mistral' | 'perplexity' | 'grok';
 
-/** A chat app opened with the prompt already in its box. Both read `q`; the person still presses send there. */
+/** The chat apps that take a prompt in the link, in the order they are offered. None of them documents it. */
+export const CHAT_APPS: readonly { id: ChatApp; label: string; url: string }[] = [
+	{ id: 'claude', label: 'Claude', url: 'https://claude.ai/new?q=' },
+	{ id: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/?q=' },
+	{ id: 'mistral', label: 'Mistral', url: 'https://chat.mistral.ai/chat?q=' },
+	{ id: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/search?q=' },
+	{ id: 'grok', label: 'Grok', url: 'https://grok.com/?q=' }
+];
+
+/** A chat app opened with the prompt already in its box. The person still presses send there. */
 export function chatLink(app: ChatApp, prompt: string): string {
-	const query = encodeURIComponent(prompt);
-	return app === 'claude' ? `https://claude.ai/new?q=${query}` : `https://chatgpt.com/?q=${query}`;
+	return `${CHAT_APPS.find((entry) => entry.id === app)!.url}${encodeURIComponent(prompt)}`;
+}
+
+/**
+ * The prompt that reviews a chart: every line against the two tests, in whatever language it is written.
+ * The reply is the whole chart again, so the lines that changed can be shown and kept.
+ */
+export function reviewPrompt(data: ChartData): string {
+	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
+	return [
+		...PROMPT_INTRO,
+		"Review this person's chart, in the language it is written in. Keep every line that passes both tests word for word. Rewrite only the lines that fail, in the same language and voice, keeping what the person meant. Leave an empty string empty.",
+		...briefLines(data.brief),
+		'',
+		'[Their chart]',
+		sofar,
+		...PROMPT_METHOD
+	].join('\n');
 }
 
 export function parseDraftText(raw: string): ChartData | null {

@@ -223,7 +223,8 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Bindu',
 		steps: [
 			'Weak lines opens on a chart with lines that fail the two tests. The chart sweeps, then the weak cells get a ring.',
-			'Click a line to open it in the editor and fix it. It folds out of the list.'
+			'Click a line to open it in the editor and fix it. It folds out of the list.',
+			'Or press Review with a prompt instead: the chat app rewrites the failing lines, in any language, and Keep writes them in.'
 		]
 	},
 	{

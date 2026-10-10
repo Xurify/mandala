@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { hostOf, linkIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
+import { dealTools, hostOf, linkIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -64,6 +64,23 @@ describe('the shelf', () => {
 		expect(nextTool(data, 'a1_0', now)?.id).toBe('b');
 		data.tools.p1 = data.tools.p1!.map((entry) => (entry.known ? entry : opened(entry, now)));
 		expect(nextTool(data, 'a1_0', now)).not.toBeNull();
+	});
+
+	it('deals different tools to two routines, and passes over one without moving the other', () => {
+		const data = chart();
+		data.meta = { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' } };
+		data.tools = { p1: [tool('a'), tool('b'), tool('c')] };
+		const dealt = dealTools(data, ['a1_0', 'a1_1'], now);
+		expect(dealt.get('a1_0')?.id).not.toBe(dealt.get('a1_1')?.id);
+		const first = dealt.get('a1_0')!.id;
+		const passed = new Map([['a1_1', new Set([dealt.get('a1_1')!.id])]]);
+		const again = dealTools(data, ['a1_0', 'a1_1'], now, passed);
+		expect(again.get('a1_0')?.id).toBe(first);
+		expect(again.get('a1_1')?.id).not.toBe(dealt.get('a1_1')?.id);
+		expect(again.get('a1_1')?.id).not.toBe(first);
+		// Passing over everything starts the shelf round again instead of leaving the row empty.
+		const all = new Map([['a1_1', new Set(['a', 'b', 'c'])]]);
+		expect(dealTools(data, ['a1_0', 'a1_1'], now, all).get('a1_1')).not.toBeNull();
 	});
 
 	it('retires a once tool when it is opened, and keeps a repeat one', () => {

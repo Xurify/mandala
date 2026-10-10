@@ -7,7 +7,7 @@
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
-	import { nextTool, toolsFor } from '$lib/chart/tools';
+	import { dealTools, toolsFor } from '$lib/chart/tools';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -15,8 +15,8 @@
 	import { cn } from './ui/cn';
 
 	const dateKey = todayKey();
-	/** Tools passed over with "Another" this visit. Forgotten on reload, so nothing is lost. */
-	let passed = $state<Set<string>>(new Set());
+	/** Tools passed over with "Another" this visit, per action. Forgotten on reload, so nothing is lost. */
+	let passed = $state<Map<string, Set<string>>>(new Map());
 
 	type ActionEntry = {
 		key: string;
@@ -48,6 +48,14 @@
 	});
 
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
+	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
+	const dealt = $derived(dealTools(chart.data, [...habits, ...allActions.filter((entry) => !isRoutine(entry.meta))].map((entry) => entry.key), new Date(), passed));
+
+	function passOver(key: string, id: string): void {
+		const next = new Map(passed);
+		next.set(key, new Set([...(passed.get(key) ?? []), id]));
+		passed = next;
+	}
 
 	function openKeys(keys: string[]): string[] {
 		return keys.filter((key) => {
@@ -193,10 +201,10 @@
 {#snippet checkRow(entry: ActionEntry)}
 	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
-	{@const tool = nextTool(chart.data, entry.key, new Date(), passed)}
+	{@const tool = dealt.get(entry.key) ?? null}
 	<button
 		type="button"
-		class={cn(rowClass, entry.meta?.note || tool ? 'items-start' : 'items-center')}
+		class={cn(rowClass, entry.meta?.note || tool ? 'items-start rounded-[22px]' : 'items-center')}
 		onclick={() => toggleChecked(entry.key)}
 		aria-pressed={isChecked}
 	>
@@ -244,10 +252,10 @@
 						<IconButton
 							icon="refresh"
 							label="Another tool for {entry.text}"
-							class="size-9 shrink-0 text-muted hover:text-text"
+							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
 							onclick={(event) => {
 								event.stopPropagation();
-								passed = new Set([...passed, tool.id]);
+								passOver(entry.key, tool.id);
 							}}
 						/>
 					{/if}

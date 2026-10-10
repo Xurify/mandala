@@ -28,8 +28,8 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 | Today's three | Three picks, one per pillar, each saying why. A pick whose pillar has a shelf shows the tool it would use | Swap one, open the tool, put them on today, or "Not now" |
 | This week | About six picks, one per pillar | Swap one, pin them, or "Not now" |
 | How it is going | The last 7 days as a column per day and a pip per tick in the pillar's hue, then ticks, pillars and days in a row, then up to three insights | "Open it" on an insight about one action |
-| Weak lines | The chart drawn small, swept in reading order, with each weak line marked. The list of lines, each with why. The rules read English; a chart mostly in another language gets a note and a door to the Ask prompt instead of a clean pass | Open a line in the chart. The list is live: a line fixed in the chart leaves it |
-| Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude or ChatGPT with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, or ask | Copy. Paste the reply, see what it would add, and keep it |
+| Weak lines | The chart drawn small, swept in reading order, with each weak line marked. The list of lines, each with why. The rules read English; a chart mostly in another language gets a door to the Review prompt instead of a clean pass, and an English chart gets the same door quietly | Open a line in the chart. The list is live: a line fixed in the chart leaves it |
+| Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude, ChatGPT, Mistral, Perplexity or Grok with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, review, or ask. Modes: a new chart, fill the gaps, or ask | Copy. Paste the reply, see what it would add, and keep it |
 
 The next move is: start a chart when there is no goal, fill the gaps while any line is empty, pick today's three when today has no picks, and otherwise see how it is going.
 
@@ -41,6 +41,7 @@ The panel opens where it was left, so a person who went to paste a prompt comes 
 
 - **New chart.** The prompt carries the goal, if one was typed, and asks the chat app to ask up to three questions first: time on a normal day, a date, where the person stands, anything to work around. Then it writes all 64 actions as JSON, with a `brief` of what the person said.
 - **Fill the gaps.** The prompt carries the chart so far as JSON and the brief, and asks for every empty line, keeping the written ones word for word.
+- **Review.** The prompt carries the whole chart and the two tests, and asks for the chart back with only the failing lines rewritten, in the chart's own language. The reply shows each rewrite under the line it replaces; **Keep** writes them in.
 - **Ask.** The prompt carries the chart in plain text, the brief, and the question if one was typed. The answer stays in the chat app.
 
 A pasted reply is read by `parseDraftText`, from the reply box or pasted anywhere in the panel. For this chart's goal it offers only the cells that are empty here (`fillEdits`); a written cell is never replaced. Any other goal opens as a new chart beside this one, or fills this one when it is empty. The brief is kept on the chart, syncs, and stays out of share links.

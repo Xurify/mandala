@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartFromDraft, chatLink, fillPrompt, newChartPrompt, parseDraftText } from './draft.ts';
+import { chartFromDraft, chatLink, fillPrompt, newChartPrompt, parseDraftText, reviewPrompt } from './draft.ts';
 import { emptyChart } from './model.ts';
 
 const sample = {
@@ -92,5 +92,20 @@ describe('chatLink', () => {
 		expect(chatLink('claude', prompt)).toBe(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`);
 		expect(chatLink('chatgpt', prompt)).toBe(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`);
 		expect(chatLink('claude', newChartPrompt('Speak Slovak')).length).toBeLessThan(8000);
+		expect(chatLink('grok', 'hi')).toBe('https://grok.com/?q=hi');
+	});
+});
+
+describe('reviewPrompt', () => {
+	it('carries the chart and asks for the same shape back, in its own language', () => {
+		const data = emptyChart();
+		data.goal = 'Hovoriť po slovensky';
+		data.pillars[0] = 'Počúvanie';
+		data.actions[0]![0] = 'Pozerať jedno video denne';
+		const prompt = reviewPrompt(data);
+		expect(prompt).toContain('"Pozerať jedno video denne"');
+		expect(prompt).toContain('in the language it is written in');
+		expect(prompt).toContain('{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}');
+		expect(prompt).not.toContain('coach');
 	});
 });

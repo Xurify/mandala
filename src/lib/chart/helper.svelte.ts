@@ -1,5 +1,5 @@
 import { chart } from './chart.svelte';
-import { chatLink, fillPrompt, newChartPrompt, parseDraftText, type ChatApp } from './draft.ts';
+import { chatLink, fillPrompt, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
 	editWords,
@@ -10,6 +10,7 @@ import {
 	moodFor,
 	norm,
 	reviewChart,
+	reviseEdits,
 	suggestToday,
 	suggestWeek,
 	type CellEdit,
@@ -88,9 +89,10 @@ export class HelperStore {
 		const reply = parseDraftText(this.reply);
 		if (!reply) return { kind: 'unread' };
 		const data = this.#target.data();
-		// A reply for this chart's goal fills its gaps. Anything else is a chart of its own.
+		// A reply for this chart's goal fills its gaps, or, after a review, rewrites its weak lines. Anything else
+		// is a chart of its own.
 		if (hasContent(data) && norm(reply.goal) === norm(data.goal)) {
-			const edits = fillEdits(data, reply);
+			const edits = this.mode === 'review' ? reviseEdits(data, reply) : fillEdits(data, reply);
 			return edits.length ? { kind: 'cells', edits } : { kind: 'nothing' };
 		}
 		return { kind: 'chart', data: reply };
@@ -220,6 +222,7 @@ export class HelperStore {
 		const data = this.#target.data();
 		if (mode === 'new') return newChartPrompt(this.goal);
 		if (mode === 'fill') return fillPrompt(data);
+		if (mode === 'review') return reviewPrompt(data);
 		return askPrompt(data, this.question);
 	}
 
@@ -259,7 +262,7 @@ export class HelperStore {
 			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
 			this.#target.setCells(outcome.edits);
 			// Filling the last gaps fills the chart. That is the bigger news, so the moment says it.
-			if (wholeness(this.#target.data()).chart) {
+			if (this.mode !== 'review' && wholeness(this.#target.data()).chart) {
 				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
 			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
 		} else return;

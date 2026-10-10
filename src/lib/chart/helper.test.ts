@@ -416,9 +416,9 @@ describe('the cells card', () => {
 		expect(editWords(data, adds)).toEqual({ button: 'Add to chart', done: `Added 8 actions to ${name(1)}.` });
 		expect(editWords(data, [...adds, { key: 'a2_0', before: '', after: 'More' }]).done).toBe('Added 9 actions.');
 		expect(editWords(data, [{ key: 'p4', before: '', after: 'Sleep' }])).toEqual({ button: 'Add to chart', done: 'Added 1 pillar.' });
-		expect(editWords(data, [{ key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Replace it', done: 'Replaced 1 action.' });
-		expect(editWords(data, adds.map((edit) => ({ ...edit, before: 'Old' }))).button).toBe('Replace them');
-		expect(editWords(data, [{ key: 'p0', before: 'Old', after: 'New' }, { key: 'a0_0', before: 'Old', after: 'New' }]).done).toBe('Replaced 1 pillar and 1 action.');
+		expect(editWords(data, [{ key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Keep the rewrite', done: 'Rewrote 1 action.' });
+		expect(editWords(data, adds.map((edit) => ({ ...edit, before: 'Old' }))).button).toBe('Keep 8 rewrites');
+		expect(editWords(data, [{ key: 'p0', before: 'Old', after: 'New' }, { key: 'a0_0', before: 'Old', after: 'New' }]).done).toBe('Rewrote 1 pillar and 1 action.');
 	});
 });
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { HelperStore } from '$lib/chart/helper.svelte';
-	import { describeKey, foreignShare, REVIEW_QUESTION, reviewChart } from '$lib/chart/helper';
+	import { describeKey, foreignShare, reviewChart } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
 	import MiniChart from './MiniChart.svelte';
 	import Icon from './Icon.svelte';
@@ -16,9 +16,8 @@
 	/** Most of the chart is in another language. The rules here read English, so say so and point to the prompt. */
 	const foreign = $derived(lines > 0 && foreignShare(helper.data) >= 0.3);
 
-	function askInstead(): void {
-		helper.question = REVIEW_QUESTION;
-		helper.go('write', 'ask');
+	function reviewWithPrompt(): void {
+		helper.go('write', 'review');
 	}
 	/** The sweep plays when the page opens. Later changes just show. */
 	let reading = $state(true);
@@ -46,9 +45,9 @@
 				<p class="m-0 text-[0.98rem] leading-snug font-[620]">Nothing to read yet</p>
 				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">Write a few lines, then I can check them.</p>
 			{:else if foreign}
-				<p class="m-0 text-[0.98rem] leading-snug font-[620] motion-safe:animate-pop-in [animation-delay:520ms]">I read English only</p>
+				<p class="m-0 text-[0.98rem] leading-snug font-[620] motion-safe:animate-pop-in [animation-delay:520ms]">Another language</p>
 				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted motion-safe:animate-pop-in [animation-delay:600ms]">
-					Most of these lines are in another language, so I cannot check them here.
+					My checks read English. A chat app can review these lines instead.
 				</p>
 			{:else if findings.length === 0}
 				<p class="m-0 text-[0.98rem] leading-snug font-[620] motion-safe:animate-pop-in [animation-delay:520ms]">Every line passes</p>
@@ -65,10 +64,10 @@
 	</div>
 
 	{#if foreign}
-		<div class="flex flex-col items-start gap-2 rounded-[18px] bg-bg px-3.5 py-3">
-			<p class="m-0 text-[0.86rem] leading-snug text-pretty">A chat app can run the same two tests on every line, in any language.</p>
-			<Button size="sm" variant="soft" icon="arrow-right" onclick={askInstead}>Ask a chat app</Button>
-		</div>
+		<Button class="self-start" icon="arrow-right" onclick={reviewWithPrompt}>Review with a prompt</Button>
+	{:else if lines > 0}
+		<!-- The rules here are quick and shallow. The prompt reads every line properly, and rewrites what fails. -->
+		<Button class="self-start" size="sm" variant="ghost" icon="arrow-right" onclick={reviewWithPrompt}>Review with a prompt instead</Button>
 	{/if}
 
 	{#if findings.length}
