@@ -17,7 +17,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
-	import { scrollFade } from './ui/styles';
 
 	interface Props {
 		open?: boolean;
@@ -31,8 +30,6 @@
 	let inputElement = $state<HTMLInputElement | null>(null);
 	let listElement = $state<HTMLUListElement | null>(null);
 	let active = $state(0);
-	let moreAbove = $state(false);
-	let moreBelow = $state(false);
 
 	const filtered = $derived.by((): CommandItem[] => {
 		const needle = query.trim().toLowerCase();
@@ -74,23 +71,6 @@
 	function choose(item: CommandItem): void {
 		open = false;
 		item.run();
-	}
-
-	function watchList(node: HTMLElement): () => void {
-		const update = () => {
-			moreAbove = node.scrollTop > 8;
-			moreBelow = node.scrollHeight - node.clientHeight - node.scrollTop > 8;
-		};
-		update();
-		node.addEventListener('scroll', update, { passive: true });
-		const observer = new ResizeObserver(update);
-		observer.observe(node);
-		const frame = requestAnimationFrame(update);
-		return () => {
-			cancelAnimationFrame(frame);
-			node.removeEventListener('scroll', update);
-			observer.disconnect();
-		};
 	}
 
 	function onInputKeydown(event: KeyboardEvent): void {
@@ -136,7 +116,6 @@
 		/>
 	</div>
 
-	<div class="relative flex min-h-0 flex-1 flex-col">
 	<ul
 		bind:this={listElement}
 		id="command-list"
@@ -144,7 +123,6 @@
 		class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
 		role="listbox"
 		aria-label="Commands"
-		{@attach watchList}
 	>
 		{#each filtered as item, index (item.id)}
 			{@const showHeader = index === 0 || filtered[index - 1]!.section !== item.section}
@@ -188,9 +166,6 @@
 			<li class="px-4 py-8 text-center text-[0.88rem] text-muted" role="presentation">No matches.</li>
 		{/each}
 	</ul>
-	<div class={scrollFade({ edge: 'top', on: moreAbove })} aria-hidden="true"></div>
-	<div class={scrollFade({ edge: 'bottom', on: moreBelow })} aria-hidden="true"></div>
-	</div>
 
 	<div class="relative z-20 flex shrink-0 items-center gap-4 bg-surface px-6 py-2.5 text-[0.74rem] text-muted" aria-hidden="true">
 		<span><kbd class="font-semibold">↑↓</kbd> navigate</span>

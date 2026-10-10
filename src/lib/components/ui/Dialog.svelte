@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { cn } from './cn';
 	import IconButton from './IconButton.svelte';
-	import { dialog, scrollFade } from './styles';
+	import { dialog } from './styles';
 
 	type Props = {
 		open?: boolean;
@@ -27,35 +27,8 @@
 	}: Props = $props();
 
 	let el = $state<HTMLDialogElement | null>(null);
-	let moreAbove = $state(false);
-	let moreBelow = $state(false);
 	const uid = $props.id();
 	const styles = $derived(dialog({ size, footer: Boolean(footer) }));
-
-	function watchScroll(node: HTMLElement): () => void {
-		const update = () => {
-			const leftover = node.scrollHeight - node.clientHeight - node.scrollTop;
-			moreAbove = node.scrollTop > 8;
-			moreBelow = leftover > 8;
-		};
-		update();
-		node.addEventListener('scroll', update, { passive: true });
-		const observer = new ResizeObserver(update);
-		observer.observe(node);
-		for (const child of node.children) observer.observe(child);
-		const mutations = new MutationObserver(() => {
-			for (const child of node.children) observer.observe(child);
-			update();
-		});
-		mutations.observe(node, { childList: true });
-		const frame = requestAnimationFrame(update);
-		return () => {
-			cancelAnimationFrame(frame);
-			node.removeEventListener('scroll', update);
-			observer.disconnect();
-			mutations.disconnect();
-		};
-	}
 
 	$effect(() => {
 		const node = el;
@@ -92,12 +65,8 @@
 			</div>
 			<IconButton icon="close" label="Close" onclick={() => (open = false)} />
 		</div>
-		<div class="relative flex min-h-0 flex-1 flex-col">
-			<div class={styles.body()} data-dialog-scroll {@attach watchScroll}>
-				{@render children()}
-			</div>
-			<div class={scrollFade({ edge: 'top', on: moreAbove })} aria-hidden="true"></div>
-			<div class={scrollFade({ edge: 'bottom', on: moreBelow })} aria-hidden="true"></div>
+		<div class={styles.body()} data-dialog-scroll>
+			{@render children()}
 		</div>
 		{#if footer}
 			<div class={styles.foot()}>
