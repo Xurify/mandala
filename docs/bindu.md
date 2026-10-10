@@ -131,28 +131,6 @@ Routines are habits that are always on, so they are never picked.
 
 All of it syncs with the chart.
 
-## What the probe found
-
-A quick check on 2026-10-05 ran 25 everyday messages and 40 lines through the current rules. The phrasings are mine, so read this as a smoke test, not a benchmark.
-
-**Routing: 3 of 25 messages reached the right job.** "Fill the empty ones", "start over", and "I want to run a marathon" did. These went to the model instead:
-
-- "What should I do today?", "pick 3 for today", "plan my week", "review", "is my chart any good?"
-- "How am I doing?", "which pillar have I been ignoring?", "what's a pillar?", "I missed three days", "thanks"
-
-Why:
-
-1. `intentOf` checks for a question before it checks the jobs, so "What should I do today?" never reaches the today pattern.
-2. The patterns are exact phrases. "Plan my week" misses "plan this week". "Pick 3" misses "pick three". "New goal" misses "new chart".
-3. "Help me finish my chart" reads as a new goal, and Bindu offers to start a second chart.
-4. Without the download, every miss lands on the download card. Asking what to do today offers 2.3 GB.
-
-**Review: 6 of 25 weak lines caught, 0 of 15 good lines flagged.** `UNTICKABLE` and `UNCONTROLLED` are short phrase lists. They never flag a good line, but "Eat healthier", "Read more books", "Exercise regularly", "Lose 10 kg", "Get promoted" and "Become fluent" all pass.
-
-Neither is a model problem. Both are rules that cover too little.
-
-**After the fix, the same probe: 21 of 25 routed, 24 of 25 weak lines caught, 0 good lines flagged, no lines flagged in any preset.** The four messages still missing are features that don't exist yet: "I have 20 minutes" (quick pick), "what's a pillar?" and "how many actions a day?" (method answers), and "undo that". "Learn Python" still passes review. The fix was tuned on this probe, so these numbers are optimistic. Tests 1 and 2 below are the honest measure. The messages and lines are in `helper.test.ts`.
-
 ## Where Bindu should go
 
 Bindu answers from three sources: the chart, the log of what you picked and ticked, and the method. The model writes pillars and actions. Nothing else needs it.
@@ -168,11 +146,7 @@ Rules for the engine:
 
 ### Shape
 
-Three pure steps, each tested on its own:
-
-1. **Understand.** `understand(text, data)` returns the top three readings, each with a confidence and the pieces it found. An intent bank lists, for each intent, example phrases, key words, synonyms, and words that rule it out. A message is scored against each intent by overlap. The pieces it can find are a pillar (by name, loosely matched, or "pillar 3"), an action, a length of time ("20 minutes"), a day ("tomorrow", "this week", "Sunday") and a count ("3", "three"). Questions are scored like anything else, not routed first.
-2. **Decide.** Each intent has a skill. A skill reads the chart, the log and memory, and returns a reply. When the top reading is weak, a clarify skill asks.
-3. **Reply.** `{ text, card?, chips }`, built from templates in the voice of `DESIGN.md`.
+Understand, decide, reply. `routeOf` reads a message (exact rules, then the intent bank, then a clarify question). A job or a written answer replies from the chart, the log and memory. The model writes lines, and answers what nothing else covers. See "How a message is routed".
 
 ### Skills
 
@@ -191,22 +165,17 @@ Three pure steps, each tested on its own:
 
 **Built** (`insightsFor`): today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with an "Open it" chip), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The greeting leads with the strongest one not shown lately (`unseenInsights`). "How am I doing?" adds up to two after its counts. Most need only a day or two of history.
 
-**Still to build**, from the catalog below: lopsided month, weekday rhythm, pinned untouched, thin pillar, and "Not useful" on an insight.
+**Still to build:** the four below, and "Not useful" on an insight.
 
 Everything here comes from data the chart already keeps: `days` (each day's picks and ticks), `meta` (routine or milestone, pinned, done, `doneAt`, note) and `weeks` (reflection notes and swaps). Tick times, picks taken off the list, and turned-down suggestions are logged from 2026-10-05 on.
 
+Still to build, with what each would say:
+
 | Insight | Fires when | Bindu says | Chip |
 | --- | --- | --- | --- |
-| Quiet pillar | No picks or ticks in a pillar for 7+ days | "Home has been quiet for 12 days." | Pick one Home action |
 | Lopsided month | One pillar has half the ticks in 4 weeks | "Most of this month's ticks are Career. Health has one." | Plan the week around Health |
-| Picked, not done | An action picked 3+ times, never ticked | "You've picked *Stretch at 3* four times and haven't ticked it. Make it smaller?" | Make it smaller |
-| Follow-through | The pillar you tick most against the one you tick least, once there are 10+ picks | "You finish Learning picks 9 of 10 times. Health, 2 of 8." | Look at Health |
-| Ready to retire | A routine ticked on 10 of the last 14 days | "*Water on the desk* might be a habit now. Retire it and free the cell?" | Retire it |
 | Rhythm | 20+ ticks, and the weekdays are uneven | "Most of your ticks land Monday to Wednesday. Weekends are empty." | Pick one for Saturday |
-| Comeback | First tick after 5+ quiet days | "First tick in 9 days. Good to see you." | Pick today's three |
-| Streak | The current streak passes the old best | "Eleven days in a row. That's your best." | — |
 | Pinned, untouched | A pin not picked by midweek | "*Book the exam* is pinned and hasn't come up yet." | Put it in today |
-| Your own words | A reflection is due and last week's note exists | "Last week you wrote: 'too tired after work.' Still true?" | Yes · Not anymore |
 | Thin pillar | A pillar with fewer than 4 actions, or only milestones | "Money has 3 actions, all one-time. Add a routine?" | Fill Money |
 
 These are how Bindu helps people see their own patterns: when they work, what they finish, what they keep postponing, what they said last week. Each one is their pattern, said back plainly.
@@ -225,23 +194,12 @@ For a line review flags, Bindu asks for the missing pieces instead of rewriting 
 
 Memory is something rules read. The model gets one short line of it at most.
 
-1. **What you did.** It's already stored in `days`, `meta` and `weeks`. The insights read it. Nothing new to keep.
-2. **What you turned down.** Suggestions and rewrites you skipped, and picks you swapped out. Bindu doesn't offer them again for a while.
-3. **A few facts about you.** A handful of short lines per chart: a time budget, a timeline, a constraint ("mornings only", "bad knee", "by March"). They come from the draft answers, which are thrown away today, or from a message that clearly states one. Bindu confirms each one ("Noted: mornings only.") with an Undo chip. Rules use them: a 20-minute budget filters picks, for example. Fill, rewrite and draft get them as one line in the prompt.
+- **What you did** is the chart's own log: `days`, `meta` and `weeks`. The insights read it.
+- **What you turned down** is logged per day: picks taken off the list and suggestions declined, so Bindu doesn't offer them again soon. Insights shown in a greeting are logged too.
+- **Facts about you** are the draft answers, kept on the chart as `brief` (timeline, where you stand, focus, a constraint). "What I know" lists them, each with Forget. Fill, rewrite and answers get them as one line.
+- **Next:** facts from chat ("mornings only", "bad knee"), confirmed with an Undo chip.
 
-Shape, stored on the chart so it moves with export, sync and the chart switcher, and changed only through `chart` methods:
-
-```ts
-type HelperMemory = {
-	facts: { id: string; text: string; kind: 'time' | 'timeline' | 'constraint' | 'note'; from: 'draft' | 'chat'; at: string }[];
-	declined: Record<string, string>; // suggestion id → date
-	seen: Record<string, string>; // insight id → date last shown
-};
-```
-
-`ChartData.brief` is the first piece of this: the draft answers, kept on the chart. Facts from chat, declined, and seen fold in next to it.
-
-The panel shows the facts under "What I know", each with Forget. The conversation is display history, kept per chart. It is never sent to the model as context, and the model never writes a summary of you.
+The conversation is display history, kept per chart. Only the last 8 messages go to the model, and the model never writes a summary of you.
 
 ## Where the model helps, and how we'll know
 
@@ -249,20 +207,14 @@ The panel shows the facts under "What I know", each with Forget. The conversatio
 | --- | --- | --- |
 | Write pillars and actions | Model | Yes. Nothing else can. Keep it. |
 | Rewrite a weak line | Model | Maybe. People may prefer the guided rewrite, because the line stays theirs. Test it. |
-| Judge a line (review) | Rules | Plausibly. "Eat healthier" fails on meaning, not on a phrase. Test 1. |
-| Understand a message | Rules | Probably not. The domain is narrow, a bank of phrases goes far, and the model costs seconds and a download. Test 2 settles it. |
+| Judge a line (review) | Rules | Plausibly. "Eat healthier" fails on meaning, not on a phrase. See the line-judge test below. |
+| Understand a message | Rules and the intent bank | No. As a router, Qwen3 4B scored 48 of 66 to the rules' 64, and took seconds (`docs/bindu-models.md`). |
 | Picks, progress, insights | Rules | No. These are counts, and a 4B model invents numbers. |
-| Open questions | Model | Only for what the method bank misses. Count how often that happens (test 4). |
+| Open questions | Model | Only for what the rules and the method bank miss. |
 
-**Test 1, line judge.** 200 labeled lines (pass, or fail with a code), at least half written by someone who isn't tuning the rules. Tune on 100 and report on the other 100. Compare the rules, the 4B model as a one-word judge, and both together. Measure weak lines caught, good lines wrongly flagged, and time per line. Model review ships only if it catches 15 more weak lines per 100 with no more false flags than the rules, and only as "Look closer" when the model is already loaded. A false flag costs more than a miss, because it tells someone a good line is bad.
+**Line judge, still to test.** 200 labeled lines, at least half written by someone who isn't tuning the rules. Compare the rules, the 4B model as a one-word judge, and both. Model review ships only if it catches 15 more weak lines per 100 with no more false flags, since a false flag tells someone a good line is bad.
 
-**Test 2, routing.** About 300 labeled messages across the skills above, including typos, questions, lines with two asks, and lines that should get a clarifying question. Same tune and report split. Rules need 90% right on the first reading and 98% within the top three, since the top three become the clarify chips. Run the model as a classifier on the same set and write the number down, so the question stays answered.
-
-**Test 3, insights.** A fixture builder writes `days` histories with a known pattern. Each insight fires on its pattern and stays quiet on noise and on an empty log.
-
-**Test 4, fallthrough.** The share of the routing set that still reaches the model. Under 10%.
-
-The rule side runs in `bun run test`, with these floors as assertions, so a change that makes Bindu worse fails. The model side runs on `/dev/ai`, like the holdout run, and the results go in this file.
+**Routing and fallthrough.** The rule side runs in `bun run test`, with floors as assertions, so a change that makes Bindu worse fails.
 
 **Built so far:** `bindu-eval.ts` holds 50 lines and three routing sets:
 
@@ -284,10 +236,9 @@ Lines, first run, with three wrong labels corrected: 24 of 25 weak lines caught,
 
 ## Order
 
-1. ~~Fix the three routing bugs, and add the message set as a test.~~ Done, with the progress reply, help from the chart, and thanks and hello.
-2. ~~The intent bank and clarify chips~~ (done; the loaded 4B as a tie-breaker for clarify is not built). ~~Method answers~~ (15 of about 30).
-3. ~~Insights: quiet pillar, picked not done, comeback, your own words, follow-through, ready to retire~~ (done, with better picks and Swap).
-4. Memory: ~~facts from the draft answers, shown under "What I know" with Forget; declined; seen~~. Facts from chat are next.
-5. Guided rewrite.
-6. Test 1, then decide on model review.
-7. Open chat becomes the last resort.
+1. Messages written by someone else, for an honest routing score.
+2. The line-judge test, then decide on model review.
+3. Guided rewrite.
+4. The four insights still to build.
+5. Facts from chat.
+6. The rest of the method answers (15 of about 30).

@@ -1,6 +1,6 @@
 import type { ChatMessage } from './helper.ts';
 
-export type CompleteOptions = { maxTokens: number; temperature: number; thinking: boolean };
+export type CompleteOptions = { maxTokens: number; temperature: number };
 
 export type ProgressListener = (text: string, ratio: number | null) => void;
 

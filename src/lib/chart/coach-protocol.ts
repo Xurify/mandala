@@ -16,7 +16,6 @@ export type CoachRequest =
 			messages: ChatMessage[];
 			maxTokens: number;
 			temperature: number;
-			thinking?: boolean;
 	  }
 	| { type: 'interrupt' };
 

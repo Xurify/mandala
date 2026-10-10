@@ -24,11 +24,10 @@ import {
 	type HelperFinding,
 	type LineReject
 } from './helper.ts';
-import { COACH_CANDIDATES, COACH_MODEL_ID, COACH_WEIGHT_DOWNLOAD } from './coach-model.ts';
+import { COACH_MODEL_ID, COACH_WEIGHT_DOWNLOAD } from './coach-model.ts';
 import type { CoachProvider } from './coach-provider.ts';
 import { createWebLLMProvider, type WebLLMProvider } from './coach-webllm.ts';
 
-export { COACH_CANDIDATES };
 import { emptyChart, type ChartData } from './model.ts';
 
 const RETRY_TEMPERATURES = [0.2, 0.6, 0.9];
@@ -63,8 +62,6 @@ export async function detectWebGPU(): Promise<boolean> {
 
 let webllm: WebLLMProvider | null = null;
 let webgpu: Promise<boolean> | null = null;
-/** The lab's model, in place of `COACH_MODEL_ID`. */
-let pinned: { model: string; thinking: boolean } | null = null;
 let active: CoachProvider | null = null;
 
 function webllmProvider(): WebLLMProvider {
@@ -83,8 +80,7 @@ export type CoachNeed = { model: string; download: string | null };
 export async function needFor(): Promise<CoachNeed | null> {
 	webgpu ??= detectWebGPU();
 	if (!(await webgpu)) return null;
-	const model = pinned?.model ?? COACH_MODEL_ID;
-	return { model, download: webllmProvider().loaded(model) ? null : COACH_WEIGHT_DOWNLOAD };
+	return { model: COACH_MODEL_ID, download: webllmProvider().loaded(COACH_MODEL_ID) ? null : COACH_WEIGHT_DOWNLOAD };
 }
 
 /** A provider from outside the app, such as `scripts/coach-eval` running models on the CPU. Bindu never sets it. */
@@ -96,10 +92,9 @@ export function useProvider(provider: CoachProvider | null): void {
 }
 
 async function runner(): Promise<{ provider: CoachProvider; model: string }> {
-	const model = pinned?.model ?? COACH_MODEL_ID;
-	if (injected) return { provider: injected, model };
+	if (injected) return { provider: injected, model: COACH_MODEL_ID };
 	if (!(await (webgpu ??= detectWebGPU()))) throw new Error('Nothing can run a model in this browser.');
-	return { provider: webllmProvider(), model };
+	return { provider: webllmProvider(), model: COACH_MODEL_ID };
 }
 
 export function coachLoaded(): boolean {
@@ -108,7 +103,7 @@ export function coachLoaded(): boolean {
 
 /** What is loaded, or about to be, for the lab. */
 export function coachModel(): string {
-	return webllm?.current() || pinned?.model || COACH_MODEL_ID;
+	return webllm?.current() || COACH_MODEL_ID;
 }
 
 /** Loads the model. The lab gets its pinned model. */
@@ -119,11 +114,6 @@ export async function loadCoach(): Promise<void> {
 	onProgress('Coach is ready.');
 }
 
-/** The lab's model pick. */
-export async function selectCoachModel(model: string, enableThinking = false): Promise<void> {
-	pinned = { model, thinking: enableThinking };
-	await loadCoach();
-}
 
 export function resumeCoach(): void {
 	stopped = false;
@@ -140,12 +130,9 @@ async function complete(messages: ChatMessage[], options: { maxTokens?: number; 
 	if (!provider.loaded(model)) await loadCoach();
 	active = provider;
 	if (stopped) throw new CoachStopped();
-	const thinking = provider.id === 'webllm' && pinned?.thinking === true;
-	const maxTokens = options.maxTokens ?? 512;
 	const text = await provider.complete(model, messages, {
-		maxTokens: thinking ? Math.min(4096, Math.max(maxTokens * 8, 512)) : maxTokens,
-		temperature: options.temperature ?? 0.2,
-		thinking
+		maxTokens: options.maxTokens ?? 512,
+		temperature: options.temperature ?? 0.2
 	});
 	if (stopped) throw new CoachStopped();
 	return text;

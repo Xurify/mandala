@@ -18,7 +18,6 @@
 		suggestWeek
 	} from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
-	import { COACH_CANDIDATES } from '$lib/chart/coach-model';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
@@ -27,7 +26,6 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
 	import { textArea, textField } from '$lib/components/ui/styles';
 
 	type Coach = typeof import('$lib/chart/coach.browser');
@@ -196,11 +194,6 @@
 	let question = $state('Which pillar should I start with?');
 	let reply = $state('');
 
-	let candidate = $state('0');
-	const modelOptions = COACH_CANDIDATES.map((choice, index) => ({
-		value: String(index),
-		label: choice.label
-	}));
 	type HoldoutRow = {
 		model: string;
 		direction: string;
@@ -215,15 +208,13 @@
 
 	async function scoreHoldout(count: number): Promise<void> {
 		if (!coach || running) return;
-		const choice = coach.COACH_CANDIDATES[Number(candidate)];
-		if (!choice) return;
 		running = 'holdout';
 		holdoutNote = '';
 		const started = performance.now();
 		try {
-			await coach.selectCoachModel(choice.id, choice.thinking);
+			await coach.loadCoach();
 			refresh();
-			const label = choice.label;
+			const label = 'Qwen3 4B';
 			const setups = holdoutDataset.slice(0, count);
 			for (const setup of setups) {
 				const mark = performance.now();
@@ -339,20 +330,9 @@
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Holdout dataset</Eyebrow>
 		<p class="m-0 text-[0.88rem] text-pretty text-muted">
-			Same invented starting answers, one model at a time. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
+			Same invented starting answers, on Qwen3 4B. Filled is action cells out of 64. Copies are near-duplicates the checker caught.
 		</p>
 		<div class="flex flex-wrap items-end gap-2">
-			<div class="flex min-w-56 flex-[1_1_16rem] flex-col gap-1.5">
-				<span id="holdout-model" class="text-[0.82rem] font-semibold">Model</span>
-				<Select
-					label="Model to score"
-					labelledBy="holdout-model"
-					options={modelOptions}
-					bind:value={candidate}
-					disabled={running !== null}
-					placeholder="Choose a model"
-				/>
-			</div>
 			<div class="flex h-[42px] items-center gap-2">
 				<Button disabled={!canRun || running !== null} onclick={() => scoreHoldout(8)}>
 					{running === 'holdout' ? 'Scoring' : 'Score 8'}

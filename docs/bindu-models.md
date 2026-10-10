@@ -135,9 +135,6 @@ Messages that reach the model because no rule reads them: any non-English reques
 cd scripts/coach-eval && npm install
 mkdir -p ../../local/models   # put GGUF files here, names in provider.ts
 npm run holdout -- qwen3-4b 12
-npm run talk -- qwen3-4b
-npm run tools -- qwen3-4b
-npm run rare -- qwen3-4b
 npm run pillars -- qwen3-4b
 npm run rules
 ```

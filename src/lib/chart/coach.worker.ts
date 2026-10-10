@@ -84,13 +84,12 @@ async function handle(request: Exclude<CoachRequest, { type: 'interrupt' }>): Pr
 		}
 		const model = await load(request.model);
 		await model.resetChat();
-		const thinking = request.thinking === true && request.model.includes('Qwen3');
 		const completion = await model.chat.completions.create({
 			messages: request.messages,
 			temperature: request.temperature,
 			max_tokens: request.maxTokens,
 			stream: false,
-			extra_body: request.model.includes('Qwen3') ? { enable_thinking: thinking } : undefined
+			extra_body: request.model.includes('Qwen3') ? { enable_thinking: false } : undefined
 		});
 		const content = completion.choices[0]?.message?.content;
 		post({
