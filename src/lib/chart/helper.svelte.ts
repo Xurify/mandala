@@ -35,6 +35,8 @@ export type HelperTarget = {
 	decline?(keys: string[]): void;
 	/** An insight was shown, so the next opening does not repeat it. */
 	noteShown?(signature: string): void;
+	/** A tool was opened from a pick, so the shelf logs it. */
+	openTool?(pillarIndex: number, id: string): void;
 	/** The chart Bindu is reading. The lab leaves it out. */
 	chartId?(): string;
 };
@@ -199,6 +201,10 @@ export class HelperStore {
 		this.#target.showCell(key);
 	}
 
+	openTool(pillarIndex: number, id: string): void {
+		this.#target.openTool?.(pillarIndex, id);
+	}
+
 	/** The prompt for the write page's mode, with what the person typed into it. */
 	prompt(mode: WriteMode = this.mode): string {
 		const data = this.#target.data();
@@ -302,6 +308,7 @@ export const helper = new HelperStore({
 		for (const key of keys) chart.setActionMeta(key, { pinned: true });
 	},
 	showCell: (key) => chart.jumpToKey(key),
+	openTool: (pillarIndex, id) => chart.openTool(pillarIndex, id),
 	decline: (keys) => chart.declineToday(keys),
 	noteShown: (signature) => chart.noteShown(signature),
 	chartId: () => chart.activeId

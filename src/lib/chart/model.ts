@@ -69,6 +69,23 @@ export function parseBrief(value: unknown): ChartBrief | undefined {
 	return Object.keys(brief).length > 0 ? brief : undefined;
 }
 
+export type ToolKind = 'once' | 'repeat';
+
+/** Material behind a pillar: a video, a text, a site. An action hands it out; the cell stays a sentence. */
+export type Tool = {
+	id: string;
+	url: string;
+	title: string;
+	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. */
+	kind: ToolKind;
+	/** The action that hands it out. Without one, any routine in the pillar may. */
+	action?: number;
+	/** Out of the rotation: opened once, or known by heart. */
+	known?: boolean;
+	/** The days it was opened, oldest first. */
+	opened?: string[];
+};
+
 export type ChartData = {
 	goal: string;
 	pillars: string[];
@@ -77,7 +94,34 @@ export type ChartData = {
 	days?: Record<string, DayLog>;
 	weeks?: Record<string, WeekReflection>;
 	brief?: ChartBrief;
+	/** Shelves, keyed by pillar: `p0` to `p7`. */
+	tools?: Record<string, Tool[]>;
 };
+
+export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const out: Record<string, Tool[]> = {};
+	for (const [key, list] of Object.entries(value as Record<string, unknown>)) {
+		if (!/^p[0-7]$/.test(key) || !Array.isArray(list)) continue;
+		const tools = list.flatMap((item): Tool[] => {
+			if (!item || typeof item !== 'object') return [];
+			const record = item as Record<string, unknown>;
+			if (typeof record.id !== 'string' || typeof record.url !== 'string' || !isUrl(record.url)) return [];
+			const tool: Tool = {
+				id: record.id,
+				url: record.url.trim(),
+				title: typeof record.title === 'string' ? record.title.trim().slice(0, TEXT_MAX * 2) : '',
+				kind: record.kind === 'once' ? 'once' : 'repeat'
+			};
+			if (typeof record.action === 'number' && record.action >= 0 && record.action < 8) tool.action = record.action;
+			if (record.known === true) tool.known = true;
+			if (Array.isArray(record.opened)) tool.opened = record.opened.filter((day): day is string => typeof day === 'string').slice(-60);
+			return [tool];
+		});
+		if (tools.length > 0) out[key] = tools;
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export function emptyChart(): ChartData {
 	return {
@@ -274,7 +318,8 @@ export function parseChart(raw: string): ChartData | null {
 			meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
 			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
 			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
-			brief: parseBrief(record.brief)
+			brief: parseBrief(record.brief),
+			tools: parseTools(record.tools)
 		};
 	} catch {
 		return null;

@@ -1,6 +1,6 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
-import { dateKeyOf, type ChartData, type DayLog } from './model.ts';
+import { dateKeyOf, type ChartData, type DayLog, type Tool } from './model.ts';
 
 /**
  * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
@@ -18,7 +18,8 @@ export type DemoId =
 	| 'bindu-week'
 	| 'bindu-review'
 	| 'bindu-fill'
-	| 'bindu-new';
+	| 'bindu-new'
+	| 'tools';
 
 export type DemoSetup = {
 	/** The chart to open. Null opens a new, empty one. */
@@ -35,7 +36,7 @@ export type DemoSetup = {
 export type Demo = {
 	id: DemoId;
 	title: string;
-	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Bindu';
+	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Tools' | 'Bindu';
 	/** What to do once it opens, in order. */
 	steps: string[];
 	/** A chat app's reply to paste back, for the demos that need one. */
@@ -79,6 +80,37 @@ function livedIn(now: Date): ChartData {
 		a0_0: { kind: 'routine' }
 	};
 	return data;
+}
+
+/** A shelf of real links, titles as YouTube gives them. `opened` makes one of them near known. */
+function shelves(now: Date): NonNullable<ChartData['tools']> {
+	const days = (count: number) =>
+		Array.from({ length: count }, (_, index) => {
+			const date = new Date(now);
+			date.setDate(now.getDate() - index);
+			return dateKeyOf(date);
+		}).reverse();
+	const tool = (id: string, url: string, title: string, extra: Partial<Tool> = {}): Tool => ({ id, url, title, kind: 'repeat', ...extra });
+	return {
+		p0: [tool('t-conv', 'https://youtu.be/6mCmru24BOI', 'Jak začít a udržet konverzaci s kýmkoliv', { kind: 'once', action: 1 })],
+		p1: [
+			tool('t-easy', 'https://youtu.be/SZaaZpKLTFE', "you'll understand this video WITHOUT subtitles! 💯🇷🇺 | Super Easy Russian", { opened: days(3) }),
+			tool('t-talk', 'https://youtu.be/wzMrFFcC1BU', "Let's Talk IN RUSSIAN! Easy Russian Listening Practice about new hobbies and life updates"),
+			tool('t-words', 'https://youtu.be/5jJBrcct4o0', 'Learn 1000 Most Common Russian Words #16 (Words 301–320)', { opened: days(11) }),
+			tool('t-kava', 'https://youtu.be/7VXq-j5Ni1g', 'Na káve s | Kristína Svarinská prežíva výnimočný rok'),
+			tool('t-site', 'https://comprehensiblerussian.com/#/home', 'Comprehensible Russian')
+		],
+		p2: [
+			tool('t-car', 'https://www.youtube.com/shorts/GKoQRaUraTo', 'Car Vocabulary in Slovak 🚗🤔', { opened: days(6) }),
+			tool('t-room', 'https://www.youtube.com/shorts/3KCVOyS6UPc', 'The Living Room in Slovak 🛋️😀'),
+			tool('t-eat', 'https://youtu.be/MCX0Px4izek', '"Кушать" или "есть"? Difference explained', { kind: 'once' }),
+			tool('t-test', 'https://youtu.be/1FWYOawIJNA', 'Are you really A2 level? Take this vocabulary test', { kind: 'once', known: true, opened: days(1) })
+		],
+		p4: [
+			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: 0 }),
+			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: 0 })
+		]
+	};
 }
 
 export const DEMOS: readonly Demo[] = [
@@ -153,6 +185,16 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'tools',
+		title: 'Videos on a shelf',
+		group: 'Tools',
+		steps: [
+			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, or the arrow for another.',
+			'Open Edit, then pillar 2, Listening. Its shelf lists every link: Once or Repeat, which action hands it out, Know this. One video was opened 11 of the last 14 days, so the shelf asks.',
+			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.'
+		]
+	},
+	{
 		id: 'bindu-week',
 		title: 'Bindu with a week behind it',
 		group: 'Bindu',
@@ -212,6 +254,12 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
 	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
 	if (id === 'today') return { data: livedIn(now), view: 'today' };
+	if (id === 'tools') {
+		const data = livedIn(now);
+		data.meta = { ...data.meta, a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } };
+		data.tools = shelves(now);
+		return { data, view: 'today' };
+	}
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };
 	if (id === 'bindu-review') {

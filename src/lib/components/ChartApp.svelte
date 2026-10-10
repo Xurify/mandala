@@ -37,6 +37,8 @@
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
+	import ShelfSheet from './ShelfSheet.svelte';
+	import { linkIn } from '$lib/chart/tools';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -126,8 +128,18 @@
 
 	onMount(() => {
 		chart.load();
-		const demo = new URL(location.href).searchParams.get('demo');
+		const params = new URL(location.href).searchParams;
+		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
+		// A link shared to the app (the manifest's share target) lands on a shelf.
+		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
+		// After the router is up, which replaceState needs.
+		if (shared) {
+			requestAnimationFrame(() => {
+				replaceState(location.pathname, page.state);
+				chart.offerLink(shared);
+			});
+		}
 		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
 		if (chart.theme === 'light' || chart.theme === 'dark') {
 			document.documentElement.setAttribute('data-theme', chart.theme);
@@ -219,6 +231,16 @@
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
 		selectBlock(blockIndex, targetKey);
 		chart.setViewMode('edit');
+	}
+
+	/** A link pasted anywhere that is not a field goes to a shelf. Fields, and Bindu, keep their own paste. */
+	function handleWindowPaste(event: ClipboardEvent): void {
+		const target = event.target as HTMLElement | null;
+		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
+		const url = linkIn(event.clipboardData?.getData('text') ?? '');
+		if (!url) return;
+		event.preventDefault();
+		chart.offerLink(url);
 	}
 
 	function handlePrintChart() {
@@ -517,6 +539,7 @@
 	ondragleave={handleDragLeave}
 	ondrop={handleDrop}
 	onkeydown={handleWindowKeydown}
+	onpaste={handleWindowPaste}
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
@@ -684,6 +707,7 @@
 		</Dialog>
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
+		<ShelfSheet />
 	</header>
 
 	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">

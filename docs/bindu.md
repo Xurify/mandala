@@ -25,7 +25,7 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 | Page | What it shows | What you can do |
 | --- | --- | --- |
 | First page | A note: the strongest insight, or what is missing, or the next step. One primary button for the next move (`nextMove`). A door per job, each with a line of what it would find (`doorsFor`) | Open a page. "Open it" on a note about one action |
-| Today's three | Three picks, one per pillar, each saying why | Swap one, put them on today, or "Not now" |
+| Today's three | Three picks, one per pillar, each saying why. A pick whose pillar has a shelf shows the tool it would use | Swap one, open the tool, put them on today, or "Not now" |
 | This week | About six picks, one per pillar | Swap one, pin them, or "Not now" |
 | How it is going | The last 7 days as a column per day and a pip per tick in the pillar's hue, then ticks, pillars and days in a row, then up to three insights | "Open it" on an insight about one action |
 | Review | The chart drawn small, swept in reading order, with each weak line marked. The list of lines, each with why | Open a line in the chart. The list is live: a line fixed in the chart leaves it |
@@ -90,7 +90,7 @@ All of it syncs with the chart.
 
 ## Insights
 
-**Built** (`insightsFor`): today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with "Open it"), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The note on the first page is the strongest one not shown lately (`unseenInsights`), held still while the panel is open. "How it is going" lists up to three under its counts. Most need only a day or two of history.
+**Built** (`insightsFor`): a repeat tool opened on 10 of the last 14 days ("Know it by now?"), today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with "Open it"), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The note on the first page is the strongest one not shown lately (`unseenInsights`), held still while the panel is open. "How it is going" lists up to three under its counts. Most need only a day or two of history.
 
 **Still to build:** the four below, and "Not useful" on an insight.
 

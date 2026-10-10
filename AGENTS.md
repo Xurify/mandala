@@ -41,6 +41,7 @@ src/
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
+    tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
@@ -51,6 +52,7 @@ src/
     BrandMark.svelte          logo mark, same geometry as the ring
     Helper*.svelte            Bindu: launcher, panel, and one component per page
     EmptyChart, WeeklyReflection, WeekStrip, MiniChart
+    Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
   routes/dev/demo             one-click situations for trying every interaction
@@ -63,6 +65,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Pillar `k` owns hue `HUES[k]`. Anything that shows a pillar uses that hue, and nothing else does.
 - Anything arranged in a circle (ring, mark, icon) places pillar `k` at `PILLAR_ANGLES[k]`, so it matches the grid spatially.
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves.
+- A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 
 ## Conventions
 

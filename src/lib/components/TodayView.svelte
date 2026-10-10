@@ -5,6 +5,9 @@
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
 	import Icon from './Icon.svelte';
+	import ToolFace from './ToolFace.svelte';
+	import IconButton from './ui/IconButton.svelte';
+	import { nextTool, toolsFor } from '$lib/chart/tools';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -12,6 +15,8 @@
 	import { cn } from './ui/cn';
 
 	const dateKey = todayKey();
+	/** Tools passed over with "Another" this visit. Forgotten on reload, so nothing is lost. */
+	let passed = $state<Set<string>>(new Set());
 
 	type ActionEntry = {
 		key: string;
@@ -186,9 +191,10 @@
 {#snippet checkRow(entry: ActionEntry)}
 	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
+	{@const tool = nextTool(chart.data, entry.key, new Date(), passed)}
 	<button
 		type="button"
-		class={cn(rowClass, entry.meta?.note ? 'items-start' : 'items-center')}
+		class={cn(rowClass, entry.meta?.note || tool ? 'items-start' : 'items-center')}
 		onclick={() => toggleChecked(entry.key)}
 		aria-pressed={isChecked}
 	>
@@ -217,6 +223,34 @@
 					'text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
 					isChecked && 'text-muted line-through'
 				)}>{entry.text}</span>
+			{#if tool}
+				<!-- The material this action uses today. Opening it is logged; the tick above stays the person's. -->
+				<span class="mt-1 flex min-w-0 items-center gap-2" role="group" aria-label="Today's tool for {entry.text}">
+					<a
+						href={tool.url}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="flex min-w-0 flex-1 items-center rounded-[12px] py-0.5 pe-2 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+						onclick={(event) => {
+							event.stopPropagation();
+							chart.openTool(entry.pillarIndex, tool.id);
+						}}
+					>
+						<ToolFace {tool} class="min-w-0 flex-1" />
+					</a>
+					{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
+						<IconButton
+							icon="refresh"
+							label="Another tool for {entry.text}"
+							class="size-9 shrink-0 text-muted hover:text-text"
+							onclick={(event) => {
+								event.stopPropagation();
+								passed = new Set([...passed, tool.id]);
+							}}
+						/>
+					{/if}
+				</span>
+			{/if}
 			{#if entry.meta?.note}
 				<span class="text-[0.78rem] leading-snug text-muted">
 					{#if isUrl(entry.meta.note)}
@@ -239,7 +273,7 @@
 		<span
 			class={cn(
 				'pip size-2 shrink-0 rounded-full motion-safe:transition-opacity motion-safe:duration-200',
-				entry.meta?.note && 'mt-1.5',
+				(entry.meta?.note || tool) && 'mt-1.5',
 				isChecked && 'opacity-40'
 			)}
 			style:--pip-h={HUES[entry.pillarIndex]}

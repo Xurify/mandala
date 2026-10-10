@@ -10,6 +10,7 @@
 	} from './goal-fit';
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
+	import Shelf from './Shelf.svelte';
 	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
@@ -600,6 +601,10 @@
 				</div>
 			</div>
 		{/if}
+	{/if}
+
+	{#if chart.sel !== 4}
+		<Shelf pillarIndex={idx(chart.sel)} />
 	{/if}
 
 	<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">

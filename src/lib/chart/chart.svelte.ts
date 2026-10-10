@@ -1,4 +1,5 @@
 import { morph } from "./morph";
+import { newTool, opened } from "./tools";
 import {
   blockOfK,
   completedBy,
@@ -28,6 +29,8 @@ import {
   type DayLog,
   type Milestones,
   type WeekReflection,
+  type Tool,
+  type ToolKind,
 } from "./model.ts";
 import { isAccent, type AccentId } from "./accent.ts";
 import {
@@ -654,6 +657,57 @@ export class ChartStore {
     if (existing.shown?.includes(signature)) return;
     this.data.days[dateKey] = { ...existing, shown: [...(existing.shown ?? []), signature] };
     this.data = { ...this.data };
+    this.save();
+  }
+
+  /** A link that arrived by share or paste, waiting for a shelf. */
+  pendingLink = $state<string | null>(null);
+
+  offerLink(url: string): void {
+    this.pendingLink = url;
+  }
+
+  addTool(pillarIndex: number, url: string, title = "", kind: ToolKind = "repeat"): Tool {
+    const tool = newTool(url, title, kind);
+    const key = `p${pillarIndex}`;
+    const tools = { ...this.data.tools, [key]: [...(this.data.tools?.[key] ?? []), tool] };
+    this.data = { ...this.data, tools };
+    this.save();
+    return tool;
+  }
+
+  updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
+    this.#patchTool(pillarIndex, id, (tool) => {
+      const next = { ...tool, ...patch };
+      // Clearing a field removes it, so the saved chart stays small.
+      for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
+      return next;
+    });
+  }
+
+  removeTool(pillarIndex: number, id: string): void {
+    const key = `p${pillarIndex}`;
+    const rest = (this.data.tools?.[key] ?? []).filter((tool) => tool.id !== id);
+    const tools = { ...this.data.tools };
+    if (rest.length > 0) tools[key] = rest;
+    else delete tools[key];
+    this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+    this.save();
+  }
+
+  /** The person opened it. Today is logged, and a once tool leaves the rotation. */
+  openTool(pillarIndex: number, id: string): void {
+    this.#patchTool(pillarIndex, id, (tool) => opened(tool));
+  }
+
+  #patchTool(pillarIndex: number, id: string, change: (tool: Tool) => Tool): void {
+    const key = `p${pillarIndex}`;
+    const list = this.data.tools?.[key];
+    if (!list?.some((tool) => tool.id === id)) return;
+    this.data = {
+      ...this.data,
+      tools: { ...this.data.tools, [key]: list.map((tool) => (tool.id === id ? change(tool) : tool)) },
+    };
     this.save();
   }
 

@@ -47,6 +47,14 @@ export function overlayLocalEdits(
 		}
 	});
 
+	overlayGroup(base.tools, edited.tools, (key, value) => {
+		if (value === null) delete merged.tools?.[key];
+		else {
+			merged.tools ??= {};
+			merged.tools[key] = value;
+		}
+	});
+
 	if (JSON.stringify(base.brief ?? null) !== JSON.stringify(edited.brief ?? null)) {
 		merged.brief = edited.brief ? structuredClone(edited.brief) : undefined;
 	}

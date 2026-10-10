@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { DEMOS, demoSetup, isDemoId } from './demos.ts';
 import { parseDraftText } from './draft.ts';
-import { fillEdits, greetingInsight, reviewChart, weekInReview } from './helper.ts';
+import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
+import { nearKnown, nextTool } from './tools.ts';
 import { completedBy, getByKey, wholeness } from './model.ts';
 
 const now = new Date(2026, 9, 10, 12);
@@ -48,5 +49,12 @@ describe('demos', () => {
 		expect(edits.length).toBe(1 + 8 + 5);
 		const fresh = DEMOS.find((demo) => demo.id === 'bindu-new')!;
 		expect(parseDraftText(fresh.reply!())?.pillars).toHaveLength(8);
+	});
+
+	it('puts real links on shelves, one near known, and a routine to hand them out', () => {
+		const data = demoSetup('tools', now).data!;
+		expect(nextTool(data, 'a1_0', now)).not.toBeNull();
+		expect(nearKnown(data, now).map((entry) => entry.tool.id)).toEqual(['t-words']);
+		expect(suggestToday(data, now).some((pick) => pick.tool)).toBe(true);
 	});
 });

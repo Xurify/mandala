@@ -3,6 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import type { HelperStore } from '$lib/chart/helper.svelte';
 	import { HUES } from '$lib/chart/model';
+	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { cn } from './ui/cn';
@@ -55,6 +56,18 @@
 								</span>
 								<span class="text-[0.98rem] leading-snug font-[560] text-pretty">{pick.text}</span>
 								<span class="text-[0.8rem] leading-snug text-muted">{pick.why}</span>
+								{#if pick.tool}
+									{@const tool = pick.tool}
+									<a
+										href={tool.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="mt-1 -ms-1 flex min-w-0 items-center rounded-[12px] p-1 text-text no-underline hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+										onclick={() => helper.openTool(pick.pillarIndex, tool.id)}
+									>
+										<ToolFace {tool} class="min-w-0 flex-1" />
+									</a>
+								{/if}
 							</span>
 							<IconButton icon="refresh" label="Swap {pick.text}" class="-my-0.5 text-muted hover:text-text" onclick={() => swap(pick.key, index)} />
 						</div>

@@ -1,4 +1,5 @@
 import { ACTION_MAX, briefLines, PILLAR_MAX } from './draft.ts';
+import { nearKnown, nextTool } from './tools.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, isOpenFocus, isRoutine, labelOfKey, weekStartKey, type ChartData } from './model.ts';
 
 /* Line primitives: the review, the writer, and the holdout all judge cells with these. */
@@ -85,7 +86,14 @@ export type HelperFinding = {
 	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague' | 'cut' | 'tool';
 };
 
-export type HelperPick = { key: string; text: string; pillarIndex: number; why: string };
+export type HelperPick = {
+	key: string;
+	text: string;
+	pillarIndex: number;
+	why: string;
+	/** The material the action would use today, when its pillar's shelf has some. */
+	tool?: { id: string; title: string; url: string; kind: 'once' | 'repeat' };
+};
 
 function actionKey(pillarIndex: number, actionIndex: number): string {
 	return `a${pillarIndex}_${actionIndex}`;
@@ -342,8 +350,11 @@ function whyFor(data: ChartData, candidate: Candidate, role: PickRole, history: 
 	return `Last done ${past.sinceTick === 1 ? 'yesterday' : `${past.sinceTick} days ago`}.`;
 }
 
-function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: PickHistory): HelperPick {
-	return { key: candidate.key, text: candidate.text, pillarIndex: candidate.pillarIndex, why: whyFor(data, candidate, role, history) };
+function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: PickHistory, now: Date): HelperPick {
+	const pick: HelperPick = { key: candidate.key, text: candidate.text, pillarIndex: candidate.pillarIndex, why: whyFor(data, candidate, role, history) };
+	const tool = nextTool(data, candidate.key, now);
+	if (tool) pick.tool = { id: tool.id, title: tool.title, url: tool.url, kind: tool.kind };
+	return pick;
 }
 
 /**
@@ -366,7 +377,7 @@ export function suggestToday(
 	const usedPillars = new Set<number>();
 	const take = (candidate: Candidate | undefined, role: PickRole) => {
 		if (!candidate || picks.length >= count || used.has(candidate.key)) return;
-		picks.push(toPick(data, candidate, role, history));
+		picks.push(toPick(data, candidate, role, history, now));
 		used.add(candidate.key);
 		usedPillars.add(candidate.pillarIndex);
 	};
@@ -403,7 +414,7 @@ export function suggestWeek(
 			if (picks.length >= count) break;
 			if (used.has(candidate.key) || usedPillars.has(candidate.pillarIndex)) continue;
 			if (picks.filter((pick) => pick.pillarIndex === candidate.pillarIndex).length > round) continue;
-			picks.push(toPick(data, candidate, candidate.pinned ? 'pinned' : 'best', history));
+			picks.push(toPick(data, candidate, candidate.pinned ? 'pinned' : 'best', history, now));
 			used.add(candidate.key);
 			usedPillars.add(candidate.pillarIndex);
 			added = true;
@@ -524,7 +535,7 @@ function quietPillars(data: ChartData, history: PickHistory, days = 7): number[]
 }
 
 export type HelperInsight = {
-	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'words' | 'follow' | 'retire';
+	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'words' | 'follow' | 'retire' | 'tool';
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
@@ -643,7 +654,7 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		else if (share((hour) => hour >= 12 && hour < 18) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks happen in the afternoon.', weight: 16 });
 	}
 
-	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now));
+	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now), ...knownByNow(data, now));
 
 	return insights.sort((a, b) => b.weight - a.weight);
 }
@@ -830,6 +841,16 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 	});
 	doors.push({ page: 'write', label: 'Write with a chat app', detail: 'Start a chart, fill it, or ask' });
 	return doors.filter((door) => door.page === 'write' || door.page !== lead.page);
+}
+
+/** A repeat tool opened most days lately has probably sunk in. The shelf has the button. */
+function knownByNow(data: ChartData, now: Date): HelperInsight[] {
+	return nearKnown(data, now).slice(0, 1).map(({ pillarIndex, tool, days }) => ({
+		id: 'tool',
+		ref: tool.id,
+		text: `You have opened ${quote(tool.title)} on ${days} of the last 14 days. Know it by now? ${pillarName(data, pillarIndex)}'s shelf has a button for that.`,
+		weight: 26
+	}));
 }
 
 export type WeekReview = {
