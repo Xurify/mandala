@@ -20,6 +20,27 @@
 	/** True when the editor is the only thing on screen, so its block can be the chart's block grown large. */
 	let { alone = false }: { alone?: boolean } = $props();
 
+	let gridElement: HTMLDivElement | null = $state(null);
+	let titleElement: HTMLHeadingElement | null = $state(null);
+	/** The block the editor showed last, so the next one can arrive from where it sits on the map. */
+	let shownSel = chart.sel;
+	$effect(() => {
+		const sel = chart.sel;
+		const from = shownSel;
+		shownSel = sel;
+		if (from === sel || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const dx = (sel % 3) - (from % 3);
+		const dy = Math.floor(sel / 3) - Math.floor(from / 3);
+		const length = Math.hypot(dx, dy) || 1;
+		const offset = `translate(${(dx / length) * 40}px, ${(dy / length) * 40}px)`;
+		for (const node of [gridElement, titleElement]) {
+			node?.animate([{ transform: offset, opacity: 0.15 }, { transform: 'none', opacity: 1 }], {
+				duration: 400,
+				easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+			});
+		}
+	});
+
 	const actionKinds = [
 		{ value: 'standard', label: 'Standard' },
 		{ value: 'routine', label: 'Routine' },
@@ -335,9 +356,19 @@
 				>
 					<span>{pillarIndex + 1}</span>
 					{#if actionsCount === 8}
-						<span class="absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]" aria-hidden="true">
-							<Icon name="check" size={10} strokeWidth={2.5} />
-						</span>
+						{@const stamped = chart.landed?.pillars.includes(pillarIndex) || chart.landed?.chart}
+						{#key stamped ? chart.landed?.id : 0}
+							<span
+								class={cn(
+									'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]',
+									stamped && 'motion-safe:animate-stamp'
+								)}
+								style:animation-delay={stamped && chart.landed?.chart ? `${pillarIndex * 70}ms` : undefined}
+								aria-hidden="true"
+							>
+								<Icon name="check" size={10} strokeWidth={2.5} />
+							</span>
+						{/key}
 					{/if}
 				</button>
 			{/each}
@@ -373,7 +404,8 @@
 				{/if}
 			</Eyebrow>
 			{#if currentPillarActionsCount !== null}
-				<span class={cn('inline-flex items-center gap-[5px] text-[0.82rem] font-medium text-muted tabular-nums', currentPillarActionsCount === 8 && 'font-semibold text-success')}>
+				{@const justWhole = chart.sel !== 4 && Boolean(chart.landed?.pillars.includes(idx(chart.sel)))}
+				<span class={cn('inline-flex items-center gap-[5px] text-[0.82rem] font-medium text-muted tabular-nums', currentPillarActionsCount === 8 && 'font-semibold text-success', justWhole && 'motion-safe:animate-pop-in')}>
 					{#if currentPillarActionsCount === 8}
 						<Icon name="check" size={12} strokeWidth={2.4} />
 					{/if}
@@ -382,7 +414,7 @@
 			{/if}
 		</div>
 
-		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
+		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 	</div>
 
 	{#if showHaradaNotice}
@@ -400,7 +432,7 @@
 		</div>
 	{/if}
 
-	<div class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
+	<div bind:this={gridElement} class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
 		{#each Array(9) as _, cellIndex (cellIndex)}
 			<div
 				class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
@@ -453,7 +485,9 @@
 							chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
 							'line-through opacity-60 text-muted',
 						isPanelCellHighlighted(cellIndex) && 'highlight',
-						activePulseIndex === cellIndex && 'motion-safe:animate-target'
+						activePulseIndex === cellIndex && 'motion-safe:animate-target',
+						// The cell a search hit or a finding opened: a chip that names it travels here.
+						activePulseIndex === cellIndex && '[view-transition-name:travel]'
 					)}
 					style:--h={hue(cellIndex)}
 					maxlength="120"

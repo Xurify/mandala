@@ -1,6 +1,8 @@
 import { morph } from "./morph";
 import {
   blockOfK,
+  completedBy,
+  wholeness,
   blockOfKey,
   emptyChart,
   exportText,
@@ -236,6 +238,18 @@ export class ChartStore {
 
   todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
+  /**
+   * What writing just made whole: pillars that got their last line, and the chart if it filled. It clears
+   * itself after the moment, and it is never saved, so a reload does not replay it.
+   */
+  /** The weekly reflection is open. Any view can open it. */
+  reflecting = $state(false);
+
+  landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
+    null,
+  );
+  #landedTimer: ReturnType<typeof setTimeout> | null = null;
+
   weekReflectionDue: boolean = $derived.by(() => {
     if (typeof window === "undefined") return false;
     const now = new Date();
@@ -506,7 +520,8 @@ export class ChartStore {
     this.sel = blockIndex;
   }
 
-  setViewMode(mode: ViewMode): void {
+  /** `animate` false switches at once, for setup code that changes more right after. */
+  setViewMode(mode: ViewMode, animate = true): void {
     const apply = (): void => {
       this.viewMode = mode;
       document.documentElement.dataset.view = mode;
@@ -517,7 +532,7 @@ export class ChartStore {
       }
       this.#applySavedGoalFit();
     };
-    if (mode === this.viewMode) apply();
+    if (mode === this.viewMode || !animate) apply();
     else morph(apply);
   }
 
@@ -537,10 +552,29 @@ export class ChartStore {
     this.query = value;
   }
 
-  setText(key: string, value: string): void {
+  /** `quiet` when the caller says what happened itself, as Bindu's moment does: the ring still plays. */
+  setText(key: string, value: string, quiet = false): void {
+    const before = wholeness(this.data);
     setByKey(this.data, key, value);
     this.save();
     if (key === "g") this.#applySavedGoalFit();
+    const done = completedBy(before, wholeness(this.data));
+    if (done.pillars.length > 0 || done.chart) this.#land(done, quiet);
+  }
+
+  /** Writing made something whole. Several lines landing together (a fill) read as one moment. */
+  #land(done: { pillars: number[]; chart: boolean }, quiet: boolean): void {
+    const current = this.landed;
+    this.landed = {
+      id: (current?.id ?? 0) + 1,
+      pillars: [...new Set([...(current?.pillars ?? []), ...done.pillars])].sort(
+        (a, b) => a - b,
+      ),
+      chart: Boolean(current?.chart) || done.chart,
+    };
+    if (done.chart && !quiet) this.say("Chart complete. All 64 actions are written.");
+    if (this.#landedTimer) clearTimeout(this.#landedTimer);
+    this.#landedTimer = setTimeout(() => (this.landed = null), 3200);
   }
 
   textOf(key: string): string {

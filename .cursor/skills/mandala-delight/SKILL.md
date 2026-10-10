@@ -85,6 +85,10 @@ Show one representative of every group. The rest is one gesture away. A door say
 - A ring that closes in on a mark animates `outline-offset` and `outline-color`. An outline draws outside the element's own clip, so it reads on a cell a few pixels wide.
 - A line that stops applying (a fixed finding) folds out: it fades first, then its height closes so the rest move up together.
 - A change of view goes through `morph` (a view transition), not a Svelte transition. Give the thing the person was looking at the same `view-transition-name` in both views, so it travels. Keep the chrome out of the crossfade: a title that rewraps between views doubles when faded.
+- Floating chrome (dock, launcher, panel) gets its own transition layer, `z-index: 1`, no animation. A frosted bar is captured without its backdrop, so give it solid paper while `[data-morphing]` is on the root.
+- A name set on a chip for the before picture is released inside the update, when the cell takes it. Two elements with one name at once skip the whole transition.
+- A click that selects and then switches view is two morphs in one tick. The second joins the first; it does not start a transition of its own. Setup code that changes several things passes `animate = false` instead.
+- A moment the person types into (the last line of a pillar) cannot take the layout. Play it on the data it already shows: stamp the pill, glow the block, redraw the arc. One toast at most, and none when a panel's own moment says it.
 
 ## 9. Direct manipulation, with parity
 
@@ -119,6 +123,8 @@ Arrivals land. Departures leave. They are not the same animation run backwards.
 - Reduced motion skips the travel and the early fade. Opacity may still ease.
 
 ## 14. Verify the feel
+
+Every new motion gets a card on `/dev/demo`: a situation the person can open with one click and steps to try. A demo that needs a chat app's reply carries a sample. The run in `scratchpad/demos.mjs` drives each demo and captures mid-frames; run it on desktop light and phone dark before shipping.
 
 Small things that only show in a screenshot:
 - A pillar dot beside text is `pip`. `pillar-dot` is a pale tint and vanishes at 8px, worst in dark.

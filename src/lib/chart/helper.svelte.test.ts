@@ -201,7 +201,9 @@ describe('HelperStore hands writing to a chat app', () => {
 		helper.applyReply();
 		expect(charts.one!.actions[2]![5]).toBe('New 2.5');
 		expect(charts.one!.actions[0]![0]).toBe('Easy runs step 1');
-		expect(helper.moment?.title).toBe('Added 2 actions');
+		// Those were the last two gaps, so the bigger news is a full chart.
+		expect(helper.moment?.title).toBe('Every line is written');
+		expect(helper.moment?.pillars).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
 		expect(helper.reply).toBe('');
 	});
 

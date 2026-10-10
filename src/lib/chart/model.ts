@@ -171,6 +171,27 @@ export type Milestones = {
 	completedPillarsCount: number;
 };
 
+/** Which pillars are whole (named, with all eight actions), and whether every cell is written. */
+export function wholeness(data: ChartData): { pillars: boolean[]; chart: boolean } {
+	const pillars = [0, 1, 2, 3, 4, 5, 6, 7].map(
+		(pillarIndex) =>
+			(data.pillars[pillarIndex] ?? '').trim() !== '' &&
+			Array.from({ length: 8 }, (_, actionIndex) => data.actions[pillarIndex]?.[actionIndex] ?? '').every((action) => action.trim() !== '')
+	);
+	return { pillars, chart: data.goal.trim() !== '' && pillars.every(Boolean) };
+}
+
+/** What a change made whole: the pillars that just got their last line, and the chart if it just filled. */
+export function completedBy(
+	before: { pillars: boolean[]; chart: boolean },
+	after: { pillars: boolean[]; chart: boolean }
+): { pillars: number[]; chart: boolean } {
+	return {
+		pillars: after.pillars.flatMap((whole, pillarIndex) => (whole && !before.pillars[pillarIndex] ? [pillarIndex] : [])),
+		chart: after.chart && !before.chart
+	};
+}
+
 export function progressMilestones(data: ChartData): Milestones {
 	const goalSet = data.goal.trim() !== '';
 	let pillarsCount = 0;

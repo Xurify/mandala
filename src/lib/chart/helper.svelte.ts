@@ -19,7 +19,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { blockOfK, hasContent, todayKey, type ChartData } from './model.ts';
+import { blockOfK, hasContent, todayKey, wholeness, type ChartData } from './model.ts';
 
 export type { CellEdit, HelperMood, HelperPage, HelperPick, WriteMode };
 
@@ -234,7 +234,10 @@ export class HelperStore {
 			const words = editWords(this.#target.data(), outcome.edits);
 			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
 			this.#target.setCells(outcome.edits);
-			this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
+			// Filling the last gaps fills the chart. That is the bigger news, so the moment says it.
+			if (wholeness(this.#target.data()).chart) {
+				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
+			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
 		} else return;
 		this.reply = '';
 		this.copied = null;
@@ -287,7 +290,7 @@ export const helper = new HelperStore({
 	data: () => chart.data,
 	applyDraft: (next) => chart.applyDraft(next, true),
 	setCells: (edits) => {
-		for (const edit of edits) chart.setText(edit.key, edit.after);
+		for (const edit of edits) chart.setText(edit.key, edit.after, true);
 		const first = edits[0];
 		if (first) chart.select(first.key.startsWith('p') ? 4 : blockOfK(Number(first.key.slice(1).split('_')[0])));
 	},

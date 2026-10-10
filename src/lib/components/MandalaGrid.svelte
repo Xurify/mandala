@@ -133,8 +133,16 @@
 			highlighted &&
 				!selected &&
 				'can-hover:shadow-[var(--shadow-sm),0_0_0_2px_oklch(var(--p-l-hover)_var(--p-c-hover)_var(--block-h)/0.55)]',
-			highlighted && 'highlight'
+			highlighted && 'highlight',
+			landedOn(blockIndex) && 'motion-safe:animate-glow'
 		);
+	}
+
+	/** A block whose pillar just became whole glows once. A full chart glows block by block, in pillar order. */
+	function landedOn(blockIndex: number): boolean {
+		const landed = chart.landed;
+		if (source || !landed || blockIndex === 4) return false;
+		return landed.chart || landed.pillars.includes(idx(blockIndex));
 	}
 
 	function isBlockHighlighted(blockIndex: number): boolean {
@@ -282,7 +290,11 @@
 	)}
 >
 	{#each Array(9) as _, blockIndex (blockIndex)}
-		<div class={blockClass(blockIndex)} style:--block-h={blockHue(blockIndex)}>
+		<div
+			class={blockClass(blockIndex)}
+			style:--block-h={blockHue(blockIndex)}
+			style:animation-delay={chart.landed?.chart && blockIndex !== 4 ? `${idx(blockIndex) * 70}ms` : undefined}
+		>
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}
 				{@const cellInformation = info(blockIndex, cellIndex)}
 				{@const key = cellKey(blockIndex, cellIndex)}

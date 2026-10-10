@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import type { HelperPage, HelperStore } from '$lib/chart/helper.svelte';
 	import HelperFace from './HelperFace.svelte';
@@ -11,7 +11,7 @@
 	import HelperWrite from './HelperWrite.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { cn } from './ui/cn';
-	import { pageIn, pageOut } from './ui/motion';
+	import Pages from './ui/Pages.svelte';
 
 	interface Props {
 		helper: HelperStore;
@@ -35,26 +35,6 @@
 	});
 
 	let root: HTMLDivElement | null = $state(null);
-	let viewport: HTMLDivElement | null = $state(null);
-	/** The height of the page in view. The viewport eases to it, so a page turn changes size smoothly. */
-	let height = $state<number | null>(null);
-	let settled = $state(false);
-
-	onMount(() => {
-		const frame = requestAnimationFrame(() => (settled = true));
-		return () => cancelAnimationFrame(frame);
-	});
-
-	function measure(node: HTMLElement): () => void {
-		const update = (): void => {
-			if (node.dataset.view === view) height = node.offsetHeight;
-		};
-		const observer = new ResizeObserver(update);
-		observer.observe(node);
-		update();
-		return () => observer.disconnect();
-	}
-
 	/** Where focus goes after a page turn: into the new page, or back to the door it came out of. */
 	let previous: HelperPage | 'moment' | null = null;
 	$effect(() => {
@@ -63,7 +43,6 @@
 		if (current === previous) return;
 		const from = previous;
 		previous = current;
-		viewport?.scrollTo({ top: 0 });
 		void tick().then(() => {
 			if (!root?.contains(document.activeElement) && document.activeElement !== document.body) return;
 			const page = root?.querySelector<HTMLElement>(`[data-view="${current}"]`);
@@ -102,7 +81,7 @@
 
 <div
 	bind:this={root}
-	class={cn('flex min-h-0 flex-col overflow-hidden rounded-[28px] bg-surface text-text', className)}
+	class={cn('flex min-h-0 flex-col overflow-hidden rounded-[28px] bg-surface text-text outline-none', className)}
 	role="dialog"
 	tabindex="-1"
 	aria-label="Bindu"
@@ -144,40 +123,21 @@
 		{/if}
 	</header>
 
-	<div
-		bind:this={viewport}
-		class={cn(
-			'min-h-0 shrink overflow-x-hidden overflow-y-auto overscroll-contain',
-			settled && 'motion-safe:transition-[height] motion-safe:duration-[420ms] motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)]'
-		)}
-		style:height={height === null ? undefined : `${height}px`}
-	>
-		<div class="grid">
-			{#key view}
-				<section
-					class="min-w-0 self-start pt-1 [grid-area:1/1] focus:outline-none"
-					data-view={view}
-					tabindex="-1"
-					aria-label={heading.title}
-					in:pageIn={{ direction: helper.direction }}
-					out:pageOut={{ direction: helper.direction }}
-					{@attach measure}
-				>
-					{#if view === 'moment' && helper.moment}
-						<HelperMoment moment={helper.moment} ondone={() => helper.finish()} />
-					{:else if view === 'today' || view === 'week'}
-						<HelperPicks {helper} />
-					{:else if view === 'progress'}
-						<HelperProgress {helper} {reveal} />
-					{:else if view === 'review'}
-						<HelperReview {helper} {reveal} />
-					{:else if view === 'write'}
-						<HelperWrite {helper} />
-					{:else}
-						<HelperHome {helper} {reveal} />
-					{/if}
-				</section>
-			{/key}
-		</div>
-	</div>
+	<Pages view={view} direction={helper.direction} label={heading.title} pageClass="pt-1">
+		{#snippet page(current)}
+			{#if current === 'moment' && helper.moment}
+				<HelperMoment moment={helper.moment} ondone={() => helper.finish()} />
+			{:else if current === 'today' || current === 'week'}
+				<HelperPicks {helper} />
+			{:else if current === 'progress'}
+				<HelperProgress {helper} {reveal} />
+			{:else if current === 'review'}
+				<HelperReview {helper} {reveal} />
+			{:else if current === 'write'}
+				<HelperWrite {helper} />
+			{:else}
+				<HelperHome {helper} {reveal} />
+			{/if}
+		{/snippet}
+	</Pages>
 </div>

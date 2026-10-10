@@ -40,6 +40,8 @@ src/
     draft.ts                  prompts for a chat app, and reading the pasted reply
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
+    morph.ts                  view transitions for view, theme and accent changes
+    demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
@@ -48,8 +50,10 @@ src/
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
     Helper*.svelte            Bindu: launcher, panel, and one component per page
+    EmptyChart, WeeklyReflection, WeekStrip, MiniChart
     ChartSwitcher, PresetPicker, MethodGuide, Icon
-    ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, …). Catalog: /dev/ui
+    ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
+  routes/dev/demo             one-click situations for trying every interaction
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 ```
 
@@ -75,7 +79,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 
 1. `bun run check` passes with 0 errors and 0 warnings.
 2. `bun run test` passes (add tests beside `model.ts` / `library.ts` / `draft.ts` when you change them).
-3. UI changes are looked at, not assumed: light and dark theme, desktop (split mode) and a ≤900px mobile width, keyboard focus visible. Use the browser tools to screenshot if you have them.
+3. UI changes are looked at, not assumed: light and dark theme, desktop (split mode) and a ≤900px mobile width, keyboard focus visible. Use the browser tools to screenshot if you have them. A new interaction gets a card on `/dev/demo`.
 4. The change passes the checklist in `.cursor/skills/mandala-ui-review/SKILL.md`.
 
 ## Skills in this repo

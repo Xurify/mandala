@@ -33,7 +33,7 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 
 The next move is: start a chart when there is no goal, fill the gaps while any line is empty, pick today's three when today has no picks, and otherwise see how it is going.
 
-A thing that just became true takes the page as a moment: today set, the week pinned, a chart kept, lines added. The ring draws the pillars it touched, then the words land, then one button, Done, closes the panel.
+A thing that just became true takes the page as a moment: today set, the week pinned, a chart kept, lines added. The ring draws the pillars it touched, then the words land, then one button, Done, closes the panel. Lines that fill the last gaps make the chart whole, so that moment says "Every line is written" and draws all eight; the chart's own toast stays quiet, since the moment said it.
 
 The panel opens where it was left, so a person who went to paste a prompt comes back to the box for the reply. A moment does not wait for a reopen. A different chart starts on the first page.
 

@@ -1,57 +1,23 @@
 <script lang="ts">
 	import type { HelperStore } from '$lib/chart/helper.svelte';
-	import { progressOf, weekStrip } from '$lib/chart/helper';
-	import { HUES } from '$lib/chart/model';
+	import { progressOf } from '$lib/chart/helper';
 	import Button from './ui/Button.svelte';
+	import WeekStrip from './WeekStrip.svelte';
 
 	let { helper, reveal }: { helper: HelperStore; reveal: (key: string) => void } = $props();
 
 	const progress = $derived(progressOf(helper.data));
-	const strip = $derived(weekStrip(helper.data));
 	const named = $derived(helper.data.pillars.filter((pillar) => pillar.trim()).length);
 	const quiet = $derived(progress.quiet.map((index) => helper.data.pillars[index]?.trim()).filter(Boolean));
-	/** Pips a day column shows before it says how many more. */
-	const STACK = 7;
 
 	function listNames(names: readonly (string | undefined)[]): string {
 		if (names.length <= 1) return names[0] ?? '';
 		return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 	}
-
-	const summary = $derived(strip.map((day) => day.ticks.length).join(', '));
-	/** The strip is as tall as the busiest day, so a quiet week is not a tall empty box. */
-	const tallest = $derived(Math.max(3, Math.min(STACK, ...strip.map((day) => day.ticks.length))));
 </script>
 
 <div class="flex flex-col gap-4 px-4 pt-1 pb-4">
-	<!-- The week as it happened: a column per day, a pip per tick, in the pillar's hue. -->
-	<div
-		class="rounded-[22px] bg-bg px-3.5 pt-3.5 pb-3"
-		role="img"
-		aria-label="Ticks in the last 7 days, oldest first: {summary}."
-	>
-		<div class="flex items-stretch justify-between gap-1.5" style:height="{tallest * 11 + 26}px">
-			{#each strip as day, column (day.key)}
-				<div class="flex min-w-0 flex-1 flex-col items-center gap-2">
-					<div class="flex w-full max-w-[26px] flex-1 flex-col-reverse items-stretch gap-[3px]">
-						{#each day.ticks.slice(0, STACK) as pillarIndex, row (row)}
-							<span
-								class="pip h-2 shrink-0 rounded-full motion-safe:animate-stack-in"
-								style:--pip-h={HUES[pillarIndex]}
-								style:animation-delay="{120 + column * 45 + row * 35}ms"
-							></span>
-						{/each}
-						{#if day.ticks.length === 0}
-							<span class="h-[3px] shrink-0 rounded-full bg-sunken"></span>
-						{:else if day.ticks.length > STACK}
-							<span class="text-center text-[0.66rem] leading-none font-[620] text-muted tabular-nums">+{day.ticks.length - STACK}</span>
-						{/if}
-					</div>
-					<span class="text-[0.72rem] leading-none font-[620] {day.today ? 'text-text' : 'text-muted'}">{day.today ? 'Today' : day.label}</span>
-				</div>
-			{/each}
-		</div>
-	</div>
+	<WeekStrip data={helper.data} />
 
 	{#if !progress.everTicked}
 		<div class="flex flex-col items-start gap-3">

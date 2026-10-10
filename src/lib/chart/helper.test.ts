@@ -19,6 +19,7 @@ import {
 	suggestToday,
 	suggestWeek,
 	unseenInsights,
+	weekInReview,
 	weekStrip
 } from './helper.ts';
 import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ChartData } from './model.ts';
@@ -518,3 +519,30 @@ describe('askPrompt', () => {
 	});
 });
 
+
+describe('weekInReview', () => {
+	const now = new Date(2026, 9, 10, 12); // a Saturday; the week started Monday the 5th
+	const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
+
+	it('lists milestones closed since Monday, and not the ones before', () => {
+		const data = sample();
+		data.meta = {
+			a1_2: { kind: 'milestone', done: true, doneAt: day(-2) },
+			a3_0: { kind: 'milestone', done: true, doneAt: day(-6) },
+			a4_4: { kind: 'milestone', done: false }
+		};
+		expect(weekInReview(data, now).closed).toEqual([{ key: 'a1_2', text: 'Speed step 3', pillarIndex: 1 }]);
+	});
+
+	it('names the pillars that sat out, leading with an action not done yet', () => {
+		const data = sample();
+		data.days = { [day(0)]: { focus: [], checked: ['a0_0', 'a1_0', 'a2_0', 'a3_0', 'a4_0', 'a5_0'] } };
+		data.meta = { a6_0: { kind: 'milestone', done: true, doneAt: day(-20) } };
+		const review = weekInReview(data, now);
+		expect(review.quiet.map((entry) => entry.pillarIndex)).toEqual([6, 7]);
+		expect(review.quiet[0]?.lead.key).toBe('a6_1');
+		expect(review.quiet[0]?.rest).toHaveLength(7);
+		expect(review.moved).toEqual([0, 1, 2, 3, 4, 5]);
+		expect(review.ticks).toBe(6);
+	});
+});

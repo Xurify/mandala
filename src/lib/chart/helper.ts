@@ -831,3 +831,39 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 	doors.push({ page: 'write', label: 'Write with a chat app', detail: 'Start a chart, fill it, or ask' });
 	return doors.filter((door) => door.page === 'write' || door.page !== lead.page);
 }
+
+export type WeekReview = {
+	/** Milestones marked done since Monday. */
+	closed: { key: string; text: string; pillarIndex: number }[];
+	/** Named pillars with actions and no tick in 7 days: the action to look at first, and the others. */
+	quiet: { pillarIndex: number; lead: { key: string; text: string }; rest: { key: string; text: string }[] }[];
+	/** Pillars with a tick in the last 7 days. */
+	moved: number[];
+	ticks: number;
+};
+
+/** What the weekly reflection walks through, counted from the chart and its log. */
+export function weekInReview(data: ChartData, now: Date = new Date()): WeekReview {
+	const since = weekStartKey(now);
+	const today = dateKeyOf(now);
+	const closed: WeekReview['closed'] = [];
+	const quiet: WeekReview['quiet'] = [];
+	const progress = progressOf(data, now);
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const actions: { key: string; text: string }[] = [];
+		for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
+			const key = actionKey(pillarIndex, actionIndex);
+			const text = (data.actions[pillarIndex]?.[actionIndex] ?? '').trim();
+			if (!text) continue;
+			actions.push({ key, text });
+			const meta = data.meta?.[key];
+			if (meta?.kind === 'milestone' && meta.done && meta.doneAt && meta.doneAt >= since && meta.doneAt <= today) {
+				closed.push({ key, text, pillarIndex });
+			}
+		}
+		if (!progress.quiet.includes(pillarIndex) || actions.length === 0) continue;
+		const lead = actions.find((action) => !data.meta?.[action.key]?.done) ?? actions[0]!;
+		quiet.push({ pillarIndex, lead, rest: actions.filter((action) => action.key !== lead.key) });
+	}
+	return { closed, quiet, moved: progress.pillars, ticks: progress.ticks };
+}

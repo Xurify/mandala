@@ -141,8 +141,8 @@ export const dialog = tv({
 
 export const dock = tv({
 	slots: {
-		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 print:hidden',
-		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150'
+		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 [view-transition-name:dock] print:hidden',
+		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150 [:root[data-morphing]_&]:bg-surface'
 	}
 });
 

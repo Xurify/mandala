@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import { DEMOS, demoSetup, isDemoId, type DemoId } from '$lib/chart/demos';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { helper } from '$lib/chart/helper.svelte';
 	import {
@@ -20,6 +23,7 @@
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
+	import EmptyChart from './EmptyChart.svelte';
 	import Helper from './Helper.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import ImportDialog from './ImportDialog.svelte';
@@ -32,6 +36,7 @@
 	import YearView from './YearView.svelte';
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
+	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -42,6 +47,7 @@
 	import Dock from './ui/Dock.svelte';
 	import DockTab from './ui/DockTab.svelte';
 	import { slipOut } from './ui/motion';
+	import { morph } from '$lib/chart/morph';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
@@ -69,9 +75,10 @@
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
 	/** The ways to start have left, once the chart has a line. */
-	let startsGone = $state(chart.dirty);
+	let startsGone = $state(chart.dirty || chart.viewMode === 'view');
 	$effect(() => {
-		if (!chart.dirty) startsGone = false;
+		if (!chart.dirty && effectiveViewMode !== 'view') startsGone = false;
+		if (effectiveViewMode === 'view' && !chart.dirty) startsGone = true;
 	});
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
@@ -96,8 +103,31 @@
 		untrack(() => helper.follow(chartId));
 	});
 
+	/** Sets up one of the `/dev/demo` situations, as a new chart, after the saved charts have loaded. */
+	function openDemo(id: DemoId): void {
+		const setup = demoSetup(id);
+		const demo = DEMOS.find((entry) => entry.id === id);
+		replaceState(location.pathname, page.state);
+		if (setup.data) chart.importChart(setup.data, `Demo ready: ${demo?.title ?? id}.`);
+		else if (chart.dirty) chart.newChart();
+		chart.setViewMode(setup.view, false);
+		if (setup.focus) chart.jumpToKey(setup.focus);
+		if (setup.query) chart.setQuery(setup.query);
+		const open = setup.open;
+		if (!open) return;
+		// After the chart switch has settled, so Bindu does not start over on the new chart's first page.
+		setTimeout(() => {
+			if ('reflection' in open) chart.reflecting = true;
+			else if (open.bindu === 'home') helper.show();
+			else if (open.bindu === 'review') helper.show('review');
+			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
+		}, 500);
+	}
+
 	onMount(() => {
 		chart.load();
+		const demo = new URL(location.href).searchParams.get('demo');
+		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
 		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
 		if (chart.theme === 'light' || chart.theme === 'dark') {
 			document.documentElement.setAttribute('data-theme', chart.theme);
@@ -169,6 +199,21 @@
 				});
 			});
 		}
+	}
+
+	/**
+	 * A search hit travels into the cell it names: the chip and the cell share a view transition name for
+	 * the switch. The block is selected first, so the chart's ring is already on it in the before picture.
+	 */
+	function openHit(chip: HTMLElement, key: string): void {
+		chart.select(blockOfKey(key));
+		chip.style.viewTransitionName = 'travel';
+		// The before picture is taken by now. The name moves to the cell, so the chip lets go of it.
+		morph(() => {
+			chip.style.viewTransitionName = '';
+			selectBlock(blockOfKey(key), key);
+			chart.setViewMode('edit');
+		});
 	}
 
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
@@ -378,6 +423,7 @@
 		const items: CommandItem[] = [
 			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('today') },
 			{ id: 'year', label: 'Go to Year in focus', section: 'Actions', icon: 'clock', run: () => chart.setViewMode('year') },
+			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
 			{ id: 'edit', label: 'Go to Editor', section: 'Actions', icon: 'edit', run: () => chart.setViewMode('edit') }
 		];
@@ -574,7 +620,7 @@
 				{#if effectiveViewMode !== 'today'}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						<!-- Ways to start belong to an empty chart. Once it has a line, New chart in the menu starts another. -->
-						{#if !chart.dirty}
+						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
 								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
@@ -586,7 +632,8 @@
 				{/if}
 			</div>
 
-			{#if effectiveViewMode !== 'today'}
+			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
+			{#if effectiveViewMode !== 'today' && !(effectiveViewMode === 'view' && !chart.dirty)}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
 				<ProgressRing size={isMobile ? 56 : 76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
@@ -636,6 +683,7 @@
 			{/snippet}
 		</Dialog>
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
+		<WeeklyReflection bind:open={chart.reflecting} />
 	</header>
 
 	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">
@@ -646,10 +694,7 @@
 			<button
 				type="button"
 				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
-				onclick={() => {
-					selectBlock(blockOfKey(key), key);
-					chart.setViewMode('edit');
-				}}
+				onclick={(event) => openHit(event.currentTarget, key)}
 			>
 				<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
 				{getByKey(chart.data, key).trim()}
@@ -660,7 +705,7 @@
 		{/if}
 	</div>
 
-	{#if effectiveViewMode === 'view'}
+	{#if effectiveViewMode === 'view' && chart.dirty}
 		<div
 			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
 		>
@@ -701,11 +746,19 @@
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
 			>
-				<MandalaGrid
-					mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year' ? 'view' : effectiveViewMode}
-					onSelect={selectBlock}
-					onEdit={handleEditBlock}
-				/>
+				{#if effectiveViewMode === 'view' && !chart.dirty}
+					<EmptyChart
+						onpreset={handleOpenPresets}
+						onchat={() => helper.show('write', 'new')}
+						onwrite={() => chart.jumpToKey('g')}
+					/>
+				{:else}
+					<MandalaGrid
+						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year' ? 'view' : effectiveViewMode}
+						onSelect={selectBlock}
+						onEdit={handleEditBlock}
+					/>
+				{/if}
 			</div>
 		</div>
 		{#if effectiveViewMode === 'edit' || effectiveViewMode === 'split'}

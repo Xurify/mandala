@@ -5,7 +5,6 @@
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
 	import Icon from './Icon.svelte';
-	import WeeklyReflection from './WeeklyReflection.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -13,7 +12,6 @@
 	import { cn } from './ui/cn';
 
 	const dateKey = todayKey();
-	let reflectionOpen = $state(false);
 
 	type ActionEntry = {
 		key: string;
@@ -265,7 +263,7 @@
 					Take a moment to reflect on your week.
 				{/snippet}
 				{#snippet action()}
-					<Button size="sm" variant="soft" onclick={() => (reflectionOpen = true)}>
+					<Button size="sm" variant="soft" onclick={() => (chart.reflecting = true)}>
 						Reflect
 					</Button>
 				{/snippet}
@@ -440,7 +438,6 @@
 		</section>
 	{/if}
 
-	<WeeklyReflection bind:open={reflectionOpen} />
 </div>
 
 <Dialog
