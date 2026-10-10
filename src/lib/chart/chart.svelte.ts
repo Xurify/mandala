@@ -1006,10 +1006,11 @@ export class ChartStore {
     return this.#fillOrSpawn(importedData, message);
   }
 
-  applyDraft(next: ChartData): boolean {
+  /** `quiet` when the caller says it itself, as Bindu does with its own moment. */
+  applyDraft(next: ChartData, quiet = false): boolean {
     return this.#fillOrSpawn(
       next,
-      "Draft ready. Edit any cell to make it yours.",
+      quiet ? null : "Draft ready. Edit any cell to make it yours.",
     );
   }
 
@@ -1114,12 +1115,12 @@ export class ChartStore {
     this.#applyNote(held, "Removed", batch.subject, titles.length, batch.mixed);
   }
 
-  #fillOrSpawn(next: ChartData, message: string): boolean {
+  #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
       this.data = cloneChart(next);
       this.#resetView();
       this.saveNow();
-      this.say(message);
+      if (message) this.say(message);
       return true;
     }
     this.#flush();
@@ -1129,7 +1130,7 @@ export class ChartStore {
     this.data = cloneChart(next);
     this.#resetView();
     this.saveNow();
-    this.say(message);
+    if (message) this.say(message);
     return true;
   }
 

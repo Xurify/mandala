@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chartAnswersMessage, chartFromDraft, draftPrompt, parseDraftText } from './draft.ts';
+import { chartFromDraft, fillPrompt, newChartPrompt, parseDraftText } from './draft.ts';
+import { emptyChart } from './model.ts';
 
 const sample = {
 	goal: 'Run a half marathon in under 2:00 by October',
@@ -42,35 +43,45 @@ describe('parseDraftText', () => {
 	});
 });
 
-describe('draftPrompt', () => {
-	it('leaves the blanks for the chat, and keeps each aim as its own pillar', () => {
-		const prompt = draftPrompt();
-		expect(prompt).toContain('- Direction:');
-		expect(prompt).toContain('- Body:');
+describe('newChartPrompt', () => {
+	it('asks the chat app to interview first, and keeps the method and the JSON shape', () => {
+		const prompt = newChartPrompt();
+		expect(prompt).toContain('Ask for it first');
+		expect(prompt).toContain('up to three short questions');
 		expect(prompt).toContain('own pillar');
 		expect(prompt).toContain('work hard');
 		expect(prompt).toContain("[Don't]");
-		expect(prompt).toContain('nice-to-have');
-		expect(prompt).toContain('study 5 hours a week');
 		expect(prompt).toContain('10 million views');
-		expect(prompt).toContain('Ask more questions');
 		expect(prompt).toContain('"pillars"');
-		expect(prompt).not.toContain('not given');
+		expect(prompt).toContain('"brief"');
+	});
+
+	it('carries the goal when there is one', () => {
+		const prompt = newChartPrompt('  Learn   Slovak ');
+		expect(prompt).toContain('My goal: Learn Slovak');
+		expect(prompt).not.toContain('Ask for it first');
 	});
 });
 
-describe('chartAnswersMessage', () => {
-	it('fills the answers and marks a missing line', () => {
-		const message = chartAnswersMessage({
-			direction: 'Run a half marathon',
-			timeline: '',
-			situation: 'I run twice a week',
-			focus: '',
-			constraint: 'A bad knee'
-		});
-		expect(message).toContain('- Direction: Run a half marathon');
-		expect(message).toContain('- Constraint: A bad knee');
-		expect(message).toContain('- Timeline: Not given. Make a reasonable assumption.');
-		expect(message).toContain('exactly 8 actions');
+describe('fillPrompt', () => {
+	it('carries the chart so far and what the person said before', () => {
+		const data = emptyChart();
+		data.goal = 'Run a half marathon';
+		data.pillars[0] = 'Easy runs';
+		data.brief = { timeline: 'By October', constraint: 'A bad knee' };
+		const prompt = fillPrompt(data);
+		expect(prompt).toContain('word for word');
+		expect(prompt).toContain('"goal":"Run a half marathon"');
+		expect(prompt).toContain('- Timeline: By October');
+		expect(prompt).toContain('- To work around: A bad knee');
+		expect(prompt).not.toContain('"brief"');
+	});
+});
+
+describe('the brief in a reply', () => {
+	it('keeps what the person said, and drops what is not text', () => {
+		const chart = parseDraftText(JSON.stringify({ ...sample, brief: { timeline: 'By October', focus: 3 } }));
+		expect(chart?.brief).toEqual({ timeline: 'By October' });
+		expect(parseDraftText(JSON.stringify(sample))?.brief).toBeUndefined();
 	});
 });

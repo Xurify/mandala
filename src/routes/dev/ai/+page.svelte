@@ -2,7 +2,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { parseDraftText } from '$lib/chart/draft';
 	import { exampleChart } from '$lib/chart/example';
-	import { describeKey, fillPlan, reviewChart, routeOf, suggestToday, suggestWeek } from '$lib/chart/helper';
+	import { describeKey, gapsOf, reviewChart, suggestToday, suggestWeek } from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
 	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
@@ -11,7 +11,7 @@
 	import Card from '$lib/components/ui/Card.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { textArea, textField } from '$lib/components/ui/styles';
+	import { textArea } from '$lib/components/ui/styles';
 
 	type Scenario = 'example' | 'half' | 'flawed' | 'empty';
 
@@ -27,15 +27,13 @@
 		{ value: 'empty', label: 'Empty' }
 	];
 	const faceScenarios: { mood: HelperMood; moment: string }[] = [
-		{ mood: 'happy', moment: 'Kept a card, clean review' },
-		{ mood: 'puzzled', moment: 'Open findings card' },
-		{ mood: 'offering', moment: 'Proposed a card' },
-		{ mood: 'curious', moment: 'Asked and waiting' },
-		{ mood: 'listening', moment: 'Message box focused' },
-		{ mood: 'idle', moment: 'Resting, greeting' }
+		{ mood: 'happy', moment: 'A moment just landed' },
+		{ mood: 'puzzled', moment: 'Review has lines to tighten' },
+		{ mood: 'offering', moment: 'Picks on the table' },
+		{ mood: 'curious', moment: 'Waiting for a reply' },
+		{ mood: 'listening', moment: 'Typing in a field' },
+		{ mood: 'idle', moment: 'Resting' }
 	];
-	const field = textField;
-	const area = textArea;
 
 	function build(kind: Scenario): ChartData {
 		if (kind === 'empty') return emptyChart();
@@ -91,21 +89,22 @@
 		},
 		showCell: (key) => note(`Show ${describeKey(sample, key)} (${key})`)
 	});
+	lab.show();
 
 	function pickScenario(value: string): void {
 		if (value !== 'example' && value !== 'half' && value !== 'flawed' && value !== 'empty') return;
 		scenario = value;
 		sample = build(value);
 		lab.reset();
+		lab.show();
 		note(`Scenario: ${value}`);
 	}
 
 	const findings = $derived(reviewChart(sample));
 	const week = $derived(suggestWeek(sample));
 	const today = $derived(suggestToday(sample));
-	const plan = $derived(fillPlan(sample));
+	const gaps = $derived(gapsOf(sample));
 
-	let probe = $state('Plan my week');
 	let pasted = $state('');
 	const pastedChart = $derived(pasted.trim() ? parseDraftText(pasted) : null);
 	const pastedFindings = $derived(pastedChart ? reviewChart(pastedChart, 99) : []);
@@ -152,7 +151,7 @@
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">Bindu</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Everything Bindu can do, against a sandbox chart. It runs on rules, instantly. Writing goes to a chat app through a prompt,
+				Every page of Bindu, against a sandbox chart. It runs on rules, instantly. Writing goes to a chat app through a prompt,
 				and the pasted reply comes back here. Your real charts are not touched.
 			</p>
 		</div>
@@ -187,8 +186,8 @@
 					<pre class="m-0 min-h-28 flex-1 overflow-auto rounded-2xl bg-sunken px-3.5 py-3 font-mono text-[0.76rem] leading-[1.5] whitespace-pre-wrap text-text">{events.join('\n') || 'Nothing yet.'}</pre>
 				</div>
 			</div>
-			<div class="h-[600px] min-w-0 rounded-[28px] shadow-float">
-				<HelperPanel helper={lab} class="h-full" />
+			<div class="flex max-h-[660px] min-w-0 flex-col self-start rounded-[28px] shadow-float">
+				<HelperPanel helper={lab} />
 			</div>
 		</div>
 	</Card>
@@ -218,7 +217,7 @@
 				<h2 class="m-0 text-[0.95rem] font-[620]">Today · {today.length}</h2>
 				{@render picks(today)}
 				<p class="m-0 mt-2 text-[0.8rem] text-muted">
-					Gaps: {plan ? (plan.kind === 'pillars' ? `${plan.empty.length} pillars` : `actions, starting in pillar ${plan.pillarIndex + 1}`) : 'none'}
+					Empty lines: {gaps.total || 'none'}{gaps.pillars.length ? `, ${gaps.pillars.length} of them pillars` : ''}
 				</p>
 			</section>
 		</div>
@@ -226,15 +225,10 @@
 
 	<div class="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
 		<Card class="flex min-w-0 flex-col gap-3.5">
-			<Eyebrow>Router and parser</Eyebrow>
-			<label class="flex flex-col gap-1.5">
-				<span class="text-[0.82rem] font-semibold">A message to Bindu</span>
-				<input class={field} bind:value={probe} />
-			</label>
-			<p class="m-0 text-[0.9rem]">Routes to <b class="font-[620]">{routeOf(probe, sample)}</b></p>
+			<Eyebrow>Parser</Eyebrow>
 			<label class="flex flex-col gap-1.5">
 				<span class="text-[0.82rem] font-semibold">Paste a chat app's reply</span>
-				<textarea class={area} rows="4" placeholder="JSON from any chat app" bind:value={pasted}></textarea>
+				<textarea class={textArea} rows="4" placeholder="JSON from any chat app" bind:value={pasted}></textarea>
 			</label>
 			{#if pasted.trim()}
 				<p class="m-0 text-[0.88rem]">

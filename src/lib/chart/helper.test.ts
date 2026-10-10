@@ -1,44 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { emptyChartAnswers } from './draft.ts';
 import {
-	aimOf,
-	routeOf,
-	clarifyOf,
-	draftButton,
 	actionGaps,
+	askPrompt,
+	doorsFor,
+	draftButton,
 	editWords,
-	groupEdits,
-	aimParts,
-	followUpQuestion,
-	splitGoal,
-	isMissingCard,
-	chatReply,
-	greetingFor,
-	insightsFor,
-	methodAnswer,
-	pickHistory,
-	unseenInsights,
-	helpReply,
-	progressReport,
-	type HelperMessage,
-	chartAnswersFromText,
-	chipsFor,
 	fillEdits,
-	extraChips,
-	fillPlan,
-	helpChips,
-	intentOf,
-	isCancellation,
-	isCardRejection,
-	isHelpRequest,
-	isPillarActionRequest,
+	gapsOf,
+	groupEdits,
+	insightsFor,
 	lineFault,
 	moodFor,
-	offerChips,
-	pillarMentioned,
+	nextMove,
+	noteFor,
+	pickHistory,
+	progressOf,
 	reviewChart,
 	suggestToday,
-	suggestWeek
+	suggestWeek,
+	unseenInsights,
+	weekStrip
 } from './helper.ts';
 import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ChartData } from './model.ts';
 import { exampleChart } from './example.ts';
@@ -53,105 +34,6 @@ function sample(): ChartData {
 	);
 	return data;
 }
-
-describe('chartAnswersFromText', () => {
-	it('keeps the direction and skips a bare go', () => {
-		const answers = chartAnswersFromText('  Run a half marathon ', 'go');
-		expect(answers.direction).toBe('Run a half marathon');
-		expect(answers.situation).toBe('');
-	});
-
-	it('pulls a timeline out of the extra answer', () => {
-		const answers = chartAnswersFromText('Run', 'By October 2026, I run twice a week now');
-		expect(answers.timeline).toBe('October 2026');
-		expect(answers.situation).toContain('twice a week');
-	});
-
-	it('does not read "in a job" as a timeline', () => {
-		expect(chartAnswersFromText('Write', 'I am stuck in a job I dislike').timeline).toBe('');
-	});
-});
-
-describe('intentOf', () => {
-	it('routes plain requests', () => {
-		expect(intentOf("Pick today's three")).toBe('today');
-		expect(intentOf('Plan this week')).toBe('week');
-		expect(intentOf('Review my chart')).toBe('review');
-		expect(intentOf('Fill the blanks')).toBe('fill');
-		expect(intentOf('Start a new chart')).toBe('draft');
-		expect(intentOf('Why does a pillar need eight actions?')).toBe('ask');
-	});
-
-	it('spots a pasted chart', () => {
-		const data = sample();
-		expect(intentOf(JSON.stringify({ goal: data.goal, pillars: data.pillars, actions: data.actions }))).toBe('chart');
-	});
-
-	it('does not hijack conversational questions containing keywords', () => {
-		expect(intentOf('Why did you pick this for today?')).toBe('ask');
-		expect(intentOf('How do I review a chart?')).toBe('ask');
-		expect(intentOf('What if a pillar is weak?')).toBe('ask');
-		expect(intentOf('How should I plan my week?')).toBe('ask');
-		expect(intentOf('I was sick last week')).toBe('ask');
-	});
-
-	it('routes cancellation commands to cancel', () => {
-		expect(intentOf('cancel')).toBe('cancel');
-		expect(intentOf('stop')).toBe('cancel');
-		expect(intentOf('nevermind')).toBe('cancel');
-		expect(intentOf('never mind')).toBe('cancel');
-		expect(intentOf('abort')).toBe('cancel');
-		expect(intentOf('How do I cancel?')).toBe('ask');
-		expect(intentOf('Why did you stop?')).toBe('ask');
-	});
-});
-
-describe('isCancellation and isCardRejection', () => {
-	it('identifies cancellation phrases', () => {
-		expect(isCancellation('cancel')).toBe(true);
-		expect(isCancellation('cancel this')).toBe(true);
-		expect(isCancellation('stop')).toBe(true);
-		expect(isCancellation('nevermind')).toBe(true);
-		expect(isCancellation('never mind')).toBe(true);
-		expect(isCancellation('abort')).toBe(true);
-		expect(isCancellation('forget it')).toBe(true);
-		expect(isCancellation('no thanks')).toBe(true);
-		expect(isCancellation('cancelling my plan next week')).toBe(false);
-	});
-
-	it('identifies card rejection phrases', () => {
-		expect(isCardRejection('skip')).toBe(true);
-		expect(isCardRejection('no')).toBe(true);
-		expect(isCardRejection('nope')).toBe(true);
-		expect(isCardRejection('not now')).toBe(true);
-		expect(isCardRejection('not this one')).toBe(true);
-		expect(isCardRejection('leave it')).toBe(true);
-		expect(isCardRejection('leave them')).toBe(true);
-		expect(isCardRejection('discard')).toBe(true);
-		expect(isCardRejection('cancel')).toBe(true);
-	});
-});
-
-describe('fillPlan', () => {
-	it('names pillars before actions', () => {
-		const data = sample();
-		data.pillars[2] = '';
-		expect(fillPlan(data)).toEqual({ kind: 'pillars', empty: [2] });
-	});
-
-	it('prefers the selected pillar', () => {
-		const data = sample();
-		data.actions[1]![3] = '';
-		data.actions[5]![0] = '';
-		expect(fillPlan(data, 5)).toEqual({ kind: 'actions', pillarIndex: 5, empty: [0] });
-		expect(fillPlan(data)).toEqual({ kind: 'actions', pillarIndex: 1, empty: [3] });
-	});
-
-	it('needs a goal and has nothing to do on a full chart', () => {
-		expect(fillPlan(emptyChart())).toBeNull();
-		expect(fillPlan(sample())).toBeNull();
-	});
-});
 
 describe('facts, faults, and the prompts', () => {
 	it('rejects a long line, a result, and an echo of the pillar', () => {
@@ -235,220 +117,6 @@ function chipJob(chip: { act: { kind: string; job?: string } }): string {
 	return chip.act.kind === 'job' ? (chip.act.job ?? '') : chip.act.kind;
 }
 
-describe('chipsFor', () => {
-	it('offers a start on an empty chart and the whole set on a full one', () => {
-		expect(chipsFor(emptyChart()).map(chipJob)).toEqual(['draft']);
-		expect(chipsFor(sample()).map(chipJob)).toEqual(['review', 'week', 'today', 'draft']);
-	});
-});
-
-describe('aimOf', () => {
-	it('takes a new direction out of a hesitant line', () => {
-		expect(aimOf('I want to learn Slovak, but I am not sure how', sample())).toBe('learn Slovak');
-	});
-
-	it('recognizes various phrasing for new directions', () => {
-		expect(aimOf("I'm thinking of learning Slovak", sample())).toBe('learning Slovak');
-		expect(aimOf('Thinking about learning Slovak', sample())).toBe('learning Slovak');
-		expect(aimOf("Let's go with Slovak", sample())).toBe('Slovak');
-		expect(aimOf('My goal is to learn Slovak', sample())).toBe('learn Slovak');
-	});
-
-	it('leaves comparison and indecision for conversational exploration', () => {
-		expect(aimOf("I am thinking of learning Slovak and/or Russian, but I'm not sure which goal to pick", sample())).toBeNull();
-		expect(aimOf('Should I learn Slovak or Russian?', sample())).toBeNull();
-		expect(aimOf('Not sure whether to pick Slovak or Russian', sample())).toBeNull();
-	});
-
-	it('leaves a question about the chart, and a bare ask for help', () => {
-		expect(aimOf('Why does a pillar need eight actions?', sample())).toBeNull();
-		expect(isHelpRequest('Can you help me?')).toBe(true);
-		expect(aimOf('Can you help me?', sample())).toBeNull();
-	});
-
-	it('does not repeat the current goal', () => {
-		expect(aimOf('I want to finish a half marathon this October', sample())).toBeNull();
-	});
-});
-
-describe('isPillarActionRequest', () => {
-	it('identifies explicit action requests vs conversational questions', () => {
-		expect(isPillarActionRequest('Fill Sleep')).toBe(true);
-		expect(isPillarActionRequest('Suggest actions for Easy runs')).toBe(true);
-		expect(isPillarActionRequest('Work on Strength')).toBe(true);
-		expect(isPillarActionRequest('How do I practice the long run?')).toBe(false);
-		expect(isPillarActionRequest('How much sleep do you recommend?')).toBe(false);
-	});
-});
-
-describe('pillarMentioned', () => {
-	it('finds a pillar named in the question', () => {
-		expect(pillarMentioned('How do I practice the long run?', sample())).toBe(2);
-	});
-
-	it('finds short 2 and 3 letter pillars without false positives on stop words', () => {
-		const data = sample();
-		data.pillars[0] = 'Gym';
-		data.pillars[1] = 'UI';
-		expect(pillarMentioned('Can you suggest actions for Gym?', data)).toBe(0);
-		expect(pillarMentioned('How can I improve the UI?', data)).toBe(1);
-		expect(pillarMentioned('How do I run in the morning?', data)).toBeNull();
-	});
-});
-
-describe('turn chips', () => {
-	it('offers to start or stay, help on a full chart, and skip on the second question', () => {
-		expect(offerChips().map((chip) => chip.label)).toEqual(['Start a chart for it', 'Stay on this chart']);
-		expect(helpChips().map(chipJob)).toEqual(['today', 'review']);
-		expect(extraChips().map((chip) => chip.label)).toEqual(['Skip']);
-		expect(extraChips('I am A1 and reading is hard').map((chip) => chip.label)).toEqual([
-			'15 minutes a day',
-			'30 minutes a day',
-			'An hour a day',
-			'No date',
-			'Skip'
-		]);
-	});
-});
-
-describe('moodFor priority list', () => {
-	it('selects happy when cheer is active and not busy', () => {
-		expect(
-			moodFor({
-				cheer: true,
-				card: 'findings',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('happy');
-	});
-
-	it('selects puzzled when a findings card is open', () => {
-		expect(
-			moodFor({
-				card: 'findings',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('puzzled');
-	});
-
-	it('selects listening when message box is focused, beating offering and curious', () => {
-		expect(
-			moodFor({
-				card: 'picks',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('listening');
-		expect(
-			moodFor({
-				card: 'chart',
-				listening: true
-			})
-		).toBe('listening');
-		expect(
-			moodFor({
-				step: 'extra',
-				listening: true
-			})
-		).toBe('listening');
-		expect(
-			moodFor({
-				listening: true
-			})
-		).toBe('listening');
-	});
-
-	it('selects offering when a non-findings card is open', () => {
-		expect(moodFor({ card: 'chart', step: 'direction' })).toBe('offering');
-		expect(moodFor({ card: 'cells', step: 'offer' })).toBe('offering');
-		expect(moodFor({ card: 'picks' })).toBe('offering');
-		expect(moodFor({ card: 'prompt' })).toBe('offering');
-	});
-
-	it('selects curious when waiting for goal, extra, or sketch choice', () => {
-		expect(moodFor({ step: 'direction' })).toBe('curious');
-		expect(moodFor({ step: 'extra' })).toBe('curious');
-		expect(moodFor({ step: 'offer' })).toBe('curious');
-	});
-
-	it('defaults to idle', () => {
-		expect(moodFor()).toBe('idle');
-		expect(moodFor({ step: 'idle' })).toBe('idle');
-		expect(moodFor({ card: null, step: 'idle' })).toBe('idle');
-	});
-});
-
-describe('everyday messages', () => {
-	// Where a message should land without the model. Keep adding the ones people actually type.
-	const routes: [string, ReturnType<typeof intentOf>][] = [
-		['What should I do today?', 'today'],
-		['what should I work on today', 'today'],
-		['pick 3 for today', 'today'],
-		["give me today's actions", 'today'],
-		['Can you pick my three?', 'today'],
-		['plan my week', 'week'],
-		['what should I focus on this week?', 'week'],
-		['weekly plan', 'week'],
-		['is my chart any good?', 'review'],
-		['review', 'review'],
-		['check my actions', 'review'],
-		["what's wrong with my chart?", 'review'],
-		['fill the empty ones', 'fill'],
-		['fill in my chart', 'fill'],
-		['help me finish my chart', 'fill'],
-		['Could you fill in the rest?', 'fill'],
-		['how am I doing?', 'progress'],
-		["how's my progress", 'progress'],
-		['which pillar have I been ignoring?', 'progress'],
-		['progress', 'progress'],
-		['start over', 'draft'],
-		['new goal', 'draft'],
-		['thanks', 'chat'],
-		['hi Bindu', 'chat'],
-		['I missed three days', 'chat'],
-		['How should I plan my week?', 'ask'],
-		["what's a pillar?", 'ask'],
-		['I want to run a marathon', 'ask']
-	];
-
-	it.each(routes)('routes "%s" to %s', (text, intent) => {
-		expect(intentOf(text)).toBe(intent);
-	});
-
-	it('does not read finishing this chart as a new goal', () => {
-		expect(aimOf('help me finish my chart', sample())).toBeNull();
-		expect(aimOf('I want to run a marathon', sample())).toBe('run a marathon');
-	});
-
-	it('treats feeling stuck as a request for help', () => {
-		expect(isHelpRequest("I'm feeling stuck")).toBe(true);
-		expect(isHelpRequest('Where do I start?')).toBe(true);
-	});
-});
-
-describe('chatReply and helpReply', () => {
-	it('answers thanks and hello without the model', () => {
-		expect(chatReply('thanks', sample(), 0).text).toBe('Any time.');
-		expect(chatReply('thanks', sample(), 1).text).toBe('Glad it helped.');
-		expect(chatReply('hello', emptyChart()).text).toContain("I'm Bindu");
-	});
-
-	it('meets a missed day with the next step', () => {
-		const reply = chatReply('I missed three days', sample());
-		expect(reply.nextStep).toBe(true);
-		expect(reply.text).toContain('not about you');
-	});
-
-	it('points help at the next move on this chart', () => {
-		expect(helpReply(emptyChart())).toContain('goal');
-		const data = sample();
-		data.pillars[7] = '';
-		expect(helpReply(data)).toBe('The chart needs one more pillar. I can suggest them.');
-	});
-});
-
 describe('lineFault, open-ended lines', () => {
 	const weak = [
 		'Eat healthier',
@@ -494,31 +162,6 @@ describe('lineFault, open-ended lines', () => {
 		const texts = reviewChart(exampleChart(), 99).map((finding) => finding.text);
 		expect(texts).toContain('Be present');
 		expect(texts).toContain('Listen more');
-	});
-});
-
-describe('progressReport', () => {
-	const now = new Date(2026, 9, 5, 12);
-	const day = (offset: number) => dateKeyOf(new Date(2026, 9, 5 + offset, 12));
-
-	it('starts the log when nothing is ticked', () => {
-		expect(progressReport(sample(), now)).toContain('Nothing ticked yet.');
-		expect(progressReport(emptyChart(), now)).toContain('no goal');
-	});
-
-	it('counts ticks, quiet pillars, streak, and milestones from the log', () => {
-		const data = sample();
-		data.days = {
-			[day(0)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0', 'a1_0'] },
-			[day(-1)]: { focus: ['a2_0'], checked: ['a2_0'] },
-			[day(-2)]: { focus: ['a3_0', 'a4_0', 'a5_0'], checked: ['a3_0'] }
-		};
-		data.meta = { a6_0: { kind: 'milestone', done: true } };
-		const report = progressReport(data, now);
-		expect(report).toContain('4 ticks in the last 7 days, from 4 pillars.');
-		expect(report).toContain('4 pillars sat out this week, Sleep and Food among them.');
-		expect(report).toContain('3 days in a row.');
-		expect(report).toContain('1 milestone done.');
 	});
 });
 
@@ -646,10 +289,11 @@ describe('insightsFor', () => {
 		expect(insightsFor(data, now).find((insight) => insight.id === 'dropped')?.text).toBe('\u201cFood step 6\u201d came off the list twice this week.');
 	});
 
-	it('leads the greeting with a strong insight', () => {
+	it('leads the note with a strong insight', () => {
 		const data = sample();
 		data.days = { [day(-9)]: { focus: ['a0_0'], checked: ['a0_0'] }, [day(0)]: { focus: ['a1_0'], checked: ['a1_0'] } };
-		expect(greetingFor(data, now)).toBe("Hi again. Today's pick is done.");
+		expect(noteFor(data, now).text).toBe("Today's pick is done.");
+		expect(noteFor(data, now, null).text).not.toBe("Today's pick is done.");
 	});
 });
 
@@ -702,59 +346,8 @@ describe('more insights', () => {
 	});
 });
 
-describe('methodAnswer', () => {
-	it('answers common method questions in writing', () => {
-		expect(methodAnswer('Why 64?')?.text).toContain('Eight pillars with eight actions');
-		expect(methodAnswer('how many actions should I do a day?')?.job).toBe('today');
-		expect(methodAnswer('Should I run in the morning?')).toBeNull();
-	});
-});
-
-describe('isRetry, isMissingCard, plainReply', () => {
-	it('reads a missing card', () => {
-		for (const text of ["I don't see the chart", 'i dont see it', 'where is the chart?', 'where did the actions go', "I can't find the draft", 'the chart disappeared']) {
-			expect(isMissingCard(text)).toBe(true);
-		}
-		for (const text of ['show me my progress', 'where do I start?', 'I see it now, thanks', 'how do I see my week', 'where is it', 'show me how to use it']) {
-			expect(isMissingCard(text)).toBe(false);
-		}
-	});
-
-});
-
 const SLOVAK =
 	'I want to learn Slovak. I am currently about a A1 maybe A2, but I have an insane lack of vocabulary and I am shit at reading as well as bad with having conversation';
-
-describe('a new goal with more said', () => {
-	it('keeps the goal line short and everything else for the plan', () => {
-		const parts = aimParts(SLOVAK, sample());
-		expect(parts?.aim).toBe('learn Slovak');
-		expect(parts?.said).toMatch(/^I am currently about a A1 maybe A2, but I have an insane lack of vocabulary .* conversation$/);
-		expect(aimOf(SLOVAK, sample())).toBe('learn Slovak');
-	});
-
-	it('splits a typed goal the same way', () => {
-		expect(splitGoal('Run a half marathon by October. My knee is bad.')).toEqual({ goal: 'Run a half marathon by October', said: 'My knee is bad.' });
-		expect(splitGoal('Learn Slovak, but I only have evenings')).toEqual({ goal: 'Learn Slovak', said: 'I only have evenings' });
-		expect(splitGoal('Learn Slovak')).toEqual({ goal: 'Learn Slovak', said: '' });
-	});
-
-	it('puts what was said into the answers, and the follow-up answer after it', () => {
-		const answers = chartAnswersFromText('learn Slovak', '30 minutes a day', 'Reading is hard.');
-		expect(answers.direction).toBe('learn Slovak');
-		expect(answers.situation).toBe('Reading is hard. 30 minutes a day');
-		expect(chartAnswersFromText('learn Slovak', 'No date', 'Reading is hard.').situation).toBe('Reading is hard.');
-		expect(chartAnswersFromText('learn Slovak', 'go').situation).toBe('');
-	});
-
-	it('asks only for what is missing', () => {
-		expect(followUpQuestion('')).toMatch(/^Anything that would change the plan/);
-		expect(followUpQuestion('I am A1 and reading is hard')).toBe('How much time can you give it a day, and is there a date?');
-		expect(followUpQuestion('I have 20 minutes a day')).toBe('Is there a date you want this by?');
-		expect(followUpQuestion('I want it by March')).toBe('How much time can you give it a day?');
-		expect(followUpQuestion('20 minutes a day, by March')).toBeNull();
-	});
-});
 
 describe('filling the whole chart', () => {
 	function gappy(): ChartData {
@@ -765,26 +358,22 @@ describe('filling the whole chart', () => {
 		return data;
 	}
 
-	it('plans every pillar with gaps when asked for all, one pillar otherwise', () => {
+	it('counts what is still empty, pillars first', () => {
 		const data = gappy();
 		expect(actionGaps(data).map((row) => row.pillarIndex)).toEqual([0, 3, 7]);
-		expect(fillPlan(data, null, true)).toEqual({
-			kind: 'all',
-			rows: [
+		expect(gapsOf(data)).toEqual({
+			pillars: [],
+			actions: [
 				{ pillarIndex: 0, empty: [6, 7] },
 				{ pillarIndex: 3, empty: [0, 1, 2, 3, 4, 5, 6, 7] },
 				{ pillarIndex: 7, empty: [0] }
-			]
+			],
+			total: 11
 		});
-		expect(fillPlan(data)).toEqual({ kind: 'actions', pillarIndex: 0, empty: [6, 7] });
-		const one = sample();
-		one.actions[2]![4] = '';
-		expect(fillPlan(one, null, true)).toEqual({ kind: 'actions', pillarIndex: 2, empty: [4] });
-	});
-
-	it('offers one chip for every gap, and none on a full chart', () => {
-		expect(chipsFor(gappy())[0]).toEqual({ label: 'Fill the gaps', act: { kind: 'job', job: 'fill' } });
-		expect(chipsFor(sample()).some((chip) => chip.label === 'Fill the gaps')).toBe(false);
+		data.pillars[5] = '';
+		expect(gapsOf(data).pillars).toEqual([5]);
+		expect(gapsOf(sample()).total).toBe(0);
+		expect(gapsOf(emptyChart()).total).toBe(0);
 	});
 
 	it('takes only the empty cells from a completed chart, never a written one', () => {
@@ -797,25 +386,9 @@ describe('filling the whole chart', () => {
 		expect(edits.every((edit) => edit.before === '' && edit.after.startsWith('New '))).toBe(true);
 	});
 
-	it('routes the ways people ask for it to fill', () => {
-		for (const text of ['Write all the actions', 'Fill the whole chart', 'write the actions', 'fill in the actions', 'fill it', 'fill everything', 'fill the rest']) {
-			expect(routeOf(text, sample())).toBe('fill');
-		}
-		for (const text of ['write me a poem', 'What should I write first?']) expect(routeOf(text, sample())).toBe('model');
-		// Reads as "how does this work". Not a fill either way.
-		expect(routeOf('fill me in on how this works', sample())).toBe('clarify');
-	});
-
 	it('says what keeping a draft does to the chart in view', () => {
 		expect(draftButton(emptyChart())).toBe('Start this chart');
 		expect(draftButton(sample())).toBe('Open as a new chart');
-	});
-
-	it('asks about close readings by name, and offers to just answer', () => {
-		const unsure = clarifyOf('how did my week go and what next');
-		expect(unsure?.question).toBe('Should I show your progress or plan this week?');
-		expect(unsure?.chips.map((chip) => chip.label)).toEqual(['Show my progress', 'Plan this week', 'Ask a chat app']);
-		expect(clarifyOf('write me a poem')).toBeNull();
 	});
 });
 
@@ -848,15 +421,6 @@ describe('the cells card', () => {
 	});
 });
 
-describe('asking for a review again', () => {
-	it('routes the ways people ask to review what is in front of them', () => {
-		for (const text of ['review it again', 'review this draft', 'check it again', 'review again', 'check the draft', 'please review it']) {
-			expect(routeOf(text, sample())).toBe('review');
-		}
-		for (const text of ['review the week with me', 'check in with me tomorrow']) expect(routeOf(text, sample())).not.toBe('review');
-	});
-});
-
 describe('lines cut short', () => {
 	it('flags a line that ends mid-phrase', () => {
 		for (const line of ['Learn words for the', 'Practice with your', 'Review notes and', 'Read a']) {
@@ -872,3 +436,85 @@ describe('lines cut short', () => {
 		expect(flagged).toEqual([]);
 	});
 });
+
+describe('moodFor', () => {
+	it('puts a landed moment first, then a puzzle, then listening, then picks, then waiting', () => {
+		expect(moodFor({ cheer: true, puzzled: true, listening: true })).toBe('happy');
+		expect(moodFor({ puzzled: true, listening: true })).toBe('puzzled');
+		expect(moodFor({ listening: true, offering: true })).toBe('listening');
+		expect(moodFor({ offering: true, waiting: true })).toBe('offering');
+		expect(moodFor({ waiting: true })).toBe('curious');
+		expect(moodFor()).toBe('idle');
+	});
+});
+
+describe('the home page', () => {
+	const now = new Date(2026, 9, 7, 12);
+
+	it('asks for a goal on an empty chart, and leads with starting one', () => {
+		expect(noteFor(emptyChart(), now).text).toContain('one goal');
+		expect(nextMove(emptyChart(), now)).toMatchObject({ page: 'write', mode: 'new', label: 'Start a chart' });
+		expect(doorsFor(emptyChart(), now)).toEqual([]);
+	});
+
+	it('names what is missing, and leads with filling it', () => {
+		const data = sample();
+		data.actions[4] = data.actions[4]!.map((action, index) => (index < 5 ? action : ''));
+		expect(noteFor(data, now, null).text).toBe('Sleep still has 3 empty actions.');
+		expect(nextMove(data, now)).toMatchObject({ page: 'write', mode: 'fill' });
+		data.pillars[2] = '';
+		expect(noteFor(data, now, null).text).toBe('\u201cFinish a half marathon this October\u201d still needs one more pillar.');
+	});
+
+	it("leads a full chart with today's three, then with how it is going once today is set", () => {
+		const data = sample();
+		expect(nextMove(data, now).page).toBe('today');
+		expect(doorsFor(data, now).map((door) => door.page)).toEqual(['week', 'progress', 'review', 'write']);
+		data.days = { [dateKeyOf(now)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0'] } };
+		expect(nextMove(data, now).page).toBe('progress');
+		expect(noteFor(data, now, null).text).toBe('1 of 2 done today. One at a time.');
+		expect(doorsFor(data, now).find((door) => door.page === 'today')?.detail).toBe('1 of 2 done today');
+	});
+
+	it('says on each door what it would find', () => {
+		const data = sample();
+		data.actions[0]![0] = 'Be healthier';
+		const doors = doorsFor(data, now);
+		expect(doors.find((door) => door.page === 'review')?.detail).toBe('One line to tighten');
+		expect(doors.find((door) => door.page === 'week')?.detail).toBe('6 actions, one per pillar');
+		expect(doors.find((door) => door.page === 'progress')?.detail).toBe('Nothing ticked yet');
+	});
+});
+
+describe('how it is going', () => {
+	const now = new Date(2026, 9, 7, 12);
+	const day = (offset: number) => dateKeyOf(new Date(2026, 9, 7 + offset, 12));
+
+	it('lays the last 7 days out oldest first, a pillar per tick', () => {
+		const data = sample();
+		data.days = { [day(0)]: { focus: [], checked: ['a3_1', 'a0_2', 'g'] }, [day(-6)]: { focus: [], checked: ['a7_0'] }, [day(-7)]: { focus: [], checked: ['a1_1'] } };
+		const strip = weekStrip(data, now);
+		expect(strip).toHaveLength(7);
+		expect(strip[6]).toMatchObject({ key: day(0), today: true, ticks: [0, 3] });
+		expect(strip[0]).toMatchObject({ key: day(-6), ticks: [7] });
+		expect(strip.map((entry) => entry.label).join('')).toBe('TFSSMTW');
+	});
+
+	it('counts ticks, pillars and the streak from the log', () => {
+		const data = sample();
+		data.days = { [day(0)]: { focus: [], checked: ['a0_0', 'a1_0'] }, [day(-1)]: { focus: [], checked: ['a1_1'] }, [day(-2)]: { focus: [], checked: ['a2_0'] } };
+		const progress = progressOf(data, now);
+		expect(progress).toMatchObject({ ticks: 4, pillars: [0, 1, 2], streak: 3, everTicked: true, written: 64 });
+		expect(progress.quiet).toEqual([3, 4, 5, 6, 7]);
+		expect(progressOf(sample(), now).everTicked).toBe(false);
+	});
+});
+
+describe('askPrompt', () => {
+	it('carries the chart, and the question when there is one', () => {
+		expect(askPrompt(sample(), 'Is Speed the right pillar?')).toContain('My question: Is Speed the right pillar?');
+		expect(askPrompt(sample())).toContain('wait for my question');
+		expect(askPrompt(sample())).toContain('Pillar 2: Speed');
+	});
+});
+

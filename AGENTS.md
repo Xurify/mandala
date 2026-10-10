@@ -37,7 +37,9 @@ src/
     ring.ts                   ring geometry (PILLAR_ANGLES, pillarArc, arcPath) + OKLCH→sRGB + BRAND colors
     library.ts                multiple saved charts
     presets/                  starter charts
-    draft.ts                  "get a prompt" / paste-back flow
+    draft.ts                  prompts for a chat app, and reading the pasted reply
+    helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
+    helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     export-image.ts           poster export (canvas)
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
@@ -45,7 +47,8 @@ src/
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
-    ChartSwitcher, PresetPicker, DraftDialog, MethodGuide, Icon
+    Helper*.svelte            Bindu: launcher, panel, and one component per page
+    ChartSwitcher, PresetPicker, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, …). Catalog: /dev/ui
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 ```

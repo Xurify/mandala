@@ -98,6 +98,10 @@
 	--animate-curious-blink: curious-blink 3.6s ease-in-out infinite;
 	--animate-note-in: note-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 	--animate-dot-bounce: dot-bounce 1.2s ease-in-out infinite;
+	--animate-stack-in: stack-in 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+	--animate-scan: scan 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-mark-in: mark-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-flip-in: flip-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 @custom-variant coarse (@media (pointer: coarse));
@@ -553,6 +557,47 @@
 	}
 	to {
 		opacity: 1;
+	}
+}
+
+@keyframes stack-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px) scale(0.4);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes scan {
+	from {
+		opacity: 0;
+		transform: scale(0.5);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes mark-in {
+	from {
+		outline-color: transparent;
+		outline-offset: 7px;
+	}
+}
+
+/* A card turned over in place: the old face is gone, the new one swings in and lands. */
+@keyframes flip-in {
+	from {
+		opacity: 0;
+		transform: perspective(600px) rotateX(-38deg) translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
 	}
 }
 

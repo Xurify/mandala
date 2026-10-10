@@ -1,4 +1,4 @@
-import { emptyChart, TEXT_MAX, type ChartData } from './model.ts';
+import { emptyChart, parseBrief, TEXT_MAX, type ChartBrief, type ChartData } from './model.ts';
 
 export const GOAL_MAX = 80;
 export const PILLAR_MAX = 32;
@@ -7,35 +7,6 @@ export const ACTION_MAX = 48;
 function clip(value: unknown, max: number): string {
 	if (typeof value !== 'string') return '';
 	return value.replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-/** What the person says before a chart exists: direction, timeline, where they stand, focus, and a constraint. */
-export type ChartAnswers = {
-	direction: string;
-	timeline: string;
-	situation: string;
-	focus: string;
-	constraint: string;
-};
-
-export function emptyChartAnswers(): ChartAnswers {
-	return { direction: '', timeline: '', situation: '', focus: '', constraint: '' };
-}
-
-export function chartAnswersMessage(answers: ChartAnswers): string {
-	const line = (label: string, value: string) => {
-		const text = value.replace(/\s+/g, ' ').trim();
-		return `- ${label}: ${text || 'Not given. Make a reasonable assumption.'}`;
-	};
-	return [
-		'Create the chart from these answers.',
-		line('Direction', answers.direction),
-		line('Timeline', answers.timeline),
-		line('Current situation', answers.situation),
-		line('Focus right now', answers.focus),
-		line('Constraint', answers.constraint),
-		'Return 8 pillars. Each pillar has exactly 8 actions.'
-	].join('\n');
 }
 
 /** What the prompt says before the person's part: who writes, and what a chart is. */
@@ -82,29 +53,23 @@ const PROMPT_METHOD = [
 	`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
 ];
 
-/** The blank form, for a person who fills in their own answers in another chat app. */
-const BLANK_FORM = [
-	'[User information]',
-	'- Direction:',
-	'- Timeline:',
-	'- Current situation:',
-	'- Focus right now:',
-	'- Body:',
-	'- Money or career:',
-	'- Habit to change:',
-	'- Skill to develop:',
-	'- Life to build:',
-];
+/** The new chart's reply also carries what the person said, so later prompts can use it. */
+const BRIEF_RULE =
+	'- Add "brief" to the JSON with what I told you, a few words each: {"timeline":"...","situation":"...","focus":"...","constraint":"..."}. Leave out a field I did not answer.';
 
-/**
- * The prompt for a whole chart, to paste into any chat app. With answers from Bindu's questions, they fill the
- * person's part; without, it carries a form to fill in.
- */
-export function draftPrompt(answers?: ChartAnswers): string {
-	const yours = answers
-		? ['[User information]', ...chartAnswersMessage(answers).split('\n').slice(1, -1)]
-		: BLANK_FORM;
-	return [...PROMPT_INTRO, 'Create a personalised 9×9 chart from the information below.', '', ...yours, ...PROMPT_METHOD].join('\n');
+/** The prompt for a new chart. The chat app asks what would change the plan, then writes all of it. */
+export function newChartPrompt(goal = ''): string {
+	const aim = goal.replace(/\s+/g, ' ').trim().slice(0, 200);
+	return [
+		...PROMPT_INTRO,
+		'Help me make my chart.',
+		'',
+		'[Before you write]',
+		aim ? `My goal: ${aim}` : 'I have not said my goal yet. Ask for it first.',
+		'Then ask me up to three short questions in one message: how much time I have on a normal day, whether there is a date, where I stand now, and anything to work around. Wait for my answers. If I say "just write it", make reasonable assumptions.',
+		...PROMPT_METHOD,
+		BRIEF_RULE
+	].join('\n');
 }
 
 /** The prompt that completes a chart: every written line stays as it is, every empty one gets filled. */
@@ -112,12 +77,25 @@ export function fillPrompt(data: ChartData): string {
 	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [
 		...PROMPT_INTRO,
-		'Complete this person\'s chart. Keep every line that is already written, word for word. Fill every empty string, in the same voice.',
+		"Complete this person's chart. Keep every line that is already written, word for word. Fill every empty string, in the same voice.",
+		...briefLines(data.brief),
 		'',
 		'[Their chart so far]',
 		sofar,
 		...PROMPT_METHOD
 	].join('\n');
+}
+
+/** What the person told the chat app when the chart was made, for the prompts that come after. */
+export function briefLines(brief: ChartBrief | undefined): string[] {
+	if (!brief) return [];
+	const said = [
+		brief.timeline && `- Timeline: ${brief.timeline}`,
+		brief.situation && `- Where they stand: ${brief.situation}`,
+		brief.focus && `- Focus right now: ${brief.focus}`,
+		brief.constraint && `- To work around: ${brief.constraint}`
+	].filter((line): line is string => Boolean(line));
+	return said.length ? ['', '[What they told you before]', ...said] : [];
 }
 
 function asStringList(value: unknown, count: number, max: number): string[] | null {
@@ -145,6 +123,8 @@ export function chartFromDraft(value: unknown): ChartData | null {
 	chart.goal = goal;
 	chart.pillars = pillars;
 	chart.actions = actions;
+	const brief = parseBrief(record.brief);
+	if (brief) chart.brief = brief;
 	return chart;
 }
 
