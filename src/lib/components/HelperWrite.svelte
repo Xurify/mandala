@@ -26,6 +26,8 @@
 		return next;
 	});
 	const copied = $derived(helper.copied === helper.mode);
+	/** The prompt went straight into a chat app by link, so pasting it there is done too. */
+	const opened = $derived(copied ? helper.sent : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
 
@@ -44,6 +46,7 @@
 					: 'It reads your chart with the question. The answer stays there.';
 		return { there };
 	});
+	const APPS = { claude: 'Claude', chatgpt: 'ChatGPT' } as const;
 
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
@@ -122,22 +125,25 @@
 						onblur={() => (helper.listening = false)}
 					></textarea>
 				{/if}
-				<div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-					<Button size="sm" variant="soft" icon={copied ? 'check' : 'copy'} onclick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
+				<div class="flex flex-wrap items-center gap-x-1 gap-y-1.5">
+					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
+					<!-- The same prompt, straight into a chat app's box. The person still presses send there. -->
+					<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in Claude" onclick={() => helper.openIn('claude')}>Claude</Button>
+					<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in ChatGPT" onclick={() => helper.openIn('chatgpt')}>ChatGPT</Button>
 					{#if failed}
-						<span class="text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
+						<span class="basis-full text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
 					{/if}
 				</div>
 			</div>
 		</li>
 
 		<li class={cn('relative flex gap-3', helper.mode !== 'ask' && 'pb-5')}>
-			{#if helper.mode !== 'ask'}{@render thread(answered)}{/if}
-			<span class={marker(answered || (helper.mode === 'ask' && copied), copied && !answered)} aria-hidden="true">
-				{#if answered || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
+			{#if helper.mode !== 'ask'}{@render thread(answered || opened !== null)}{/if}
+			<span class={marker(answered || opened !== null || (helper.mode === 'ask' && copied), copied && !answered && !opened)} aria-hidden="true">
+				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">Paste it into any chat app</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{opened ? `It is in ${APPS[opened]}'s box. Send it there.` : 'Paste it into any chat app'}</p>
 				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
 			</div>
 		</li>

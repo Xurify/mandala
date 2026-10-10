@@ -33,7 +33,7 @@
 	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import TodayView from './TodayView.svelte';
-	import YearView from './YearView.svelte';
+	import CalendarView from './CalendarView.svelte';
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
@@ -330,9 +330,9 @@
 		} else if (!isTyping && (event.key === 't' || event.key === 'T')) {
 			event.preventDefault();
 			chart.setViewMode('today');
-		} else if (!isTyping && (event.key === 'y' || event.key === 'Y')) {
+		} else if (!isTyping && (event.key === 'c' || event.key === 'C')) {
 			event.preventDefault();
-			chart.setViewMode('year');
+			chart.setViewMode('calendar');
 		}
 	}
 
@@ -444,7 +444,7 @@
 	const paletteCommands = $derived.by((): CommandItem[] => {
 		const items: CommandItem[] = [
 			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('today') },
-			{ id: 'year', label: 'Go to Year in focus', section: 'Actions', icon: 'clock', run: () => chart.setViewMode('year') },
+			{ id: 'calendar', label: 'Go to Calendar', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('calendar') },
 			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
 			{ id: 'edit', label: 'Go to Editor', section: 'Actions', icon: 'edit', run: () => chart.setViewMode('edit') }
@@ -509,6 +509,13 @@
 		return items;
 	});
 
+	let stage = $state<HTMLElement | null>(null);
+
+	/** In Edit view the editor sits alone on the stage. A click on the stage around it is a step back out. */
+	function handleStageClick(event: MouseEvent): void {
+		if (effectiveViewMode === 'edit' && event.target === stage) chart.setViewMode('view');
+	}
+
 	function handleGoHome(event: MouseEvent): void {
 		if (
 			event.defaultPrevented ||
@@ -540,6 +547,7 @@
 	ondrop={handleDrop}
 	onkeydown={handleWindowKeydown}
 	onpaste={handleWindowPaste}
+	onclick={handleStageClick}
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
@@ -747,9 +755,10 @@
 	{/if}
 
 	<main
+		bind:this={stage}
 		class={cn(
 			'flex w-full flex-wrap items-start gap-7 [view-transition-name:stage] print:!m-0 print:!block print:!gap-0 max-[900px]:block',
-			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'flex-col items-center'
+			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'flex-col items-center'
 		)}
 	>
 		<div class="print-sheet contents">
@@ -765,7 +774,7 @@
 			<div
 				class={cn(
 					'chart min-w-0 @container',
-					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year') && 'hidden',
+					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'hidden',
 					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full flex-none',
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
@@ -778,7 +787,7 @@
 					/>
 				{:else}
 					<MandalaGrid
-						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'year' ? 'view' : effectiveViewMode}
+						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar' ? 'view' : effectiveViewMode}
 						onSelect={selectBlock}
 						onEdit={handleEditBlock}
 					/>
@@ -813,8 +822,8 @@
 				<TodayView />
 			{/key}
 		{/if}
-		{#if effectiveViewMode === 'year'}
-			<YearView />
+		{#if effectiveViewMode === 'calendar'}
+			<CalendarView />
 		{/if}
 	</main>
 

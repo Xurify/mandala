@@ -139,15 +139,17 @@
 
 	const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
+	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	/** The line as one string, for the seal's label. On the page the names wear their pillar's hue. */
 	const movedLine = $derived.by((): string => {
-		const names = movedPillars.map(
-			(pillarIndex) => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`
-		);
+		const names = movedPillars.map(pillarName);
 		if (names.length === 1) return `${names[0]} moved forward.`;
 		if (names.length === 2) return `${names[0]} and ${names[1]} moved forward.`;
 		if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} moved forward.`;
 		return `${COUNT_WORDS[names.length]} pillars moved forward.`;
 	});
+	/** What comes before each named pillar in the line: nothing, "and", or a comma. */
+	const joiner = (index: number, count: number): string => (index === 0 ? '' : count === 2 ? ' and ' : index === count - 1 ? ', and ' : ', ');
 
 	function rise(seconds: number): { class: string; delay: string | undefined } {
 		return celebrate
@@ -290,6 +292,10 @@
 		picking && !closed ? 'max-w-[1040px]' : 'max-w-[620px]'
 	)}
 >
+	<!-- The days behind this one. Looked at often, so it sits where the eye lands before the list. -->
+	<div class={cn('mb-2 flex w-full justify-end max-[900px]:mb-1', !(picking && !closed) && 'mx-auto max-w-[520px]')}>
+		<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
+	</div>
 	{#if chart.weekReflectionDue}
 		<div class="mb-5 max-w-[620px]">
 			<Notice>
@@ -335,7 +341,14 @@
 				class={cn('mt-3 mb-0 max-w-[42ch] text-[1rem] text-pretty text-muted', line.class)}
 				style:animation-delay={line.delay}
 			>
-				{movedLine}
+				{#if movedPillars.length <= 3}
+					{#each movedPillars as pillarIndex, index (pillarIndex)}{joiner(index, movedPillars.length)}<span
+							class="pillar-ink font-[600]"
+							style:--h={HUES[pillarIndex]}>{pillarName(pillarIndex)}</span
+						>{/each}{' '}moved forward.
+				{:else}
+					{movedLine}
+				{/if}
 			</p>
 		</section>
 

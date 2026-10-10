@@ -53,6 +53,7 @@
 		'chevron-left': true,
 		'chevron-right': true,
 		'arrow-right': true,
+		'arrow-up-right': true,
 		'arrow-left': true,
 		target: true,
 		grid: true,

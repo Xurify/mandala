@@ -174,6 +174,9 @@
 		return 'action';
 	}
 
+	/** The cell's leading, as `leading-[1.15]` on the button. Set in whole pixels: a fraction snaps line by line, unevenly. */
+	const LINE = 1.15;
+
 	const fitCellText: Attachment = (element) => {
 		if (!(element instanceof HTMLSpanElement)) return;
 		const cell = element.parentElement;
@@ -194,6 +197,7 @@
 			clearClamp();
 			if (text === '' || getComputedStyle(element).display === 'none') {
 				element.style.fontSize = '';
+				element.style.lineHeight = '';
 				cell.removeAttribute('title');
 				return;
 			}
@@ -216,6 +220,7 @@
 			element.style.overflow = 'visible';
 			const fits = (size: number): boolean => {
 				element.style.fontSize = `${size}px`;
+				element.style.lineHeight = `${Math.round(size * LINE)}px`;
 				return element.scrollHeight <= available && element.scrollWidth <= element.clientWidth + 1;
 			};
 
@@ -223,6 +228,7 @@
 			const snapped = chosen === max ? max : Math.floor(chosen * 100 + 1e-6) / 100;
 			const next = `${snapped}px`;
 			if (element.style.fontSize !== next) element.style.fontSize = next;
+			element.style.lineHeight = `${Math.round(snapped * LINE)}px`;
 			if (kind === 'goal' && !source) saveGoalFitForNextVisit('cell', snapped);
 
 			const overflow =

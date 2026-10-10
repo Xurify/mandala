@@ -504,6 +504,7 @@
 					onfocus={() => {
 						activeCellIndex = cellIndex;
 					}}
+					onblur={() => chart.settle()}
 					onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
 					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
 					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}

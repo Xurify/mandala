@@ -180,11 +180,19 @@ A floating panel with more than one job is a few pages, not a chat and not tabs.
 
 ### Floating chrome
 
-The dock (with its toast) and Bindu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through.
+The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through.
 
 ### Moments on the chart
 
-Writing the last line of a pillar, or of the chart, is a moment too, without a layout of its own, because the person is mid-keystroke. It plays where the data already shows: the editor's pill stamps its check, the block glows once in its hue, and the hero ring redraws the arc. A full chart redraws all eight and ends on a check, and says so in one toast. `chart.landed` carries it for three seconds and is never saved, so a reload does not replay it. Several lines landing together (a fill) make one moment.
+Writing the last line of a pillar, or of the chart, is a moment too, without a layout of its own, because the person is at the keyboard. It plays where the data already shows: the editor's pill stamps its check, the block glows once in its hue, and the hero ring redraws the arc. A full chart redraws all eight and ends on a check, and says so in one toast. `chart.landed` carries it for three seconds and is never saved, so a reload does not replay it. Several lines landing together (a fill) make one moment at once. A typed line waits for the pen to lift: the field is left, or typing pauses for a beat (`chart.settle`). A line cleared again before that lets go, so a half-typed word never stamps.
+
+### The calendar
+
+Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which stays four doors wide.
+
+### When the week is offered
+
+The weekly reflection is offered from an hour of a weekday the person chooses (Sunday from 6 pm to start), in the reflection's first page. The offer stands until the next one: a Monday morning still gets the week that just ended. It is offered only for a week with a tick, and goes quiet once saved or set aside.
 
 ### Tools on a shelf
 

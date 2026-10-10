@@ -28,8 +28,8 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 | Today's three | Three picks, one per pillar, each saying why. A pick whose pillar has a shelf shows the tool it would use | Swap one, open the tool, put them on today, or "Not now" |
 | This week | About six picks, one per pillar | Swap one, pin them, or "Not now" |
 | How it is going | The last 7 days as a column per day and a pip per tick in the pillar's hue, then ticks, pillars and days in a row, then up to three insights | "Open it" on an insight about one action |
-| Review | The chart drawn small, swept in reading order, with each weak line marked. The list of lines, each with why | Open a line in the chart. The list is live: a line fixed in the chart leaves it |
-| Write with a chat app | Three steps on a thread: copy the prompt, paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, or ask | Copy. Paste the reply, see what it would add, and keep it |
+| Weak lines | The chart drawn small, swept in reading order, with each weak line marked. The list of lines, each with why. The rules read English; a chart mostly in another language gets a note and a door to the Ask prompt instead of a clean pass | Open a line in the chart. The list is live: a line fixed in the chart leaves it |
+| Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude or ChatGPT with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, or ask | Copy. Paste the reply, see what it would add, and keep it |
 
 The next move is: start a chart when there is no goal, fill the gaps while any line is empty, pick today's three when today has no picks, and otherwise see how it is going.
 

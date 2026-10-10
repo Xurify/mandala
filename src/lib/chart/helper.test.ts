@@ -546,3 +546,21 @@ describe('weekInReview', () => {
 		expect(review.ticks).toBe(6);
 	});
 });
+
+describe('foreignShare', () => {
+	it('tells a chart written in another alphabet from an English one', async () => {
+		const { foreignShare } = await import('./helper.ts');
+		const { emptyChart } = await import('./model.ts');
+		const english = emptyChart();
+		english.goal = 'Speak Slovak';
+		english.pillars[0] = 'Listening';
+		english.actions[0]![0] = 'Play 15 minutes of audio at breakfast';
+		expect(foreignShare(english)).toBe(0);
+		const slovak = emptyChart();
+		slovak.pillars[0] = 'Počúvanie';
+		slovak.actions[0]![0] = 'Pozerať jedno video denne';
+		slovak.actions[0]![1] = 'Смотреть одно видео';
+		slovak.actions[0]![2] = 'Read one page';
+		expect(foreignShare(slovak)).toBe(0.75);
+	});
+});

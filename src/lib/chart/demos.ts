@@ -14,6 +14,7 @@ export type DemoId =
 	| 'search'
 	| 'views'
 	| 'today'
+	| 'calendar'
 	| 'reflection'
 	| 'bindu-week'
 	| 'bindu-review'
@@ -120,8 +121,8 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Writing the chart',
 		steps: [
 			'Every cell is written but one. The cursor is already in it.',
-			'Type anything. The pillar stamps its check, its block glows, and the ring at the top draws all eight arcs and a check.',
-			'Clear the cell and type again to see it once more.'
+			'Type the line, then pause or leave the cell. The pillar stamps its check, its block glows, and the ring at the top draws all eight arcs and a check.',
+			'Clear the cell and type again to see it once more. Nothing plays while you are still typing.'
 		]
 	},
 	{
@@ -130,7 +131,7 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Writing the chart',
 		steps: [
 			'Core phrases is one action short. The cursor is in the empty cell.',
-			'Type anything. Its check stamps onto pillar 3, its block glows, and its arc in the ring redraws.',
+			'Type the line, then pause or leave the cell. Its check stamps onto pillar 3, its block glows, and its arc in the ring redraws.',
 			'The chart is not full, so there is no chart moment.'
 		]
 	},
@@ -172,7 +173,20 @@ export const DEMOS: readonly Demo[] = [
 		id: 'today',
 		title: "Today's three",
 		group: 'Days and weeks',
-		steps: ['Today view, with a week of history behind it.', 'Deal three, start the day, then tick them all to see the day sealed.']
+		steps: [
+			'Today view. Ten days of ticks are already in the log: the calendar (top right) shows them day by day, and Bindu counts them in How it is going.',
+			'Deal three, start the day, then tick them all to see the day sealed.'
+		]
+	},
+	{
+		id: 'calendar',
+		title: 'The calendar',
+		group: 'Days and weeks',
+		steps: [
+			'A month of days with what got finished on each: a pip per tick, in the pillar\'s hue. Today has a ring.',
+			'Tap a day to read what was finished, and when. Arrow keys walk the days; the arrows at the top turn the month.',
+			'Reach it from Today, the command palette (Go to Calendar), or the C key.'
+		]
 	},
 	{
 		id: 'reflection',
@@ -205,19 +219,19 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'bindu-review',
-		title: 'Bindu reviews weak lines',
+		title: 'Bindu finds weak lines',
 		group: 'Bindu',
 		steps: [
-			'Review opens on a chart with weak lines. The chart sweeps, then the weak cells get a ring.',
+			'Weak lines opens on a chart with lines that fail the two tests. The chart sweeps, then the weak cells get a ring.',
 			'Click a line to open it in the editor and fix it. It folds out of the list.'
 		]
 	},
 	{
 		id: 'bindu-fill',
-		title: 'Fill the gaps with a chat app',
+		title: 'Fill the gaps with a prompt',
 		group: 'Bindu',
 		steps: [
-			'Write with a chat app opens on Fill the gaps. Copy the prompt.',
+			'Fill chart using a prompt opens on Fill the gaps. Copy the prompt, or open it in Claude or ChatGPT.',
 			'Instead of a chat app, use "Copy a sample reply" on this card, then paste it into the reply box (or anywhere in Bindu).',
 			'Add the lines to the chart to see the moment.'
 		],
@@ -225,10 +239,10 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'bindu-new',
-		title: 'Start a chart with a chat app',
+		title: 'Start a chart with a prompt',
 		group: 'Bindu',
 		steps: [
-			'A blank chart, with Bindu on Write with a chat app. Type a goal and copy the prompt.',
+			'A blank chart, with Bindu on Fill chart using a prompt. Type a goal and copy the prompt, or open it in Claude or ChatGPT.',
 			'Use "Copy a sample reply" on this card and paste it into the reply box.',
 			'Start this chart to see it open, with the moment in Bindu.'
 		],
@@ -254,6 +268,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
 	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
 	if (id === 'today') return { data: livedIn(now), view: 'today' };
+	if (id === 'calendar') return { data: livedIn(now), view: 'calendar' };
 	if (id === 'tools') {
 		const data = livedIn(now);
 		data.meta = { ...data.meta, a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } };

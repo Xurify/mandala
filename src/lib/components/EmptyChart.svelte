@@ -50,7 +50,7 @@
 	</div>
 	<div class="flex flex-wrap items-center justify-center gap-2 motion-safe:animate-done-in" style:animation-delay="{DOT + 0.38}s">
 		<Button icon="list" onclick={onpreset}>Start from a preset</Button>
-		<Button variant="soft" icon="sparkles" onclick={onchat}>Write with a chat app</Button>
+		<Button variant="soft" icon="sparkles" onclick={onchat}>Fill chart using a prompt</Button>
 		<Button variant="ghost" icon="edit" onclick={onwrite}>Write it myself</Button>
 	</div>
 </section>

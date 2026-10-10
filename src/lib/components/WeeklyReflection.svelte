@@ -2,25 +2,40 @@
 	import { tick, untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { weekInReview } from '$lib/chart/helper';
-	import { HUES, weekStartKey } from '$lib/chart/model';
+	import { HUES } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import Icon from './Icon.svelte';
 	import WeekStrip from './WeekStrip.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Pages from './ui/Pages.svelte';
+	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
-	import { textArea, textField } from './ui/styles';
+	import { textArea } from './ui/styles';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
 	type Step = 'week' | 'closed' | 'quiet' | 'note' | 'done';
 
-	const weekKey = $derived(weekStartKey());
+	/** The week on offer: the one whose offer time passed last, so a Monday morning still gets the week that ended. */
+	const weekKey = $derived(chart.reflectionWeek);
 	// Live, so a pillar rewritten on the quiet page shows its new line at once.
-	const review = $derived(weekInReview(chart.data));
+	const review = $derived(weekInReview(chart.data, new Date(), weekKey));
 	const steps = $derived<Step[]>(['week', 'closed', ...(review.quiet.length > 0 ? (['quiet'] as const) : []), 'note']);
 	const named = $derived(chart.data.pillars.filter((pillar) => pillar.trim()).length);
+
+	const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	const DAYS = [1, 2, 3, 4, 5, 6, 0].map((day) => ({ value: String(day), label: DAY_NAMES[day]! }));
+	/** A short list, so the picker fits inside the dialog: the hours a week gets looked back on. */
+	const HOURS = [
+		{ value: '0', label: 'Any time' },
+		{ value: '8', label: '8 am' },
+		{ value: '12', label: 'Noon' },
+		{ value: '15', label: '3 pm' },
+		{ value: '18', label: '6 pm' },
+		{ value: '20', label: '8 pm' },
+		{ value: '22', label: '10 pm' }
+	];
 
 	let step = $state<Step>('week');
 	let direction = $state(1);
@@ -79,15 +94,23 @@
 		open = false;
 	}
 
-	function focusField(node: HTMLInputElement): void {
+	/** The field takes the line's own height, wrapping as the line did, so the row does not change size. */
+	function focusField(node: HTMLTextAreaElement): () => void {
+		const grow = (): void => {
+			node.style.height = '0';
+			node.style.height = `${node.scrollHeight}px`;
+		};
+		grow();
 		node.focus();
 		node.setSelectionRange(node.value.length, node.value.length);
+		node.addEventListener('input', grow);
+		return () => node.removeEventListener('input', grow);
 	}
 
 	function onkeydown(event: KeyboardEvent, key: string): void {
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			(event.currentTarget as HTMLInputElement).blur();
+			(event.currentTarget as HTMLTextAreaElement).blur();
 		} else if (event.key === 'Escape') {
 			// Leave the field, not the reflection.
 			event.stopPropagation();
@@ -95,32 +118,49 @@
 			if (editingKey === key) editingKey = null;
 		}
 	}
+
+	/** One geometry for every row on these pages: a 20px mark, a 12px gap, the words. The heading sits on the same left edge. */
+	const row = 'flex min-h-11 w-full min-w-0 items-center gap-3 rounded-[16px] px-3 py-1.5';
 </script>
 
+{#snippet mark(pillarIndex: number | null)}
+	<span class="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+		{#if pillarIndex !== null}
+			<span class="pip size-2.5 rounded-full" style:--pip-h={HUES[pillarIndex]}></span>
+		{/if}
+	</span>
+{/snippet}
+
+<!-- A line that sat out. Rewrite swaps the words for a field in the same row, so nothing around it moves. -->
 {#snippet rewrite(entry: { key: string; text: string }, pillarIndex: number, lead: boolean)}
 	{#if editingKey === entry.key}
-		<input
-			type="text"
-			class={cn(textField, 'min-w-0 flex-1 text-[0.92rem]')}
-			value={entry.text}
-			maxlength="120"
-			aria-label="Rewrite {entry.text}"
-			onblur={() => {
-				if (editingKey === entry.key) editingKey = null;
-			}}
-			onchange={(event) => chart.setText(entry.key, event.currentTarget.value)}
-			onkeydown={(event) => onkeydown(event, entry.key)}
-			{@attach focusField}
-		/>
+		<div class={cn(row, 'flex-1 bg-sunken shadow-[inset_0_0_0_1.5px_var(--ink)]')}>
+			{@render mark(lead ? pillarIndex : null)}
+			<span class="flex min-w-0 flex-1 flex-col">
+				<textarea
+					class="m-0 block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 font-sans text-[0.92rem] leading-snug text-text outline-none"
+					rows="1"
+					maxlength="120"
+					aria-label="Rewrite {entry.text}"
+					onblur={() => {
+						if (editingKey === entry.key) editingKey = null;
+					}}
+					onchange={(event) => chart.setText(entry.key, event.currentTarget.value.replace(/\s+/g, ' ').trim())}
+					onkeydown={(event) => onkeydown(event, entry.key)}
+					{@attach focusField}>{entry.text}</textarea
+				>
+				{#if lead}
+					<span class="pillar-ink truncate text-[0.74rem] font-[620]" style:--h={HUES[pillarIndex]}>{chart.data.pillars[pillarIndex]?.trim()}</span>
+				{/if}
+			</span>
+		</div>
 	{:else}
 		<button
 			type="button"
-			class="group/line flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[16px] border-0 bg-transparent px-3 py-1.5 text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+			class={cn(row, 'group/line flex-1 cursor-pointer border-0 bg-transparent text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink')}
 			onclick={() => (editingKey = entry.key)}
 		>
-			{#if lead}
-				<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[pillarIndex]} aria-hidden="true"></span>
-			{/if}
+			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
 				<span class="text-[0.92rem] leading-snug text-pretty">{entry.text}</span>
 				{#if lead}
@@ -147,7 +187,8 @@
 		</ol>
 	{/if}
 
-	<Pages view={step} {direction} label={heading[step]} class="overflow-x-clip overflow-y-visible">
+	<!-- Room on both sides, so a row's hover and a field's focus ring are not cut at the page's edge. -->
+	<Pages view={step} {direction} label={heading[step]} class="-mx-3 px-3 overflow-x-clip overflow-y-visible">
 		{#snippet page(current)}
 			{@const at = current as Step}
 			{#if at === 'done'}
@@ -164,6 +205,32 @@
 				<div class="flex flex-col gap-3.5">
 					<h3 class="m-0 text-[1.08rem] leading-tight font-[620]">{heading[at]}</h3>
 					{#if at === 'week'}
+						<!-- When the week's look back is offered: the person's own hour, not the chart's. Sits high on the
+						     page, so a picker opens over the page instead of past the dialog's edge. -->
+						<div class="-mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-[0.84rem] text-muted">
+							<span class="inline-flex items-center gap-2">
+								Offered every
+								<Select
+									size="sm"
+									class="w-[8.6rem]"
+									label="Day the week's reflection is offered"
+									options={DAYS}
+									value={String(chart.reflectAt.day)}
+									onchange={(value) => chart.setReflectAt({ day: Number(value) })}
+								/>
+							</span>
+							<span class="inline-flex items-center gap-2">
+								from
+								<Select
+									size="sm"
+									class="w-[6.4rem]"
+									label="Time of day the week's reflection is offered"
+									options={HOURS}
+									value={String(chart.reflectAt.hour)}
+									onchange={(value) => chart.setReflectAt({ hour: Number(value) })}
+								/>
+							</span>
+						</div>
 						<WeekStrip data={chart.data} />
 						<p class="m-0 text-[0.94rem] leading-snug text-pretty">
 							{#if review.ticks === 0}
@@ -174,9 +241,9 @@
 						</p>
 					{:else if at === 'closed'}
 						{#if review.closed.length > 0}
-							<ul class="m-0 flex list-none flex-col gap-1 p-0">
+							<ul class="-mx-3 m-0 flex list-none flex-col gap-0.5 p-0">
 								{#each review.closed as milestone, position (milestone.key)}
-									<li class="flex min-h-11 items-center gap-3 px-1">
+									<li class={row}>
 										<span
 											class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface motion-safe:animate-stamp"
 											style:animation-delay="{120 + position * 90}ms"
@@ -200,7 +267,7 @@
 						<p class="m-0 text-[0.9rem] leading-snug text-pretty text-muted">
 							No ticks here in 7 days. If an action is not happening, rewrite it smaller.
 						</p>
-						<ul class="-mx-2 m-0 flex list-none flex-col gap-0.5 p-0">
+						<ul class="-mx-3 m-0 flex list-none flex-col gap-0.5 p-0">
 							{#each review.quiet as pillar (pillar.pillarIndex)}
 								<li class="flex flex-col">
 									<div class="flex items-center gap-1">
@@ -222,7 +289,7 @@
 										{/if}
 									</div>
 									{#if expanded === pillar.pillarIndex}
-										<div class="flex flex-col ps-5 motion-safe:animate-pop-in">
+										<div class="flex flex-col motion-safe:animate-pop-in">
 											{#each pillar.rest as action (action.key)}
 												{@render rewrite(action, pillar.pillarIndex, false)}
 											{/each}

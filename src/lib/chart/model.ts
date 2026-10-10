@@ -46,7 +46,12 @@ export type WeekReflection = {
 	note: string;
 	swapped: string[];
 	dismissed?: boolean;
+	/** The day it was saved. A saved week is not offered again. */
+	savedAt?: string;
 };
+
+/** When the week's reflection is offered: a weekday as `Date.getDay` gives it, and an hour of that day. */
+export type ReflectAt = { day: number; hour: number };
 
 /** What the person said when Bindu drafted this chart. Stays on the device and out of share links. */
 export type ChartBrief = {
@@ -511,6 +516,35 @@ export function clockOf(date: Date): string {
 
 export function todayKey(): string {
 	return dateKeyOf(new Date());
+}
+
+function dateOf(key: string): Date {
+	const [year, month, day] = key.split('-').map(Number);
+	return new Date(year!, month! - 1, day!, 12);
+}
+
+/**
+ * The Monday of the week whose reflection is on offer: the week of the last offer time that has passed.
+ * Before Sunday evening that is last week's, so a Monday morning still gets the week that just ended.
+ */
+export function reflectionWeekOf(at: ReflectAt, now: Date = new Date()): string {
+	const monday = dateOf(weekStartKey(now));
+	const offer = new Date(monday);
+	offer.setDate(monday.getDate() + ((at.day + 6) % 7));
+	offer.setHours(at.hour, 0, 0, 0);
+	if (now.getTime() >= offer.getTime()) return weekStartKey(monday);
+	const previous = new Date(monday);
+	previous.setDate(monday.getDate() - 7);
+	return weekStartKey(previous);
+}
+
+/** Whether any action was ticked in the week starting on `weekKey`. */
+export function weekHadTicks(data: ChartData, weekKey: string): boolean {
+	const start = dateOf(weekKey);
+	for (let offset = 0; offset < 7; offset++) {
+		if ((data.days?.[dateKeyOffset(offset, start)]?.checked.length ?? 0) > 0) return true;
+	}
+	return false;
 }
 
 export function dateKeyOffset(offset: number, base: Date = new Date()): string {

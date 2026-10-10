@@ -23,6 +23,8 @@ import {
 	setMeta,
 	todayKey,
 	weekStartKey,
+	reflectionWeekOf,
+	weekHadTicks,
 	yearActivity,
 	yearStats,
 	completedBy,
@@ -408,5 +410,25 @@ describe('completedBy', () => {
 		data.goal = '';
 		expect(wholeness(data)).toMatchObject({ chart: false });
 		expect(wholeness(data).pillars.every(Boolean)).toBe(true);
+	});
+});
+
+describe('reflectionWeekOf', () => {
+	// 2026-10-10 is a Saturday; the week starts Monday 2026-10-05.
+	it('offers this week once its offer time has passed, and last week before that', () => {
+		const sundayEvening = { day: 0, hour: 18 };
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 10, 12))).toBe('2026-09-28');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 11, 17, 59))).toBe('2026-09-28');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 11, 18))).toBe('2026-10-05');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 12, 9))).toBe('2026-10-05');
+		expect(reflectionWeekOf({ day: 5, hour: 17 }, new Date(2026, 9, 9, 17, 30))).toBe('2026-10-05');
+		expect(reflectionWeekOf({ day: 5, hour: 17 }, new Date(2026, 9, 9, 16, 30))).toBe('2026-09-28');
+	});
+
+	it('knows whether a week had a tick', () => {
+		const data = emptyChart();
+		data.days = { '2026-10-07': { focus: ['a0_0'], checked: ['a0_0'] }, '2026-10-12': { focus: ['a0_0'], checked: [] } };
+		expect(weekHadTicks(data, '2026-10-05')).toBe(true);
+		expect(weekHadTicks(data, '2026-10-12')).toBe(false);
 	});
 });

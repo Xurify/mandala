@@ -34,6 +34,40 @@
 	let root = $state<HTMLDivElement | null>(null);
 	let trigger = $state<HTMLButtonElement | null>(null);
 	let active = $state(0);
+	/**
+	 * Where the list sits, in viewport terms. It is fixed rather than hung off the trigger, so a select inside a
+	 * scrolling dialog body does not grow that body and scroll the page away; it opens upward when the room below
+	 * is short. A scroll anywhere closes it, since the trigger would move out from under it.
+	 */
+	let place = $state<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+	const GAP = 8;
+	const LIST_MAX = 320;
+
+	function placeList(): void {
+		if (!trigger) return;
+		const rect = trigger.getBoundingClientRect();
+		const below = window.innerHeight - rect.bottom - GAP;
+		const wanted = Math.min(LIST_MAX, options.length * 44 + 12);
+		const up = below < wanted && rect.top - GAP > below;
+		place = up
+			? { bottom: window.innerHeight - rect.top + GAP, left: rect.left, width: rect.width }
+			: { top: rect.bottom + GAP, left: rect.left, width: rect.width };
+	}
+
+	$effect(() => {
+		if (!open) return;
+		// The list's own scrolling (to the chosen option, or through a long list) is not the page moving.
+		const away = (event?: Event): void => {
+			if (event?.target instanceof Node && root?.contains(event.target)) return;
+			close(false);
+		};
+		window.addEventListener('scroll', away, true);
+		window.addEventListener('resize', away);
+		return () => {
+			window.removeEventListener('scroll', away, true);
+			window.removeEventListener('resize', away);
+		};
+	});
 
 	const uid = $props.id();
 	const listId = $derived(`${uid}-list`);
@@ -47,15 +81,23 @@
 		return index < 0 ? 0 : index;
 	}
 
+	/** Focus without scrolling anything but the list itself: a page scroll would close the list. */
 	function focusOption(index: number): void {
 		const item = root?.querySelectorAll<HTMLElement>('[role="option"]')[index];
-		item?.focus();
-		item?.scrollIntoView({ block: 'nearest' });
+		if (!item) return;
+		item.focus({ preventScroll: true });
+		const list = item.parentElement;
+		if (!list) return;
+		const top = item.offsetTop;
+		const bottom = top + item.offsetHeight;
+		if (top < list.scrollTop) list.scrollTop = top;
+		else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
 	}
 
 	function openList(): void {
 		if (locked || open) return;
 		active = indexOfValue();
+		placeList();
 		open = true;
 		queueMicrotask(() => focusOption(active));
 	}
@@ -174,7 +216,12 @@
 		<button type="button" class={styles.backdrop()} aria-hidden="true" tabindex={-1} onclick={() => close()}></button>
 		<div
 			id={listId}
-			class={styles.panel()}
+			class={cn(styles.panel(), place && 'fixed', place?.bottom !== undefined && 'origin-bottom-left')}
+			style:top={place?.top !== undefined ? `${place.top}px` : undefined}
+			style:bottom={place?.bottom !== undefined ? `${place.bottom}px` : undefined}
+			style:left={place ? `${place.left}px` : undefined}
+			style:width={place ? `${place.width}px` : undefined}
+			style:min-width={place ? `${place.width}px` : undefined}
 			role="listbox"
 			aria-label={label}
 			tabindex={-1}

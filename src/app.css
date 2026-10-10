@@ -679,23 +679,29 @@
 ::view-transition-new(focus-block) {
 	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
 }
-/* Floating chrome (the dock with its toast, Bindu) has its own layer, so it stays on top and still while
-   the stage changes under it. */
+/* Floating chrome (the dock with its toast, Bindu, an open menu) has its own layer, so it stays on top and
+   still while the stage changes under it. The menu sits above the rest: it is what the person is using. */
 ::view-transition-group(dock),
 ::view-transition-group(bindu-launcher),
-::view-transition-group(bindu-panel) {
+::view-transition-group(bindu-panel),
+::view-transition-group(menu) {
 	z-index: 1;
 	animation: none;
 }
+::view-transition-group(menu) {
+	z-index: 2;
+}
 ::view-transition-old(dock),
 ::view-transition-old(bindu-launcher),
-::view-transition-old(bindu-panel) {
+::view-transition-old(bindu-panel),
+::view-transition-old(menu) {
 	animation: none;
 	opacity: 0;
 }
 ::view-transition-new(dock),
 ::view-transition-new(bindu-launcher),
-::view-transition-new(bindu-panel) {
+::view-transition-new(bindu-panel),
+::view-transition-new(menu) {
 	animation: none;
 }
 /* A theme or accent change crossfades the whole page in place. Nothing travels. */
@@ -703,7 +709,8 @@
 :root:active-view-transition-type(theme)::view-transition-old(stage),
 :root:active-view-transition-type(theme)::view-transition-old(dock),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-launcher),
-:root:active-view-transition-type(theme)::view-transition-old(bindu-panel) {
+:root:active-view-transition-type(theme)::view-transition-old(bindu-panel),
+:root:active-view-transition-type(theme)::view-transition-old(menu) {
 	opacity: 1;
 	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-out;
 }
@@ -711,7 +718,8 @@
 :root:active-view-transition-type(theme)::view-transition-new(stage),
 :root:active-view-transition-type(theme)::view-transition-new(dock),
 :root:active-view-transition-type(theme)::view-transition-new(bindu-launcher),
-:root:active-view-transition-type(theme)::view-transition-new(bindu-panel) {
+:root:active-view-transition-type(theme)::view-transition-new(bindu-panel),
+:root:active-view-transition-type(theme)::view-transition-new(menu) {
 	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
 }
 @keyframes view-out {

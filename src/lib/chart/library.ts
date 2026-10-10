@@ -294,6 +294,39 @@ export function activeRecord(library: ChartLibrary): ChartRecord {
 	return library.charts.find((chart) => chart.id === library.activeId) ?? library.charts[0]!;
 }
 
+type Standing = { live: true; at: number; record: ChartRecord } | { live: false; at: number; record: DeletedRecord };
+
+function standings(library: ChartLibrary): Map<string, Standing> {
+	const out = new Map<string, Standing>();
+	for (const record of library.charts) out.set(record.id, { live: true, at: record.updatedAt, record });
+	for (const record of library.deleted) out.set(record.id, { live: false, at: record.deletedAt, record });
+	return out;
+}
+
+/**
+ * This tab's library and the one in storage, made one. Another tab may have added, edited, deleted or
+ * restored charts since this tab last read storage, and this tab must not write over that. Each chart is
+ * whichever copy was touched last, a deletion or a restore counting as a touch. `keep` names a chart with
+ * edits here not yet written; it stays as it is here whatever storage holds.
+ */
+export function reconcile(local: ChartLibrary, stored: ChartLibrary, keep: string | null = null): ChartLibrary {
+	const mine = standings(local);
+	const theirs = standings(stored);
+	const charts: ChartRecord[] = [];
+	const deleted: DeletedRecord[] = [];
+	for (const id of new Set([...mine.keys(), ...theirs.keys()])) {
+		const own = mine.get(id);
+		const other = theirs.get(id);
+		const pick = own && (id === keep || !other || own.at >= other.at) ? own : other!;
+		if (pick.live) charts.push(pick.record);
+		else deleted.push(pick.record);
+	}
+	if (charts.length === 0) charts.push(newRecord(emptyChart()));
+	const ids = new Set(charts.map((chart) => chart.id));
+	const activeId = [local.activeId, stored.activeId].find((id) => ids.has(id)) ?? charts[0]!.id;
+	return { activeId, charts, deleted };
+}
+
 export function summarize(
 	charts: ChartRecord[],
 	activeId: string,

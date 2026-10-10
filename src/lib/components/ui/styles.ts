@@ -80,7 +80,7 @@ export const menu = tv({
 		trigger: 'relative z-50 w-full',
 		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
 		panel:
-			'absolute top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,32rem)] min-w-[min(290px,calc(100vw-32px))] flex-col gap-px overflow-x-clip overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float motion-safe:animate-menu'
+			'absolute top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,32rem)] min-w-[min(290px,calc(100vw-32px))] flex-col gap-px overflow-x-clip overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float [view-transition-name:menu] motion-safe:animate-menu'
 	},
 	variants: {
 		align: {
@@ -122,7 +122,8 @@ export const dialog = tv({
 		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px]',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
-		body: 'relative z-0 min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
+		// No stacking context of its own, so a select's list (fixed, z-50) can rise over the head and the foot.
+		body: 'relative min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
 		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pt-4 pb-[22px]'
 	},

@@ -9,9 +9,9 @@ function clip(value: unknown, max: number): string {
 	return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-/** What the prompt says before the person's part: who writes, and what a chart is. */
+/** What the prompt says before the person's part: what a chart is, in plain words, since no chat app knows the method by name. */
 const PROMPT_INTRO = [
-	'You are a Mandala Method coach.',
+	'I am making a Mandala chart: one goal in the center, eight pillars around it, and eight actions under each pillar. 73 cells. I tick the actions off day by day.',
 	'',
 	'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
 	'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
@@ -126,6 +126,14 @@ export function chartFromDraft(value: unknown): ChartData | null {
 	const brief = parseBrief(record.brief);
 	if (brief) chart.brief = brief;
 	return chart;
+}
+
+export type ChatApp = 'claude' | 'chatgpt';
+
+/** A chat app opened with the prompt already in its box. Both read `q`; the person still presses send there. */
+export function chatLink(app: ChatApp, prompt: string): string {
+	const query = encodeURIComponent(prompt);
+	return app === 'claude' ? `https://claude.ai/new?q=${query}` : `https://chatgpt.com/?q=${query}`;
 }
 
 export function parseDraftText(raw: string): ChartData | null {

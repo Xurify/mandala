@@ -27,6 +27,11 @@
 	import { fieldInk, textField } from './ui/styles';
 
 	const activeTitle = $derived(titleOf(chart.data));
+	/** The title in two parts, so the chevron can hold on to the last word and never wrap alone. */
+	const split = $derived.by(() => {
+		const cut = activeTitle.lastIndexOf(' ');
+		return cut < 0 ? { head: '', tail: activeTitle } : { head: activeTitle.slice(0, cut + 1), tail: activeTitle.slice(cut + 1) };
+	});
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
 	const updatedLabel = $derived(activeUpdated === undefined ? '' : formatUpdated(activeUpdated));
 
@@ -381,16 +386,18 @@
 			onclick={toggle}
 		>
 			<span class="line-clamp-2">
-				{activeTitle}<span
-					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+				{split.head}<span class="whitespace-nowrap"
+					>{split.tail}<span
+						class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+					>
+						<Icon
+							name="chevron-down"
+							size={16}
+							strokeWidth={2}
+							class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
+						/>
+					</span></span
 				>
-				<Icon
-					name="chevron-down"
-					size={16}
-					strokeWidth={2}
-					class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
-				/>
-				</span>
 			</span>
 		</button>
 	{/snippet}

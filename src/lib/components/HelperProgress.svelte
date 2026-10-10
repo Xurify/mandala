@@ -18,6 +18,9 @@
 
 <div class="flex flex-col gap-4 px-4 pt-1 pb-4">
 	<WeekStrip data={helper.data} />
+	<div class="-mt-2 flex justify-end">
+		<Button size="sm" variant="ghost" icon="calendar" onclick={() => helper.openCalendar()}>Every day, on the calendar</Button>
+	</div>
 
 	{#if !progress.everTicked}
 		<div class="flex flex-col items-start gap-3">

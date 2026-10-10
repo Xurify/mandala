@@ -1,5 +1,5 @@
 import { chart } from './chart.svelte';
-import { fillPrompt, newChartPrompt, parseDraftText } from './draft.ts';
+import { chatLink, fillPrompt, newChartPrompt, parseDraftText, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
 	editWords,
@@ -21,7 +21,7 @@ import {
 } from './helper.ts';
 import { blockOfK, hasContent, todayKey, wholeness, type ChartData } from './model.ts';
 
-export type { CellEdit, HelperMood, HelperPage, HelperPick, WriteMode };
+export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
 /** What the helper may read and change. The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
@@ -37,6 +37,8 @@ export type HelperTarget = {
 	noteShown?(signature: string): void;
 	/** A tool was opened from a pick, so the shelf logs it. */
 	openTool?(pillarIndex: number, id: string): void;
+	/** The calendar of finished days, outside the panel. */
+	openCalendar?(): void;
 	/** The chart Bindu is reading. The lab leaves it out. */
 	chartId?(): string;
 };
@@ -71,6 +73,8 @@ export class HelperStore {
 	reply = $state('');
 	/** The prompt copied last, so the page can say what comes next. */
 	copied = $state<WriteMode | null>(null);
+	/** The chat app the prompt was opened in, when it went by link rather than the clipboard. */
+	sent = $state<ChatApp | null>(null);
 	/** The insight the panel opened with. Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -205,6 +209,12 @@ export class HelperStore {
 		this.#target.openTool?.(pillarIndex, id);
 	}
 
+	/** The calendar is a view of its own, so the panel steps aside for it. */
+	openCalendar(): void {
+		this.#target.openCalendar?.();
+		this.hide();
+	}
+
 	/** The prompt for the write page's mode, with what the person typed into it. */
 	prompt(mode: WriteMode = this.mode): string {
 		const data = this.#target.data();
@@ -215,6 +225,14 @@ export class HelperStore {
 
 	markCopied(mode: WriteMode = this.mode): void {
 		this.copied = mode;
+		this.sent = null;
+	}
+
+	/** Opens a chat app with the prompt in its box. Copying and pasting are done; the reply still comes back here. */
+	openIn(app: ChatApp): void {
+		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
+		this.copied = this.mode;
+		this.sent = app;
 	}
 
 	/** Text pasted anywhere in the panel. A chart reply opens the write page on it; anything else is ignored. */
@@ -247,6 +265,7 @@ export class HelperStore {
 		} else return;
 		this.reply = '';
 		this.copied = null;
+		this.sent = null;
 		this.goal = '';
 	}
 
@@ -286,6 +305,7 @@ export class HelperStore {
 		this.moment = null;
 		this.reply = '';
 		this.copied = null;
+		this.sent = null;
 		this.goal = '';
 		this.question = '';
 		this.lead = null;
@@ -309,6 +329,7 @@ export const helper = new HelperStore({
 	},
 	showCell: (key) => chart.jumpToKey(key),
 	openTool: (pillarIndex, id) => chart.openTool(pillarIndex, id),
+	openCalendar: () => chart.setViewMode('calendar'),
 	decline: (keys) => chart.declineToday(keys),
 	noteShown: (signature) => chart.noteShown(signature),
 	chartId: () => chart.activeId

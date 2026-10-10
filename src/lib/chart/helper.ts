@@ -836,12 +836,27 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 	const findings = reviewChart(data).length;
 	doors.push({
 		page: 'review',
-		label: 'Review the chart',
-		detail: findings === 0 ? 'Every line passes' : findings === 1 ? 'One line to tighten' : `${findings} lines to tighten`
+		label: 'Find weak lines',
+		detail: findings === 0 ? 'Every line passes the two tests' : findings === 1 ? 'One line to tighten' : `${findings} lines to tighten`
 	});
-	doors.push({ page: 'write', label: 'Write with a chat app', detail: 'Start a chart, fill it, or ask' });
+	doors.push({ page: 'write', label: 'Fill chart using a prompt', detail: 'Start a chart, fill it, or ask' });
 	return doors.filter((door) => door.page === 'write' || door.page !== lead.page);
 }
+
+/**
+ * How much of the chart is written outside plain Latin letters. The review's rules read English; a chart in
+ * another language gets a note that says so rather than a clean pass it did not earn.
+ */
+export function foreignShare(data: ChartData): number {
+	const lines = [...data.pillars, ...data.actions.flat()].map((line) => line.trim()).filter(Boolean);
+	if (lines.length === 0) return 0;
+	const foreign = lines.filter((line) => /[^\u0000-\u007F\u2018-\u201F\u2013\u2014\u2026]/.test(line)).length;
+	return foreign / lines.length;
+}
+
+/** The question for a chat app that runs the review in any language. */
+export const REVIEW_QUESTION =
+	'Run the two tests on every pillar and action: can it be scheduled and marked done, and is it something I can do myself? List the lines that fail, with a rewrite for each.';
 
 /** A repeat tool opened most days lately has probably sunk in. The shelf has the button. */
 function knownByNow(data: ChartData, now: Date): HelperInsight[] {
@@ -863,9 +878,8 @@ export type WeekReview = {
 	ticks: number;
 };
 
-/** What the weekly reflection walks through, counted from the chart and its log. */
-export function weekInReview(data: ChartData, now: Date = new Date()): WeekReview {
-	const since = weekStartKey(now);
+/** What the weekly reflection walks through, counted from the chart and its log. `since` is the week's Monday. */
+export function weekInReview(data: ChartData, now: Date = new Date(), since: string = weekStartKey(now)): WeekReview {
 	const today = dateKeyOf(now);
 	const closed: WeekReview['closed'] = [];
 	const quiet: WeekReview['quiet'] = [];

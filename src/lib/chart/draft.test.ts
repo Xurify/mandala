@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartFromDraft, fillPrompt, newChartPrompt, parseDraftText } from './draft.ts';
+import { chartFromDraft, chatLink, fillPrompt, newChartPrompt, parseDraftText } from './draft.ts';
 import { emptyChart } from './model.ts';
 
 const sample = {
@@ -83,5 +83,14 @@ describe('the brief in a reply', () => {
 		const chart = parseDraftText(JSON.stringify({ ...sample, brief: { timeline: 'By October', focus: 3 } }));
 		expect(chart?.brief).toEqual({ timeline: 'By October' });
 		expect(parseDraftText(JSON.stringify(sample))?.brief).toBeUndefined();
+	});
+});
+
+describe('chatLink', () => {
+	it('opens a chat app with the prompt in its box', () => {
+		const prompt = 'Help me & "plan"';
+		expect(chatLink('claude', prompt)).toBe(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`);
+		expect(chatLink('chatgpt', prompt)).toBe(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`);
+		expect(chatLink('claude', newChartPrompt('Speak Slovak')).length).toBeLessThan(8000);
 	});
 });
