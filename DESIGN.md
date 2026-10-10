@@ -61,9 +61,11 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
-| `--dot-l` / `--dot-c` / `--dot-fg-l` | Small pillar dots, pips |
+| `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
+
+A dot that marks a pillar beside text (a pick, a finding, a legend) is the `pip` utility with `--pip-h`, which holds its lightness in both themes. Pillar names set in their hue use `pillar-ink`.
 
 Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline per element. Outside CSS (PNG icons, poster export), convert with `oklchToRgb` from `src/lib/chart/ring.ts`. Don't hand-pick hex.
 
@@ -74,6 +76,23 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
 - Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`. Opacity may still fade.
+- A container whose content changes size eases to the new height (about 420ms, expo-out) instead of jumping. It never animates from zero on first paint.
+
+Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-*`; Svelte transitions live in `src/lib/components/ui/motion.ts`.
+
+| Motion | Use it for |
+| --- | --- |
+| `pop-in` | A line or row arriving. Stagger a list by index, 40–50ms apart |
+| `deal-in` | A hand of cards arriving, 70ms apart. Overshoots |
+| `flip-in` | One card replaced in place (a swap). The old face fades where it is; the new one swings in |
+| `stack-in` | Pips stacking into a column, staggered by column, then by row |
+| `scan` + `mark-in` | Reading a chart: cells light in reading order, then each flagged cell gets a ring that closes in |
+| `seal-in` + `seal-draw` | A moment: the ring arrives, its arcs draw in pillar order, the check is the last stroke |
+| `done-in` | The words of a moment, after the picture |
+| `note-in` / `noteOut` | A floating panel opening from its corner, and folding back |
+| `pageIn` / `pageOut` | Turning pages inside a panel. In: slides about 28px from the side it comes from. Out: fades in place and drifts a few pixels the other way |
+| `foldOut` | A row leaving a live list because it no longer applies. Fades, then its height closes up |
+| `slipOut` | A slip being replaced. Fades without travel |
 
 ## Typography
 
@@ -138,6 +157,19 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 ### Dialogs
 
 `Dialog` is a native `<dialog>`. Header = heading + close; scrolling body; footer snippet for actions. Header, body, and footer share the sheet's paper. No shadow, hairline, or fade where the body scrolls; the scrollbar says there is more. Radius 30px, `--shadow-md`, warm translucent backdrop with a 3px blur, `dialog-in` rise on open. Width `min(38rem, 100vw - 32px)`.
+
+### Pages in a panel
+
+A floating panel with more than one job is a few pages, not a chat and not tabs. Bindu is the worked example (`HelperPanel.svelte`).
+
+- **The first page** says one thing and offers one move: a note (what is true right now, in a sentence), one primary button for the next move, then a door per job. Each door says what it would find, from the data ("From Health, Words and Sleep", "5 lines to tighten"), not what the feature is called.
+- **Each job is its own page**, with at most one primary button. A page that is long keeps its actions in a sticky row at the bottom, on the panel's paper.
+- **Turning.** The new page slides in from the side it comes from while the old one fades where it is. Both sit in one grid cell, so nothing jumps. The panel eases to the new page's height.
+- **The header stays.** The back button opens out from nothing beside the face, and the title crossfades. Its focus ring is not clipped.
+- **Keys and focus.** Escape goes back a page, then closes. Opening a page focuses its back button. Going back focuses the door it came from. A control that a page replaces (a swapped card) hands focus to its replacement.
+- **Reopening** returns to the page that was left, so a person who stepped away to paste something finds the box waiting. A finished moment does not wait for a reopen.
+- **A moment** takes the page when something becomes true: the ring draws the pillars it touched, then the words, then Done. The moment says it, so no toast says it again.
+- **Steps on a thread.** A round trip of a few steps (copy, paste there, paste back) is numbered markers joined by a thread. Done is an ink disc with a drawn check, the current step an ink ring, the rest recessed. The thread fills in ink below each done step.
 
 ### Feedback
 
