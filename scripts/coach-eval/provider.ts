@@ -4,10 +4,7 @@ import { replyText } from '../../src/lib/chart/coach-provider.ts';
 import type { ChatMessage } from '../../src/lib/chart/helper.ts';
 
 export const MODELS: Record<string, string> = {
-	'qwen3-0.6b': 'Qwen3-0.6B-Q4_K_M.gguf',
-	'qwen3-1.7b': 'Qwen3-1.7B-Q4_K_M.gguf',
-	'qwen3-4b': 'Qwen3-4B-Q4_K_M.gguf',
-	'gemma-3-4b': 'gemma-3-4b-it-Q4_K_M.gguf'
+	'qwen3-4b': 'Qwen3-4B-Q4_K_M.gguf'
 };
 /** GGUF files, from Hugging Face (unsloth/<name>-GGUF). Override with COACH_MODELS. */
 const DIR = process.env.COACH_MODELS ?? new URL('../../local/models/', import.meta.url).pathname;

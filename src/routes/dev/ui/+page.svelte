@@ -377,12 +377,12 @@
 	let shortcutsOpen = $state(false);
 	let paletteOpen = $state(false);
 	let pinned = $state(true);
-	let pickedModel = $state('qwen3');
-	const modelChoices = [
-		{ value: 'qwen15', label: 'Qwen2.5 1.5B' },
-		{ value: 'qwen17', label: 'Qwen3 1.7B' },
-		{ value: 'qwen3', label: 'Qwen3 4B' },
-		{ value: 'qwen3t', label: 'Qwen3 4B, thinking' }
+	let pickedRange = $state('week');
+	const rangeChoices = [
+		{ value: 'day', label: 'Today' },
+		{ value: 'week', label: 'This week' },
+		{ value: 'month', label: 'This month' },
+		{ value: 'year', label: 'This year' }
 	];
 
 	let name = $state('Morning chart');
@@ -667,8 +667,8 @@
 		<Eyebrow>Fields</Eyebrow>
 		<div class="grid items-end gap-4 md:grid-cols-2">
 			<div class="flex flex-col gap-1.5">
-				<span id="catalog-model" class="text-[0.82rem] font-semibold">Model</span>
-				<Select label="Model" labelledBy="catalog-model" options={modelChoices} bind:value={pickedModel} />
+				<span id="catalog-range" class="text-[0.82rem] font-semibold">Range</span>
+				<Select label="Range" labelledBy="catalog-range" options={rangeChoices} bind:value={pickedRange} />
 			</div>
 			<label class="flex flex-col gap-1.5">
 				<span class="text-[0.82rem] font-semibold">Chart name</span>
@@ -679,12 +679,12 @@
 				<input class={field} type="text" value="Locked title" disabled />
 			</label>
 			<div class="flex flex-col gap-1.5">
-				<span id="catalog-model-locked" class="text-[0.82rem] font-semibold">Locked</span>
+				<span id="catalog-range-locked" class="text-[0.82rem] font-semibold">Locked</span>
 				<Select
-					label="Locked model"
-					labelledBy="catalog-model-locked"
-					options={modelChoices}
-					value="qwen3"
+					label="Locked range"
+					labelledBy="catalog-range-locked"
+					options={rangeChoices}
+					value="month"
 					disabled
 				/>
 			</div>
