@@ -7,20 +7,16 @@ import {
 	deleteFromLibrary,
 	emptyLibrary,
 	flushActive,
-	forgetFromLibrary,
 	forgetManyFromLibrary,
 	deletedClock,
 	deletedDayLabel,
 	formatAgo,
 	formatDaysLeft,
-	formatDeleted,
-	formatDeletesIn,
 	formatUpdated,
 	migrateFromV1,
 	newRecord,
 	parseLibrary,
 	purgeDeleted,
-	restoreFromLibrary,
 	restoreManyFromLibrary,
 	summarize,
 	titleOf,
@@ -50,20 +46,6 @@ describe('formatUpdated', () => {
 		);
 		expect(formatUpdated(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Updated Sep 15');
 		expect(formatUpdated(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Updated Dec 31, 2025');
-	});
-});
-
-describe('formatDeleted', () => {
-	const now = new Date(2026, 9, 2, 22, 57).getTime();
-
-	it('uses a clock for today and yesterday, then a short date', () => {
-		expect(formatDeleted(now, now)).toBe('Deleted 10:57 pm');
-		expect(formatDeleted(new Date(2026, 9, 2, 0, 1).getTime(), now)).toBe('Deleted 12:01 am');
-		expect(formatDeleted(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe(
-			'Deleted yesterday at 11:59 pm'
-		);
-		expect(formatDeleted(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Deleted Sep 15');
-		expect(formatDeleted(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Deleted Dec 31, 2025');
 	});
 });
 
@@ -220,8 +202,6 @@ describe('recently deleted', () => {
 		expect(purgeDeleted([fresh, expired], now).map((item) => item.id)).toEqual([fresh.id]);
 		expect(daysUntilPurge(fresh.deletedAt, now)).toBe(1);
 		expect(daysUntilPurge(now, now)).toBe(TRASH_DAYS);
-		expect(formatDeletesIn(1)).toBe('Deletes in 1 day');
-		expect(formatDeletesIn(12)).toBe('Deletes in 12 days');
 	});
 
 	it('moves the last chart to recently deleted and leaves a blank chart', () => {
@@ -248,7 +228,7 @@ describe('recently deleted', () => {
 		const library = emptyLibrary();
 		const removed = deleteFromLibrary(library, library.activeId, now);
 		expect(removed).not.toBeNull();
-		const restored = restoreFromLibrary(removed!, removed!.deleted[0]!.id, now + 1000);
+		const restored = restoreManyFromLibrary(removed!, [removed!.deleted[0]!.id], now + 1000);
 		expect(restored?.activeId).toBe(removed!.deleted[0]?.id);
 		expect(restored?.deleted).toEqual([]);
 		expect(restored?.charts).toHaveLength(2);
@@ -286,9 +266,9 @@ describe('recently deleted', () => {
 	it('removes a deleted chart before the hold ends', () => {
 		const library = emptyLibrary();
 		const removed = deleteFromLibrary(library, library.activeId, now)!;
-		const forgotten = forgetFromLibrary(removed, removed.deleted[0]!.id);
+		const forgotten = forgetManyFromLibrary(removed, [removed.deleted[0]!.id]);
 		expect(forgotten?.deleted).toEqual([]);
-		expect(restoreFromLibrary(forgotten!, removed.deleted[0]!.id, now)).toBeNull();
+		expect(restoreManyFromLibrary(forgotten!, [removed.deleted[0]!.id], now)).toBeNull();
 	});
 
 	it('skips a broken deleted row and ignores one that is still live', () => {

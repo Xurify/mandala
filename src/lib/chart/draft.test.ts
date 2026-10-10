@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartAnswersMessage, chartFromDraft, draftPrompt, draftSystemPrompt, eightActions, parseDraftText } from './draft.ts';
+import { chartAnswersMessage, chartFromDraft, draftPrompt, parseDraftText } from './draft.ts';
 
 const sample = {
 	goal: 'Run a half marathon in under 2:00 by October',
@@ -59,24 +59,6 @@ describe('draftPrompt', () => {
 	});
 });
 
-describe('draftSystemPrompt', () => {
-	it('keeps the tests and the JSON shape, without the blank form', () => {
-		const prompt = draftSystemPrompt();
-		expect(prompt).toContain('Calendar');
-		expect(prompt).toContain('Control');
-		expect(prompt).toContain('work hard');
-		expect(prompt).toContain('"pillars"');
-		expect(prompt).not.toContain('- Direction:');
-	});
-});
-
-describe('eightActions', () => {
-	it('reads a numbered list of eight', () => {
-		const raw = ['1. Run Tuesday', '2. Run Thursday', '3. Walk the hills', '4. Log the run', '5. Shoes by the door', '6. Same route', '7. Stop if the knee twinges', '8. Stretch after'].join('\n');
-		expect(eightActions(raw)).toHaveLength(8);
-		expect(eightActions(raw)?.[0]).toBe('Run Tuesday');
-	});
-});
 describe('chartAnswersMessage', () => {
 	it('fills the answers and marks a missing line', () => {
 		const message = chartAnswersMessage({

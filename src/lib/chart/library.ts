@@ -90,14 +90,6 @@ export function formatUpdated(at: number, now = Date.now()): string {
 	return `Updated ${shortDate(at, now)}`;
 }
 
-/** When a chart was deleted. Today and yesterday include the time. `now` is injectable for tests. */
-export function formatDeleted(at: number, now = Date.now()): string {
-	const days = daysAgo(at, now);
-	if (days === 0) return `Deleted ${clockLabel(at)}`;
-	if (days === 1) return `Deleted yesterday at ${clockLabel(at)}`;
-	return `Deleted ${shortDate(at, now)}`;
-}
-
 /** Day heading in the trash list. Today, yesterday, or a short date. */
 export function deletedDayLabel(at: number, now = Date.now()): string {
 	const days = daysAgo(at, now);
@@ -125,11 +117,6 @@ export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 	const remaining = TRASH_MS - (now - deletedAt);
 	if (remaining <= 0) return 0;
 	return Math.ceil(remaining / DAY_MS);
-}
-
-export function formatDeletesIn(daysLeft: number): string {
-	if (daysLeft <= 1) return 'Deletes in 1 day';
-	return `Deletes in ${daysLeft} days`;
 }
 
 /** Short hold remaining. The dialog subtitle already states the 30-day rule. */
@@ -265,31 +252,6 @@ export function deleteFromLibrary(
 	}
 	const activeId = library.activeId === id ? (neighborOf(library.charts, id) ?? remaining[0]!).id : library.activeId;
 	return { activeId, charts: remaining, deleted };
-}
-
-/** Put a deleted chart back into the live library and make it active. */
-export function restoreFromLibrary(
-	library: ChartLibrary,
-	id: string,
-	now = Date.now()
-): ChartLibrary | null {
-	const item = library.deleted.find((row) => row.id === id);
-	if (!item || now - item.deletedAt >= TRASH_MS) return null;
-	const record: ChartRecord = {
-		id: item.id,
-		updatedAt: now,
-		data: cloneChart(item.data)
-	};
-	return {
-		activeId: record.id,
-		charts: [...library.charts, record],
-		deleted: library.deleted.filter((row) => row.id !== id)
-	};
-}
-
-/** Drop a deleted chart before the 30-day hold ends. */
-export function forgetFromLibrary(library: ChartLibrary, id: string): ChartLibrary | null {
-	return forgetManyFromLibrary(library, [id]);
 }
 
 /** Put deleted charts back. The newest one becomes the open chart. */

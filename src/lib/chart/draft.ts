@@ -22,41 +22,6 @@ export function emptyChartAnswers(): ChartAnswers {
 	return { direction: '', timeline: '', situation: '', focus: '', constraint: '' };
 }
 
-/** Rules for the in-browser model. Shorter than {@link draftPrompt} so a 4096-token window can still finish the chart. */
-export function draftSystemPrompt(): string {
-	return [
-		'You are a Mandala Method coach.',
-		'',
-		'Create a personalised 9×9 chart from what this person said.',
-		'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
-		'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
-		'',
-		'[How to fill it]',
-		'1. Pillars. Ask what actually has to happen for the direction to come true. Keep the eight that would make a real difference. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
-		'2. Actions. For each pillar, write eight facilitators of that behaviour. Do not restate the pillar in eight wordings.',
-		'Write each pillar as a short heading for one driver, a few words: "Speaking time", "Core phrases". Write each action as a sentence you could say: a verb and the thing it applies to. "Play Spanish audio for 15 minutes at breakfast."',
-		'',
-		'[Tests]',
-		'Every action must pass both tests. Every pillar must pass the second:',
-		'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
-		'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
-		'',
-		"[Don't]",
-		'- Do not use "work hard", "be successful", or "stay positive".',
-		'- Do not write a line you cannot mark done.',
-		'- Do not write a result this person cannot control.',
-		'- Do not restate a pillar as its eight actions.',
-		'- Do not return only the first week. The chart holds all 64.',
-		'',
-		'[Rules]',
-		'- If something is missing, make a reasonable assumption and create a first draft.',
-		'- Return only this JSON, with no commentary:',
-		'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
-		`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`,
-		'- actions is 8 arrays. Each array has 8 strings. Do not stop after one or two.'
-	].join('\n');
-}
-
 export function chartAnswersMessage(answers: ChartAnswers): string {
 	const line = (label: string, value: string) => {
 		const text = value.replace(/\s+/g, ' ').trim();
@@ -157,41 +122,6 @@ export function parseDraftText(raw: string): ChartData | null {
 	const value = jsonValue(raw);
 	if (!value) return null;
 	return chartFromDraft(value);
-}
-
-export function partialDraft(raw: string): { goal: string; pillars: string[]; actions: string[][] } | null {
-	const value = jsonValue(raw);
-	if (!value || typeof value !== 'object') return null;
-	const record = value as Record<string, unknown>;
-	const goal = clip(record.goal, Math.min(GOAL_MAX, TEXT_MAX));
-	if (!goal) return null;
-	const pillars = asStringList(record.pillars, 8, PILLAR_MAX);
-	if (!pillars) return null;
-	if (!Array.isArray(record.actions)) return null;
-	const actions = record.actions.slice(0, 8).map((row) => {
-		if (!Array.isArray(row)) return [];
-		return row
-			.map((item) => clip(item, Math.min(ACTION_MAX, TEXT_MAX)))
-			.filter((item) => item !== '');
-	});
-	while (actions.length < 8) actions.push([]);
-	return { goal, pillars, actions };
-}
-
-/** Eight action lines, either a JSON array or a numbered list. */
-export function eightActions(raw: string): string[] | null {
-	const value = jsonValue(raw);
-	const fromJson = Array.isArray(value)
-		? value.map((item) => clip(item, Math.min(ACTION_MAX, TEXT_MAX))).filter((item) => item !== '')
-		: [];
-	if (fromJson.length >= 8) return fromJson.slice(0, 8);
-	const lines = raw
-		.split('\n')
-		.map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim())
-		.map((line) => clip(line, Math.min(ACTION_MAX, TEXT_MAX)))
-		.filter((line) => line !== '' && !line.startsWith('{') && !line.startsWith('['));
-	if (lines.length >= 8) return lines.slice(0, 8);
-	return null;
 }
 
 export function jsonValue(raw: string): unknown {

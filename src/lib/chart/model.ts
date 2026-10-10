@@ -13,8 +13,6 @@ export const STORAGE_KEY = 'mandala-goal-chart-v1';
 export const CELL_COUNT = 73;
 export const TEXT_MAX = 120;
 
-export type CellType = 'goal' | 'pillar' | 'action';
-
 export type CellInfo =
 	| { type: 'goal' }
 	| { type: 'pillar'; k: number }
@@ -163,14 +161,6 @@ export function describe(b: number, c: number): string {
 	if (i.type === 'goal') return 'Goal';
 	if (i.type === 'pillar') return `Pillar ${i.k + 1}`;
 	return `Pillar ${i.k + 1} action ${idx(c) + 1}`;
-}
-
-export function placeholderFor(sel: number, c: number): string {
-	const i = info(sel, c);
-	if (i.type === 'goal') return 'Your main goal, 6 to 12 months out';
-	if (sel === 4) return `Pillar ${i.k + 1}`;
-	if (i.type === 'pillar') return 'Name this pillar';
-	return `Action ${idx(c) + 1}`;
 }
 
 export type Milestones = {
