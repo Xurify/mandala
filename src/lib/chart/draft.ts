@@ -38,55 +38,85 @@ export function chartAnswersMessage(answers: ChartAnswers): string {
 	].join('\n');
 }
 
-export function draftPrompt(): string {
+/** What the prompt says before the person's part: who writes, and what a chart is. */
+const PROMPT_INTRO = [
+	'You are a Mandala Method coach.',
+	'',
+	'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
+	'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
+	'',
+];
+
+/** How to fill a chart, the tests every line passes, and the JSON shape to return. */
+const PROMPT_METHOD = [
+	'',
+	'[How to fill it]',
+	'Use the same question twice.',
+	'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
+	'2. Actions. For each pillar, ask what has to happen in order to do that pillar. Write eight facilitators. Do not restate the pillar in eight wordings.',
+	'Write each pillar as a short heading for one driver, a few words: "Speaking time", "Core phrases". Write each action as a sentence you could say: a verb and the thing it applies to. "Play Spanish audio for 15 minutes at breakfast."',
+	'',
+	'[Tests]',
+	'Every action must pass both tests. Every pillar must pass the second:',
+	'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
+	'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
+	'If a named aim is a result, write the behaviour that produces it, and keep the aim recognizable.',
+	'',
+	'[Don\'t]',
+	'- Do not stop at the wish. "I want top grades" is the center, not a plan.',
+	'- Do not fill a line with a nice-to-have. If it would not change the outcome, leave it out.',
+	'- Do not write one habit twice. "Study 30 minutes a day" and "study 5 hours a week" are the same driver.',
+	'- Do not write a line you cannot mark done. "Do better in geography" fails. "Ask more questions" fails, because there is always one more.',
+	'- Do not write a result this person cannot control. "Get 10 million views a month" fails. A finish time, a grade, or a follower count is not a pillar or an action.',
+	'- Do not restate a pillar as its eight actions.',
+	'- Do not merge two named aims into one pillar.',
+	'- Do not use "work hard", "be successful", or "stay positive".',
+	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
+	'',
+	'[Rules]',
+	'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',
+	'- If something is missing, make a reasonable assumption and create a first draft.',
+	'- Keep it realistic for their current situation.',
+	'- Return only this JSON, with no commentary:',
+	'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
+	`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
+];
+
+/** The blank form, for a person who fills in their own answers in another chat app. */
+const BLANK_FORM = [
+	'[User information]',
+	'- Direction:',
+	'- Timeline:',
+	'- Current situation:',
+	'- Focus right now:',
+	'- Body:',
+	'- Money or career:',
+	'- Habit to change:',
+	'- Skill to develop:',
+	'- Life to build:',
+];
+
+/**
+ * The prompt for a whole chart, to paste into any chat app. With answers from Bindu's questions, they fill the
+ * person's part; without, it carries a form to fill in.
+ */
+export function draftPrompt(answers?: ChartAnswers): string {
+	const yours = answers
+		? ['[User information]', ...chartAnswersMessage(answers).split('\n').slice(1, -1)]
+		: BLANK_FORM;
+	return [...PROMPT_INTRO, 'Create a personalised 9×9 chart from the information below.', '', ...yours, ...PROMPT_METHOD].join('\n');
+}
+
+/** The prompt that completes a chart: every written line stays as it is, every empty one gets filled. */
+export function fillPrompt(data: ChartData): string {
+	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [
-		'You are a Mandala Method coach.',
+		...PROMPT_INTRO,
+		'Complete this person\'s chart. Keep every line that is already written, word for word. Fill every empty string, in the same voice.',
 		'',
-		'Create a personalised 9×9 chart from the information below.',
-		'The center is one direction. It can outlast any one project, and it can be vague. The grid is what makes it specific.',
-		'The eight pillars around the center are the drivers of that direction. Each named aim becomes its own pillar. Do not merge two aims into one pillar.',
-		'',
-		'[User information]',
-		'- Direction:',
-		'- Timeline:',
-		'- Current situation:',
-		'- Focus right now:',
-		'- Body:',
-		'- Money or career:',
-		'- Habit to change:',
-		'- Skill to develop:',
-		'- Life to build:',
-		'',
-		'[How to fill it]',
-		'Use the same question twice.',
-		'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
-		'2. Actions. For each pillar, ask what has to happen in order to do that pillar. Write eight facilitators. Do not restate the pillar in eight wordings.',
-		'Write each pillar as a short heading for one driver, a few words: "Speaking time", "Core phrases". Write each action as a sentence you could say: a verb and the thing it applies to. "Play Spanish audio for 15 minutes at breakfast."',
-		'',
-		'[Tests]',
-		'Every action must pass both tests. Every pillar must pass the second:',
-		'1. Calendar. It can be scheduled and marked done. Done, or not done. "Study geography for 20 minutes a day" passes. "Do better in geography" fails. "Ask at least one question when stuck" passes. "Ask more questions" fails, because it never ends.',
-		'2. Control. It is a behaviour this person can do. "Post two videos a day" passes. "Get 10 million views" fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.',
-		'If a named aim is a result, write the behaviour that produces it, and keep the aim recognizable.',
-		'',
-		'[Don\'t]',
-		'- Do not stop at the wish. "I want top grades" is the center, not a plan.',
-		'- Do not fill a line with a nice-to-have. If it would not change the outcome, leave it out.',
-		'- Do not write one habit twice. "Study 30 minutes a day" and "study 5 hours a week" are the same driver.',
-		'- Do not write a line you cannot mark done. "Do better in geography" fails. "Ask more questions" fails, because there is always one more.',
-		'- Do not write a result this person cannot control. "Get 10 million views a month" fails. A finish time, a grade, or a follower count is not a pillar or an action.',
-		'- Do not restate a pillar as its eight actions.',
-		'- Do not merge two named aims into one pillar.',
-		'- Do not use "work hard", "be successful", or "stay positive".',
-		'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
-		'',
-		'[Rules]',
-		'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',
-		'- If something is missing, make a reasonable assumption and create a first draft.',
-		'- Keep it realistic for their current situation.',
-		'- Return only this JSON, with no commentary:',
-		'{"goal":"...","pillars":["..."],"actions":[["..."],["..."]]}',
-		`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
+		'[Their chart so far]',
+		sofar,
+		...PROMPT_METHOD
 	].join('\n');
 }
 

@@ -17,7 +17,6 @@ function sandbox() {
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
-		selectedPillar: () => null,
 		applyDraft: (next) => {
 			charts.three = next;
 			active = 'three';
@@ -150,7 +149,7 @@ describe('HelperStore memory and answers', () => {
 		const { helper } = sandbox();
 		await helper.send('help me plan the coming week');
 		expect(texts(helper).at(-1)).toBe('Should I plan this week?');
-		expect(helper.chips.map((chip) => chip.label)).toEqual(['Plan this week', 'Just answer']);
+		expect(helper.chips.map((chip) => chip.label)).toEqual(['Plan this week', 'Ask a chat app']);
 		helper.choose(helper.chips[0]!);
 		await vi.waitFor(() => expect(helper.messages.at(-1)?.card).toMatchObject({ kind: 'picks', scope: 'week' }));
 		expect(helper.chips.some((chip) => chip.act.kind === 'reading')).toBe(false);
@@ -167,3 +166,91 @@ describe('HelperStore memory and answers', () => {
 		expect(texts(helper)[0]).not.toContain("Today's pick is done");
 	});
 });
+
+describe('HelperStore hands writing to a chat app', () => {
+	const reply = (goal: string, prefix = 'Line') =>
+		JSON.stringify({
+			goal,
+			pillars: Array.from({ length: 8 }, (_, index) => `Pillar ${index + 1}`),
+			actions: Array.from({ length: 8 }, (_, pillar) => Array.from({ length: 8 }, (_, index) => `${prefix} ${pillar}.${index}`))
+		});
+	const lastCard = (helper: HelperStore) => helper.messages.at(-1)?.card;
+
+	it('asks two questions, then gives a prompt that carries the answers', () => {
+		const { helper } = sandbox();
+		helper.show('draft');
+		helper.send('Run a half marathon');
+		expect(helper.step).toBe('extra');
+		helper.send('By October, and I run twice a week');
+		const card = lastCard(helper);
+		expect(card?.kind).toBe('prompt');
+		expect(card?.kind === 'prompt' && card.text).toContain('- Direction: Run a half marathon');
+		expect(card?.kind === 'prompt' && card.text).toContain('October');
+		expect(helper.step).toBe('idle');
+	});
+
+	it('turns the pasted reply into a draft that keeps the answers', () => {
+		const { helper, charts } = sandbox();
+		helper.show('draft');
+		helper.send('Learn Spanish');
+		helper.send('skip');
+		helper.send(reply('Hold a conversation in Spanish'));
+		expect(helper.messages.at(-2)?.text).toBe('A pasted reply.');
+		const card = lastCard(helper);
+		expect(card?.kind === 'chart' && card.data.brief?.timeline).toBeUndefined();
+		helper.use(helper.messages.at(-1)!.id);
+		expect(charts.three?.goal).toBe('Hold a conversation in Spanish');
+	});
+
+	it('fills only the empty cells from a reply to the fill prompt', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[2]![5] = '';
+		charts.one!.actions[2]![6] = '';
+		helper.show('fill');
+		expect(lastCard(helper)?.kind).toBe('prompt');
+		const filled = JSON.parse(reply(charts.one!.goal, 'New'));
+		helper.send(JSON.stringify(filled));
+		const card = lastCard(helper);
+		expect(card?.kind === 'cells' && card.edits.map((edit) => edit.key)).toEqual(['a2_5', 'a2_6']);
+		helper.use(helper.messages.at(-1)!.id);
+		expect(charts.one!.actions[2]![5]).toBe('New 2.5');
+		expect(charts.one!.actions[0]![0]).toBe('Easy runs step 1');
+	});
+
+	it('hands an open question to a chat app with the chart', () => {
+		const { helper } = sandbox();
+		helper.send('How do I stay motivated when it rains?');
+		const card = lastCard(helper);
+		expect(card?.kind === 'prompt' && card.text).toContain('My question: How do I stay motivated when it rains?');
+		expect(card?.kind === 'prompt' && card.text).toContain('Run a half marathon');
+	});
+
+	it('offers to start a chart for a goal named in passing, and asks the follow-up first', () => {
+		const { helper } = sandbox();
+		helper.send('I want to learn Slovak, I am A1 and reading is hard');
+		expect(helper.chips.map((chip) => chip.label)).toEqual(['Start a chart for it', 'Stay on this chart']);
+		helper.choose(helper.chips[0]!);
+		expect(helper.step).toBe('extra');
+		helper.send('30 minutes a day');
+		expect(lastCard(helper)?.kind).toBe('prompt');
+	});
+
+	it('starts the draft straight away when the chart has no goal yet', () => {
+		const { helper, charts } = sandbox();
+		charts.one = chartData('');
+		helper.send('I want to learn Slovak, I am A1 and reading is hard');
+		expect(helper.chips.map((chip) => chip.label)).not.toContain('Stay on this chart');
+		expect(helper.step).toBe('extra');
+	});
+
+	it('reviews without offering to rewrite: each line opens for the person to fix', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[0]![0] = 'Work hard';
+		helper.send('review my chart');
+		const card = lastCard(helper);
+		expect(card?.kind).toBe('findings');
+		helper.use(helper.messages.at(-1)!.id);
+		expect(helper.messages.at(-1)?.state).toBe('open');
+	});
+});
+

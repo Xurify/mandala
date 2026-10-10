@@ -1,23 +1,20 @@
 import { chatKind, guessIntent, type BankRoute } from './intents.ts';
 import {
 	ACTION_MAX,
-	chartAnswersMessage,
 	emptyChartAnswers,
-	GOAL_MAX,
-	jsonValue,
 	parseDraftText,
 	PILLAR_MAX,
 	type ChartAnswers
 } from './draft.ts';
 import {
 	dateKeyOf,
+	exportText,
 	getByKey,
 	hasContent,
 	isOpenFocus,
 	labelOfKey,
 	isRoutine,
 	parseBrief,
-	pillarActivityLast7,
 	weekStartKey,
 	type ChartBrief,
 	type ChartData
@@ -71,23 +68,20 @@ export function restated(pillar: string, action: string): boolean {
 
 export type HelperJob = 'draft' | 'fill' | 'review' | 'week' | 'today';
 export type HelperIntent = HelperJob | 'chart' | 'ask' | 'cancel' | 'progress' | 'chat' | 'facts';
-export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
 export type CellEdit = { key: string; before: string; after: string; reason?: string };
 
 export type HelperCard =
-	/** `sketch`: the goal and pillars only, while the person decides. Its buttons write the actions or try other pillars. */
-	| { kind: 'chart'; data: ChartData; sketch?: boolean }
-	/** `draft`: the chart card these edits belong to, when they are for a draft and not the chart. */
-	| { kind: 'cells'; edits: CellEdit[]; draft?: number }
+	| { kind: 'chart'; data: ChartData }
+	| { kind: 'cells'; edits: CellEdit[] }
 	| { kind: 'picks'; scope: 'today' | 'week'; picks: HelperPick[] }
+	/** `draft`: the chart card the review looked at, when it was a draft and not the chart. */
 	| { kind: 'findings'; findings: HelperFinding[]; draft?: number }
-	/** `size` is the weight download, or '' when the browser fetches its own model and the size is its business. */
-	| { kind: 'download'; size: string }
-	| { kind: 'prompt' }
+	/** A prompt to copy into any chat app. Its reply is pasted back into the panel. */
+	| { kind: 'prompt'; text: string }
 	| { kind: 'facts' };
 
-export type CardState = 'working' | 'open' | 'used' | 'skipped';
+export type CardState = 'open' | 'used' | 'skipped';
 
 export type HelperMessage = {
 	id: number;
@@ -95,44 +89,29 @@ export type HelperMessage = {
 	text: string;
 	card?: HelperCard;
 	state?: CardState;
-	/** Greetings and status lines. Shown, but not sent to the model as conversation. */
+	/** Greetings and status lines. */
 	aside?: boolean;
 };
 
 export type HelperMood =
 	| 'idle'
 	| 'listening'
-	| 'thinking'
-	| 'waiting'
 	| 'happy'
-	| 'sorry'
 	| 'puzzled'
 	| 'offering'
 	| 'curious';
 
-export type HelperCardKind = 'chart' | 'cells' | 'picks' | 'findings' | 'download' | 'prompt' | 'facts';
+export type HelperCardKind = HelperCard['kind'];
 
 export type HelperMoodOptions = {
-	busy?: boolean;
-	status?: string | null;
 	cheer?: boolean;
-	sorry?: boolean;
 	card?: HelperCardKind | null;
 	step?: 'idle' | 'direction' | 'extra' | 'offer';
 	listening?: boolean;
 };
 
-export function isWaitingStatus(status?: string | null): boolean {
-	if (!status) return false;
-	return /\b(?:download|downloading|cache|loading|shader|getting ready|warm|warming|waking up)\b/i.test(status);
-}
-
 export function moodFor(options: HelperMoodOptions = {}): HelperMood {
-	if (options.busy) {
-		return isWaitingStatus(options.status) ? 'waiting' : 'thinking';
-	}
 	if (options.cheer) return 'happy';
-	if (options.sorry) return 'sorry';
 	if (options.card === 'findings') return 'puzzled';
 	if (options.listening) return 'listening';
 	if (options.card) return 'offering';
@@ -244,32 +223,13 @@ const CANCEL_COMMAND =
 const REJECT_CARD =
 	/^(?:cancel(?:\s+(?:this|it|that))?|stop(?:\s+(?:this|it|that))?|nevermind|never\s+mind|abort|quit|forget\s+it|skip|no|nope|nah|not\s+now|not\s+this\s+one|leave\s+it|leave\s+them|discard|dismiss)\.?$/i;
 
-const RETRY =
-	/^(?:(?:please\s+)?try\s+(?:it\s+)?again|again|redo(?:\s+(?:it|that|them|the\s+pillars))?|another\s+(?:one|try|set)|different\s+(?:ones|pillars)|new\s+pillars|start\s+over)(?:\s+please)?[.!]*$/i;
 // "It" counts only after "can't see" or "can't find". "Where is it" could be about anything.
 const MISSING_CARD =
 	/\b(?:do\s*n'?o?t|do\s+not|can'?t|cannot|can\s+not)\s+(?:see|find)\b.*\b(?:chart|card|draft|pillars|actions|it)\b|\b(?:where(?:'s|\s+is|\s+are|\s+did)|show\s+me|lost|missing|disappeared|nothing\s+(?:showed|shows|appeared))\b.*\b(?:chart|card|draft|pillars|actions)\b|\b(?:chart|card|draft|pillars|actions)\b.*\b(?:disappeared|vanished|is\s+gone|went\s+away|is\s+missing|isn'?t\s+(?:there|showing)|not\s+showing)\b/i;
 
-/** "Try again" while a sketch waits: redo the pillars, not an answer to the next question. */
-export function isRetry(text: string): boolean {
-	return RETRY.test(text.trim());
-}
-
 /** "I don't see the chart": the card is in the panel, so a rule answers, not the model. */
 export function isMissingCard(text: string): boolean {
 	return MISSING_CARD.test(text.trim());
-}
-
-/** The panel shows text as is, so markdown from the model would show as asterisks. */
-export function plainReply(raw: string): string {
-	return raw
-		.replace(/\*\*|__/g, '')
-		.replace(/^\s{0,3}#{1,6}\s+/gm, '')
-		.replace(/(^|\s)[*•]\s+/g, '$1')
-		.replace(/^\s*-\s+/gm, '')
-		.replace(/[ \t]+/g, ' ')
-		.replace(/\s*\n\s*/g, '\n')
-		.trim();
 }
 
 export function isCancellation(text: string): boolean {
@@ -456,224 +416,8 @@ export function fillPlan(data: ChartData, preferredPillar: number | null = null,
 	return null;
 }
 
-const CELL_RULES =
-	'Each line is something this person does, said the way you would say it: a verb and the thing it applies to. No results they cannot control, no "work hard", no "be more".';
-
-/** The worked example in the writer prompt. Its topic is one few people chart, so it does not leak into theirs. */
-export const EXAMPLE_LINES = [
-	'Test the tank water on Sunday morning',
-	'Rinse the filter sponge every other Friday',
-	'Feed a pinch of flakes at 8',
-	'Swap a quarter of the water on the 1st'
-] as const;
-
-const ACTION_EXAMPLE = [
-	"Someone else's chart. Do not copy it.",
-	'Pillar: Keep the aquarium clean',
-	...EXAMPLE_LINES.map((line) => `- ${line}`)
-].join('\n');
-
-export type LineReject = { text: string; reason: string };
-
-/** The person's answers, with empty fields left out, so a later call still knows them. */
-export function chartAnswerFacts(answers: ChartAnswers): string {
-	const rows: [string, string][] = [
-		['Direction', answers.direction],
-		['Timeline', answers.timeline],
-		['Where they stand', answers.situation],
-		['Focus', answers.focus],
-		['Constraint', answers.constraint]
-	];
-	const lines = rows.filter(([, value]) => value.trim() !== '').map(([label, value]) => `- ${label}: ${value.trim()}`);
-	return lines.length > 0 ? ['About this person:', ...lines].join('\n') : '';
-}
-
-/** What the person said when this chart was drafted, for later fills, rewrites, and answers. */
-export function chartBriefFacts(data: ChartData): string {
-	const brief = data.brief;
-	if (!brief) return '';
-	return chartAnswerFacts({
-		...emptyChartAnswers(),
-		timeline: brief.timeline ?? '',
-		situation: brief.situation ?? '',
-		focus: brief.focus ?? '',
-		constraint: brief.constraint ?? ''
-	});
-}
-
 export function briefOf(answers: ChartAnswers): ChartBrief | undefined {
 	return parseBrief(answers);
-}
-
-/** Goal and the other pillars, for a chart that already exists. */
-export function chartContextFacts(data: ChartData, skipPillar?: number): string {
-	const others = data.pillars.flatMap((pillar, index) => (index === skipPillar || !pillar.trim() ? [] : [pillar.trim()]));
-	const lines = [`Goal: ${data.goal.trim() || 'not set'}`];
-	if (others.length > 0) lines.push(`Other pillars: ${others.join('; ')}. Do not repeat them.`);
-	return lines.join('\n');
-}
-
-function factBlock(facts: string): string[] {
-	const text = facts.trim();
-	return text ? [text] : [];
-}
-
-function rejectBlock(rejected: readonly LineReject[]): string[] {
-	if (rejected.length === 0) return [];
-	return ['These were rejected. Write replacements. Do not repeat them.', ...rejected.map((item) => `Rejected: "${item.text}" — ${item.reason}`)];
-}
-
-export function pillarsMessages(answers: ChartAnswers, rejected: readonly LineReject[] = []): ChatMessage[] {
-	return [
-		{
-			role: 'system',
-			content: [
-				'You are a Mandala Method coach.',
-				'The goal is one short line for the center of the chart. The eight pillars are the drivers that make it come true. Drop nice-to-haves. Do not merge two aims into one pillar.',
-				`Each pillar is a short heading for one driver, one to three words. For an aquarium: ${PILLAR_EXAMPLES.map((example) => `"${example}"`).join(', ')}. The actions under it say what to do. A follower count, a grade, or a finish time is not a pillar.`,
-				'Eight different drivers: two pillars about the same thing are one pillar.',
-				'The goal is one step past where they stand now. When they name a level, the goal is above it.',
-				'When they say what is weak or hard, each of those gets its own pillar.',
-				'A pillar is a skill or a habit, not a tool: no apps, videos, podcasts or tests as pillars.',
-				'The goal already names the subject, so a pillar does not repeat it.',
-				'A constraint in the answers is a condition on the work, not eight products.',
-				'Return only this JSON: {"goal":"...","pillars":["...", 8 strings]}.'
-			].join('\n')
-		},
-		{
-			role: 'user',
-			content: [
-				chartAnswerFacts(answers),
-				chartAnswersMessage(answers).replace('Return 8 pillars. Each pillar has exactly 8 actions.', 'Return the goal and 8 pillars.'),
-				...rejectBlock(rejected)
-			]
-				.filter(Boolean)
-				.join('\n')
-		}
-	];
-}
-
-/**
- * The goal and the pillar names in a reply. `pillars` pass the same judge as a review, and no two open on the
- * same word. `rejected` go back to the model with the reason. Nothing is clipped. `goal` is empty when the
- * written one is too long for the center.
- */
-export function pillarHead(raw: string): { goal: string; pillars: string[]; rejected: LineReject[] } | null {
-	const value = jsonValue(raw);
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-	const record = value as Record<string, unknown>;
-	if (!Array.isArray(record.pillars)) return null;
-	const written = typeof record.goal === 'string' ? cleanLine(record.goal) : '';
-	// A goal too long for the center does not cost the pillars. The caller finds a goal elsewhere.
-	const goal = written.length <= GOAL_MAX ? written : '';
-	const named: string[] = [];
-	for (const item of record.pillars) {
-		const pillar = typeof item === 'string' ? cleanLine(item) : '';
-		if (pillar && !named.some((seen) => norm(seen) === norm(pillar) || nearCopy(seen, pillar))) named.push(pillar);
-	}
-	const pillars: string[] = [];
-	const rejected: LineReject[] = goal || !written ? [] : [{ text: written, reason: `A goal over ${GOAL_MAX} characters. Say it in fewer words.` }];
-	for (const pillar of named) {
-		const fault = lineFault(pillar, { max: PILLAR_MAX, kind: 'pillar', siblings: pillars });
-		const twin = fault ? null : sameDriver(pillar, pillars);
-		if (twin) rejected.push({ text: pillar, reason: `Same driver as "${twin}". Name a different one.` });
-		else if (!fault) pillars.push(pillar);
-		else rejected.push({ text: pillar, reason: fault.code === 'long' ? `Over ${PILLAR_MAX} characters. Say it in fewer words.` : fault.reason });
-	}
-	return { goal, pillars, rejected };
-}
-
-function cleanLine(value: string): string {
-	return value.replace(/\s+/g, ' ').trim().replace(/[.;,]+$/, '');
-}
-
-/** What Bindu shows while the on-device model is coming in. Engine text stays off the screen. */
-export type CoachLoad = {
-	label: string;
-	/** 0–1 when this step has a measurable fill. */
-	downloadFillRatio: number | null;
-	detail: string;
-	/** The pillar being written. */
-	pillar?: { index: number; name: string };
-};
-
-function clampRatio(ratio: number | null | undefined): number | null {
-	if (ratio == null || !Number.isFinite(ratio)) return null;
-	return Math.min(1, Math.max(0, ratio));
-}
-
-/** Turn a web-llm progress line into a short status. The reported ratio wins over the percent buried in the text. */
-export function describeCoachProgress(text: string, reportedFillRatio?: number | null, pillar?: CoachLoad['pillar']): CoachLoad {
-	const source = typeof text === 'string' ? text : '';
-	const cleaned = source.replace(/\s*\[[^\]]*\]\s*/g, ' ').replace(/\s+/g, ' ').trim();
-	const fromReport = clampRatio(reportedFillRatio);
-	const fromText = cleaned.match(/(\d+(?:\.\d+)?)\s*%\s*completed/i);
-	const downloadFillRatio = fromReport ?? (fromText ? clampRatio(Number(fromText[1]) / 100) : null);
-	const mb = cleaned.match(/(\d+)\s*MB/i)?.[1];
-	const detail = mb ? `${mb} MB` : '';
-
-	if (/start to fetch/i.test(cleaned)) return { label: 'Starting the download.', downloadFillRatio: downloadFillRatio ?? 0, detail: '' };
-	if (/fetching param/i.test(cleaned)) return { label: 'Downloading.', downloadFillRatio, detail };
-	if (/loading model from cache/i.test(cleaned)) return { label: 'Loading', downloadFillRatio, detail };
-	if (/shader/i.test(cleaned)) return { label: 'Getting ready.', downloadFillRatio, detail: '' };
-	if (/warming up/i.test(cleaned)) return { label: 'Warming up.', downloadFillRatio: null, detail: '' };
-	if (/coach is ready/i.test(cleaned)) return { label: 'Ready, on this device.', downloadFillRatio: null, detail: '' };
-	return { label: cleaned, downloadFillRatio: null, detail: '', pillar };
-}
-
-export function fillPillarsMessages(data: ChartData, count: number, facts = '', rejected: readonly LineReject[] = []): ChatMessage[] {
-	const named = data.pillars.filter(filled);
-	return [
-		{
-			role: 'system',
-			content: `You name pillars for a Mandala chart. A pillar is a short heading for one driver of the goal, one to three words, like "${PILLAR_EXAMPLES[0]}" or "${PILLAR_EXAMPLES[1]}" for an aquarium. No results they cannot control. A constraint is a condition on the work, not eight products. Return exactly ${count} lines, numbered 1. to ${count}. No other text.`
-		},
-		{
-			role: 'user',
-			content: [
-				...factBlock(facts),
-				`Goal: ${data.goal.trim()}`,
-				named.length ? `Pillars already named: ${named.join('; ')}` : 'No pillars yet.',
-				`Write ${count} more pillars. Do not repeat the ones already named.`,
-				...rejectBlock(rejected)
-			].join('\n')
-		}
-	];
-}
-
-export function fillActionsMessages(
-	data: ChartData,
-	pillarIndex: number,
-	count: number,
-	facts = '',
-	rejected: readonly LineReject[] = []
-): ChatMessage[] {
-	const existing = (data.actions[pillarIndex] ?? []).filter(filled);
-	return [
-		{
-			role: 'system',
-			content: [`You write Mandala actions. ${CELL_RULES}`, 'Return exactly the requested numbered lines. No other text.', ACTION_EXAMPLE].join('\n')
-		},
-		{
-			role: 'user',
-			content: [
-				...factBlock(facts),
-				`Goal: ${data.goal.trim()}`,
-				`Pillar: ${(data.pillars[pillarIndex] ?? '').trim()}`,
-				existing.length ? `Actions already there: ${existing.join('; ')}` : 'No actions yet.',
-				`Write ${count} more actions for this pillar. Do not restate the pillar or repeat an action.`,
-				...rejectBlock(rejected)
-			].join('\n')
-		}
-	];
-}
-
-function splitLines(raw: string): string[] {
-	return raw
-		.split('\n')
-		.map((line) => line.replace(/^\s*(?:\d+[.)]|[-*•])\s*/, '').replace(/^["']|["']$/g, '').trim())
-		.map((line) => cleanLine(line))
-		.filter((line) => line !== '' && !/^[[{\]}]/.test(line) && !/:$/.test(line));
 }
 
 // A number, a length, a day, or a moment makes "more" and "be" lines tickable.
@@ -689,17 +433,7 @@ const TOOL = /\b(?:apps?|podcasts?|videos?|flashcards?|youtube|duolingo|anki)\b/
 /** Pillars that would sit on any chart. The method keeps nice-to-haves out. */
 const CATCH_ALL =
 	/\b(?:consisten(?:t|cy)|motivat(?:ed|ion)|mindset|discipline|patien(?:t|ce)|positivity|track(?:ing)?\s+progress|progress\s+tracking|goal\s+setting|set(?:ting)?\s+(?:\w+\s+)?goals?)\b/i;
-const FREQUENCY = new Set(['daily', 'weekly', 'monthly', 'regular', 'new', 'more']);
 
-/**
- * Two headings that open on the same word are one driver: "Reading practice" and "Reading comprehension".
- * Only the writer checks this. A person's own chart can split a driver on purpose.
- */
-export function sameDriver(pillar: string, others: readonly string[]): string | null {
-	const head = (text: string) => contentTokens(text).find((token) => !FREQUENCY.has(token)) ?? '';
-	const word = head(pillar);
-	return (word && others.find((other) => head(other) === word)) || null;
-}
 const OPEN_ENDED = /\b(?:more|less|fewer|better|healthier|harder|faster|stronger|regularly|consistently|properly)\b/i;
 const STATE = /^(?:be|become|stay|feel|remain|have\s+(?:a|an|more)|improve|master|get\s+(?:good|better)|work\s+on|focus\s+on)\b/i;
 const RESULT =
@@ -740,27 +474,6 @@ export function lineFault(
 	return null;
 }
 
-/** Lines that pass the same tests as a review. The rest come back with a reason. */
-export function keptLines(
-	raw: string,
-	count: number,
-	options: { max: number; kind: 'pillar' | 'action'; pillar?: string; siblings?: readonly string[] }
-): { kept: string[]; rejected: LineReject[] } {
-	const kept: string[] = [];
-	const rejected: LineReject[] = [];
-	const siblings = [...(options.siblings ?? [])];
-	for (const line of splitLines(raw)) {
-		if (kept.length >= count) break;
-		const fault = lineFault(line, { ...options, siblings });
-		const twin = !fault && options.kind === 'pillar' ? sameDriver(line, siblings) : null;
-		if (fault) rejected.push({ text: line, reason: fault.reason });
-		else if (twin) rejected.push({ text: line, reason: `Same driver as "${twin}". Name a different one.` });
-		else kept.push(line);
-		siblings.push(line);
-	}
-	return { kept, rejected };
-}
-
 export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
 	const findings: HelperFinding[] = [];
 	const add = (finding: HelperFinding) => {
@@ -788,53 +501,6 @@ export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
 		});
 	});
 	return findings.slice(0, limit);
-}
-
-/** The rewrite prompt's examples. A rewrite that copies one is rejected. */
-export const REWRITE_EXAMPLES = ['Block 25 minutes after lunch', 'Post one short video on Tuesday'] as const;
-
-/** Pillars are headings, like the presets'. Their example shares the aquarium with the action writer's. */
-export const PILLAR_EXAMPLES = ['Water tests', 'Feeding', 'Tank cleaning'] as const;
-
-export function rewriteMessages(data: ChartData, finding: HelperFinding, facts = '', again = false): ChatMessage[] {
-	const isPillar = finding.key.startsWith('p');
-	const pillarIndex = Number(finding.key.slice(1).split('_')[0]);
-	return [
-		{
-			role: 'system',
-			content: [
-				isPillar
-					? 'You replace one pillar of a Mandala chart with a short heading for one driver of the goal, one to three words.'
-					: 'You replace one line of a Mandala chart with something this person does: a verb and the thing it applies to.',
-				'Return only the new line. Do not mention the problem.',
-				isPillar
-					? `For an aquarium, "Be a better owner" → "${PILLAR_EXAMPLES[0]}". Do not copy this.`
-					: `"Work hard" → "${REWRITE_EXAMPLES[0]}". "Get 10 million views" → "${REWRITE_EXAMPLES[1]}". Do not copy these.`
-			].join('\n')
-		},
-		{
-			role: 'user',
-			content: [
-				...factBlock(facts),
-				`Goal: ${data.goal.trim()}`,
-				isPillar ? '' : `Pillar: ${(data.pillars[pillarIndex] ?? '').trim()}`,
-				`Replace: ${finding.text}`,
-				isPillar ? finding.reason : 'This cannot be scheduled as written. Write the behaviour.',
-				again ? 'That still names the problem. Return only the new behaviour.' : ''
-			]
-				.filter(Boolean)
-				.join('\n')
-		}
-	];
-}
-
-export function oneLine(raw: string, max: number): string | null {
-	const line = raw
-		.split('\n')
-		.map((part) => cleanLine(part.replace(/^\s*(?:rewrite|new text|cell)\s*:\s*/i, '').replace(/^["'\s]+|["'\s.]+$/g, '')))
-		.find((part) => part !== '');
-	if (!line || line.length > max) return null;
-	return line;
 }
 
 const DAY_MS = 86_400_000;
@@ -1055,66 +721,6 @@ export function suggestWeek(
 	return picks;
 }
 
-/** The chart in a few lines: every pillar with its counts, one pillar's actions, today, and the last 7 days. */
-export function chartContext(data: ChartData, pillar: number | null = null, now: Date = new Date()): string {
-	const lines = [`Goal: ${data.goal.trim() || 'not set'}`];
-	const activity = pillarActivityLast7(data);
-	data.pillars.forEach((name, pillarIndex) => {
-		if (!filled(name)) return;
-		const count = (data.actions[pillarIndex] ?? []).filter(filled).length;
-		const used = activity[pillarIndex] ?? 0;
-		lines.push(`- ${name.trim()} (${count} of 8 actions, ${used === 0 ? 'not used' : `used ${used} ${used === 1 ? 'time' : 'times'}`} in the last 7 days)`);
-	});
-	if (pillar !== null && filled(data.pillars[pillar])) {
-		const actions = (data.actions[pillar] ?? []).filter(filled).map((action) => action.trim());
-		if (actions.length > 0) lines.push(`Actions in ${data.pillars[pillar]!.trim()}: ${actions.join('; ')}`);
-	}
-	const today = data.days?.[dateKeyOf(now)];
-	if (today && today.focus.length > 0) {
-		const done = new Set(today.checked);
-		const picks = today.focus.map((key) => `${textOfKey(data, key)}${done.has(key) ? ' (done)' : ''}`).filter((line) => line.trim());
-		if (picks.length > 0) lines.push(`Today's picks: ${picks.join('; ')}`);
-	}
-	const facts = chartBriefFacts(data);
-	if (facts) lines.push(facts);
-	return lines.join('\n');
-}
-
-export function askMessages(
-	data: ChartData,
-	question: string,
-	history: readonly ChatMessage[] = [],
-	pillar: number | null = null
-): ChatMessage[] {
-	const hasGoal = filled(data.goal);
-	const contextLines = hasGoal
-		? ['Current chart (reference context when relevant):', chartContext(data, pillar ?? pillarMentioned(question, data))]
-		: ['The current chart has no goal set.'];
-
-	const systemPrompt = [
-		'You are Bindu, a calm, grounded companion inside Mandala, a goal chart app based on the Mandala Method (one center goal, eight pillars, eight actions each).',
-		'Voice and tone: Short, warm, plain words. Two to three sentences. No emoji, no bullet lists unless asked, no empty cheerleading or motivational clichés (like "Stay consistent and you\'ll succeed").',
-		'Mandala Method principles:',
-		'- One chart holds one center goal. If someone is weighing multiple different goals (such as two different languages or unrelated projects), explain that each chart focuses on one direction to keep focus clear, and advise picking one primary goal per chart or creating separate charts for each.',
-		'- Day to day: People pick three actions for today across different pillars. They do not try to tackle all eight pillars every day.',
-		'- Pillars are the eight drivers that make the goal happen. Actions are behaviors the person directly controls that can be marked done (calendar and control tests).',
-		'Conversational guidelines:',
-		'- If the user asks about their current chart, actions, or progress, use the reference chart below.',
-		'- If the user wants to brainstorm, explore a new ambition, or decide between goals, discuss it thoughtfully. Never say a topic is "outside the chart\'s scope" or that you can only talk about the current chart.',
-		'- When they settle on a goal or want to start fresh, invite them to sketch or start a chart.',
-		"- You cannot see or change the screen. Charts and suggestions appear as cards in this panel. If they can't find one, say it is in the panel, and never write a chart out in text.",
-		'- Plain sentences only. No markdown, no asterisks.',
-		'',
-		...contextLines
-	].join('\n');
-
-	return [
-		{ role: 'system', content: systemPrompt },
-		...history,
-		{ role: 'user', content: question.slice(0, 600) }
-	];
-}
-
 /** The insight worth opening with, if one is strong and not shown lately. */
 export function greetingInsight(data: ChartData, now: Date = new Date()): HelperInsight | null {
 	const top = unseenInsights(data, now)[0];
@@ -1136,9 +742,10 @@ export function greetingFor(data: ChartData, now: Date = new Date()): string {
 }
 
 export type ChipAct =
-	| { kind: 'job'; job: HelperJob; pillar?: number; all?: boolean }
+	| { kind: 'job'; job: HelperJob }
 	| { kind: 'send'; text: string }
-	| { kind: 'sketch' }
+	/** Start drafting the goal the person just named. */
+	| { kind: 'aim' }
 	| { kind: 'dismiss' }
 	| { kind: 'show'; key: string }
 	/** One reading of a message Bindu asked about. `model` answers it as written. */
@@ -1146,21 +753,14 @@ export type ChipAct =
 
 export type HelperChip = { label: string; act: ChipAct };
 
-function jobChip(job: HelperJob, label: string, pillar?: number): HelperChip {
-	return { label, act: pillar === undefined ? { kind: 'job', job } : { kind: 'job', job, pillar } };
+function jobChip(job: HelperJob, label: string): HelperChip {
+	return { label, act: { kind: 'job', job } };
 }
 
-export function chipsFor(data: ChartData, preferredPillar: number | null = null): HelperChip[] {
+export function chipsFor(data: ChartData): HelperChip[] {
 	if (!filled(data.goal)) return [jobChip('draft', 'Start a chart')];
 	const chips: HelperChip[] = [];
-	const plan = fillPlan(data, preferredPillar);
-	if (plan?.kind === 'pillars') chips.push(jobChip('fill', 'Suggest pillars'));
-	if (plan?.kind === 'actions') {
-		const gaps = actionGaps(data).length;
-		if (gaps > 1) chips.push({ label: `Fill all ${gaps} pillars`, act: { kind: 'job', job: 'fill', all: true } });
-		const name = (data.pillars[plan.pillarIndex] ?? '').trim();
-		chips.push(jobChip('fill', name ? `Fill ${name}` : 'Fill empty actions', plan.pillarIndex));
-	}
+	if (fillPlan(data)) chips.push(jobChip('fill', 'Fill the gaps'));
 	const hasActions = data.actions.some((row) => row.some(filled));
 	if (hasActions) {
 		chips.push(jobChip('review', 'Review my chart'));
@@ -1173,7 +773,7 @@ export function chipsFor(data: ChartData, preferredPillar: number | null = null)
 
 export function offerChips(): HelperChip[] {
 	return [
-		{ label: 'Sketch the new one', act: { kind: 'sketch' } },
+		{ label: 'Start a chart for it', act: { kind: 'aim' } },
 		{ label: 'Stay on this chart', act: { kind: 'dismiss' } }
 	];
 }
@@ -1187,15 +787,40 @@ export function helpChips(): HelperChip[] {
 	return [jobChip('today', "Pick today's three"), jobChip('review', 'Review my chart')];
 }
 
-/** Chips while the second draft question waits. A sketch card carries its own buttons. */
-export function extraChips(sketch: boolean, said = ''): HelperChip[] {
-	const chips = followUpChips(said);
-	if (!sketch) chips.push({ label: 'Write the actions', act: { kind: 'send', text: 'go' } });
-	return chips;
+/** Chips while the second draft question waits. */
+export function extraChips(said = ''): HelperChip[] {
+	return [...followUpChips(said), { label: 'Skip', act: { kind: 'send', text: 'skip' } }];
 }
 
-export function fillPillarChip(name: string, pillar: number): HelperChip {
-	return jobChip('fill', `Fill ${name}`, pillar);
+/**
+ * The lines a completed chart adds to this one: only cells that are empty here and written there. A filled
+ * cell is never replaced, so a reply that rewrote one costs nothing.
+ */
+export function fillEdits(current: ChartData, reply: ChartData): CellEdit[] {
+	const edits: CellEdit[] = [];
+	current.pillars.forEach((pillar, pillarIndex) => {
+		const after = (reply.pillars[pillarIndex] ?? '').trim();
+		if (!pillar.trim() && after) edits.push({ key: `p${pillarIndex}`, before: '', after });
+	});
+	current.actions.forEach((row, pillarIndex) =>
+		row.forEach((action, actionIndex) => {
+			const after = (reply.actions[pillarIndex]?.[actionIndex] ?? '').trim();
+			if (!action.trim() && after) edits.push({ key: `a${pillarIndex}_${actionIndex}`, before: '', after });
+		})
+	);
+	return edits;
+}
+
+/** A question for another chat app, with the chart it is about. */
+export function askPrompt(data: ChartData, question: string): string {
+	return [
+		'I use a Mandala chart: one goal in the center, eight pillars around it (the drivers of the goal), and eight actions under each pillar that I can schedule and tick.',
+		data.goal.trim() ? `Here is my chart:\n\n${exportText(data)}` : 'I have not set a goal yet.',
+		'',
+		`My question: ${question.trim().slice(0, 600)}`,
+		'',
+		'Answer in a few plain sentences.'
+	].join('\n');
 }
 
 /** A cells card's edits, one group per pillar, so the pillar is named once. Pillar names form their own group. */
@@ -1222,11 +847,6 @@ export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: 
  */
 export function draftButton(current: ChartData): string {
 	return hasContent(current) ? 'Open as a new chart' : 'Start this chart';
-}
-
-/** What a finished draft's card says above it. The card shows the count, so this says why lines are blank. */
-export function draftDone(written: number): string {
-	return written === 64 ? 'Here is your chart.' : 'Here is your chart. Where I had no good line, I left it blank.';
 }
 
 /** What a cells card does, in the chart's words: its button, and what Bindu says once it is used. */
@@ -1500,41 +1120,6 @@ export function progressReport(data: ChartData, now: Date = new Date()): string 
 	return [...lines, ...extra.map((insight) => insight.text)].join(' ');
 }
 
-const CARD_LIST_MAX = 8;
-
-/** A card as one line of text, so the model knows what was offered and what happened to it. */
-export function describeCard(card: HelperCard, state?: CardState): string {
-	const outcome = state === 'used' ? ' They used it.' : state === 'skipped' ? ' They skipped it.' : '';
-	if (card.kind === 'chart') {
-		const pillars = card.data.pillars.filter(filled).map((pillar) => pillar.trim());
-		return `[Chart offered: "${card.data.goal.trim()}". Pillars: ${pillars.join('; ') || 'none'}.${outcome}]`;
-	}
-	if (card.kind === 'cells') {
-		const lines = card.edits.slice(0, CARD_LIST_MAX).map((edit) => (edit.before ? `"${edit.before}" to "${edit.after}"` : `"${edit.after}"`));
-		return `[Lines offered: ${lines.join('; ')}.${outcome}]`;
-	}
-	if (card.kind === 'picks') {
-		return `[Picks for ${card.scope === 'today' ? 'today' : 'the week'}: ${card.picks.map((pick) => pick.text).join('; ')}.${outcome}]`;
-	}
-	if (card.kind === 'findings') {
-		const lines = card.findings.slice(0, CARD_LIST_MAX).map((finding) => `"${finding.text}" (${finding.reason})`);
-		return `[Lines flagged: ${lines.join('; ')}.${outcome}]`;
-	}
-	return '';
-}
-
-/** The last few turns for the model. Greetings and status lines stay out. Cards come in as one line each. */
-export function conversationHistory(messages: readonly HelperMessage[], maxMessages = 8): ChatMessage[] {
-	const history: ChatMessage[] = [];
-	for (const message of messages.filter((entry) => !entry.aside).slice(-maxMessages)) {
-		const card = message.card ? describeCard(message.card, message.state) : '';
-		const content = [message.text.trim(), card].filter(Boolean).join(' ');
-		if (!content) continue;
-		history.push({ role: message.from === 'you' ? 'user' : 'assistant', content });
-	}
-	return history;
-}
-
 type MethodEntry = { match: RegExp; text: string; job?: HelperJob };
 
 // Answers about the method, from MethodGuide and the method notes. No model.
@@ -1667,7 +1252,7 @@ export function clarifyOf(text: string): { question: string; chips: HelperChip[]
 		question: `Should I ${options}?`,
 		chips: [
 			...readings.map((reading): HelperChip => ({ label: reading.label, act: { kind: 'reading', route: reading.route } })),
-			{ label: 'Just answer', act: { kind: 'reading', route: 'model' } }
+			{ label: 'Ask a chat app', act: { kind: 'reading', route: 'model' } }
 		]
 	};
 }

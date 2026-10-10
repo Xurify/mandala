@@ -382,18 +382,6 @@
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
-			...(helper.busy
-				? [
-						{
-							id: 'stop-helper',
-							label: 'Stop Bindu',
-							section: 'Actions' as const,
-							icon: 'close' as const,
-							tone: 'danger' as const,
-							run: () => void helper.stop()
-						}
-					]
-				: []),
 			{ id: 'helper', label: 'Talk to Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },

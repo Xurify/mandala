@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { HelperMood } from '$lib/chart/helper.svelte';
 	import { HUES } from '$lib/chart/model';
-	import { arcPath, PILLAR_ANGLES, pillarArc } from '$lib/chart/ring';
+	import { arcPath, pillarArc } from '$lib/chart/ring';
 	import { cn } from './ui/cn';
 
 	interface Props {
@@ -19,7 +19,7 @@
 
 	const segments = HUES.map((hue, pillarIndex) => {
 		const { start, end } = pillarArc(pillarIndex, ring);
-		return { hue, d: arcPath(50, 50, ring.radius, start, end), delay: (PILLAR_ANGLES[pillarIndex] / 360) * 1.4 };
+		return { hue, d: arcPath(50, 50, ring.radius, start, end) };
 	});
 </script>
 
@@ -38,12 +38,8 @@
 	<circle class="fill-ink" cx="50" cy="50" r={faceRadius} />
 	{#each segments as segment, pillarIndex (pillarIndex)}
 		<path
-			class={cn(
-				'pillar-stroke fill-none stroke-[12] [stroke-linecap:round] motion-safe:transition-[stroke-width] motion-safe:duration-[180ms] motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)] can-hover:group-hover/launcher:stroke-[14]',
-				mood === 'thinking' && 'motion-safe:animate-think'
-			)}
+			class="pillar-stroke fill-none stroke-[12] [stroke-linecap:round] motion-safe:transition-[stroke-width] motion-safe:duration-[180ms] motion-safe:ease-[cubic-bezier(0.34,1.56,0.64,1)] can-hover:group-hover/launcher:stroke-[14]"
 			style:--h={segment.hue}
-			style:animation-delay={mood === 'thinking' ? `${segment.delay}s` : undefined}
 			d={segment.d}
 		/>
 	{/each}
@@ -66,39 +62,6 @@
 			<path
 				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
 				d="M46 57.5 Q50 60.5 54 57.5"
-			/>
-		</g>
-	{:else if mood === 'waiting'}
-		<g class="[transform-box:fill-box] origin-center motion-safe:animate-breathe">
-			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-wait">
-				<ellipse cx="41.5" cy="48" rx="3.3" ry="2.2" />
-				<ellipse cx="58.5" cy="48" rx="3.3" ry="2.2" />
-			</g>
-			<path
-				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
-				d="M46.5 58 L53.5 58"
-			/>
-		</g>
-	{:else if mood === 'thinking'}
-		<g
-			class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-ui translate-x-[2.5px] -translate-y-[3px]"
-		>
-			<ellipse cx="41.5" cy="47" rx="3.3" ry="4.4" />
-			<ellipse cx="58.5" cy="47" rx="3.3" ry="4.4" />
-		</g>
-		<path
-			class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
-			d="M46 58 L54 58"
-		/>
-	{:else if mood === 'sorry'}
-		<g class="[transform-box:fill-box] origin-center motion-safe:animate-sigh">
-			<g class="fill-on-ink [transform-box:fill-box] origin-center motion-safe:animate-sorry-blink">
-				<ellipse cx="41.5" cy="49.5" rx="3.3" ry="4" />
-				<ellipse cx="58.5" cy="49.5" rx="3.3" ry="4" />
-			</g>
-			<path
-				class="fill-none stroke-on-ink stroke-[2.8] [stroke-linecap:round]"
-				d="M45.5 59.5 Q50 56.5 54.5 59.5"
 			/>
 		</g>
 	{:else if mood === 'puzzled'}

@@ -2,26 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { emptyChartAnswers } from './draft.ts';
 import {
 	aimOf,
-	pillarHead,
 	routeOf,
 	clarifyOf,
 	draftButton,
-	sameDriver,
 	actionGaps,
 	editWords,
 	groupEdits,
 	aimParts,
-	EXAMPLE_LINES,
 	followUpQuestion,
 	splitGoal,
 	isMissingCard,
-	isRetry,
-	plainReply,
-	askMessages,
-	chartBriefFacts,
-	chartContext,
 	chatReply,
-	conversationHistory,
 	greetingFor,
 	insightsFor,
 	methodAnswer,
@@ -32,10 +23,8 @@ import {
 	type HelperMessage,
 	chartAnswersFromText,
 	chipsFor,
-	describeCoachProgress,
-	chartAnswerFacts,
+	fillEdits,
 	extraChips,
-	fillActionsMessages,
 	fillPlan,
 	helpChips,
 	intentOf,
@@ -43,15 +32,10 @@ import {
 	isCardRejection,
 	isHelpRequest,
 	isPillarActionRequest,
-	isWaitingStatus,
-	keptLines,
 	lineFault,
 	moodFor,
 	offerChips,
-	oneLine,
 	pillarMentioned,
-	pillarsMessages,
-	rewriteMessages,
 	reviewChart,
 	suggestToday,
 	suggestWeek
@@ -169,22 +153,7 @@ describe('fillPlan', () => {
 	});
 });
 
-describe('oneLine', () => {
-	it('takes the first clean line and refuses one that is too long', () => {
-		expect(oneLine('Rewrite: "Ask one question in each class."', 48)).toBe('Ask one question in each class');
-		expect(oneLine('Track expenses using an app to stay aware of every purchase this month', 48)).toBeNull();
-	});
-});
-
 describe('facts, faults, and the prompts', () => {
-	it('keeps the person on later calls and skips empty fields', () => {
-		const answers = chartAnswersFromText('Run a half', 'By October 2026, bad knee, I run twice a week');
-		const facts = chartAnswerFacts(answers);
-		expect(facts).toContain('October 2026');
-		expect(facts).toContain('bad knee');
-		expect(facts).not.toContain('Focus');
-	});
-
 	it('rejects a long line, a result, and an echo of the pillar', () => {
 		expect(lineFault('Track expenses using an app to stay aware of spending', { max: 48, kind: 'action' })?.code).toBe('long');
 		expect(lineFault('Get 1 million views', { max: 48, kind: 'action' })?.code).toBe('uncontrolled');
@@ -192,65 +161,6 @@ describe('facts, faults, and the prompts', () => {
 		expect(lineFault('Shoes by the door', { max: 48, kind: 'action', pillar: 'Easy runs' })).toBeNull();
 	});
 
-	it('keeps the good lines and names the bad ones', () => {
-		const round = keptLines('1. Shoes by the door\n2. Work hard\n3. Easy runs\n4. Shoes by the door', 4, { max: 48, kind: 'action', pillar: 'Easy runs' });
-		expect(round.kept).toEqual(['Shoes by the door']);
-		expect(round.rejected.map((item) => item.reason)).toEqual([
-			'This cannot be marked done. Write the session, not the wish.',
-			'This repeats the pillar. Write what makes it happen.',
-			'Same afternoon as another action on the chart.'
-		]);
-	});
-
-	it('puts the person and a worked example into the action prompt', () => {
-		const data = sample();
-		const messages = fillActionsMessages(data, 0, 3, 'About this person:\n- Constraint: A bad knee');
-		const joined = messages.map((message) => message.content).join('\n');
-		expect(joined).toContain('A bad knee');
-		expect(joined).toContain('Test the tank water on Sunday morning');
-		expect(joined).not.toContain('at most');
-	});
-
-	it('asks for a behaviour and does not hand the failure back', () => {
-		const data = sample();
-		const messages = rewriteMessages(data, { key: 'a0_0', text: 'Work hard', reason: 'This cannot be marked done. Write the session, not the wish.', code: 'untickable' });
-		const joined = messages.map((message) => message.content).join('\n');
-		expect(joined).toContain('Block 25 minutes after lunch');
-		expect(joined).not.toContain('Hard to tick');
-		expect(joined).not.toContain('Problem:');
-	});
-
-	it('keeps the pillars when the goal does not fit the cell, and sends the goal back', () => {
-		const pillars = ['Easy runs', 'Speed', 'Hills', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
-		const head = pillarHead(JSON.stringify({ goal: 'x'.repeat(81), pillars }))!;
-		expect(head.goal).toBe('');
-		expect(head.pillars).toEqual(pillars);
-		expect(head.rejected).toEqual([{ text: 'x'.repeat(81), reason: 'A goal over 80 characters. Say it in fewer words.' }]);
-	});
-});
-
-describe('pillarHead', () => {
-	it('reads the head of a draft and needs eight distinct pillars', () => {
-		const pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
-		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))).toEqual({ goal: 'Finish a half', pillars, rejected: [] });
-		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars: [...pillars.slice(0, 7), 'speed'] }))?.pillars).toHaveLength(7);
-		expect(pillarHead('no json here')).toBeNull();
-	});
-
-	it('sends a long pillar back instead of clipping it', () => {
-		const pillars = [
-			'Easy runs',
-			'Speed intervals on track',
-			'Long run',
-			'Strength and conditioning session',
-			'Sleep',
-			'Food',
-			'Shoes',
-			'Calendar'
-		];
-		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))?.pillars).toHaveLength(7);
-		expect(pillarHead(JSON.stringify({ goal: 'Finish a half', pillars }))?.rejected.map((item) => item.text)).toEqual(['Strength and conditioning session']);
-	});
 });
 
 describe('reviewChart', () => {
@@ -321,36 +231,6 @@ describe('suggestWeek and suggestToday', () => {
 	});
 });
 
-describe('describeCoachProgress', () => {
-	it('turns a fetch report into a fill', () => {
-		expect(
-			describeCoachProgress('Fetching param cache[2/8]: 359MB fetched. 36% completed, 12 secs elapsed. It can take a while when we first visit this page to populate the cache. Later refreshes will become faster.', 0.364)
-		).toEqual({ label: 'Downloading.', downloadFillRatio: 0.364, detail: '359 MB' });
-	});
-
-	it('reads the percent from the text when no ratio arrives', () => {
-		expect(describeCoachProgress('Loading model from cache[1/8]: 120MB loaded. 15% completed, 2 secs elapsed.')).toEqual({
-			label: 'Loading',
-			downloadFillRatio: 0.15,
-			detail: '120 MB'
-		});
-	});
-
-	it('ignores a progress report that is not text', () => {
-		expect(describeCoachProgress({ text: 'Loading.' } as unknown as string).label).toBe('');
-	});
-
-	it('keeps ordinary status lines as they are', () => {
-		expect(describeCoachProgress('Thinking.')).toEqual({ label: 'Thinking.', downloadFillRatio: null, detail: '' });
-		expect(describeCoachProgress('Start to fetch params', 0)).toEqual({ label: 'Starting the download.', downloadFillRatio: 0, detail: '' });
-		expect(describeCoachProgress('Loading GPU shader modules[3/40]: 7% completed, 4 secs elapsed.', 0.075)).toEqual({
-			label: 'Getting ready.',
-			downloadFillRatio: 0.075,
-			detail: ''
-		});
-	});
-});
-
 function chipJob(chip: { act: { kind: string; job?: string } }): string {
 	return chip.act.kind === 'job' ? (chip.act.job ?? '') : chip.act.kind;
 }
@@ -417,123 +297,30 @@ describe('pillarMentioned', () => {
 });
 
 describe('turn chips', () => {
-	it('offers sketch or stay, help on a full chart, and go after a sketch', () => {
-		expect(offerChips().map((chip) => chip.label)).toEqual(['Sketch the new one', 'Stay on this chart']);
+	it('offers to start or stay, help on a full chart, and skip on the second question', () => {
+		expect(offerChips().map((chip) => chip.label)).toEqual(['Start a chart for it', 'Stay on this chart']);
 		expect(helpChips().map(chipJob)).toEqual(['today', 'review']);
-		expect(extraChips(true)).toEqual([]);
-		expect(extraChips(false).map((chip) => chip.label)).toEqual(['Write the actions']);
-		expect(extraChips(true, 'I am A1 and reading is hard').map((chip) => chip.label)).toEqual([
+		expect(extraChips().map((chip) => chip.label)).toEqual(['Skip']);
+		expect(extraChips('I am A1 and reading is hard').map((chip) => chip.label)).toEqual([
 			'15 minutes a day',
 			'30 minutes a day',
 			'An hour a day',
-			'No date'
+			'No date',
+			'Skip'
 		]);
 	});
 });
 
-describe('cell prompts', () => {
-	it('asks for a heading per pillar and a sentence per action, with no long word range', () => {
-		const pillars = pillarsMessages(emptyChartAnswers())
-			.map((message) => message.content)
-			.join('\n')
-			.toLowerCase();
-		const actions = fillActionsMessages(sample(), 0, 2)
-			.map((message) => message.content)
-			.join('\n')
-			.toLowerCase();
-		expect(pillars).not.toContain('two to four');
-		expect(pillars).not.toContain('three to seven');
-		expect(pillars).toContain('short heading');
-		expect(actions).toContain('a verb and the thing it applies to');
-		expect(actions).not.toContain('three to seven');
-		expect(actions).toContain('keep the aquarium clean');
-		expect(askMessages(sample(), 'hello').map((message) => message.content).join('\n').toLowerCase()).not.toContain('fill the blanks');
-	});
-
-	it('includes reference context and multi-turn history in askMessages', () => {
-		const history = [
-			{ role: 'user' as const, content: 'What is Slovak?' },
-			{ role: 'assistant' as const, content: 'A Slavic language.' }
-		];
-		const messages = askMessages(sample(), 'Should I learn it?', history);
-		expect(messages[0]?.role).toBe('system');
-		expect(messages[0]?.content).toContain('Mandala Method');
-		expect(messages[0]?.content).toContain('Current chart');
-		expect(messages[1]).toEqual(history[0]);
-		expect(messages[2]).toEqual(history[1]);
-		expect(messages[3]?.content).toBe('Should I learn it?');
-	});
-});
-
-describe('isWaitingStatus', () => {
-	it('matches download, loading, cache, shader, warm up, and waking up', () => {
-		expect(isWaitingStatus('Starting the download.')).toBe(true);
-		expect(isWaitingStatus('Downloading.')).toBe(true);
-		expect(isWaitingStatus('Loading model from cache')).toBe(true);
-		expect(isWaitingStatus('Getting ready.')).toBe(true);
-		expect(isWaitingStatus('Warming up.')).toBe(true);
-		expect(isWaitingStatus('Waking up.')).toBe(true);
-	});
-
-	it('returns false for thinking, ready, empty, and null', () => {
-		expect(isWaitingStatus('Thinking.')).toBe(false);
-		expect(isWaitingStatus('Ready, on this device.')).toBe(false);
-		expect(isWaitingStatus('')).toBe(false);
-		expect(isWaitingStatus(null)).toBe(false);
-		expect(isWaitingStatus(undefined)).toBe(false);
-	});
-});
-
 describe('moodFor priority list', () => {
-	it('selects waiting when busy and status is waiting', () => {
-		expect(
-			moodFor({
-				busy: true,
-				status: 'Downloading.',
-				cheer: true,
-				sorry: true,
-				card: 'findings',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('waiting');
-	});
-
-	it('selects thinking when busy and not waiting', () => {
-		expect(
-			moodFor({
-				busy: true,
-				status: 'Thinking.',
-				cheer: true,
-				sorry: true,
-				card: 'findings',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('thinking');
-	});
-
 	it('selects happy when cheer is active and not busy', () => {
 		expect(
 			moodFor({
 				cheer: true,
-				sorry: true,
 				card: 'findings',
 				listening: true,
 				step: 'direction'
 			})
 		).toBe('happy');
-	});
-
-	it('selects sorry on failure or stop', () => {
-		expect(
-			moodFor({
-				sorry: true,
-				card: 'findings',
-				listening: true,
-				step: 'direction'
-			})
-		).toBe('sorry');
 	});
 
 	it('selects puzzled when a findings card is open', () => {
@@ -577,7 +364,6 @@ describe('moodFor priority list', () => {
 		expect(moodFor({ card: 'chart', step: 'direction' })).toBe('offering');
 		expect(moodFor({ card: 'cells', step: 'offer' })).toBe('offering');
 		expect(moodFor({ card: 'picks' })).toBe('offering');
-		expect(moodFor({ card: 'download' })).toBe('offering');
 		expect(moodFor({ card: 'prompt' })).toBe('offering');
 	});
 
@@ -737,49 +523,6 @@ describe('progressReport', () => {
 });
 
 describe('model context', () => {
-	it('keeps greetings out of history and describes cards in one line', () => {
-		const messages: HelperMessage[] = [
-			{ id: 1, from: 'helper', text: 'Hi again.', aside: true },
-			{ id: 2, from: 'you', text: 'Plan this week' },
-			{
-				id: 3,
-				from: 'helper',
-				text: 'Two for this week.',
-				card: {
-					kind: 'picks',
-					scope: 'week',
-					picks: [
-						{ key: 'a0_0', text: 'Run 30 minutes Tuesday', pillarIndex: 0, why: '' },
-						{ key: 'a1_0', text: '8 strides after Thursday', pillarIndex: 1, why: '' }
-					]
-				},
-				state: 'skipped'
-			}
-		];
-		const history = conversationHistory(messages);
-		expect(history).toHaveLength(2);
-		expect(history[1]!.content).toBe(
-			'Two for this week. [Picks for the week: Run 30 minutes Tuesday; 8 strides after Thursday. They skipped it.]'
-		);
-	});
-
-	it("adds one pillar's actions, today's picks, and the brief", () => {
-		const data = sample();
-		const now = new Date(2026, 9, 5, 12);
-		data.days = { [dateKeyOf(now)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0'] } };
-		data.brief = { constraint: 'A bad knee', timeline: 'October' };
-		const context = chartContext(data, 2, now);
-		expect(context).toContain(`Actions in Long run: ${data.actions[2]![0]}`);
-		expect(context).toContain(`Today's picks: ${data.actions[0]![0]} (done); ${data.actions[1]![0]}`);
-		expect(context).toContain('- Constraint: A bad knee');
-		expect(chartBriefFacts(data)).toBe('About this person:\n- Timeline: October\n- Constraint: A bad knee');
-	});
-
-	it('finds the pillar a question names', () => {
-		const messages = askMessages(sample(), 'What is weak in Strength?');
-		expect(messages[0]!.content).toContain('Actions in Strength:');
-	});
-
 	it('keeps the brief through save and load, and drops junk', () => {
 		const data = sample();
 		data.brief = { situation: 'Runs twice a week', focus: '  ' };
@@ -968,11 +711,6 @@ describe('methodAnswer', () => {
 });
 
 describe('isRetry, isMissingCard, plainReply', () => {
-	it('reads a retry', () => {
-		for (const text of ['Try again', 'try again please', 'again', 'redo', 'redo the pillars', 'different pillars', 'another one']) expect(isRetry(text)).toBe(true);
-		for (const text of ['Try again next week with Sunday runs', 'By March', 'go']) expect(isRetry(text)).toBe(false);
-	});
-
 	it('reads a missing card', () => {
 		for (const text of ["I don't see the chart", 'i dont see it', 'where is the chart?', 'where did the actions go', "I can't find the draft", 'the chart disappeared']) {
 			expect(isMissingCard(text)).toBe(true);
@@ -982,11 +720,6 @@ describe('isRetry, isMissingCard, plainReply', () => {
 		}
 	});
 
-	it('strips markdown the panel would show as is', () => {
-		expect(plainReply('**Study Slovak Daily:** (8 Actions) * **Practice Grammar:** (8 Actions)')).toBe('Study Slovak Daily: (8 Actions) Practice Grammar: (8 Actions)');
-		expect(plainReply('## Plan\n- Walk after dinner\n- Read one page')).toBe('Plan\nWalk after dinner\nRead one page');
-		expect(plainReply('Pick 2 - not 3 - today.')).toBe('Pick 2 - not 3 - today.');
-	});
 });
 
 const SLOVAK =
@@ -1023,21 +756,6 @@ describe('a new goal with more said', () => {
 	});
 });
 
-describe('pillars', () => {
-	it('asks for a goal past the stated level, a pillar per weak spot, skills over tools', () => {
-		const system = pillarsMessages(emptyChartAnswers())[0]!.content;
-		expect(system).toMatch(/one step past where they stand now/);
-		expect(system).toMatch(/each of those gets its own pillar/);
-		expect(system).toMatch(/no apps, videos, podcasts or tests as pillars/);
-		expect(system).toMatch(/does not repeat it/);
-	});
-
-	it('rejects a line that copies the worked example', () => {
-		for (const line of EXAMPLE_LINES) expect(lineFault(line, { max: 48, kind: 'action', siblings: [...EXAMPLE_LINES] })?.code).toBe('repeated');
-		expect(fillActionsMessages(sample(), 0, 8).map((message) => message.content).join('\n')).not.toMatch(/Spanish/);
-	});
-});
-
 describe('filling the whole chart', () => {
 	function gappy(): ChartData {
 		const data = sample();
@@ -1064,10 +782,19 @@ describe('filling the whole chart', () => {
 		expect(fillPlan(one, null, true)).toEqual({ kind: 'actions', pillarIndex: 2, empty: [4] });
 	});
 
-	it('offers to fill all pillars beside the first one', () => {
-		const labels = chipsFor(gappy()).map((chip) => chip.label);
-		expect(labels.slice(0, 2)).toEqual(['Fill all 3 pillars', `Fill ${sample().pillars[0]}`]);
-		expect(chipsFor(gappy()).find((chip) => chip.label === 'Fill all 3 pillars')?.act).toEqual({ kind: 'job', job: 'fill', all: true });
+	it('offers one chip for every gap, and none on a full chart', () => {
+		expect(chipsFor(gappy())[0]).toEqual({ label: 'Fill the gaps', act: { kind: 'job', job: 'fill' } });
+		expect(chipsFor(sample()).some((chip) => chip.label === 'Fill the gaps')).toBe(false);
+	});
+
+	it('takes only the empty cells from a completed chart, never a written one', () => {
+		const current = gappy();
+		const reply = structuredClone(current);
+		reply.actions = reply.actions.map((row, pillarIndex) => row.map((action, index) => action || `New ${pillarIndex}.${index}`));
+		reply.actions[0]![0] = 'Rewritten, and ignored';
+		const edits = fillEdits(current, reply);
+		expect(edits.length).toBe(current.actions.flat().filter((action) => !action.trim()).length);
+		expect(edits.every((edit) => edit.before === '' && edit.after.startsWith('New '))).toBe(true);
 	});
 
 	it('routes the ways people ask for it to fill', () => {
@@ -1084,16 +811,10 @@ describe('filling the whole chart', () => {
 		expect(draftButton(sample())).toBe('Open as a new chart');
 	});
 
-	it('names the pillar being written in the status', () => {
-		const status = describeCoachProgress('Writing actions for Sleep.', null, { index: 4, name: 'Sleep' });
-		expect(status.pillar).toEqual({ index: 4, name: 'Sleep' });
-		expect(describeCoachProgress('Thinking.').pillar).toBeUndefined();
-	});
-
 	it('asks about close readings by name, and offers to just answer', () => {
 		const unsure = clarifyOf('how did my week go and what next');
 		expect(unsure?.question).toBe('Should I show your progress or plan this week?');
-		expect(unsure?.chips.map((chip) => chip.label)).toEqual(['Show my progress', 'Plan this week', 'Just answer']);
+		expect(unsure?.chips.map((chip) => chip.label)).toEqual(['Show my progress', 'Plan this week', 'Ask a chat app']);
 		expect(clarifyOf('write me a poem')).toBeNull();
 	});
 });
@@ -1144,52 +865,6 @@ describe('lines cut short', () => {
 		for (const line of ['Walk to work', 'Check in with Mom on Sunday', 'Follow through', 'List 3 skills someone would pay for', 'Listen once without subtitles, then with']) {
 			expect(lineFault(line, { max: 48, kind: 'action' })?.code ?? null).not.toBe('cut');
 		}
-	});
-
-	it('keeps cut and long pillars out, each with its reason', () => {
-		const head = pillarHead(
-			JSON.stringify({
-				goal: 'Learn Slovak',
-				pillars: ['Track progress with the', 'Practice speaking with language partners', 'Learn Slovak words daily', 'Read Slovak texts', 'Speak Slovak daily', 'Write Slovak notes', 'Hear Slovak radio', 'Use a Slovak tutor weekly on Sundays']
-			})
-		)!;
-		expect(head.pillars).not.toContain('Track progress with the');
-		expect(head.rejected).toEqual([
-			{ text: 'Track progress with the', reason: 'This fits any goal. Name what drives this one.' },
-			{ text: 'Practice speaking with language partners', reason: 'Over 32 characters. Say it in fewer words.' },
-			{ text: 'Use a Slovak tutor weekly on Sundays', reason: 'Over 32 characters. Say it in fewer words.' }
-		]);
-		expect(head.pillars).toHaveLength(5);
-	});
-
-	it('sends back a pillar that names a tool or has no end, with the reason', () => {
-		const head = pillarHead(
-			JSON.stringify({
-				goal: 'Hold a conversation in Slovak',
-				pillars: ['Listen to Slovak podcasts daily', 'Focus on common phrases', 'Practice daily vocabulary recall', 'Read simple Slovak texts', 'Speak with a tutor weekly', 'Write a short diary entry', 'Shadow audio after lunch', 'Learn ten phrases a week']
-			})
-		)!;
-		expect(head.rejected).toEqual([
-			{ text: 'Listen to Slovak podcasts daily', reason: 'This names a tool. Name the habit it serves.' },
-			{ text: 'Focus on common phrases', reason: 'This has no end. Name the part of the goal it works on.' }
-		]);
-		expect(head.pillars).toHaveLength(6);
-	});
-
-	it('sends back a second heading for the same driver, and a catch-all', () => {
-		const head = pillarHead(
-			JSON.stringify({
-				goal: 'Hold a conversation in Slovak',
-				pillars: ['Vocabulary', 'Reading practice', 'Conversation practice', 'Reading comprehension', 'Daily listening', 'Grammar', 'Consistency habit', 'Pronunciation', 'Writing']
-			})
-		)!;
-		expect(head.rejected).toEqual([
-			{ text: 'Reading comprehension', reason: 'Same driver as "Reading practice". Name a different one.' },
-			{ text: 'Consistency habit', reason: 'This fits any goal. Name what drives this one.' }
-		]);
-		expect(head.pillars).toEqual(['Vocabulary', 'Reading practice', 'Conversation practice', 'Daily listening', 'Grammar', 'Pronunciation', 'Writing']);
-		expect(sameDriver('Daily listening', ['Daily reading'])).toBeNull();
-		expect(lineFault('Plan the week with the', { max: 32, kind: 'pillar' })?.code).toBe('cut');
 	});
 
 	it('passes every preset pillar', () => {

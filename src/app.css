@@ -85,16 +85,11 @@
 	--animate-ring-drain: ring-drain 1s linear both;
 	--animate-seed-fold: seed-fold 2.4s cubic-bezier(0.2, 0, 0, 1) both;
 	--animate-blink: blink 5.6s ease-in-out infinite;
-	--animate-think: think 1.4s ease-in-out infinite;
 	--animate-hop: hop 0.52s cubic-bezier(0.34, 1.56, 0.64, 1);
 	--animate-cheer: cheer 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 	--animate-joy: joy 1.2s ease-in-out infinite;
 	--animate-listen: listen 3.8s ease-in-out infinite;
 	--animate-listen-blink: listen-blink 3.8s ease-in-out infinite;
-	--animate-breathe: breathe 4.8s ease-in-out infinite;
-	--animate-wait: wait 6s ease-in-out infinite;
-	--animate-sigh: sigh 4.6s ease-in-out infinite;
-	--animate-sorry-blink: sorry-blink 4.6s ease-in-out infinite;
 	--animate-puzzle: puzzle 4.2s ease-in-out infinite;
 	--animate-squint: squint 4.2s ease-in-out infinite;
 	--animate-nod: nod 4.4s cubic-bezier(0.2, 0, 0, 1) infinite;
@@ -345,16 +340,6 @@
 	}
 }
 
-@keyframes wait {
-	0%,
-	88%,
-	100% {
-		transform: scaleY(1);
-	}
-	94% {
-		transform: scaleY(0.18);
-	}
-}
 
 @keyframes listen {
 	0%,
@@ -380,39 +365,8 @@
 	}
 }
 
-@keyframes breathe {
-	0%,
-	100% {
-		transform: translateY(0);
-	}
-	50% {
-		transform: translateY(1.4px);
-	}
-}
 
-@keyframes sigh {
-	0%,
-	100% {
-		transform: translateY(0) rotate(0deg);
-	}
-	35% {
-		transform: translateY(1.8px) rotate(-1.5deg);
-	}
-	70% {
-		transform: translateY(0.5px) rotate(0.5deg);
-	}
-}
 
-@keyframes sorry-blink {
-	0%,
-	82%,
-	100% {
-		transform: scaleY(1);
-	}
-	88% {
-		transform: scaleY(0.12);
-	}
-}
 
 @keyframes puzzle {
 	0%,
@@ -525,15 +479,6 @@
 	}
 }
 
-@keyframes think {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.28;
-	}
-}
 
 @keyframes dot-bounce {
 	0%,

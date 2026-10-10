@@ -1,66 +1,57 @@
 import { chart } from './chart.svelte';
-import { draftPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
+import { draftPrompt, fillPrompt, parseDraftText, type ChartAnswers } from './draft.ts';
 import {
 	aimParts,
+	askPrompt,
 	briefOf,
 	chartAnswersFromText,
 	chatReply,
 	clarifyOf,
-	conversationHistory,
 	chipsFor,
-	describeCoachProgress,
 	DRAFT_QUESTIONS,
-	draftDone,
 	editWords,
 	extraChips,
-	followUpQuestion,
-	splitGoal,
-	fillPillarChip,
+	fillEdits,
 	fillPlan,
+	followUpQuestion,
 	greetingFor,
+	greetingInsight,
 	helpChips,
 	helpReply,
-	greetingInsight,
 	insightChip,
 	insightSignature,
 	insightsFor,
-	methodAnswer,
 	isCancellation,
 	isCardRejection,
 	isMissingCard,
-	isRetry,
+	methodAnswer,
 	moodFor,
+	norm,
 	offerChips,
 	pillarMentioned,
-	pillarNamed,
 	progressReport,
 	reviewChart,
 	routeOf,
+	splitGoal,
 	suggestToday,
 	suggestWeek,
-	textOfKey,
 	type CardState,
-	type HelperPick,
 	type CellEdit,
-	type ChatMessage,
-	type CoachLoad,
 	type HelperCard,
 	type HelperChip,
-	type HelperFinding,
 	type HelperJob,
 	type HelperMessage,
 	type HelperMood,
+	type HelperPick,
 	type HelperRoute
 } from './helper.ts';
-import { CoachStopped } from './coach-protocol.ts';
-import { blockOfK, idx, setByKey, todayKey, type ChartBrief, type ChartData } from './model.ts';
+import { blockOfK, hasContent, todayKey, type ChartBrief, type ChartData } from './model.ts';
 
 export type { CardState, CellEdit, HelperCard, HelperMessage, HelperMood };
 
 /** What the helper may read and change. The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
 	data(): ChartData;
-	selectedPillar(): number | null;
 	applyDraft(next: ChartData): boolean;
 	setCells(edits: CellEdit[]): void;
 	setToday(keys: string[]): void;
@@ -76,87 +67,40 @@ export type HelperTarget = {
 	chartId?(): string;
 };
 
-type Coach = typeof import('./coach.browser.ts');
-type CoachNeed = NonNullable<Awaited<ReturnType<Coach['needFor']>>>;
-
-const CONSENT_KEY = 'mandala-helper-model';
-
-function loadCoachModule(): Promise<Coach> {
-	return import('./coach.browser.ts');
-}
-
-/** Model ids the person agreed to download, comma-separated. An older value holds one id, which reads the same. */
-function readConsent(): string[] {
-	try {
-		const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(CONSENT_KEY) : null;
-		return stored ? stored.split(',').filter(Boolean) : [];
-	} catch {
-		return [];
-	}
-}
-
-function writeConsent(models: readonly string[]): void {
-	try {
-		if (models.length > 0) localStorage.setItem(CONSENT_KEY, models.join(','));
-		else localStorage.removeItem(CONSENT_KEY);
-	} catch {
-		// Private mode keeps the consent for this session only.
-		return;
-	}
-}
-
+/**
+ * Bindu: reads the chart, the day log and the method, and answers from them, instantly and offline. Writing
+ * lines is handed to whatever chat app the person uses: Bindu writes the prompt, and reads the pasted reply.
+ */
 export class HelperStore {
 	open = $state(false);
 	messages: HelperMessage[] = $state([]);
-	busy = $state(false);
-	progress = $state<CoachLoad | null>(null);
 	unread = $state(false);
-	modelReady = $state(false);
-	/** What the job in progress will show, so the panel can hold its place until it arrives. */
-	pending = $state<'chart' | 'cells' | 'reply' | null>(null);
 	step = $state<'idle' | 'direction' | 'extra' | 'offer'>('idle');
 	#cheer = $state(false);
-	#sorry = $state(false);
 	listening = $state(false);
 
 	mood: HelperMood = $derived.by(() => {
 		const openCard = this.messages.find((entry) => entry.state === 'open')?.card?.kind ?? null;
-		return moodFor({
-			busy: this.busy,
-			status: this.progress?.label,
-			cheer: this.#cheer,
-			sorry: this.#sorry,
-			card: openCard,
-			step: this.step,
-			listening: this.listening
-		});
+		return moodFor({ cheer: this.#cheer, card: openCard, step: this.step, listening: this.listening });
 	});
 
 	#target: HelperTarget;
 	#seq = 1;
 	#direction = '';
-	/** What came with the goal: level, what is hard, a constraint. Kept for the plan and the brief. */
+	/** What came with the goal: level, what is hard, a constraint. Kept for the prompt and the brief. */
 	#said = '';
-	#sketch: ChartData | null = null;
-	#sketchId = 0;
+	/** The answers behind the last draft prompt, kept on the chart when its reply is pasted. */
+	#answers: ChartAnswers | null = null;
 	#help = $state(false);
-	#pillarFill = $state<number | null>(null);
-	#fillPillar: number | null = null;
-	#fillAll = false;
 	/** What the last clean review looked at, so asking again does not repeat the same verdict. */
 	#cleanReview = '';
-	#pending: { run: () => Promise<void>; need: CoachNeed } | null = null;
-	#consent = readConsent();
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
-	#warming = false;
-	#progressStop: (() => void) | null = null;
 	#chartId = '';
 	#threads = new Map<string, HelperMessage[]>();
-	#jobChart: string | null = null;
 	#thanks = 0;
 	#lead = $state<HelperChip | null>(null);
 	/** A message Bindu asked about, kept so a chip can act on it as first sent. */
-	#unsure = $state<{ text: string; history: ChatMessage[]; chips: HelperChip[] } | null>(null);
+	#unsure = $state<{ text: string; chips: HelperChip[] } | null>(null);
 	#swapped = new Set<string>();
 
 	constructor(target: HelperTarget) {
@@ -164,22 +108,14 @@ export class HelperStore {
 		this.#chartId = target.chartId?.() ?? '';
 	}
 
-	/** Each chart keeps its own conversation. A job still running for the old chart is stopped, and its replies are dropped. */
+	/** Each chart keeps its own conversation. */
 	follow(chartId: string): void {
 		if (chartId === this.#chartId) return;
-		if (this.#chartId) {
-			this.#threads.set(
-				this.#chartId,
-				this.messages.map((entry) => (entry.state === 'working' ? { ...entry, state: 'skipped' } : entry))
-			);
-		}
-		if (this.busy) void this.stop();
+		if (this.#chartId) this.#threads.set(this.#chartId, this.messages);
 		this.#chartId = chartId;
 		this.messages = this.#threads.get(chartId) ?? [];
 		this.#threads.delete(chartId);
 		this.step = 'idle';
-		this.#pending = null;
-		this.#sorry = false;
 		this.unread = false;
 		this.#clearTurn();
 		if (this.open && this.messages.length === 0) this.#greet();
@@ -200,7 +136,7 @@ export class HelperStore {
 		this.#push({
 			from: 'helper',
 			text: has
-				? 'This is what I kept from when we drafted the chart. I use it when I write lines for you.'
+				? 'This is what I kept from when we drafted the chart. Prompts I write for you carry it.'
 				: 'Nothing yet. When we draft a chart together, I keep your answers here.',
 			card: has ? { kind: 'facts' } : undefined,
 			aside: true
@@ -215,10 +151,6 @@ export class HelperStore {
 		this.#target.setBrief?.(next);
 	}
 
-	get #stale(): boolean {
-		return this.#jobChart !== null && this.#jobChart !== this.#chartId;
-	}
-
 	get data(): ChartData {
 		return this.#target.data();
 	}
@@ -228,11 +160,7 @@ export class HelperStore {
 		// The open card already offers this job as its button.
 		const cardJob: HelperJob | null =
 			openCard?.kind === 'picks' ? openCard.scope : openCard?.kind === 'findings' ? 'review' : openCard?.kind === 'chart' ? 'draft' : null;
-		return this.#chips().filter((chip) => !(chip.act.kind === 'job' && chip.act.job === cardJob));
-	}
-
-	#chips(): HelperChip[] {
-		return this.#draftChips(this.#baseChips());
+		return this.#draftChips(this.#baseChips()).filter((chip) => !(chip.act.kind === 'job' && chip.act.job === cardJob));
 	}
 
 	/**
@@ -244,43 +172,35 @@ export class HelperStore {
 		const draft = this.#openDraft();
 		const reviewed = reviewSignature(draft?.data ?? this.#target.data(), draft?.id) === this.#cleanReview;
 		const isJob = (chip: HelperChip, ...jobs: HelperJob[]) => chip.act.kind === 'job' && jobs.includes(chip.act.job);
-		// A sketch has its own chips while its question is open.
 		if (!draft || this.step !== 'idle') return chips.filter((chip) => !(reviewed && isJob(chip, 'review')));
 		const review: HelperChip[] = reviewed ? [] : [{ label: 'Review this draft', act: { kind: 'job', job: 'review' } }];
 		return [...review, ...chips.filter((chip) => !isJob(chip, 'review', 'today', 'week', 'fill'))];
 	}
 
 	#baseChips(): HelperChip[] {
-		if (this.busy) return [];
 		if (this.step === 'offer') return offerChips();
-		if (this.step === 'extra') return extraChips(this.#sketch !== null, this.#said);
+		if (this.step === 'extra') return extraChips(this.#said);
 		if (this.step === 'direction') return [];
 		if (this.#unsure) return this.#unsure.chips;
 		if (this.#lead) {
 			const lead = this.#lead;
-			const rest = chipsFor(this.#target.data(), this.#target.selectedPillar()).filter((chip) => chip.label !== lead.label);
-			return [lead, ...rest];
+			return [lead, ...chipsFor(this.#target.data()).filter((chip) => chip.label !== lead.label)];
 		}
 		if (this.#help) return helpChips();
-		if (this.#pillarFill !== null) {
-			const name = (this.#target.data().pillars[this.#pillarFill] ?? '').trim();
-			if (name) return [fillPillarChip(name, this.#pillarFill)];
-		}
-		return chipsFor(this.#target.data(), this.#target.selectedPillar());
+		return chipsFor(this.#target.data());
 	}
 
 	get placeholder(): string {
 		if (this.step === 'direction') return 'Run a half marathon, learn Spanish…';
 		if (this.step === 'extra') return 'Time a day, or a date';
-		return 'Ask, or say what you need';
+		return 'Ask, or paste a reply';
 	}
 
 	show(job?: HelperJob): void {
 		this.open = true;
 		this.unread = false;
 		if (this.messages.length === 0) this.#greet();
-		void this.#warm();
-		if (job) void this.start(job);
+		if (job) this.start(job);
 	}
 
 	hide(): void {
@@ -296,14 +216,12 @@ export class HelperStore {
 	reset(): void {
 		this.messages = [];
 		this.step = 'idle';
-		this.#pending = null;
-		this.#sorry = false;
 		this.#clearTurn();
 		this.#greet();
 	}
 
 	cancel(): void {
-		if (this.step !== 'idle' || this.#direction || this.#sketch) {
+		if (this.step !== 'idle' || this.#direction) {
 			this.step = 'idle';
 			this.#clearTurn();
 			this.#aside('Draft cancelled.');
@@ -312,68 +230,45 @@ export class HelperStore {
 
 	choose(chip: HelperChip): void {
 		const act = chip.act;
-		if (act.kind === 'job') void this.start(act.job, act.pillar, act.all);
-		else if (act.kind === 'send') void this.send(act.text);
-		else if (act.kind === 'sketch') void this.#sketchAim();
+		if (act.kind === 'job') this.start(act.job);
+		else if (act.kind === 'send') this.send(act.text);
+		else if (act.kind === 'aim') this.#beginAim();
 		else if (act.kind === 'show') this.showCell(act.key);
-		else if (act.kind === 'reading') void this.#pickReading(act.route);
+		else if (act.kind === 'reading') this.#pickReading(act.route);
 		else this.#dismissAim();
 	}
 
-	async send(raw: string): Promise<void> {
+	send(raw: string): void {
 		const text = raw.trim();
-		if (!text || this.busy) return;
-		const history = conversationHistory(this.messages, 8);
-		this.#push({ from: 'you', text: text.length > 600 ? `${text.slice(0, 600)}…` : text });
-		this.#sorry = false;
+		if (!text) return;
+		// A pasted chart is the reply to a prompt, whatever step the draft is on. Its JSON is not worth showing.
+		const pasted = parseDraftText(text);
+		this.#push({ from: 'you', text: pasted ? 'A pasted reply.' : text.length > 600 ? `${text.slice(0, 600)}…` : text });
 
 		if (isMissingCard(text) && this.#showChartCard()) return;
+		if (pasted) {
+			this.step = 'idle';
+			this.#received(pasted);
+			return;
+		}
 
 		if (this.step === 'direction') {
-			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) {
-				this.step = 'idle';
-				this.#clearTurn();
-				this.#aside('Draft cancelled.');
-				return;
-			}
+			if (isCancellation(text) || /^(?:no|nope|nah)\.?$/i.test(text)) return this.cancel();
 			const parts = splitGoal(text);
 			this.#direction = parts.goal || text;
 			this.#said = parts.said;
 			const question = followUpQuestion(parts.said);
-			if (!question) {
-				this.step = 'idle';
-				await this.#withModel(() => this.#draft(chartAnswersFromText(this.#direction, '', this.#said)), 'draft');
-				return;
-			}
+			if (!question) return this.#handOff(chartAnswersFromText(this.#direction, '', this.#said));
 			this.step = 'extra';
 			this.#say(question);
 			return;
 		}
 		if (this.step === 'extra') {
-			if (isCancellation(text)) {
-				this.step = 'idle';
-				this.#clearTurn();
-				this.#aside('Draft cancelled.');
-				return;
-			}
-			if (this.#sketch && isRetry(text)) {
-				await this.#sketchAim();
-				return;
-			}
-			const answers = chartAnswersFromText(this.#direction, text, this.#said);
-			if (this.#sketch) {
-				await this.#withModel(() => this.#fillSketch(answers), 'draft');
-				return;
-			}
-			this.step = 'idle';
-			await this.#withModel(() => this.#draft(answers), 'draft');
-			return;
+			if (isCancellation(text)) return this.cancel();
+			return this.#handOff(chartAnswersFromText(this.#direction, text, this.#said));
 		}
 		if (this.step === 'offer') {
-			if (
-				isCancellation(text) ||
-				/^(?:no|nope|nah|stay|stay\s+(?:with|on)\s+this\s+chart|keep\s+this\s+chart|leave\s+it)\.?$/i.test(text)
-			) {
+			if (isCancellation(text) || /^(?:no|nope|nah|stay|stay\s+(?:with|on)\s+this\s+chart|keep\s+this\s+chart|leave\s+it)\.?$/i.test(text)) {
 				this.#dismissAim();
 				return;
 			}
@@ -381,7 +276,6 @@ export class HelperStore {
 		}
 		this.#help = false;
 		this.#lead = null;
-		this.#pillarFill = null;
 		this.#unsure = null;
 
 		const openMessage = this.messages.find((entry) => entry.state === 'open');
@@ -394,22 +288,22 @@ export class HelperStore {
 		const route = routeOf(text, data);
 		const unsure = route === 'clarify' ? clarifyOf(text) : null;
 		if (unsure) {
-			this.#unsure = { text, history, chips: unsure.chips };
+			this.#unsure = { text, chips: unsure.chips };
 			this.#say(unsure.question);
 			return;
 		}
-		await this.#dispatch(route, text, data, history);
+		this.#dispatch(route, text, data);
 	}
 
-	async #pickReading(route: HelperRoute): Promise<void> {
+	#pickReading(route: HelperRoute): void {
 		const unsure = this.#unsure;
-		if (!unsure || this.busy) return;
+		if (!unsure) return;
 		this.#unsure = null;
-		await this.#dispatch(route, unsure.text, this.#target.data(), unsure.history);
+		this.#dispatch(route, unsure.text, this.#target.data());
 	}
 
-	/** Does what `routeOf` decided. A reading with no written answer goes to the model. */
-	async #dispatch(route: HelperRoute, text: string, data: ChartData, history: ChatMessage[]): Promise<void> {
+	/** Does what `routeOf` decided. What no rule answers is handed to a chat app, with the chart. */
+	#dispatch(route: HelperRoute, text: string, data: ChartData): void {
 		if (route === 'cancel') {
 			this.#clearTurn();
 			this.step = 'idle';
@@ -422,30 +316,13 @@ export class HelperStore {
 			this.#say(reply.text);
 			return;
 		}
-		if (route === 'facts') {
-			this.showFacts();
-			return;
-		}
+		if (route === 'facts') return this.showFacts();
 		if (route === 'progress') {
 			this.#say(progressReport(data));
 			this.#lead = insightChip(insightsFor(data).find((insight) => insight.key));
 			return;
 		}
-		if (route === 'chart') {
-			const parsed = parseDraftText(text);
-			if (parsed) this.#say('That reply holds a whole chart. Here it is.', { kind: 'chart', data: parsed });
-			return;
-		}
-		if (route === 'fill') {
-			// "Write actions for Sleep" fills Sleep. "Fill the whole chart" fills every pillar with gaps.
-			const named = pillarNamed(text, data);
-			await this.start('fill', named ?? undefined, named === null);
-			return;
-		}
-		if (route === 'today' || route === 'week' || route === 'review' || route === 'draft') {
-			await this.start(route);
-			return;
-		}
+		if (route === 'today' || route === 'week' || route === 'review' || route === 'draft' || route === 'fill') return this.start(route);
 		if (route === 'help') {
 			this.#help = data.goal.trim() !== '' && !fillPlan(data);
 			this.#say(helpReply(data));
@@ -461,10 +338,10 @@ export class HelperStore {
 		if (aim) {
 			this.#direction = aim.aim;
 			this.#said = aim.said;
-			this.#sketch = null;
-			this.#sketchId = 0;
+			// With no goal yet there is nothing to stay on, so the draft starts right away.
+			if (!data.goal.trim()) return this.#beginAim();
 			this.step = 'offer';
-			const opening = data.goal.trim() ? 'A new goal gets its own chart. Your current one stays.' : 'I can sketch a chart for that.';
+			const opening = 'A new goal gets its own chart. Your current one stays.';
 			this.#say(aim.said ? `${opening} I kept what you told me.` : opening);
 			return;
 		}
@@ -472,24 +349,22 @@ export class HelperStore {
 		if (route === 'pillar' && mentioned !== null) {
 			const name = (data.pillars[mentioned] ?? '').trim();
 			const empty = (data.actions[mentioned] ?? []).filter((action) => !action.trim()).length;
-			if (empty > 0) {
-				this.#pillarFill = mentioned;
-				this.#say(`${name} still has ${empty} empty ${empty === 1 ? 'action' : 'actions'}.`);
-				return;
-			}
-			this.#say(`${name} is already full. We can review its actions or pick one for today.`);
+			this.#say(
+				empty > 0
+					? `${name} still has ${empty} empty ${empty === 1 ? 'action' : 'actions'}. Fill the gaps gives you a prompt for them.`
+					: `${name} is already full. We can review its actions or pick one for today.`
+			);
 			return;
 		}
-		await this.#withModel(() => this.#answer(text, history, mentioned ?? this.#target.selectedPillar()));
+		this.#say('I answer from your chart and the method, so this one is for a chat app. The prompt carries your chart with the question.', {
+			kind: 'prompt',
+			text: askPrompt(data, text)
+		});
 	}
 
-	async start(job: HelperJob, pillar?: number, all = false): Promise<void> {
-		if (this.busy) return;
-		this.#sorry = false;
+	start(job: HelperJob): void {
 		this.#clearTurn();
 		this.step = 'idle';
-		this.#fillPillar = job === 'fill' ? (pillar ?? this.#target.selectedPillar()) : null;
-		this.#fillAll = job === 'fill' && all;
 		const data = this.#target.data();
 		if (job === 'draft') {
 			this.step = 'direction';
@@ -501,34 +376,21 @@ export class HelperStore {
 			const draft = this.#openDraft();
 			return this.#review(draft?.data ?? data, draft?.id);
 		}
-		if (job === 'week') return this.#picks('week', data);
-		if (job === 'today') return this.#picks('today', data);
-		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
-		if (!plan) {
-			this.#say(data.goal.trim() ? 'Every line is filled. Review my chart instead?' : 'Give the chart a goal first, then I can fill the rest.');
+		if (job === 'week' || job === 'today') return this.#picks(job, data);
+		if (!fillPlan(data)) {
+			this.#say(data.goal.trim() ? 'Every line is filled. Review my chart instead?' : 'Give the chart a goal first, then the rest can follow.');
 			return;
 		}
-		await this.#withModel(() => this.#fill());
-	}
-
-	allowDownload(id: number): void {
-		this.#settle(id, 'used');
-		const pending = this.#pending;
-		this.#pending = null;
-		if (!pending) return;
-		this.#agree(pending.need.model);
-		void this.#run(pending.run, pending.need);
+		this.#say('Copy this into any chat app. It asks only for the empty lines and keeps yours as they are. Paste the reply here, and I add just the new ones.', {
+			kind: 'prompt',
+			text: fillPrompt(data)
+		});
 	}
 
 	use(id: number): void {
 		const message = this.messages.find((entry) => entry.id === id);
 		const card = message?.card;
 		if (!message || !card || message.state !== 'open') return;
-		if (card.kind === 'chart' && card.sketch) {
-			// A sketch has no actions yet. Using it means writing them first.
-			this.writeActions();
-			return;
-		}
 		if (card.kind === 'chart') {
 			if (!this.#target.applyDraft(card.data)) return;
 			// A draft can open as a new chart. The conversation that made it goes with it.
@@ -540,20 +402,6 @@ export class HelperStore {
 			this.#celebrate(
 				card.data.brief ? 'Done. I kept your answers for later. Ask what I know any time.' : 'Done. Plan this week whenever you like.'
 			);
-		} else if (card.kind === 'cells' && card.draft) {
-			// Edits for a draft change the draft, not the chart behind it.
-			const draft = this.messages.find((entry) => entry.id === card.draft);
-			if (draft?.state !== 'open' || draft.card?.kind !== 'chart') {
-				this.#settle(id, 'skipped');
-				this.#aside('That draft is closed now, so nothing changed.');
-				return;
-			}
-			const next = structuredClone($state.snapshot(draft.card.data)) as ChartData;
-			for (const edit of card.edits) setByKey(next, edit.key, edit.after);
-			const words = editWords(next, card.edits);
-			this.#patchChart(draft.id, next);
-			this.#settle(id, 'used');
-			this.#celebrate(`${words.done.replace(/\.$/, '')} in the draft.`);
 		} else if (card.kind === 'cells') {
 			const words = editWords(this.#target.data(), card.edits);
 			this.#target.setCells(card.edits);
@@ -565,9 +413,6 @@ export class HelperStore {
 			else this.#target.pinWeek(keys);
 			this.#settle(id, 'used');
 			this.#celebrate(card.scope === 'today' ? 'Today is set. One at a time.' : 'Pinned. They will lead your picks each day.');
-		} else if (card.kind === 'findings') {
-			this.#settle(id, 'used');
-			void this.#withModel(() => this.#rewrite(card.findings, card.draft));
 		}
 	}
 
@@ -599,26 +444,55 @@ export class HelperStore {
 		if (!message?.card || message.state !== 'open') return;
 		this.#settle(id, 'skipped');
 		if (message.card.kind === 'picks' && message.card.scope === 'today') this.#target.decline?.(message.card.picks.map((pick) => pick.key));
-		if (message.card.kind === 'download') {
-			this.#pending = null;
-			this.#say('No problem. Copy the prompt into any chat app and paste the reply here.', { kind: 'prompt' });
-		}
 	}
 
 	showCell(key: string): void {
 		this.#target.showCell(key);
 	}
 
+	/** The prompt for a whole chart, as a blank form, for the panel's "another chat app" link. */
 	promptText(): string {
 		return draftPrompt();
 	}
 
-	async stop(): Promise<void> {
-		const coach = await loadCoachModule();
-		await coach.interruptCoach();
+	/** Hands the draft to a chat app: the person's answers, in a prompt to copy. */
+	#handOff(answers: ChartAnswers): void {
+		this.step = 'idle';
+		this.#answers = answers;
+		this.#direction = '';
+		this.#said = '';
+		this.#say('Here is a prompt with your answers. Copy it into any chat app, then paste the whole reply here.', {
+			kind: 'prompt',
+			text: draftPrompt(answers)
+		});
 	}
 
-	async #review(data: ChartData, draftId?: number): Promise<void> {
+	/** A goal named in passing: ask the follow-up, or hand it off straight away. */
+	#beginAim(): void {
+		const question = followUpQuestion(this.#said);
+		if (!question) return this.#handOff(chartAnswersFromText(this.#direction, '', this.#said));
+		this.step = 'extra';
+		this.#say(question);
+	}
+
+	/**
+	 * A chart pasted from a chat app. For this chart's goal it fills only the empty lines; anything else is a
+	 * new draft, with the answers that asked for it.
+	 */
+	#received(reply: ChartData): void {
+		const data = this.#target.data();
+		if (hasContent(data) && norm(reply.goal) === norm(data.goal)) {
+			const edits = fillEdits(data, reply);
+			if (edits.length === 0) return this.#say('Nothing new in that reply. Every line it fills is already written here.');
+			this.#say(`${edits.length} ${edits.length === 1 ? 'line' : 'lines'} for the empty cells, ready to add.`, { kind: 'cells', edits });
+			return;
+		}
+		const brief = this.#answers ? briefOf(this.#answers) : undefined;
+		this.#answers = null;
+		this.#say('Here is your chart.', { kind: 'chart', data: brief ? { ...reply, brief } : reply });
+	}
+
+	#review(data: ChartData, draftId?: number): void {
 		const findings = reviewChart(data);
 		const where = draftId ? 'this draft' : data.goal.trim() ? `"${data.goal.trim()}"` : 'this chart';
 		const signature = reviewSignature(data, draftId);
@@ -634,11 +508,7 @@ export class HelperStore {
 		}
 		this.#cleanReview = '';
 		const count = findings.length === 1 ? 'One line' : `${findings.length} lines`;
-		this.#say(`${count} in ${where} could be clearer. I can rewrite them, and you choose what stays.`, {
-			kind: 'findings',
-			findings,
-			draft: draftId
-		});
+		this.#say(`${count} in ${where} could be clearer. Open one to make it something you can tick.`, { kind: 'findings', findings, draft: draftId });
 	}
 
 	/** The newest chart card still waiting on a decision, if there is one. */
@@ -662,220 +532,10 @@ export class HelperStore {
 		);
 	}
 
-	async #draft(answers: ReturnType<typeof chartAnswersFromText>): Promise<void> {
-		this.pending = 'chart';
-		const coach = await loadCoachModule();
-		let draftId = 0;
-		const result = await coach.proposeChart(answers, (partial) => {
-			if (!draftId) {
-				this.#say('Pillars first. The actions follow, one pillar at a time.', { kind: 'chart', data: partial });
-				draftId = this.messages[this.messages.length - 1]?.id ?? 0;
-				this.#settle(draftId, 'working');
-				return;
-			}
-			this.#patchChart(draftId, partial);
-		});
-		if (!result.chart) {
-			if (draftId) this.#settle(draftId, 'skipped');
-			this.#fail('I lost the thread on that one. Try again, or copy the prompt into another chat app.', { kind: 'prompt' });
-			return;
-		}
-		const finished = { ...result.chart, brief: briefOf(answers) };
-		const done = draftDone(finished.actions.flat().filter((action) => action.trim()).length);
-		if (draftId) this.#finishDraft(draftId, finished, done);
-		else this.#say(done, { kind: 'chart', data: finished });
-	}
-
-	/** The card that was filling becomes the result. Its text changes, so the count is not said twice. */
-	#finishDraft(id: number, data: ChartData, text: string): void {
-		this.#patchChart(id, data);
-		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, text } : entry));
-		this.#settle(id, 'open');
-	}
-
-	/** Loads the model when it costs no new download: one already agreed to. */
-	async #warm(): Promise<void> {
-		if (this.#warming) return;
-		this.#warming = true;
-		const coach = await loadCoachModule();
-		const need = await coach.needFor();
-		const allowed = need !== null && (need.download === null || this.#consent.includes(need.model));
-		if (!need || !allowed || coach.coachLoaded()) {
-			this.modelReady = coach.coachLoaded();
-			this.#warming = false;
-			return;
-		}
-		const stop = coach.watchCoachProgress((update) => {
-			if (!this.busy) this.progress = describeCoachProgress(update.text, update.ratio, update.pillar);
-		});
-		try {
-			await coach.loadCoach();
-			this.modelReady = true;
-			this.#agree(need.model);
-		} catch {
-			this.#warming = false;
-			if (!coach.coachLoaded()) this.#disagree(need.model);
-		} finally {
-			stop();
-			if (!this.busy) this.progress = null;
-		}
-	}
-
-	#agree(model: string): void {
-		if (!this.#consent.includes(model)) this.#consent = [...this.#consent, model];
-		writeConsent(this.#consent);
-	}
-
-	#disagree(model: string): void {
-		this.#consent = this.#consent.filter((agreed) => agreed !== model);
-		writeConsent(this.#consent);
-	}
-
-	async #fill(): Promise<void> {
-		this.pending = 'cells';
-		const coach = await loadCoachModule();
-		const data = this.#target.data();
-		const plan = fillPlan(data, this.#fillPillar ?? this.#target.selectedPillar(), this.#fillAll);
-		if (!plan) return;
-		if (plan.kind === 'pillars') {
-			const lines = await coach.fillPillars(data, plan.empty.length);
-			if (!lines) return this.#fail('I could not name those pillars. Try once more?');
-			const edits = plan.empty.slice(0, lines.length).map((pillarIndex, index) => ({ key: `p${pillarIndex}`, before: '', after: lines[index] ?? '' }));
-			this.#say(`${edits.length} ${edits.length === 1 ? 'pillar' : 'pillars'}, ready to add.${stayedEmpty(plan.empty.length - lines.length)}`, { kind: 'cells', edits });
-			return;
-		}
-		const rows = plan.kind === 'all' ? plan.rows : [{ pillarIndex: plan.pillarIndex, empty: plan.empty }];
-		// Each pillar is written with the ones before it in place, so two pillars do not get the same action.
-		const draft = structuredClone($state.snapshot(data)) as ChartData;
-		const edits: CellEdit[] = [];
-		let wanted = 0;
-		let cardId = 0;
-		for (const [done, row] of rows.entries()) {
-			wanted += row.empty.length;
-			const lines = (await coach.fillActions(draft, row.pillarIndex, row.empty.length)) ?? [];
-			row.empty.slice(0, lines.length).forEach((actionIndex, index) => {
-				const after = lines[index] ?? '';
-				draft.actions[row.pillarIndex]![actionIndex] = after;
-				edits.push({ key: `a${row.pillarIndex}_${actionIndex}`, before: '', after });
-			});
-			// With several pillars, the card shows up after the first one and grows as each one lands.
-			if (rows.length > 1 && edits.length > 0 && done < rows.length - 1) {
-				const progress = `Writing actions. ${done + 1} of ${rows.length} pillars so far.`;
-				if (!cardId) {
-					this.#say(progress, { kind: 'cells', edits: [...edits] });
-					cardId = this.messages[this.messages.length - 1]?.id ?? 0;
-					this.#settle(cardId, 'working');
-				} else this.#patchCells(cardId, progress, edits);
-			}
-		}
-		if (edits.length === 0) {
-			if (cardId) this.#settle(cardId, 'skipped');
-			return this.#fail(rows.length > 1 ? 'I could not fill those pillars. Try once more?' : 'I could not finish that pillar. Try once more?');
-		}
-		const across = rows.length > 1 ? ` across ${rows.length} pillars` : '';
-		const text = `${edits.length} ${edits.length === 1 ? 'action' : 'actions'}${across}, ready to add.${stayedEmpty(wanted - edits.length)}`;
-		if (cardId) {
-			this.#patchCells(cardId, text, edits);
-			this.#bringDown(cardId);
-			this.#settle(cardId, 'open');
-		} else this.#say(text, { kind: 'cells', edits });
-	}
-
-	#patchCells(id: number, text: string, edits: readonly CellEdit[]): void {
-		if (this.#stale) return;
-		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, text, card: { kind: 'cells', edits: [...edits] } } : entry));
-	}
-
-	async #rewrite(findings: HelperFinding[], draftId?: number): Promise<void> {
-		this.pending = 'cells';
-		const coach = await loadCoachModule();
-		const draft = draftId ? this.messages.find((entry) => entry.id === draftId)?.card : undefined;
-		const data = draft?.kind === 'chart' ? draft.data : this.#target.data();
-		const edits: CellEdit[] = [];
-		for (const finding of findings) {
-			if (textOfKey(data, finding.key) !== finding.text) continue;
-			const after = await coach.rewriteCell(data, finding);
-			if (after) edits.push({ key: finding.key, before: finding.text, after, reason: finding.reason });
-		}
-		if (edits.length === 0) return this.#fail('I could not improve on those. They may be fine as they are.');
-		this.#say(draftId ? 'Here is how I would put them in the draft.' : 'Here is how I would put them.', { kind: 'cells', edits, draft: draftId });
-	}
-
-	async #answer(question: string, history: readonly ChatMessage[] = [], pillar: number | null = null): Promise<void> {
-		this.pending = 'reply';
-		const coach = await loadCoachModule();
-		const reply = await coach.answer(this.#target.data(), question, history, pillar);
-		if (!reply) return this.#fail('I am not sure. Try asking another way.');
-		this.#say(reply);
-	}
-
-	async #withModel(run: () => Promise<void>, job?: HelperJob): Promise<void> {
-		const coach = await loadCoachModule();
-		const need = await coach.needFor();
-		if (!need) {
-			this.#say(
-				job === 'draft'
-					? "This browser can't run me on the device. Copy the prompt into any chat app, then paste the reply here."
-					: "This browser can't run me on the device. Review, week, and today still work.",
-				job === 'draft' ? { kind: 'prompt' } : undefined
-			);
-			return;
-		}
-		if (need.download !== null && !this.#consent.includes(need.model)) {
-			this.#say('I write with a small model that lives in this browser. It is a one-time download.', { kind: 'download', size: need.download });
-			this.#pending = { run, need };
-			return;
-		}
-		await this.#run(run, need);
-	}
-
-	async #run(run: () => Promise<void>, need: CoachNeed): Promise<void> {
-		const coach = await loadCoachModule();
-		coach.resumeCoach();
-		this.busy = true;
-		this.#jobChart = this.#chartId;
-		this.progress = describeCoachProgress(coach.coachLoaded() ? 'Thinking.' : 'Waking up.');
-		this.#progressStop ??= coach.watchCoachProgress((update) => {
-			this.progress = describeCoachProgress(update.text, update.ratio, update.pillar);
-		});
-		try {
-			await run();
-			this.modelReady = coach.coachLoaded();
-			if (this.modelReady) this.#agree(need.model);
-		} catch (error) {
-			if (this.#stale) return;
-			if (error instanceof CoachStopped) {
-				this.messages = this.messages.map((entry) =>
-					entry.state === 'working' ? { ...entry, state: 'skipped' } : entry
-				);
-				this.#clearTurn();
-				this.step = 'idle';
-				this.#sorry = true;
-				this.#aside('Stopped.', true);
-			} else {
-				if (!coach.coachLoaded()) this.#disagree(need.model);
-				this.#fail('Something stopped me. Try again in a moment.');
-			}
-		} finally {
-			if (this.#stale) {
-				this.step = 'idle';
-				this.#clearTurn();
-			}
-			this.#jobChart = null;
-			this.busy = false;
-			this.pending = null;
-			this.progress = null;
-			if (!this.open) this.unread = true;
-		}
-	}
-
 	#clearTurn(): void {
 		this.#help = false;
 		this.#lead = null;
-		this.#pillarFill = null;
 		this.#unsure = null;
-		this.#sketch = null;
-		this.#sketchId = 0;
 		this.#direction = '';
 		this.#said = '';
 	}
@@ -886,89 +546,7 @@ export class HelperStore {
 		this.#say('Staying with this chart.');
 	}
 
-	/** Swaps the chart in a card. A sketch stays a sketch unless `sketch` says otherwise. */
-	#patchChart(id: number, data: ChartData, sketch?: boolean): void {
-		if (this.#stale) return;
-		this.messages = this.messages.map((entry) => {
-			if (entry.id !== id) return entry;
-			const was = entry.card?.kind === 'chart' ? entry.card.sketch : undefined;
-			return { ...entry, card: { kind: 'chart', data, sketch: sketch ?? was } };
-		});
-	}
-
-	/** The sketch card's main button: write the actions for these pillars. */
-	writeActions(): void {
-		if (this.busy || !this.#sketch || this.step !== 'extra') return;
-		const answers = chartAnswersFromText(this.#direction, '', this.#said);
-		void this.#withModel(() => this.#fillSketch(answers), 'draft');
-	}
-
-	/** The sketch card's second button: eight different pillars for the same goal. */
-	otherPillars(): void {
-		if (this.busy || !this.#sketch) return;
-		void this.#sketchAim();
-	}
-
-	async #sketchAim(): Promise<void> {
-		if (this.busy || !this.#direction.trim()) return;
-		const again = this.#sketch !== null;
-		this.#help = false;
-		this.#pillarFill = null;
-		const answers = chartAnswersFromText(this.#direction, '', this.#said);
-		await this.#withModel(async () => {
-			this.pending = 'chart';
-			const coach = await loadCoachModule();
-			let draftId = again ? this.#sketchId : 0;
-			if (again && draftId) {
-				this.#bringDown(draftId);
-				this.#settle(draftId, 'working');
-			}
-			const result = await coach.proposePillars(answers, (partial) => {
-				this.#sketch = partial;
-				if (!draftId) {
-					this.#say('Here are eight parts of the goal.', { kind: 'chart', data: partial, sketch: true });
-					draftId = this.messages[this.messages.length - 1]?.id ?? 0;
-					this.#sketchId = draftId;
-					this.#settle(draftId, 'working');
-					return;
-				}
-				this.#sketchId = draftId;
-				this.#patchChart(draftId, partial);
-			});
-			if (!result.chart) {
-				if (draftId) this.#settle(draftId, 'skipped');
-				this.#sketch = null;
-				this.step = 'offer';
-				this.#fail('I could not name those pillars. Try once more?');
-				return;
-			}
-			this.#sketch = result.chart;
-			if (draftId) this.#settle(draftId, 'open');
-			this.step = 'extra';
-			if (!again) this.#say(followUpQuestion(this.#said) ?? 'Write the actions when the pillars look right.');
-		}, 'draft');
-	}
-
-	async #fillSketch(answers: ChartAnswers): Promise<void> {
-		const coach = await loadCoachModule();
-		const draft = this.#sketch;
-		const draftId = this.#sketchId;
-		if (!draft || !draftId) return;
-		// The sketch card sits above the question. Fill it where the person is looking.
-		this.#bringDown(draftId);
-		this.messages = this.messages.map((entry) => (entry.id === draftId ? { ...entry, text: 'The actions, one pillar at a time.' } : entry));
-		this.#patchChart(draftId, draft, false);
-		this.#settle(draftId, 'working');
-		const filled = await coach.fillDraftActions(draft, answers, (partial) => {
-			this.#sketch = partial;
-			this.#patchChart(draftId, partial);
-		});
-		this.step = 'idle';
-		this.#sketch = null;
-		this.#finishDraft(draftId, { ...filled, brief: briefOf(answers) }, draftDone(filled.actions.flat().filter((action) => action.trim()).length));
-	}
-
-	/** Moves a message to the end of the conversation, so a card being filled is in view. */
+	/** Moves a message to the end of the conversation, so the card is in view. */
 	#bringDown(id: number): void {
 		const message = this.messages.find((entry) => entry.id === id);
 		if (!message || this.messages[this.messages.length - 1]?.id === id) return;
@@ -983,7 +561,7 @@ export class HelperStore {
 			this.#aside('It is on your chart now. Close this panel to see it.');
 			return true;
 		}
-		this.#aside(card.state === 'working' ? 'Here it is. It is still filling in.' : 'Here it is. It is not saved yet.');
+		this.#aside('Here it is. It is not saved yet.');
 		this.#bringDown(card.id);
 		return true;
 	}
@@ -994,34 +572,23 @@ export class HelperStore {
 		return message;
 	}
 
-	/** A greeting or status line: shown, never sent to the model. */
-	#aside(text: string, preserveSorry = false): void {
-		if (this.#stale) return;
-		if (!preserveSorry) this.#sorry = false;
+	/** A greeting or status line. */
+	#aside(text: string): void {
 		this.#push({ from: 'helper', text, aside: true });
 		if (!this.open) this.unread = true;
 	}
 
-	#say(text: string, card?: HelperCard, preserveSorry = false): void {
-		if (this.#stale) return;
-		if (!preserveSorry) this.#sorry = false;
+	#say(text: string, card?: HelperCard): void {
 		if (card) {
-			if (this.messages.some((entry) => entry.state === 'open' && entry.card?.kind === 'download')) this.#pending = null;
-			// A card about a draft leaves that draft open.
-			const keep = card.kind === 'findings' || card.kind === 'cells' ? card.draft : undefined;
+			// A review of a draft leaves that draft open.
+			const keep = card.kind === 'findings' ? card.draft : undefined;
 			this.messages = this.messages.map((entry) => (entry.state === 'open' && entry.id !== keep ? { ...entry, state: 'skipped' } : entry));
 		}
 		this.#push({ from: 'helper', text, card, state: card ? 'open' : undefined });
 		if (!this.open) this.unread = true;
 	}
 
-	#fail(text: string, card?: HelperCard): void {
-		this.#sorry = true;
-		this.#say(text, card, true);
-	}
-
 	#settle(id: number, state: CardState): void {
-		if (this.#stale) return;
 		this.messages = this.messages.map((entry) => (entry.id === id ? { ...entry, state } : entry));
 	}
 
@@ -1044,13 +611,8 @@ function reviewSignature(data: ChartData, draftId?: number): string {
 	return `${draftId ?? 'chart'}:${JSON.stringify([data.goal, data.pillars, data.actions])}`;
 }
 
-function stayedEmpty(count: number): string {
-	return count > 0 ? ` ${count} stayed empty.` : '';
-}
-
 export const helper = new HelperStore({
 	data: () => chart.data,
-	selectedPillar: () => (chart.sel === 4 ? null : idx(chart.sel)),
 	applyDraft: (next) => chart.applyDraft(next),
 	setCells: (edits) => {
 		for (const edit of edits) chart.setText(edit.key, edit.after);
