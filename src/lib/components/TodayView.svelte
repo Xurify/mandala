@@ -234,13 +234,14 @@
 					isChecked && 'text-muted line-through'
 				)}>{entry.text}</span>
 			{#if tool}
-				<!-- The material this action uses today. Opening it is logged; the tick above stays the person's. -->
-				<span class="mt-1 flex min-w-0 items-center gap-2" role="group" aria-label="Today's tool for {entry.text}">
+				<!-- The material this action uses today, on its own strip under the line. Opening it is logged;
+				     the tick above stays the person's. -->
+				<span class="mt-2 mb-0.5 flex min-w-0 items-center gap-1 rounded-[16px] bg-bg p-1.5 pe-1" role="group" aria-label="Today's tool for {entry.text}">
 					<a
 						href={tool.url}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="flex min-w-0 flex-1 items-center rounded-[12px] py-0.5 pe-2 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+						class="flex min-w-0 flex-1 items-center rounded-[12px] px-1 py-0.5 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
 						onclick={(event) => {
 							event.stopPropagation();
 							chart.openTool(entry.pillarIndex, tool.id);

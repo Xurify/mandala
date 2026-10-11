@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Icon from '../Icon.svelte';
+	import Icon, { type IconName } from '../Icon.svelte';
 	import { cn } from './cn';
 	import { select } from './styles';
 
-	export type SelectOption = { value: string; label: string };
+	export type SelectOption = { value: string; label: string; icon?: IconName };
 
 	type Props = {
 		options: readonly SelectOption[];
@@ -43,8 +43,22 @@
 	const GAP = 8;
 	const LIST_MAX = 320;
 
+	/** An ancestor that is a containing block for fixed boxes (a transform, a filter) would pin the list to itself. */
+	function pinned(): boolean {
+		for (let node = trigger?.parentElement; node; node = node.parentElement) {
+			const style = getComputedStyle(node);
+			if (style.transform !== 'none' || style.filter !== 'none' || style.backdropFilter !== 'none' || style.perspective !== 'none' || style.willChange.includes('transform')) return true;
+			if (style.contain.includes('paint') || style.contain.includes('layout') || style.contain.includes('strict') || style.contain.includes('content')) return true;
+		}
+		return false;
+	}
+
 	function placeList(): void {
 		if (!trigger) return;
+		if (pinned()) {
+			place = null;
+			return;
+		}
 		const rect = trigger.getBoundingClientRect();
 		const below = window.innerHeight - rect.bottom - GAP;
 		const wanted = Math.min(LIST_MAX, options.length * 44 + 12);
@@ -207,8 +221,9 @@
 		onclick={() => (open ? close(false) : openList())}
 		onkeydown={onTriggerKey}
 	>
-		<span id={valueId} class={cn(styles.value(), !current && 'text-muted')}>
-			{current?.label ?? placeholder}
+		<span id={valueId} class={cn(styles.value(), 'flex items-center gap-2', !current && 'text-muted')}>
+			{#if current?.icon}<Icon name={current.icon} size={size === 'sm' ? 15 : 17} class="shrink-0" />{/if}
+			<span class="min-w-0 truncate">{current?.label ?? placeholder}</span>
 		</span>
 		<Icon name="chevron-down" size={16} class={styles.chevron()} />
 	</button>
@@ -217,7 +232,7 @@
 		<div
 			id={listId}
 			class={cn(styles.panel(), place && 'fixed', place?.bottom !== undefined && 'origin-bottom-left')}
-			style:top={place?.top !== undefined ? `${place.top}px` : undefined}
+			style:top={place ? (place.top !== undefined ? `${place.top}px` : 'auto') : undefined}
 			style:bottom={place?.bottom !== undefined ? `${place.bottom}px` : undefined}
 			style:left={place ? `${place.left}px` : undefined}
 			style:width={place ? `${place.width}px` : undefined}
@@ -238,7 +253,10 @@
 					onmouseenter={() => (active = index)}
 					onfocus={() => (active = index)}
 				>
-					<span class="min-w-0 truncate">{option.label}</span>
+					<span class="flex min-w-0 items-center gap-2.5">
+						{#if option.icon}<Icon name={option.icon} size={16} class="shrink-0 text-muted" />{/if}
+						<span class="min-w-0 truncate">{option.label}</span>
+					</span>
 					{#if option.value === value}
 						<Icon name="check" size={16} class={styles.check()} />
 					{:else}

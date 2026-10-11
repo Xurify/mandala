@@ -128,16 +128,21 @@ export function chartFromDraft(value: unknown): ChartData | null {
 	return chart;
 }
 
-export type ChatApp = 'claude' | 'chatgpt' | 'mistral' | 'perplexity' | 'grok';
+export type ChatApp = 'claude' | 'chatgpt' | 'gemini' | 'mistral' | 'perplexity' | 'grok';
 
 /** The chat apps that take a prompt in the link, in the order they are offered. None of them documents it. */
-export const CHAT_APPS: readonly { id: ChatApp; label: string; url: string }[] = [
-	{ id: 'claude', label: 'Claude', url: 'https://claude.ai/new?q=' },
-	{ id: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/?q=' },
-	{ id: 'mistral', label: 'Mistral', url: 'https://chat.mistral.ai/chat?q=' },
-	{ id: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/search?q=' },
-	{ id: 'grok', label: 'Grok', url: 'https://grok.com/?q=' }
+export const CHAT_APPS: readonly { id: ChatApp; label: string; url: string; icon: 'claude' | 'openai' | 'gemini' | 'mistral' | 'perplexity' | 'grok' }[] = [
+	{ id: 'claude', label: 'Claude', url: 'https://claude.ai/new?q=', icon: 'claude' },
+	{ id: 'chatgpt', label: 'ChatGPT', url: 'https://chatgpt.com/?q=', icon: 'openai' },
+	{ id: 'gemini', label: 'Gemini', url: 'https://gemini.google.com/app?q=', icon: 'gemini' },
+	{ id: 'mistral', label: 'Mistral', url: 'https://chat.mistral.ai/chat?q=', icon: 'mistral' },
+	{ id: 'perplexity', label: 'Perplexity', url: 'https://www.perplexity.ai/search?q=', icon: 'perplexity' },
+	{ id: 'grok', label: 'Grok', url: 'https://grok.com/?q=', icon: 'grok' }
 ];
+
+export function isChatApp(value: unknown): value is ChatApp {
+	return CHAT_APPS.some((app) => app.id === value);
+}
 
 /** A chat app opened with the prompt already in its box. The person still presses send there. */
 export function chatLink(app: ChatApp, prompt: string): string {

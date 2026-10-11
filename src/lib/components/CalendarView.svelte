@@ -75,7 +75,7 @@
 	</div>
 
 	<!-- The month: a quiet grid of numbers, a pip per thing finished, today in ink. -->
-	<div class="rounded-[26px] bg-surface px-3 pt-3 pb-2 shadow-card select-none max-[900px]:rounded-3xl max-[900px]:px-2 max-[900px]:pt-2">
+	<div class="rounded-[26px] bg-surface p-3 shadow-card select-none max-[900px]:rounded-3xl max-[900px]:p-2">
 		<div class="grid grid-cols-7 pb-1" aria-hidden="true">
 			{#each WEEKDAYS as weekday, index (index)}
 				<span class="py-1 text-center text-[0.7rem] font-[620] tracking-[0.08em] text-muted">{weekday}</span>

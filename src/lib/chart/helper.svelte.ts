@@ -1,5 +1,5 @@
 import { chart } from './chart.svelte';
-import { chatLink, fillPrompt, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
+import { chatLink, fillPrompt, isChatApp, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
 	editWords,
@@ -46,6 +46,17 @@ export type HelperTarget = {
 
 export type HelperPicks = { scope: 'today' | 'week'; picks: HelperPick[] };
 
+const CHAT_APP_KEY = 'mandala_chat_app';
+
+function loadChatApp(): ChatApp {
+	try {
+		const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem(CHAT_APP_KEY);
+		return isChatApp(stored) ? stored : 'claude';
+	} catch {
+		return 'claude';
+	}
+}
+
 /** What a pasted reply would do here: a new chart, lines for the empty cells, nothing new, or not a chart. */
 export type HelperOutcome =
 	| { kind: 'chart'; data: ChartData }
@@ -76,6 +87,8 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	/** The chat app the prompt was opened in, when it went by link rather than the clipboard. */
 	sent = $state<ChatApp | null>(null);
+	/** The chat app the person uses. Remembered on the device, across charts. */
+	app = $state<ChatApp>(loadChatApp());
 	/** The insight the panel opened with. Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -231,11 +244,21 @@ export class HelperStore {
 		this.sent = null;
 	}
 
-	/** Opens a chat app with the prompt in its box. Copying and pasting are done; the reply still comes back here. */
-	openIn(app: ChatApp): void {
+	/** Opens the chat app with the prompt in its box. Copying and pasting are done; the reply still comes back here. */
+	openIn(app: ChatApp = this.app): void {
+		this.useApp(app);
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
 		this.copied = this.mode;
 		this.sent = app;
+	}
+
+	useApp(app: ChatApp): void {
+		this.app = app;
+		try {
+			localStorage.setItem(CHAT_APP_KEY, app);
+		} catch {
+			// storage blocked
+		}
 	}
 
 	/** Text pasted anywhere in the panel. A chart reply opens the write page on it; anything else is ignored. */

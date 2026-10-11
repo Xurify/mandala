@@ -8,6 +8,7 @@
 	import MiniChart from './MiniChart.svelte';
 	import Button from './ui/Button.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
+	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
 	import { textArea, textField } from './ui/styles';
 
@@ -21,7 +22,8 @@
 		...(written ? [{ value: 'review', label: 'Review' }] : []),
 		{ value: 'ask', label: 'Ask' }
 	]);
-	let moreApps = $state(false);
+	const appOptions = CHAT_APPS.map((app) => ({ value: app.id, label: app.label, icon: app.icon }));
+	const app = $derived(CHAT_APPS.find((entry) => entry.id === helper.app) ?? CHAT_APPS[0]!);
 	const outcome = $derived(helper.outcome);
 	/** The chart as it would be, so a pillar the reply names is called by that name. */
 	const preview = $derived.by(() => {
@@ -53,7 +55,7 @@
 						: 'It reads your chart with the question. The answer stays there.';
 		return { there };
 	});
-	const APPS = Object.fromEntries(CHAT_APPS.map((app) => [app.id, app.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
+	const APPS = Object.fromEntries(CHAT_APPS.map((entry) => [entry.id, entry.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
 
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
@@ -134,19 +136,20 @@
 						onblur={() => (helper.listening = false)}
 					></textarea>
 				{/if}
-				<div class="flex flex-wrap items-center gap-x-1 gap-y-1.5">
+				<div class="flex flex-wrap items-center gap-2">
 					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
-					<!-- The same prompt, straight into a chat app's box. The person still presses send there. -->
-					{#each CHAT_APPS.slice(0, 2) as app (app.id)}
-						<Button size="sm" variant="ghost" icon="arrow-up-right" aria-label="Open the prompt in {app.label}" onclick={() => helper.openIn(app.id)}>{app.label}</Button>
-					{/each}
-					{#if !moreApps}
-						<Button size="sm" variant="ghost" aria-label="More chat apps" onclick={() => (moreApps = true)}>More</Button>
-					{:else}
-						{#each CHAT_APPS.slice(2) as app (app.id)}
-							<Button size="sm" variant="ghost" icon="arrow-up-right" class="motion-safe:animate-pop-in" aria-label="Open the prompt in {app.label}" onclick={() => helper.openIn(app.id)}>{app.label}</Button>
-						{/each}
-					{/if}
+					<!-- The same prompt, straight into the chat app's box. The person still presses send there. -->
+					<Button size="sm" variant="soft" icon={app.icon} onclick={() => helper.openIn()}>Open in {app.label}</Button>
+					<Select
+						size="sm"
+						class="w-[9.5rem]"
+						label="Which chat app to open"
+						options={appOptions}
+						value={helper.app}
+						onchange={(value) => {
+							if (CHAT_APPS.some((entry) => entry.id === value)) helper.useApp(value as (typeof CHAT_APPS)[number]['id']);
+						}}
+					/>
 					{#if failed}
 						<span class="basis-full text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
 					{/if}
