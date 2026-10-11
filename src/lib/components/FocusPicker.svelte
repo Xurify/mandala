@@ -88,8 +88,8 @@
 	const goal = $derived(chart.data.goal.trim());
 	const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five'];
 	const maxWord = $derived(COUNT_WORDS[max] ?? String(max));
-	const SLOT_TILT = [-1.6, 1.1, -0.6, 0.9, -1.2];
-	const FAN_TILT = [-1.3, 1.05, -0.55, 0.85, -1.05, 0.5, -0.75, 1.15];
+	const SLOT_TILT = [-0.8, 0.55, -0.3, 0.45, -0.6];
+	const FAN_TILT = [-0.65, 0.5, -0.3, 0.4, -0.5, 0.25, -0.4, 0.55];
 
 	type DeckGroup = {
 		pillarIndex: number;

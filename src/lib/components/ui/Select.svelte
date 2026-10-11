@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Icon from '../Icon.svelte';
+	import Icon, { type IconName } from '../Icon.svelte';
 	import { cn } from './cn';
 	import { select } from './styles';
 
-	export type SelectOption = { value: string; label: string };
+	export type SelectOption = { value: string; label: string; icon?: IconName };
 
 	type Props = {
 		options: readonly SelectOption[];
@@ -34,6 +34,54 @@
 	let root = $state<HTMLDivElement | null>(null);
 	let trigger = $state<HTMLButtonElement | null>(null);
 	let active = $state(0);
+	/**
+	 * Where the list sits, in viewport terms. It is fixed rather than hung off the trigger, so a select inside a
+	 * scrolling dialog body does not grow that body and scroll the page away; it opens upward when the room below
+	 * is short. A scroll anywhere closes it, since the trigger would move out from under it.
+	 */
+	let place = $state<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
+	const GAP = 8;
+	const LIST_MAX = 320;
+
+	/** An ancestor that is a containing block for fixed boxes (a transform, a filter) would pin the list to itself. */
+	function pinned(): boolean {
+		for (let node = trigger?.parentElement; node; node = node.parentElement) {
+			const style = getComputedStyle(node);
+			if (style.transform !== 'none' || style.filter !== 'none' || style.backdropFilter !== 'none' || style.perspective !== 'none' || style.willChange.includes('transform')) return true;
+			if (style.contain.includes('paint') || style.contain.includes('layout') || style.contain.includes('strict') || style.contain.includes('content')) return true;
+		}
+		return false;
+	}
+
+	function placeList(): void {
+		if (!trigger) return;
+		if (pinned()) {
+			place = null;
+			return;
+		}
+		const rect = trigger.getBoundingClientRect();
+		const below = window.innerHeight - rect.bottom - GAP;
+		const wanted = Math.min(LIST_MAX, options.length * 44 + 12);
+		const up = below < wanted && rect.top - GAP > below;
+		place = up
+			? { bottom: window.innerHeight - rect.top + GAP, left: rect.left, width: rect.width }
+			: { top: rect.bottom + GAP, left: rect.left, width: rect.width };
+	}
+
+	$effect(() => {
+		if (!open) return;
+		// The list's own scrolling (to the chosen option, or through a long list) is not the page moving.
+		const away = (event?: Event): void => {
+			if (event?.target instanceof Node && root?.contains(event.target)) return;
+			close(false);
+		};
+		window.addEventListener('scroll', away, true);
+		window.addEventListener('resize', away);
+		return () => {
+			window.removeEventListener('scroll', away, true);
+			window.removeEventListener('resize', away);
+		};
+	});
 
 	const uid = $props.id();
 	const listId = $derived(`${uid}-list`);
@@ -47,15 +95,23 @@
 		return index < 0 ? 0 : index;
 	}
 
+	/** Focus without scrolling anything but the list itself: a page scroll would close the list. */
 	function focusOption(index: number): void {
 		const item = root?.querySelectorAll<HTMLElement>('[role="option"]')[index];
-		item?.focus();
-		item?.scrollIntoView({ block: 'nearest' });
+		if (!item) return;
+		item.focus({ preventScroll: true });
+		const list = item.parentElement;
+		if (!list) return;
+		const top = item.offsetTop;
+		const bottom = top + item.offsetHeight;
+		if (top < list.scrollTop) list.scrollTop = top;
+		else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
 	}
 
 	function openList(): void {
 		if (locked || open) return;
 		active = indexOfValue();
+		placeList();
 		open = true;
 		queueMicrotask(() => focusOption(active));
 	}
@@ -165,8 +221,9 @@
 		onclick={() => (open ? close(false) : openList())}
 		onkeydown={onTriggerKey}
 	>
-		<span id={valueId} class={cn(styles.value(), !current && 'text-muted')}>
-			{current?.label ?? placeholder}
+		<span id={valueId} class={cn(styles.value(), 'flex items-center gap-2', !current && 'text-muted')}>
+			{#if current?.icon}<Icon name={current.icon} size={size === 'sm' ? 15 : 17} class="shrink-0" />{/if}
+			<span class="min-w-0 truncate">{current?.label ?? placeholder}</span>
 		</span>
 		<Icon name="chevron-down" size={16} class={styles.chevron()} />
 	</button>
@@ -174,7 +231,12 @@
 		<button type="button" class={styles.backdrop()} aria-hidden="true" tabindex={-1} onclick={() => close()}></button>
 		<div
 			id={listId}
-			class={styles.panel()}
+			class={cn(styles.panel(), place && 'fixed', place?.bottom !== undefined && 'origin-bottom-left')}
+			style:top={place ? (place.top !== undefined ? `${place.top}px` : 'auto') : undefined}
+			style:bottom={place?.bottom !== undefined ? `${place.bottom}px` : undefined}
+			style:left={place ? `${place.left}px` : undefined}
+			style:width={place ? `${place.width}px` : undefined}
+			style:min-width={place ? `${place.width}px` : undefined}
 			role="listbox"
 			aria-label={label}
 			tabindex={-1}
@@ -191,7 +253,10 @@
 					onmouseenter={() => (active = index)}
 					onfocus={() => (active = index)}
 				>
-					<span class="min-w-0 truncate">{option.label}</span>
+					<span class="flex min-w-0 items-center gap-2.5">
+						{#if option.icon}<Icon name={option.icon} size={16} class="shrink-0 text-muted" />{/if}
+						<span class="min-w-0 truncate">{option.label}</span>
+					</span>
 					{#if option.value === value}
 						<Icon name="check" size={16} class={styles.check()} />
 					{:else}

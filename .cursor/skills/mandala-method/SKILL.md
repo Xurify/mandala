@@ -52,7 +52,7 @@ Matsumura’s blank-page order (cross first: down, left, up, right; then the cor
 
 ## Two tests
 
-Every pillar and every action passes both.
+Every action passes both. A pillar is the heading for one driver, a few words like "Long runs" or "Core phrases". It passes Control, and its eight actions are what make it schedulable. A pillar written as a sentence ("Practice daily vocabulary recall") is an action in the wrong ring.
 
 1. **Calendar.** It can be scheduled and ticked. Done, or not done. “Study geography for 20 minutes a day” passes. “Do better in geography” fails. “Ask at least one question when stuck” passes. “Ask more questions” fails, because it never ends.
 2. **Control.** It is a behaviour this person can do. “Post two videos a day” passes. “Get 10 million views” fails. A finish time, a grade, or a follower count stays out of the pillars and actions. It may sit in the center.

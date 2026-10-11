@@ -18,8 +18,11 @@
 
 	let isExportingPng = $state(false);
 	let isSharing = $state(false);
+	/** Which share request is out, so its own button says so. */
+	let sharing = $state<'publish' | 'stop' | null>(null);
 
 	async function handlePublish(): Promise<void> {
+		sharing = 'publish';
 		try {
 			const existing = chart.shareId !== '';
 			await chart.publishShare();
@@ -29,6 +32,8 @@
 			}
 		} catch (error) {
 			chart.say(error instanceof Error ? error.message : 'Could not publish here.');
+		} finally {
+			sharing = null;
 		}
 	}
 
@@ -46,11 +51,14 @@
 	}
 
 	async function handleStopSharing(): Promise<void> {
+		sharing = 'stop';
 		try {
 			await chart.stopSharing();
 			chart.say('Sharing stopped. The link no longer works.');
 		} catch (error) {
 			chart.say(error instanceof Error ? error.message : 'Could not stop sharing.');
+		} finally {
+			sharing = null;
 		}
 	}
 
@@ -196,7 +204,13 @@
 					<Icon name="eye" size={18} />
 				</div>
 				<div class="flex min-w-0 flex-col gap-0.5">
-						<span class="text-[0.92rem] font-[620]">{chart.shareId ? 'Update share page' : 'Publish a share page'}</span>
+						<span class="text-[0.92rem] font-[620]">
+							{#if sharing === 'publish'}
+								<span class="inline-flex items-center">{chart.shareId ? 'Updating' : 'Publishing'}<BouncingDots /></span>
+							{:else}
+								{chart.shareId ? 'Update share page' : 'Publish a share page'}
+							{/if}
+						</span>
 						<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
 							A read-only page that stays current when your chart changes.
 						</span>
@@ -239,7 +253,9 @@
 							Updated {new Date(chart.shareUpdatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
 						{/if}
 					</span>
-					<Button size="sm" variant="danger" disabled={chart.shareBusy} onclick={handleStopSharing}>Stop sharing</Button>
+					<Button size="sm" variant="danger" disabled={chart.shareBusy} onclick={handleStopSharing}>
+						{#if sharing === 'stop'}<span class="inline-flex items-center">Stopping<BouncingDots /></span>{:else}Stop sharing{/if}
+					</Button>
 				</div>
 			</div>
 		{/if}

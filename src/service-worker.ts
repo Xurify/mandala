@@ -8,8 +8,7 @@ import { build, files, version } from '$service-worker';
 const self = globalThis.self as unknown as ServiceWorkerGlobalScope;
 const SHELL = 'mandala-shell-';
 const CACHE = `${SHELL}${version}`;
-// The coach worker bundles the 6 MB model runtime. Only people who use Bindu should download it.
-const ASSETS = [...build.filter((path) => !path.includes('/workers/')), ...files];
+const ASSETS = [...build, ...files];
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(

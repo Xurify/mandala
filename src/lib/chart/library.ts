@@ -90,14 +90,6 @@ export function formatUpdated(at: number, now = Date.now()): string {
 	return `Updated ${shortDate(at, now)}`;
 }
 
-/** When a chart was deleted. Today and yesterday include the time. `now` is injectable for tests. */
-export function formatDeleted(at: number, now = Date.now()): string {
-	const days = daysAgo(at, now);
-	if (days === 0) return `Deleted ${clockLabel(at)}`;
-	if (days === 1) return `Deleted yesterday at ${clockLabel(at)}`;
-	return `Deleted ${shortDate(at, now)}`;
-}
-
 /** Day heading in the trash list. Today, yesterday, or a short date. */
 export function deletedDayLabel(at: number, now = Date.now()): string {
 	const days = daysAgo(at, now);
@@ -125,11 +117,6 @@ export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 	const remaining = TRASH_MS - (now - deletedAt);
 	if (remaining <= 0) return 0;
 	return Math.ceil(remaining / DAY_MS);
-}
-
-export function formatDeletesIn(daysLeft: number): string {
-	if (daysLeft <= 1) return 'Deletes in 1 day';
-	return `Deletes in ${daysLeft} days`;
 }
 
 /** Short hold remaining. The dialog subtitle already states the 30-day rule. */
@@ -230,8 +217,14 @@ function parseDeleted(value: unknown, liveIds: Set<string>): DeletedRecord[] {
 	return [...byId.values()];
 }
 
-function newestChart(charts: ChartRecord[]): ChartRecord {
-	return charts.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0]!;
+/**
+ * The chart that takes the place of a deleted one: the next one down the switcher's list (newest first), or
+ * the one above when it was last. Deleting down a list keeps your place.
+ */
+function neighborOf(charts: ChartRecord[], id: string): ChartRecord | null {
+	const order = charts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
+	const index = order.findIndex((chart) => chart.id === id);
+	return order[index + 1] ?? order[index - 1] ?? null;
 }
 
 /** Move one live chart into recently deleted. The last chart leaves a blank one open. */
@@ -257,33 +250,8 @@ export function deleteFromLibrary(
 		const blank = newRecord(emptyChart(), now);
 		return { activeId: blank.id, charts: [blank], deleted };
 	}
-	const activeId = library.activeId === id ? newestChart(remaining).id : library.activeId;
+	const activeId = library.activeId === id ? (neighborOf(library.charts, id) ?? remaining[0]!).id : library.activeId;
 	return { activeId, charts: remaining, deleted };
-}
-
-/** Put a deleted chart back into the live library and make it active. */
-export function restoreFromLibrary(
-	library: ChartLibrary,
-	id: string,
-	now = Date.now()
-): ChartLibrary | null {
-	const item = library.deleted.find((row) => row.id === id);
-	if (!item || now - item.deletedAt >= TRASH_MS) return null;
-	const record: ChartRecord = {
-		id: item.id,
-		updatedAt: now,
-		data: cloneChart(item.data)
-	};
-	return {
-		activeId: record.id,
-		charts: [...library.charts, record],
-		deleted: library.deleted.filter((row) => row.id !== id)
-	};
-}
-
-/** Drop a deleted chart before the 30-day hold ends. */
-export function forgetFromLibrary(library: ChartLibrary, id: string): ChartLibrary | null {
-	return forgetManyFromLibrary(library, [id]);
 }
 
 /** Put deleted charts back. The newest one becomes the open chart. */
@@ -324,6 +292,39 @@ export function forgetManyFromLibrary(
 
 export function activeRecord(library: ChartLibrary): ChartRecord {
 	return library.charts.find((chart) => chart.id === library.activeId) ?? library.charts[0]!;
+}
+
+type Standing = { live: true; at: number; record: ChartRecord } | { live: false; at: number; record: DeletedRecord };
+
+function standings(library: ChartLibrary): Map<string, Standing> {
+	const out = new Map<string, Standing>();
+	for (const record of library.charts) out.set(record.id, { live: true, at: record.updatedAt, record });
+	for (const record of library.deleted) out.set(record.id, { live: false, at: record.deletedAt, record });
+	return out;
+}
+
+/**
+ * This tab's library and the one in storage, made one. Another tab may have added, edited, deleted or
+ * restored charts since this tab last read storage, and this tab must not write over that. Each chart is
+ * whichever copy was touched last, a deletion or a restore counting as a touch. `keep` names a chart with
+ * edits here not yet written; it stays as it is here whatever storage holds.
+ */
+export function reconcile(local: ChartLibrary, stored: ChartLibrary, keep: string | null = null): ChartLibrary {
+	const mine = standings(local);
+	const theirs = standings(stored);
+	const charts: ChartRecord[] = [];
+	const deleted: DeletedRecord[] = [];
+	for (const id of new Set([...mine.keys(), ...theirs.keys()])) {
+		const own = mine.get(id);
+		const other = theirs.get(id);
+		const pick = own && (id === keep || !other || own.at >= other.at) ? own : other!;
+		if (pick.live) charts.push(pick.record);
+		else deleted.push(pick.record);
+	}
+	if (charts.length === 0) charts.push(newRecord(emptyChart()));
+	const ids = new Set(charts.map((chart) => chart.id));
+	const activeId = [local.activeId, stored.activeId].find((id) => ids.has(id)) ?? charts[0]!.id;
+	return { activeId, charts, deleted };
 }
 
 export function summarize(
@@ -367,7 +368,11 @@ export function flushActive(
 	data: ChartData,
 	at = Date.now()
 ): ChartRecord[] {
-	return charts.map((chart) =>
-		chart.id === activeId ? { id: chart.id, updatedAt: at, data: cloneChart(data) } : chart
-	);
+	return charts.map((chart) => {
+		if (chart.id !== activeId) return chart;
+		const next = cloneChart(data);
+		// Opening, switching or autosaving an unchanged chart keeps its time, so the list doesn't reorder.
+		if (JSON.stringify(next) === JSON.stringify(chart.data)) return chart;
+		return { id: chart.id, updatedAt: at, data: next };
+	});
 }

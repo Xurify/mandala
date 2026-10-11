@@ -10,12 +10,37 @@
 	} from './goal-fit';
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
+	import Shelf from './Shelf.svelte';
 	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
+
+	/** True when the editor is the only thing on screen, so its block can be the chart's block grown large. */
+	let { alone = false }: { alone?: boolean } = $props();
+
+	let gridElement: HTMLDivElement | null = $state(null);
+	let titleElement: HTMLHeadingElement | null = $state(null);
+	/** The block the editor showed last, so the next one can arrive from where it sits on the map. */
+	let shownSel = chart.sel;
+	$effect(() => {
+		const sel = chart.sel;
+		const from = shownSel;
+		shownSel = sel;
+		if (from === sel || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const dx = (sel % 3) - (from % 3);
+		const dy = Math.floor(sel / 3) - Math.floor(from / 3);
+		const length = Math.hypot(dx, dy) || 1;
+		const offset = `translate(${(dx / length) * 40}px, ${(dy / length) * 40}px)`;
+		for (const node of [gridElement, titleElement]) {
+			node?.animate([{ transform: offset, opacity: 0.15 }, { transform: 'none', opacity: 1 }], {
+				duration: 400,
+				easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+			});
+		}
+	});
 
 	const actionKinds = [
 		{ value: 'standard', label: 'Standard' },
@@ -332,14 +357,25 @@
 				>
 					<span>{pillarIndex + 1}</span>
 					{#if actionsCount === 8}
-						<span class="absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]" aria-hidden="true">
-							<Icon name="check" size={10} strokeWidth={2.5} />
-						</span>
+						{@const stamped = chart.landed?.pillars.includes(pillarIndex) || chart.landed?.chart}
+						{#key stamped ? chart.landed?.id : 0}
+							<span
+								class={cn(
+									'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]',
+									stamped && 'motion-safe:animate-stamp'
+								)}
+								style:animation-delay={stamped && chart.landed?.chart ? `${pillarIndex * 70}ms` : undefined}
+								aria-hidden="true"
+							>
+								<Icon name="check" size={10} strokeWidth={2.5} />
+							</span>
+						{/key}
 					{/if}
 				</button>
 			{/each}
 		</div>
-		<div class="inline-flex shrink-0 gap-0.5">
+		<!-- The pills already reach every section. On a narrow panel the arrows only crowd the eighth one. -->
+		<div class="inline-flex shrink-0 gap-0.5 @max-[440px]:hidden">
 			<button
 				type="button"
 				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
@@ -369,7 +405,8 @@
 				{/if}
 			</Eyebrow>
 			{#if currentPillarActionsCount !== null}
-				<span class={cn('inline-flex items-center gap-[5px] text-[0.82rem] font-medium text-muted tabular-nums', currentPillarActionsCount === 8 && 'font-semibold text-success')}>
+				{@const justWhole = chart.sel !== 4 && Boolean(chart.landed?.pillars.includes(idx(chart.sel)))}
+				<span class={cn('inline-flex items-center gap-[5px] text-[0.82rem] font-medium text-muted tabular-nums', currentPillarActionsCount === 8 && 'font-semibold text-success', justWhole && 'motion-safe:animate-pop-in')}>
 					{#if currentPillarActionsCount === 8}
 						<Icon name="check" size={12} strokeWidth={2.4} />
 					{/if}
@@ -378,7 +415,7 @@
 			{/if}
 		</div>
 
-		<h2 class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
+		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 	</div>
 
 	{#if showHaradaNotice}
@@ -396,7 +433,7 @@
 		</div>
 	{/if}
 
-	<div class="grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5">
+	<div bind:this={gridElement} class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
 		{#each Array(9) as _, cellIndex (cellIndex)}
 			<div
 				class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
@@ -438,18 +475,20 @@
 				<textarea
 					bind:this={textareaElements[cellIndex]}
 					class={cn(
-						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
+						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
 						info(chart.sel, cellIndex).type === 'goal' &&
 							'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 						info(chart.sel, cellIndex).type === 'pillar' &&
-							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px]',
+							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px]',
 						info(chart.sel, cellIndex).type === 'action' &&
 							'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 						info(chart.sel, cellIndex).type === 'action' &&
 							chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
 							'line-through opacity-60 text-muted',
 						isPanelCellHighlighted(cellIndex) && 'highlight',
-						activePulseIndex === cellIndex && 'motion-safe:animate-target'
+						activePulseIndex === cellIndex && 'motion-safe:animate-target',
+						// The cell a search hit or a finding opened: a chip that names it travels here.
+						activePulseIndex === cellIndex && '[view-transition-name:travel]'
 					)}
 					style:--h={hue(cellIndex)}
 					maxlength="120"
@@ -465,6 +504,7 @@
 					onfocus={() => {
 						activeCellIndex = cellIndex;
 					}}
+					onblur={() => chart.settle()}
 					onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
 					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
 					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
@@ -562,6 +602,10 @@
 				</div>
 			</div>
 		{/if}
+	{/if}
+
+	{#if chart.sel !== 4}
+		<Shelf pillarIndex={idx(chart.sel)} />
 	{/if}
 
 	<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">

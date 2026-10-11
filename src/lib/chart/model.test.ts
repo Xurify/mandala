@@ -23,8 +23,13 @@ import {
 	setMeta,
 	todayKey,
 	weekStartKey,
+	reflectionWeekOf,
+	weekHadTicks,
 	yearActivity,
-	yearStats
+	yearStats,
+	completedBy,
+	wholeness,
+	type ChartData
 } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 
@@ -362,5 +367,68 @@ describe('companion helpers', () => {
 	it('handles empty years', () => {
 		const stats = yearStats(emptyChart(), 2026);
 		expect(stats).toEqual({ daysWithFocus: 0, checkedActions: 0, bestStreak: 0 });
+	});
+});
+
+describe('completedBy', () => {
+	function full(): ChartData {
+		const data = emptyChart();
+		data.goal = 'Run a half marathon';
+		data.pillars = data.pillars.map((_, index) => `Pillar ${index + 1}`);
+		data.actions = data.actions.map((row, pillarIndex) => row.map((_, index) => `Action ${pillarIndex}.${index}`));
+		return data;
+	}
+
+	it('sees a pillar become whole only when it is named and has all eight actions', () => {
+		const data = full();
+		data.actions[2]![7] = '';
+		const before = wholeness(data);
+		expect(before.pillars[2]).toBe(false);
+		expect(before.chart).toBe(false);
+		data.actions[2]![7] = 'The last one';
+		expect(completedBy(before, wholeness(data))).toEqual({ pillars: [2], chart: true });
+	});
+
+	it('does not count a pillar with every action but no name', () => {
+		const data = full();
+		data.pillars[4] = ' ';
+		expect(wholeness(data).pillars[4]).toBe(false);
+		const before = wholeness(data);
+		data.pillars[4] = 'Sleep';
+		expect(completedBy(before, wholeness(data))).toEqual({ pillars: [4], chart: true });
+	});
+
+	it('says nothing when a line is edited on a pillar that was already whole', () => {
+		const data = full();
+		const before = wholeness(data);
+		data.actions[0]![0] = 'Something else';
+		expect(completedBy(before, wholeness(data))).toEqual({ pillars: [], chart: false });
+	});
+
+	it('needs the goal for the chart to be whole', () => {
+		const data = full();
+		data.goal = '';
+		expect(wholeness(data)).toMatchObject({ chart: false });
+		expect(wholeness(data).pillars.every(Boolean)).toBe(true);
+	});
+});
+
+describe('reflectionWeekOf', () => {
+	// 2026-10-10 is a Saturday; the week starts Monday 2026-10-05.
+	it('offers this week once its offer time has passed, and last week before that', () => {
+		const sundayEvening = { day: 0, hour: 18 };
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 10, 12))).toBe('2026-09-28');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 11, 17, 59))).toBe('2026-09-28');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 11, 18))).toBe('2026-10-05');
+		expect(reflectionWeekOf(sundayEvening, new Date(2026, 9, 12, 9))).toBe('2026-10-05');
+		expect(reflectionWeekOf({ day: 5, hour: 17 }, new Date(2026, 9, 9, 17, 30))).toBe('2026-10-05');
+		expect(reflectionWeekOf({ day: 5, hour: 17 }, new Date(2026, 9, 9, 16, 30))).toBe('2026-09-28');
+	});
+
+	it('knows whether a week had a tick', () => {
+		const data = emptyChart();
+		data.days = { '2026-10-07': { focus: ['a0_0'], checked: ['a0_0'] }, '2026-10-12': { focus: ['a0_0'], checked: [] } };
+		expect(weekHadTicks(data, '2026-10-05')).toBe(true);
+		expect(weekHadTicks(data, '2026-10-12')).toBe(false);
 	});
 });

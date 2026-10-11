@@ -7,20 +7,17 @@ import {
 	deleteFromLibrary,
 	emptyLibrary,
 	flushActive,
-	forgetFromLibrary,
 	forgetManyFromLibrary,
 	deletedClock,
 	deletedDayLabel,
 	formatAgo,
 	formatDaysLeft,
-	formatDeleted,
-	formatDeletesIn,
 	formatUpdated,
 	migrateFromV1,
 	newRecord,
 	parseLibrary,
 	purgeDeleted,
-	restoreFromLibrary,
+	reconcile,
 	restoreManyFromLibrary,
 	summarize,
 	titleOf,
@@ -50,20 +47,6 @@ describe('formatUpdated', () => {
 		);
 		expect(formatUpdated(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Updated Sep 15');
 		expect(formatUpdated(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Updated Dec 31, 2025');
-	});
-});
-
-describe('formatDeleted', () => {
-	const now = new Date(2026, 9, 2, 22, 57).getTime();
-
-	it('uses a clock for today and yesterday, then a short date', () => {
-		expect(formatDeleted(now, now)).toBe('Deleted 10:57 pm');
-		expect(formatDeleted(new Date(2026, 9, 2, 0, 1).getTime(), now)).toBe('Deleted 12:01 am');
-		expect(formatDeleted(new Date(2026, 9, 1, 23, 59).getTime(), now)).toBe(
-			'Deleted yesterday at 11:59 pm'
-		);
-		expect(formatDeleted(new Date(2026, 8, 15, 12).getTime(), now)).toBe('Deleted Sep 15');
-		expect(formatDeleted(new Date(2025, 11, 31, 12).getTime(), now)).toBe('Deleted Dec 31, 2025');
 	});
 });
 
@@ -165,6 +148,15 @@ describe('clone isolation', () => {
 		live.goal = 'mutated';
 		expect(next[0]?.data.goal).toBe('Active now');
 	});
+
+	it('flushActive keeps the time when nothing changed', () => {
+		const a = newRecord(emptyChart(), 1);
+		a.data.goal = 'Same';
+		const live = cloneChart(a.data);
+		expect(flushActive([a], a.id, live, 99)[0]).toBe(a);
+		live.goal = 'Edited';
+		expect(flushActive([a], a.id, live, 99)[0]?.updatedAt).toBe(99);
+	});
 });
 
 describe('summarize', () => {
@@ -211,8 +203,6 @@ describe('recently deleted', () => {
 		expect(purgeDeleted([fresh, expired], now).map((item) => item.id)).toEqual([fresh.id]);
 		expect(daysUntilPurge(fresh.deletedAt, now)).toBe(1);
 		expect(daysUntilPurge(now, now)).toBe(TRASH_DAYS);
-		expect(formatDeletesIn(1)).toBe('Deletes in 1 day');
-		expect(formatDeletesIn(12)).toBe('Deletes in 12 days');
 	});
 
 	it('moves the last chart to recently deleted and leaves a blank chart', () => {
@@ -227,11 +217,19 @@ describe('recently deleted', () => {
 		expect(next?.deleted[0]?.deletedAt).toBe(now);
 	});
 
+	it('opens the next chart down the list after deleting the open one, or the one above at the end', () => {
+		const [newest, middle, oldest] = [newRecord(emptyChart(), 3), newRecord(emptyChart(), 2), newRecord(emptyChart(), 1)];
+		const library = { activeId: middle.id, charts: [oldest, newest, middle], deleted: [] };
+		expect(deleteFromLibrary(library, middle.id, now)?.activeId).toBe(oldest.id);
+		expect(deleteFromLibrary({ ...library, activeId: oldest.id }, oldest.id, now)?.activeId).toBe(middle.id);
+		expect(deleteFromLibrary({ ...library, activeId: newest.id }, middle.id, now)?.activeId).toBe(newest.id);
+	});
+
 	it('restores a deleted chart as the active one', () => {
 		const library = emptyLibrary();
 		const removed = deleteFromLibrary(library, library.activeId, now);
 		expect(removed).not.toBeNull();
-		const restored = restoreFromLibrary(removed!, removed!.deleted[0]!.id, now + 1000);
+		const restored = restoreManyFromLibrary(removed!, [removed!.deleted[0]!.id], now + 1000);
 		expect(restored?.activeId).toBe(removed!.deleted[0]?.id);
 		expect(restored?.deleted).toEqual([]);
 		expect(restored?.charts).toHaveLength(2);
@@ -269,9 +267,9 @@ describe('recently deleted', () => {
 	it('removes a deleted chart before the hold ends', () => {
 		const library = emptyLibrary();
 		const removed = deleteFromLibrary(library, library.activeId, now)!;
-		const forgotten = forgetFromLibrary(removed, removed.deleted[0]!.id);
+		const forgotten = forgetManyFromLibrary(removed, [removed.deleted[0]!.id]);
 		expect(forgotten?.deleted).toEqual([]);
-		expect(restoreFromLibrary(forgotten!, removed.deleted[0]!.id, now)).toBeNull();
+		expect(restoreManyFromLibrary(forgotten!, [removed.deleted[0]!.id], now)).toBeNull();
 	});
 
 	it('skips a broken deleted row and ignores one that is still live', () => {
@@ -282,5 +280,52 @@ describe('recently deleted', () => {
 			deleted: [{ id: 'bad' }, { ...deletedRecord('Gone', now), id: library.activeId }]
 		});
 		expect(parseLibrary(raw)?.deleted).toEqual([]);
+	});
+});
+
+describe('reconcile', () => {
+	const at = new Date(2026, 9, 10, 12).getTime();
+	const chart = (goal: string) => {
+		const data = emptyChart();
+		data.goal = goal;
+		return data;
+	};
+	const record = (id: string, goal: string, updatedAt: number) => ({ id, updatedAt, data: chart(goal) });
+
+	it('takes in charts another tab added, and keeps the one open here', () => {
+		const local = { activeId: 'a', charts: [record('a', 'Mine', at)], deleted: [] };
+		const stored = { activeId: 'c', charts: [record('a', 'Mine', at), record('b', 'Theirs', at + 1), record('c', 'Newer', at + 2)], deleted: [] };
+		const merged = reconcile(local, stored);
+		expect(merged.charts.map((item) => item.id)).toEqual(['a', 'b', 'c']);
+		expect(merged.activeId).toBe('a');
+	});
+
+	it('keeps the lines being written here over an older copy in storage, and takes a newer edit of another chart', () => {
+		const local = { activeId: 'a', charts: [record('a', 'Mine, edited', at + 5), record('b', 'Old', at)], deleted: [] };
+		const stored = { activeId: 'a', charts: [record('a', 'Mine', at), record('b', 'Edited there', at + 3)], deleted: [] };
+		const merged = reconcile(local, stored, 'a');
+		expect(merged.charts.find((item) => item.id === 'a')?.data.goal).toBe('Mine, edited');
+		expect(merged.charts.find((item) => item.id === 'b')?.data.goal).toBe('Edited there');
+	});
+
+	it('follows a deletion made after the last edit, and a restore made after a deletion', () => {
+		const gone = (id: string, goal: string, updatedAt: number, deletedAt: number): DeletedRecord => ({ id, updatedAt, deletedAt, data: chart(goal) });
+		const local = { activeId: 'a', charts: [record('a', 'A', at), record('b', 'B', at)], deleted: [gone('c', 'C', at, at + 1)] };
+		const stored = { activeId: 'b', charts: [record('b', 'B', at), record('c', 'C', at + 4)], deleted: [gone('a', 'A', at, at + 2)] };
+		const merged = reconcile(local, stored);
+		expect(merged.charts.map((item) => item.id).sort()).toEqual(['b', 'c']);
+		expect(merged.deleted.map((item) => item.id)).toEqual(['a']);
+		expect(merged.activeId).toBe('b');
+	});
+
+	it('leaves a blank chart open when every chart is gone', () => {
+		const gone = (id: string, deletedAt: number): DeletedRecord => ({ id, updatedAt: at, deletedAt, data: chart(id) });
+		const local = { activeId: 'a', charts: [record('a', 'A', at)], deleted: [gone('b', at + 1)] };
+		const stored = { activeId: 'b', charts: [record('b', 'B', at)], deleted: [gone('a', at + 1)] };
+		const merged = reconcile(local, stored);
+		expect(merged.charts).toHaveLength(1);
+		expect(merged.charts[0]!.data.goal).toBe('');
+		expect(merged.activeId).toBe(merged.charts[0]!.id);
+		expect(merged.deleted.map((item) => item.id).sort()).toEqual(['a', 'b']);
 	});
 });

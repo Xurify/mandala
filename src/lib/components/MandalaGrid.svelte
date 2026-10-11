@@ -128,11 +128,21 @@
 			view ? 'gap-[5px] rounded-[22px] p-2' : 'gap-[3px] rounded-[18px] p-1.5',
 			'max-[900px]:gap-0.5 max-[900px]:rounded-[13px] max-[900px]:p-1',
 			selected && 'sel shadow-[var(--shadow-sm),0_0_0_2px_var(--ink)]',
+			// The same name as the editor's block, so switching views carries one into the other.
+			selected && view && '[view-transition-name:focus-block]',
 			highlighted &&
 				!selected &&
 				'can-hover:shadow-[var(--shadow-sm),0_0_0_2px_oklch(var(--p-l-hover)_var(--p-c-hover)_var(--block-h)/0.55)]',
-			highlighted && 'highlight'
+			highlighted && 'highlight',
+			landedOn(blockIndex) && 'motion-safe:animate-glow'
 		);
+	}
+
+	/** A block whose pillar just became whole glows once. A full chart glows block by block, in pillar order. */
+	function landedOn(blockIndex: number): boolean {
+		const landed = chart.landed;
+		if (source || !landed || blockIndex === 4) return false;
+		return landed.chart || landed.pillars.includes(idx(blockIndex));
 	}
 
 	function isBlockHighlighted(blockIndex: number): boolean {
@@ -164,6 +174,9 @@
 		return 'action';
 	}
 
+	/** The cell's leading, as `leading-[1.15]` on the button. Set in whole pixels: a fraction snaps line by line, unevenly. */
+	const LINE = 1.15;
+
 	const fitCellText: Attachment = (element) => {
 		if (!(element instanceof HTMLSpanElement)) return;
 		const cell = element.parentElement;
@@ -184,6 +197,7 @@
 			clearClamp();
 			if (text === '' || getComputedStyle(element).display === 'none') {
 				element.style.fontSize = '';
+				element.style.lineHeight = '';
 				cell.removeAttribute('title');
 				return;
 			}
@@ -206,6 +220,7 @@
 			element.style.overflow = 'visible';
 			const fits = (size: number): boolean => {
 				element.style.fontSize = `${size}px`;
+				element.style.lineHeight = `${Math.round(size * LINE)}px`;
 				return element.scrollHeight <= available && element.scrollWidth <= element.clientWidth + 1;
 			};
 
@@ -213,6 +228,7 @@
 			const snapped = chosen === max ? max : Math.floor(chosen * 100 + 1e-6) / 100;
 			const next = `${snapped}px`;
 			if (element.style.fontSize !== next) element.style.fontSize = next;
+			element.style.lineHeight = `${Math.round(snapped * LINE)}px`;
 			if (kind === 'goal' && !source) saveGoalFitForNextVisit('cell', snapped);
 
 			const overflow =
@@ -280,7 +296,11 @@
 	)}
 >
 	{#each Array(9) as _, blockIndex (blockIndex)}
-		<div class={blockClass(blockIndex)} style:--block-h={blockHue(blockIndex)}>
+		<div
+			class={blockClass(blockIndex)}
+			style:--block-h={blockHue(blockIndex)}
+			style:animation-delay={chart.landed?.chart && blockIndex !== 4 ? `${idx(blockIndex) * 70}ms` : undefined}
+		>
 			{#each Array(9) as _, cellIndex (`${blockIndex}:${cellIndex}`)}
 				{@const cellInformation = info(blockIndex, cellIndex)}
 				{@const key = cellKey(blockIndex, cellIndex)}

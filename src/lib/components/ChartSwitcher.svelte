@@ -14,6 +14,7 @@
 		type DeletedSummary
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
@@ -26,6 +27,11 @@
 	import { fieldInk, textField } from './ui/styles';
 
 	const activeTitle = $derived(titleOf(chart.data));
+	/** The title in two parts, so the chevron can hold on to the last word and never wrap alone. */
+	const split = $derived.by(() => {
+		const cut = activeTitle.lastIndexOf(' ');
+		return cut < 0 ? { head: '', tail: activeTitle } : { head: activeTitle.slice(0, cut + 1), tail: activeTitle.slice(cut + 1) };
+	});
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
 	const updatedLabel = $derived(activeUpdated === undefined ? '' : formatUpdated(activeUpdated));
 
@@ -380,16 +386,18 @@
 			onclick={toggle}
 		>
 			<span class="line-clamp-2">
-				{activeTitle}<span
-					class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+				{split.head}<span class="whitespace-nowrap"
+					>{split.tail}<span
+						class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+					>
+						<Icon
+							name="chevron-down"
+							size={16}
+							strokeWidth={2}
+							class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
+						/>
+					</span></span
 				>
-				<Icon
-					name="chevron-down"
-					size={16}
-					strokeWidth={2}
-					class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
-				/>
-				</span>
 			</span>
 		</button>
 	{/snippet}
@@ -514,7 +522,8 @@
 	</div>
 	{#snippet footer()}
 		<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (deleteOpen = false)}>Cancel</Button>
-		<Button size="sm" class="coarse:min-h-11" onclick={confirmDelete}>Delete chart</Button>
+		<!-- Undo and recently deleted make this safe to confirm with Enter. -->
+		<Button size="sm" class="coarse:min-h-11" data-autofocus onclick={confirmDelete}>Delete chart</Button>
 	{/snippet}
 </Dialog>
 
@@ -600,14 +609,12 @@
 <Dialog
 	bind:open={deletedOpen}
 	title="Recently deleted"
-	description="Deleted charts stay here for {TRASH_DAYS} days."
+	description={chart.deletedCharts.length > 0 ? `Deleted charts stay here for ${TRASH_DAYS} days.` : undefined}
 	footer={chart.deletedCharts.length > 0 ? deletedFooter : undefined}
 	oncancel={holdForget}
 >
 	{#if chart.deletedCharts.length === 0}
-		<p class="m-0 max-w-[36ch] text-[0.9rem] leading-[1.45] text-pretty text-muted">
-			Nothing here yet. Delete a chart from the menu, and you can restore it from this list.
-		</p>
+		<EmptyDeleted days={TRASH_DAYS} />
 	{:else}
 		<div class="-mx-2.5">
 			{#each deletedGroups as group, groupIndex (group.label)}

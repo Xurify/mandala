@@ -35,8 +35,9 @@
 		if (!node) return;
 		if (open && !node.open) {
 			node.showModal();
-			// First control is Close. Focusing it paints a ring on open.
-			node.focus({ preventScroll: true });
+			// First control is Close, and focusing it paints a ring on open, so the panel takes focus. A dialog
+			// whose answer is safe to give with Enter (it can be undone) marks that button `data-autofocus`.
+			(node.querySelector<HTMLElement>('[data-autofocus]') ?? node).focus({ preventScroll: true });
 		} else if (!open && node.open) node.close();
 	});
 

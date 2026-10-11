@@ -1,80 +1,9 @@
-import type { HelperRoute } from './helper.ts';
-
 /**
- * Labeled sets for Bindu's rules. Not training data. Written after the rules, by the same hand, so
- * the scores are a regression floor, not proof. Add real messages people type, and keep the labels honest:
- * when a message should go to the model, say 'model'.
+ * Labeled lines for the review rules. Not training data. Written after the rules, by the same hand, so the
+ * score is a regression floor, not proof. Add real lines people write, and keep the labels honest.
+ *
+ * Action lines: true when the line passes both tests (calendar and control).
  */
-export const routingSet: readonly [string, HelperRoute][] = [
-	['what do I do today', 'today'],
-	['What should I tackle today?', 'today'],
-	['choose three for today', 'today'],
-	["today's list please", 'today'],
-	['plan my day', 'today'],
-	['Can you plan my day?', 'today'],
-	['give me three things', 'model'],
-	['what should I work on this week', 'week'],
-	['plan next week', 'week'],
-	['Can you plan the week?', 'week'],
-	['weekly plan please', 'week'],
-	['check it', 'review'],
-	['review my pillars', 'review'],
-	['Does my chart look ok?', 'review'],
-	['give me feedback on my chart', 'review'],
-	['tighten the chart', 'review'],
-	["What's wrong with this chart?", 'review'],
-	['fill in the gaps', 'fill'],
-	['complete my chart', 'fill'],
-	['Could you finish the chart?', 'fill'],
-	['suggest pillars', 'fill'],
-	['fill the missing ones', 'fill'],
-	['start a fresh chart', 'draft'],
-	['make a new chart', 'draft'],
-	['I want a different goal', 'draft'],
-	['start again', 'draft'],
-	['show my progress', 'progress'],
-	['stats', 'progress'],
-	['How far along am I?', 'progress'],
-	['which pillars am I neglecting', 'progress'],
-	['How am I doing this week?', 'progress'],
-	['thank you so much', 'chat'],
-	['cool', 'chat'],
-	['hey', 'chat'],
-	['good morning', 'chat'],
-	['I skipped yesterday', 'chat'],
-	["I haven't done anything in a week", 'chat'],
-	['what do you remember about me?', 'facts'],
-	['what did I tell you', 'facts'],
-	['help me', 'help'],
-	['I feel stuck', 'help'],
-	['where do I begin?', 'help'],
-	['what can you do?', 'help'],
-	['what is a pillar', 'method'],
-	['Why 64 actions?', 'method'],
-	['how many should I pick each day?', 'method'],
-	['Can I have two goals?', 'method'],
-	['what happens if I miss a day?', 'method'],
-	['who invented this?', 'method'],
-	['Is my data private?', 'method'],
-	["what's the difference between a routine and a milestone?", 'method'],
-	['how often should I review the chart?', 'method'],
-	["I can't think of actions for Sleep", 'method'],
-	['what counts as an action?', 'method'],
-	['I want to learn the piano', 'aim'],
-	['my goal is to write a novel', 'aim'],
-	["I'm thinking about running a marathon", 'aim'],
-	['fill Sleep', 'pillar'],
-	['work on Strength', 'pillar'],
-	['cancel', 'cancel'],
-	['never mind', 'cancel'],
-	['How do I stay motivated?', 'model'],
-	['Is Speed the right pillar for a half marathon?', 'model'],
-	['I keep putting off the long run, any ideas?', 'model'],
-	['Should I run in the morning or evening?', 'model'],
-	['What would you change about Food?', 'model']
-];
-
-/** Action lines: true when the line passes both tests (calendar and control). */
 export const lineSet: readonly [string, boolean][] = [
 	['Walk 20 minutes after dinner', true],
 	['Lift on Monday and Thursday', true],

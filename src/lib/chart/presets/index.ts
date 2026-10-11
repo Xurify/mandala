@@ -51,10 +51,6 @@ export function listPresets(): readonly PresetSummary[] {
 	return PRESETS.map(({ id, title, goal, pillars }) => ({ id, title, goal, pillars }));
 }
 
-export function isPresetId(value: string): value is PresetId {
-	return PRESETS.some((preset) => preset.id === value);
-}
-
 export function getPreset(id: string): Preset | undefined {
 	return PRESETS.find((preset) => preset.id === id);
 }
