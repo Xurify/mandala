@@ -34,11 +34,9 @@ export type DayLog = {
 	started?: boolean;
 	/** Local time of each tick, "HH:MM". */
 	at?: Record<string, string>;
-	/** Picks taken off the day's list. */
 	dropped?: string[];
-	/** Suggestions turned down that day: skipped or swapped out. */
 	declined?: string[];
-	/** Insights Bindu showed that day, as `id:key`. */
+	/** As `id:key`. */
 	shown?: string[];
 };
 
@@ -46,14 +44,13 @@ export type WeekReflection = {
 	note: string;
 	swapped: string[];
 	dismissed?: boolean;
-	/** The day it was saved. A saved week is not offered again. */
 	savedAt?: string;
 };
 
-/** When the week's reflection is offered: a weekday as `Date.getDay` gives it, and an hour of that day. */
+/** `day` is as `Date.getDay` gives it. */
 export type ReflectAt = { day: number; hour: number };
 
-/** What the person said when Bindu drafted this chart. Stays on the device and out of share links. */
+/** Stays on the device and out of share links. */
 export type ChartBrief = {
 	timeline?: string;
 	situation?: string;
@@ -76,18 +73,16 @@ export function parseBrief(value: unknown): ChartBrief | undefined {
 
 export type ToolKind = 'once' | 'repeat';
 
-/** Material behind a pillar: a video, a text, a site. An action hands it out; the cell stays a sentence. */
 export type Tool = {
 	id: string;
 	url: string;
 	title: string;
 	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. */
 	kind: ToolKind;
-	/** The action that hands it out. Without one, any routine in the pillar may. */
+	/** Without one, any routine in the pillar may hand it out. */
 	action?: number;
-	/** Out of the rotation: opened once, or known by heart. */
 	known?: boolean;
-	/** The days it was opened, oldest first. */
+	/** Oldest first. */
 	opened?: string[];
 };
 
@@ -99,7 +94,7 @@ export type ChartData = {
 	days?: Record<string, DayLog>;
 	weeks?: Record<string, WeekReflection>;
 	brief?: ChartBrief;
-	/** Shelves, keyed by pillar: `p0` to `p7`. */
+	/** Keyed `p0` to `p7`. */
 	tools?: Record<string, Tool[]>;
 };
 
@@ -220,7 +215,6 @@ export type Milestones = {
 	completedPillarsCount: number;
 };
 
-/** Which pillars are whole (named, with all eight actions), and whether every cell is written. */
 export function wholeness(data: ChartData): { pillars: boolean[]; chart: boolean } {
 	const pillars = [0, 1, 2, 3, 4, 5, 6, 7].map(
 		(pillarIndex) =>
@@ -230,7 +224,6 @@ export function wholeness(data: ChartData): { pillars: boolean[]; chart: boolean
 	return { pillars, chart: data.goal.trim() !== '' && pillars.every(Boolean) };
 }
 
-/** What a change made whole: the pillars that just got their last line, and the chart if it just filled. */
 export function completedBy(
 	before: { pillars: boolean[]; chart: boolean },
 	after: { pillars: boolean[]; chart: boolean }
@@ -538,7 +531,6 @@ export function reflectionWeekOf(at: ReflectAt, now: Date = new Date()): string 
 	return weekStartKey(previous);
 }
 
-/** Whether any action was ticked in the week starting on `weekKey`. */
 export function weekHadTicks(data: ChartData, weekKey: string): boolean {
 	const start = dateOf(weekKey);
 	for (let offset = 0; offset < 7; offset++) {

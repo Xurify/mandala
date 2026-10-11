@@ -1,5 +1,4 @@
-/* Chart print, imported from app.css.
-   Class names mandala, block, cell, goal, pillar, action are the print selectors.
+/* Class names mandala, block, cell, goal, pillar, action are the print selectors.
    The sheet is one landscape page: a short mast plus a square that fits A4 and Letter. */
 
 @media print {

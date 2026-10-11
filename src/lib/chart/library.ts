@@ -82,7 +82,6 @@ function shortDate(at: number, now: number): string {
 	});
 }
 
-/** When a chart was last saved. Today and yesterday include the time. `now` is injectable for tests. */
 export function formatUpdated(at: number, now = Date.now()): string {
 	const days = daysAgo(at, now);
 	if (days === 0) return `Updated ${clockLabel(at)}`;
@@ -90,7 +89,6 @@ export function formatUpdated(at: number, now = Date.now()): string {
 	return `Updated ${shortDate(at, now)}`;
 }
 
-/** Day heading in the trash list. Today, yesterday, or a short date. */
 export function deletedDayLabel(at: number, now = Date.now()): string {
 	const days = daysAgo(at, now);
 	if (days <= 0) return 'Today';
@@ -98,12 +96,12 @@ export function deletedDayLabel(at: number, now = Date.now()): string {
 	return shortDate(at, now);
 }
 
-/** Clock time in the trash list, so copies that share a name can be told apart. */
+/** So copies that share a name can be told apart. */
 export function deletedClock(at: number): string {
 	return clockLabel(at);
 }
 
-/** Short relative time for list rows. Before today it falls back to the clock; the day heading carries the date. */
+/** Before today it falls back to the clock; the day heading carries the date. */
 export function formatAgo(at: number, now = Date.now()): string {
 	const minutes = Math.floor((now - at) / 60_000);
 	if (minutes < 1) return 'Just now';
@@ -112,14 +110,13 @@ export function formatAgo(at: number, now = Date.now()): string {
 	return clockLabel(at);
 }
 
-/** Whole days left before a deleted chart is removed. `0` means the hold is over. */
 export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 	const remaining = TRASH_MS - (now - deletedAt);
 	if (remaining <= 0) return 0;
 	return Math.ceil(remaining / DAY_MS);
 }
 
-/** Short hold remaining. The dialog subtitle already states the 30-day rule. */
+/** The dialog subtitle already states the 30-day rule. */
 export function formatDaysLeft(daysLeft: number): string {
 	if (daysLeft <= 1) return '1 day left';
 	return `${daysLeft} days left`;
@@ -218,8 +215,8 @@ function parseDeleted(value: unknown, liveIds: Set<string>): DeletedRecord[] {
 }
 
 /**
- * The chart that takes the place of a deleted one: the next one down the switcher's list (newest first), or
- * the one above when it was last. Deleting down a list keeps your place.
+ * The next one down the switcher's list (newest first), or the one above when it was last, so deleting
+ * down a list keeps your place.
  */
 function neighborOf(charts: ChartRecord[], id: string): ChartRecord | null {
 	const order = charts.slice().sort((a, b) => b.updatedAt - a.updatedAt);
@@ -227,7 +224,6 @@ function neighborOf(charts: ChartRecord[], id: string): ChartRecord | null {
 	return order[index + 1] ?? order[index - 1] ?? null;
 }
 
-/** Move one live chart into recently deleted. The last chart leaves a blank one open. */
 export function deleteFromLibrary(
 	library: ChartLibrary,
 	id: string,
@@ -254,7 +250,6 @@ export function deleteFromLibrary(
 	return { activeId, charts: remaining, deleted };
 }
 
-/** Put deleted charts back. The newest one becomes the open chart. */
 export function restoreManyFromLibrary(
 	library: ChartLibrary,
 	ids: readonly string[],
@@ -280,7 +275,6 @@ export function restoreManyFromLibrary(
 	};
 }
 
-/** Drop several deleted charts before the hold ends. */
 export function forgetManyFromLibrary(
 	library: ChartLibrary,
 	ids: readonly string[]
