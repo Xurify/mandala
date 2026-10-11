@@ -17,6 +17,7 @@ export type MonthDay = {
 	today: boolean;
 	future: boolean;
 	done: DayDone[];
+	pillars: number[];
 };
 
 export type Month = {
@@ -24,11 +25,9 @@ export type Month = {
 	/** 0 to 11, as `Date` counts. */
 	month: number;
 	title: string;
-	/** Rows of seven, Monday first, padded with the days around the month. */
 	weeks: MonthDay[][];
-	/** Days in the month with something done, and how many things in all. */
-	days: number;
-	ticks: number;
+	finishedDays: number;
+	finishedCount: number;
 };
 
 function pillarOf(key: string): number {
@@ -61,8 +60,8 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 	const todayKey = dateKeyOf(now);
 	const weeks: MonthDay[][] = [];
 	const cursor = new Date(start);
-	let days = 0;
-	let ticks = 0;
+	let finishedDays = 0;
+	let finishedCount = 0;
 	do {
 		const week: MonthDay[] = [];
 		for (let column = 0; column < 7; column++) {
@@ -70,10 +69,11 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 			const inMonth = cursor.getMonth() === month && cursor.getFullYear() === year;
 			const done = doneOn(data, key);
 			if (inMonth && done.length > 0) {
-				days += 1;
-				ticks += done.length;
+				finishedDays += 1;
+				finishedCount += done.length;
 			}
-			week.push({ key, day: cursor.getDate(), inMonth, today: key === todayKey, future: key > todayKey, done });
+			const pillars = [...new Set(done.map((entry) => entry.pillarIndex))].sort((left, right) => left - right);
+			week.push({ key, day: cursor.getDate(), inMonth, today: key === todayKey, future: key > todayKey, done, pillars });
 			cursor.setDate(cursor.getDate() + 1);
 		}
 		weeks.push(week);
@@ -83,8 +83,8 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 		month,
 		title: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
 		weeks,
-		days,
-		ticks
+		finishedDays,
+		finishedCount
 	};
 }
 
@@ -92,6 +92,11 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 export function shiftMonth(year: number, month: number, by: number): { year: number; month: number } {
 	const date = new Date(year, month + by, 1, 12);
 	return { year: date.getFullYear(), month: date.getMonth() };
+}
+
+export function lastDoneDay(month: Month): string | null {
+	const days = month.weeks.flat().filter((day) => day.inMonth && day.done.length > 0);
+	return days.at(-1)?.key ?? null;
 }
 
 /** The month of the earliest day with something done, so the view knows how far back to go. Null when nothing is. */
@@ -109,9 +114,9 @@ export function firstDoneMonth(data: ChartData): { year: number; month: number }
 
 /** The month in one line: how much got done, on how many days. */
 export function monthLine(month: Month): string {
-	if (month.ticks === 0) return 'Nothing finished this month yet.';
-	const things = month.ticks === 1 ? '1 thing' : `${month.ticks} things`;
-	const days = month.days === 1 ? '1 day' : `${month.days} days`;
+	if (month.finishedCount === 0) return 'Nothing finished this month yet.';
+	const things = month.finishedCount === 1 ? '1 thing' : `${month.finishedCount} things`;
+	const days = month.finishedDays === 1 ? '1 day' : `${month.finishedDays} days`;
 	return `${things} finished on ${days}.`;
 }
 

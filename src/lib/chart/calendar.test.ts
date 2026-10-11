@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayTitle, doneOn, firstDoneMonth, monthLine, monthOf, shiftMonth } from './calendar.ts';
+import { dayTitle, doneOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth } from './calendar.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function chart(): ChartData {
@@ -45,13 +45,25 @@ describe('monthOf', () => {
 		expect(month.weeks[1]![5]).toMatchObject({ key: '2026-10-10', today: true });
 		expect(month.weeks[1]![6]).toMatchObject({ key: '2026-10-11', future: true });
 		// September's tick is not October's.
-		expect(month.days).toBe(1);
-		expect(month.ticks).toBe(3);
+		expect(month.finishedDays).toBe(1);
+		expect(month.finishedCount).toBe(3);
 	});
 
 	it('says the month in one line', () => {
 		expect(monthLine(monthOf(chart(), 2026, 9, now))).toBe('3 things finished on 1 day.');
 		expect(monthLine(monthOf(chart(), 2026, 7, now))).toBe('Nothing finished this month yet.');
+	});
+
+	it('names each pillar a day touched once, lowest first', () => {
+		const month = monthOf(chart(), 2026, 9, now);
+		expect(month.weeks[1]![4]!.pillars).toEqual([0, 2]);
+		expect(month.weeks[1]![5]!.pillars).toEqual([]);
+	});
+
+	it('opens a month on its latest day with something finished', () => {
+		expect(lastDoneDay(monthOf(chart(), 2026, 9, now))).toBe('2026-10-09');
+		expect(lastDoneDay(monthOf(chart(), 2026, 8, now))).toBe('2026-09-28');
+		expect(lastDoneDay(monthOf(chart(), 2026, 7, now))).toBeNull();
 	});
 });
 

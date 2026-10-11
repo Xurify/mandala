@@ -30,7 +30,7 @@ export const button = tv({
 });
 
 export const iconButton = tv({
-	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] ${focus}`
+	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 ${focus}`
 });
 
 export const segmented = tv({

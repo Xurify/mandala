@@ -99,6 +99,8 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
+	const dayView = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar');
+	const searching = $derived(chart.query.trim() !== '');
 
 	$effect(() => {
 		const chartId = chart.activeId;
@@ -573,7 +575,8 @@
 					spellcheck="false"
 					value={chart.query}
 					oninput={(event) => chart.setQuery(event.currentTarget.value)}
-				/>					{#if chart.query.trim()}
+				/>
+					{#if searching}
 						<button
 							type="button"
 							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
@@ -648,7 +651,7 @@
 			<div class="min-w-0">
 				<Eyebrow class="mb-2">Your chart</Eyebrow>
 				<ChartSwitcher />
-				{#if effectiveViewMode !== 'today'}
+				{#if !dayView}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						<!-- Ways to start belong to an empty chart. Once it has a line, New chart in the menu starts another. -->
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
@@ -664,7 +667,7 @@
 			</div>
 
 			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
-			{#if effectiveViewMode !== 'today' && !(effectiveViewMode === 'view' && !chart.dirty)}
+			{#if !dayView && !(effectiveViewMode === 'view' && !chart.dirty)}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
 				<ProgressRing size={isMobile ? 56 : 76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
@@ -718,8 +721,8 @@
 		<ShelfSheet />
 	</header>
 
-	<div class="mb-5 flex max-w-[900px] flex-wrap gap-1.5 empty:hidden print:hidden" aria-live="polite">
-		{#if chart.query.trim() && !shownHits.length}
+	<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
+		{#if searching && !shownHits.length}
 			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
 		{/if}
 		{#each shownHits as key (key)}
