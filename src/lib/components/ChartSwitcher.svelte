@@ -496,17 +496,8 @@
 			</MenuItem>
 		</div>
 		<MenuDivider />
-		<div class="flex gap-px">
-			<MenuItem icon="list" class="flex-1" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
-			<MenuItem
-				icon="clock"
-				class="flex-1"
-				count={chart.deletedCharts.length}
-				onclick={openDeleted}
-			>
-				Recently deleted
-			</MenuItem>
-		</div>
+		<MenuItem icon="list" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
+		<MenuItem icon="clock" count={chart.deletedCharts.length} onclick={openDeleted}>Recently deleted</MenuItem>
 		<MenuItem icon="trash" tone="danger" shortcut="Del" onclick={handleDelete}>Delete chart</MenuItem>
 	</div>
 </Menu>

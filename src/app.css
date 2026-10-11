@@ -699,20 +699,28 @@
 	animation: none;
 }
 :root:active-view-transition-type(theme)::view-transition-old(root),
-:root:active-view-transition-type(theme)::view-transition-old(stage),
+:root:active-view-transition-type(theme)::view-transition-old(stage) {
+	opacity: 1;
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-out;
+}
+:root:active-view-transition-type(theme)::view-transition-new(root),
+:root:active-view-transition-type(theme)::view-transition-new(stage) {
+	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
+}
+/* Floating chrome over a page that is itself crossfading: two half-faded faces let the page show through,
+   so the old face stays solid and the new one fades in over it. */
 :root:active-view-transition-type(theme)::view-transition-old(dock),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-launcher),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-panel),
 :root:active-view-transition-type(theme)::view-transition-old(menu) {
 	opacity: 1;
-	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-out;
+	animation: none;
 }
-:root:active-view-transition-type(theme)::view-transition-new(root),
-:root:active-view-transition-type(theme)::view-transition-new(stage),
 :root:active-view-transition-type(theme)::view-transition-new(dock),
 :root:active-view-transition-type(theme)::view-transition-new(bindu-launcher),
 :root:active-view-transition-type(theme)::view-transition-new(bindu-panel),
 :root:active-view-transition-type(theme)::view-transition-new(menu) {
+	mix-blend-mode: normal;
 	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
 }
 @keyframes view-out {
