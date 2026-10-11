@@ -48,7 +48,7 @@
 		{/if}
 	</span>
 	<span class="flex min-w-0 flex-1 flex-col gap-0.5">
-		<span class={cn('truncate leading-snug font-[560]', size === 'sm' ? 'text-[0.9rem]' : 'text-[0.95rem]', tool.known && 'text-muted')}>{tool.title || host}</span>
-		<span class="truncate py-px text-[0.74rem] leading-snug text-muted">{caption}</span>
+		<span class={cn('truncate font-[560]', size === 'sm' ? 'text-[0.9rem] leading-snug' : 'text-[0.95rem] leading-snug', tool.known && 'text-muted')}>{tool.title || host}</span>
+		<span class="truncate text-[0.74rem] leading-snug text-muted">{caption}</span>
 	</span>
 </span>
