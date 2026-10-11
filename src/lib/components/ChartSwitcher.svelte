@@ -327,13 +327,14 @@
 
 	function isTypingTarget(target: EventTarget | null): boolean {
 		if (!(target instanceof HTMLElement)) return false;
-		if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return true;
+		if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
 		return target.isContentEditable;
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
 		if (isTypingTarget(event.target)) return;
+		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 		if (document.querySelector('dialog[open]')) return;
 
 		const key = event.key.toLowerCase();
@@ -378,30 +379,32 @@
 	onopenchange={onMenu}
 >
 	{#snippet trigger({ expanded, toggle })}
-		<button
-			class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-text focus-visible:outline-none max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
-			type="button"
-			aria-haspopup="menu"
-			aria-expanded={expanded}
-			aria-label="Switch chart: {activeTitle}"
-			title={activeTitle}
-			onclick={toggle}
-		>
-			<span class="line-clamp-2">
-				{split.head}<span class="whitespace-nowrap"
-					>{split.tail}<span
-						class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+		<h1 class="m-0 [font:inherit]">
+			<button
+				class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-text focus-visible:outline-none max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
+				type="button"
+				aria-haspopup="menu"
+				aria-expanded={expanded}
+				aria-label="Switch chart: {activeTitle}"
+				title={activeTitle}
+				onclick={toggle}
+			>
+				<span class="line-clamp-2">
+					{split.head}<span class="whitespace-nowrap"
+						>{split.tail}<span
+							class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+						>
+							<Icon
+								name="chevron-down"
+								size={16}
+								strokeWidth={2}
+								class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
+							/>
+						</span></span
 					>
-						<Icon
-							name="chevron-down"
-							size={16}
-							strokeWidth={2}
-							class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
-						/>
-					</span></span
-				>
-			</span>
-		</button>
+				</span>
+			</button>
+		</h1>
 	{/snippet}
 	{#if showFind}
 		<div data-menu-find-bar class="shrink-0 px-1 pt-0.5 pb-1.5">
@@ -498,7 +501,7 @@
 			<MenuItem
 				icon="clock"
 				class="flex-1"
-				badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
+				count={chart.deletedCharts.length}
 				onclick={openDeleted}
 			>
 				Recently deleted

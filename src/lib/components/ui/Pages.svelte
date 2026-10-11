@@ -4,11 +4,9 @@
 	import { pageIn, pageOut } from './motion';
 
 	type Props = {
-		/** The page in view. A new value turns to it. */
 		view: string;
 		/** 1 turns forward, so the new page comes in from the right. -1 turns back. */
 		direction?: number;
-		/** The accessible name of the page in view. */
 		label?: string;
 		page: Snippet<[string]>;
 		class?: string;
@@ -18,7 +16,6 @@
 	let { view, direction = 1, label, page, class: className, pageClass }: Props = $props();
 
 	let viewport = $state<HTMLDivElement | null>(null);
-	/** The height of the page in view. The viewport eases to it, so a turn changes size smoothly. */
 	let height = $state<number | null>(null);
 	let settled = $state(false);
 

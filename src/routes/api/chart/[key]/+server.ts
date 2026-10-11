@@ -45,7 +45,6 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		return json({ error: 'bad body' }, { status: 400 });
 	}
 	const chart = payload.chart;
-	// A whole-chart snapshot must at least look like a chart.
 	if (
 		typeof chart !== 'object' ||
 		chart === null ||

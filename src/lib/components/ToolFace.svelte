@@ -7,7 +7,6 @@
 
 	interface Props {
 		tool: Pick<Tool, 'url' | 'title' | 'kind' | 'known'>;
-		/** `sm` is a row in a list; `md` is a card's face. */
 		size?: 'sm' | 'md';
 		class?: string;
 	}

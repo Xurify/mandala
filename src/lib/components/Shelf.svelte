@@ -220,7 +220,7 @@
 					{#if asked.has(tool.id)}
 						<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty">
 							<span>Opened on {openedLately(tool)} of the last 14 days. Know it by now?</span>
-							<Button size="sm" onclick={() => chart.updateTool(pillarIndex, tool.id, { known: true })}>Know this</Button>
+							<Button size="sm" variant="soft" icon="check" onclick={() => chart.updateTool(pillarIndex, tool.id, { known: true })}>Know this</Button>
 						</p>
 					{/if}
 					<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -239,15 +239,17 @@
 							value={tool.kind}
 							onchange={(value) => chart.updateTool(pillarIndex, tool.id, { kind: value === 'once' ? 'once' : 'repeat' })}
 						/>
-						<Button
-							size="sm"
-							variant="ghost"
-							icon={tool.known ? 'undo' : 'check'}
-							aria-pressed={Boolean(tool.known)}
-							onclick={() => chart.updateTool(pillarIndex, tool.id, { known: tool.known ? undefined : true })}
-						>
-							{tool.known ? 'Back in rotation' : 'Know this'}
-						</Button>
+						{#if !asked.has(tool.id)}
+							<Button
+								size="sm"
+								variant="ghost"
+								icon={tool.known ? 'undo' : 'check'}
+								aria-pressed={Boolean(tool.known)}
+								onclick={() => chart.updateTool(pillarIndex, tool.id, { known: tool.known ? undefined : true })}
+							>
+								{tool.known ? 'Back in rotation' : 'Know this'}
+							</Button>
+						{/if}
 					</div>
 				</li>
 			{/each}

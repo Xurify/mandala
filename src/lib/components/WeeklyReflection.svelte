@@ -131,7 +131,6 @@
 	</span>
 {/snippet}
 
-<!-- A line that sat out. Rewrite swaps the words for a field in the same row, so nothing around it moves. -->
 {#snippet rewrite(entry: { key: string; text: string }, pillarIndex: number, lead: boolean)}
 	{#if editingKey === entry.key}
 		<div class={cn(row, 'flex-1 bg-sunken shadow-[inset_0_0_0_1.5px_var(--ink)]')}>
@@ -174,7 +173,6 @@
 
 <Dialog bind:open title="Your week" description="A calm look back, a page at a time.">
 	{#if step !== 'done'}
-		<!-- Where you are in the week's pages: the current one is a longer mark, the read ones are ink. -->
 		<ol class="m-0 mb-4 flex list-none items-center gap-1.5 p-0" aria-label="Page {index + 1} of {steps.length}">
 			{#each steps as entry, position (entry)}
 				<li

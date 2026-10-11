@@ -1,7 +1,6 @@
 import { cubicOut } from 'svelte/easing';
 import type { TransitionConfig } from 'svelte/transition';
 
-/** A note folding back toward its corner. It settles rather than bouncing, and travels only a few pixels. */
 export function noteOut(_node: Element, { duration = 520 } = {}): TransitionConfig {
 	const reduce =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -29,7 +28,6 @@ function reduced(): boolean {
 	return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-/** A page turning in: it slides a little from the side it comes from and settles. */
 export function pageIn(_node: Element, { direction = 1, duration = 380, delay = 70 }: { direction?: number; duration?: number; delay?: number } = {}): TransitionConfig {
 	if (reduced()) return { duration: 160, css: (t) => `opacity: ${t}` };
 	return {
@@ -50,7 +48,6 @@ export function pageOut(_node: Element, { direction = 1, duration = 220 }: { dir
 	};
 }
 
-/** A line that was fixed leaving its list: it fades and folds its height so the rest close up. */
 export function foldOut(node: Element, { duration = 520 } = {}): TransitionConfig {
 	const height = (node as HTMLElement).offsetHeight;
 	if (reduced()) return { duration: 120, css: (t) => `opacity: ${t}` };

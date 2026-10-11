@@ -9,7 +9,6 @@
 	let open = $state(false);
 	let title = $state<string | null>(null);
 
-	// A link arriving by share or paste opens the sheet; closing it lets the link go.
 	$effect(() => {
 		const url = chart.pendingLink;
 		open = url !== null;

@@ -96,7 +96,8 @@ export const menuItem = tv({
 		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
 		main: 'relative flex min-w-0 flex-1 items-center gap-3',
 		icon: 'shrink-0 text-muted',
-		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums'
+		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums',
+		count: 'min-w-5 shrink-0 rounded-full bg-sunken px-1.5 py-px text-center font-sans text-[0.74rem] font-[620] text-muted tabular-nums group-hover:bg-surface group-focus-visible:bg-surface'
 	},
 	variants: {
 		tone: {

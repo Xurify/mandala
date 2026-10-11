@@ -10,7 +10,6 @@ function chartData(goal: string): ChartData {
 	return data;
 }
 
-/** A sandbox like the lab's: two charts, a switch, and a record of what Bindu asked for. */
 function sandbox() {
 	const charts: Record<string, ChartData> = { one: chartData('Run a half marathon'), two: chartData('Learn Spanish') };
 	const calls = { declined: [] as string[][], shown: [] as string[], today: [] as string[][] };

@@ -13,7 +13,6 @@
 	const tallest = $derived(Math.max(3, Math.min(STACK, ...strip.map((day) => day.ticks.length))));
 </script>
 
-<!-- The week as it happened: a column per day, a pip per tick, in the pillar's hue. -->
 <div
 	class={cn('rounded-[22px] bg-bg px-3.5 pt-3.5 pb-3', className)}
 	role="img"

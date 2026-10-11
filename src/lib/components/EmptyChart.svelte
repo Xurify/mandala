@@ -21,7 +21,6 @@
 	const DOT = 0.25 + 8 * 0.06 + 0.1;
 </script>
 
-<!-- A new chart is the mandala before anything is written: eight empty places around one dot. -->
 <section class="mx-auto flex w-full max-w-[560px] flex-col items-center gap-5 px-4 pt-4 pb-12 text-center max-[900px]:gap-4 max-[900px]:px-0 max-[900px]:pt-0" aria-labelledby="empty-chart-title">
 	<svg class="block size-[132px] overflow-visible max-[900px]:size-[96px]" viewBox="0 0 100 100" aria-hidden="true">
 		{#each arcs as arc (arc.pillarIndex)}

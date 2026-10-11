@@ -76,7 +76,6 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
-	/** The ways to start have left, once the chart has a line. */
 	let startsGone = $state(chart.dirty || chart.viewMode === 'view');
 	$effect(() => {
 		if (!chart.dirty && effectiveViewMode !== 'view') startsGone = false;
@@ -107,7 +106,6 @@
 		untrack(() => helper.follow(chartId));
 	});
 
-	/** Sets up one of the `/dev/demo` situations, as a new chart, after the saved charts have loaded. */
 	function openDemo(id: DemoId): void {
 		const setup = demoSetup(id);
 		const demo = DEMOS.find((entry) => entry.id === id);
@@ -237,7 +235,6 @@
 		chart.setViewMode('edit');
 	}
 
-	/** A link pasted anywhere that is not a field goes to a shelf. Fields, and Bindu, keep their own paste. */
 	function handleWindowPaste(event: ClipboardEvent): void {
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
@@ -293,10 +290,18 @@
 		if (inDialog) return;
 		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 
+		const target = event.target instanceof HTMLElement ? event.target : null;
 		const isTyping =
-			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
-		// A letter held with Ctrl, Cmd or Alt is the browser's (copy, paste, find), not a view switch.
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			target instanceof HTMLSelectElement ||
+			Boolean(target?.isContentEditable);
+		// A letter with Ctrl, Cmd, or Alt belongs to the browser: Cmd+V has to reach the paste that opens a shelf.
 		const plain = !isTyping && !event.ctrlKey && !event.metaKey && !event.altKey;
+		const onControl =
+			target !== null &&
+			target !== document.body &&
+			target.closest('button, a[href], summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"]') !== null;
 
 		if (event.key === 'Escape') {
 			if (chart.query.trim()) {
@@ -315,7 +320,7 @@
 		} else if (plain && !isMobile && (event.key === 's' || event.key === 'S')) {
 			event.preventDefault();
 			chart.setViewMode('split');
-		} else if (plain && event.key === 'Enter' && chart.viewMode === 'view') {
+		} else if (plain && !onControl && event.key === 'Enter' && chart.viewMode === 'view') {
 			event.preventDefault();
 			chart.setViewMode('edit');
 		} else if (event.altKey && event.key === 'ArrowRight') {
@@ -330,7 +335,7 @@
 		} else if (plain && event.key === '?') {
 			event.preventDefault();
 			shortcutsOpen = true;
-		} else if (event.key === '/' && plain) {
+		} else if (plain && event.key === '/') {
 			event.preventDefault();
 			searchInputElement?.focus();
 		} else if (plain && (event.key === 't' || event.key === 'T')) {
@@ -511,7 +516,6 @@
 
 	let stage = $state<HTMLElement | null>(null);
 
-	/** In Edit view the editor sits alone on the stage. A click on the stage around it is a step back out. */
 	function handleStageClick(event: MouseEvent): void {
 		if (effectiveViewMode === 'edit' && event.target === stage) chart.setViewMode('view');
 	}
@@ -651,7 +655,6 @@
 				<ChartSwitcher />
 				{#if !dayView}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
-						<!-- Ways to start belong to an empty chart. Once it has a line, New chart in the menu starts another. -->
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>

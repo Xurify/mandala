@@ -1,6 +1,5 @@
 import { dateKeyOf, getByKey, type ChartData } from './model.ts';
 
-/** One thing finished on a day: a ticked action, or a milestone marked done. */
 export type DayDone = {
 	key: string;
 	text: string;
@@ -34,7 +33,6 @@ function pillarOf(key: string): number {
 	return Number(key.slice(1).split('_')[0]);
 }
 
-/** What was finished on a day: the ticked actions in the order they were ticked, then milestones closed that day. */
 export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	const log = data.days?.[dateKey];
 	const out: DayDone[] = [];
@@ -52,7 +50,6 @@ export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	return out;
 }
 
-/** A month of days, each with what was finished on it. */
 export function monthOf(data: ChartData, year: number, month: number, now: Date = new Date()): Month {
 	const first = new Date(year, month, 1, 12);
 	const start = new Date(first);
@@ -88,7 +85,6 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 	};
 }
 
-/** The month `by` months away. */
 export function shiftMonth(year: number, month: number, by: number): { year: number; month: number } {
 	const date = new Date(year, month + by, 1, 12);
 	return { year: date.getFullYear(), month: date.getMonth() };
@@ -99,7 +95,6 @@ export function lastDoneDay(month: Month): string | null {
 	return days.at(-1)?.key ?? null;
 }
 
-/** The month of the earliest day with something done, so the view knows how far back to go. Null when nothing is. */
 export function firstDoneMonth(data: ChartData): { year: number; month: number } | null {
 	const keys = Object.entries(data.days ?? {})
 		.filter(([, log]) => log.checked.length > 0)
@@ -112,7 +107,6 @@ export function firstDoneMonth(data: ChartData): { year: number; month: number }
 	return { year: year!, month: month! - 1 };
 }
 
-/** The month in one line: how much got done, on how many days. */
 export function monthLine(month: Month): string {
 	if (month.finishedCount === 0) return 'Nothing finished this month yet.';
 	const things = month.finishedCount === 1 ? '1 thing' : `${month.finishedCount} things`;
@@ -120,7 +114,6 @@ export function monthLine(month: Month): string {
 	return `${things} finished on ${days}.`;
 }
 
-/** A day's date as the calendar says it: "Saturday, October 10". */
 export function dayTitle(dateKey: string): string {
 	const [year, month, day] = dateKey.split('-').map(Number);
 	return new Date(year!, month! - 1, day!, 12).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

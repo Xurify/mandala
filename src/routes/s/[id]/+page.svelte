@@ -10,8 +10,6 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Notice from '$lib/components/ui/Notice.svelte';
 
-	// Read-only view of a published chart. The link serves the owner's latest
-	// pushed snapshot at the moment it opens; visitors can refresh manually.
 	const id = $derived(page.params.id ?? '');
 
 	let chartData = $state<ChartData | null>(null);

@@ -156,7 +156,6 @@
 		if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} moved forward.`;
 		return `${COUNT_WORDS[names.length]} pillars moved forward.`;
 	});
-	/** What comes before each named pillar in the line: nothing, "and", or a comma. */
 	const joiner = (index: number, count: number): string => (index === 0 ? '' : count === 2 ? ' and ' : index === count - 1 ? ', and ' : ', ');
 
 	function rise(seconds: number): { class: string; delay: string | undefined } {
@@ -202,97 +201,92 @@
 	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
 	{@const tool = dealt.get(entry.key) ?? null}
-	<button
-		type="button"
-		class={cn(rowClass, entry.meta?.note || tool ? 'items-start rounded-[22px]' : 'items-center')}
-		onclick={() => toggleChecked(entry.key)}
-		aria-pressed={isChecked}
-	>
-		<span
-			class={cn(
-				'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[border-color] motion-safe:duration-150',
-				isChecked
-					? 'border-success bg-success text-surface'
-					: 'border-line bg-transparent group-hover:border-muted',
-				justChecked && 'origin-center motion-safe:animate-check-settle'
-			)}
-			aria-hidden="true"
+	<div class="flex flex-col">
+		<button
+			type="button"
+			class={rowClass}
+			onclick={() => toggleChecked(entry.key)}
+			aria-pressed={isChecked}
 		>
-			{#if isChecked}
-				<Icon
-					name="check"
-					size={12}
-					strokeWidth={2.5}
-					class={justChecked ? 'origin-center motion-safe:animate-check-in' : ''}
-				/>
-			{/if}
-		</span>
-		<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 			<span
 				class={cn(
-					'text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
+					'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[border-color] motion-safe:duration-150',
+					isChecked
+						? 'border-success bg-success text-surface'
+						: 'border-line bg-transparent group-hover:border-muted',
+					justChecked && 'origin-center motion-safe:animate-check-settle'
+				)}
+				aria-hidden="true"
+			>
+				{#if isChecked}
+					<Icon
+						name="check"
+						size={12}
+						strokeWidth={2.5}
+						class={justChecked ? 'origin-center motion-safe:animate-check-in' : ''}
+					/>
+				{/if}
+			</span>
+			<span
+				class={cn(
+					'min-w-0 flex-1 text-[0.95rem] font-medium leading-5 motion-safe:transition-colors motion-safe:duration-200',
 					isChecked && 'text-muted line-through'
 				)}>{entry.text}</span>
-			{#if tool}
-				<!-- The material this action uses today, on its own strip under the line. Opening it is logged;
-				     the tick above stays the person's. -->
-				<span class="mt-2 mb-0.5 flex min-w-0 items-center gap-1 rounded-[16px] bg-bg p-1.5 pe-1" role="group" aria-label="Today's tool for {entry.text}">
-					<a
-						href={tool.url}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="flex min-w-0 flex-1 items-center rounded-[12px] px-1 py-0.5 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
-						onclick={(event) => {
-							event.stopPropagation();
-							chart.openTool(entry.pillarIndex, tool.id);
-						}}
-					>
-						<ToolFace {tool} class="min-w-0 flex-1" />
-					</a>
-					{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
-						<IconButton
-							icon="refresh"
-							label="Another tool for {entry.text}"
-							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
-							onclick={(event) => {
-								event.stopPropagation();
-								passOver(entry.key, tool.id);
-							}}
-						/>
-					{/if}
-				</span>
-			{/if}
-			{#if entry.meta?.note}
-				<span class="text-[0.78rem] leading-snug text-muted">
-					{#if isUrl(entry.meta.note)}
+			<span
+				class={cn(
+					'pip size-2 shrink-0 rounded-full motion-safe:transition-opacity motion-safe:duration-200',
+					isChecked && 'opacity-40'
+				)}
+				style:--pip-h={HUES[entry.pillarIndex]}
+				title={entry.pillarName}
+				aria-hidden="true"
+			></span>
+			<span class="sr-only">, {entry.pillarName}</span>
+		</button>
+		{#if tool || entry.meta?.note}
+			<!-- Lined up under the text: the row's padding, the check, and the gap between them. -->
+			<div class="-mt-0.5 flex min-w-0 flex-col gap-0.5 ps-[46px] pe-3 pb-2.5">
+				{#if tool}
+					<div class="flex min-w-0 items-center gap-1 rounded-[16px] bg-bg p-1.5 pe-1" role="group" aria-label="Today's tool for {entry.text}">
 						<a
-							href={entry.meta.note}
+							href={tool.url}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="inline-flex items-center gap-1 underline underline-offset-2 hover:text-text"
-							onclick={(event) => event.stopPropagation()}
+							class="flex min-w-0 flex-1 items-center rounded-[12px] px-1 py-0.5 text-text no-underline hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
+							onclick={() => chart.openTool(entry.pillarIndex, tool.id)}
 						>
-							<Icon name="link" size={11} />
-							{entry.meta.note}
+							<ToolFace {tool} class="min-w-0 flex-1" />
 						</a>
-					{:else}
-						{entry.meta.note}
-					{/if}
-				</span>
-			{/if}
-		</span>
-		<span
-			class={cn(
-				'pip size-2 shrink-0 rounded-full motion-safe:transition-opacity motion-safe:duration-200',
-				(entry.meta?.note || tool) && 'mt-1.5',
-				isChecked && 'opacity-40'
-			)}
-			style:--pip-h={HUES[entry.pillarIndex]}
-			title={entry.pillarName}
-			aria-hidden="true"
-		></span>
-		<span class="sr-only">, {entry.pillarName}</span>
-	</button>
+						{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
+							<IconButton
+								icon="refresh"
+								label="Another tool for {entry.text}"
+								class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+								onclick={() => passOver(entry.key, tool.id)}
+							/>
+						{/if}
+					</div>
+				{/if}
+				{#if entry.meta?.note}
+					<span class="text-[0.78rem] leading-snug text-muted">
+						{#if isUrl(entry.meta.note)}
+							<a
+								href={entry.meta.note}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1 underline underline-offset-2 hover:text-text"
+							>
+								<Icon name="link" size={11} />
+								{entry.meta.note}
+							</a>
+						{:else}
+							{entry.meta.note}
+						{/if}
+					</span>
+				{/if}
+			</div>
+		{/if}
+	</div>
 {/snippet}
 
 {#snippet calendarDoor()}

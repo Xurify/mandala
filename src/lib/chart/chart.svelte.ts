@@ -174,7 +174,6 @@ function loadInitialLibrary(): ChartLibrary {
 
 const bootLibrary = loadInitialLibrary();
 
-// Per-chart share state (published id, last push time, auto-republish flag).
 const SHARE_STATE_KEY = "mandala-share-state-v1";
 const REFLECT_KEY = "mandala_reflect";
 
@@ -207,13 +206,9 @@ export class ChartStore {
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
   status = $state("");
-  /** Quiet label above the front slip. Empty for a one-line note. */
   statusKicker = $state("");
-  /** The thing the front slip is about. */
   statusSubject = $state("");
-  /** Repeats of the front slip's action. */
   statusCount = $state(0);
-  /** Slips still on the clock. Newest is last. */
   slips: Slip[] = $state([]);
   exportFallback = $state("");
   saveWarned = $state(false);
@@ -235,12 +230,7 @@ export class ChartStore {
   backupLastAt = $state<number | null>(null);
   #backupWarned = false;
 
-  // Device sync: one cloud row per personal sync key. Pull on open, push
-  // (debounced) after edits. A stale device re-applies its unsynced edits onto
-  // a newer server copy before pushing instead of clobbering it — see
-  // overlayLocalEdits. Off until enabled; the key lives in localStorage so
-  // every device that enters the same key shares one row.
-  #syncBase: ChartData | null = null; // last snapshot this device synced
+  #syncBase: ChartData | null = null;
   #syncBaseAt = 0;
   #syncBusy = false;
   #syncApplying = false;
@@ -271,11 +261,6 @@ export class ChartStore {
 
   todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
-  /**
-   * What writing just made whole: pillars that got their last line, and the chart if it filled. It clears
-   * itself after the moment, and it is never saved, so a reload does not replay it.
-   */
-  /** The weekly reflection is open. Any view can open it. */
   reflecting = $state(false);
   selecting = $state(false);
 
@@ -283,14 +268,12 @@ export class ChartStore {
     null,
   );
   #landedTimer: ReturnType<typeof setTimeout> | null = null;
-  /** What typing made whole, held while the person is still typing. It lands when the pen lifts. */
   #held: { done: { pillars: number[]; chart: boolean }; timer: ReturnType<typeof setTimeout> } | null = null;
 
   /** Now, as of the last time anything asked. A page left open overnight still sees the new offer. */
   #clockTick = $state(Date.now());
-  /** When the week's reflection is offered. The person's own, so it holds across charts. */
+  /** The person's own, so it holds across charts. */
   reflectAt: ReflectAt = $state(loadInitialReflectAt());
-  /** The week whose reflection is on offer: the one whose offer time passed last. */
   reflectionWeek: string = $derived(reflectionWeekOf(this.reflectAt, new Date(this.#clockTick)));
   weekReflectionDue: boolean = $derived.by(() => {
     if (typeof window === "undefined") return false;
@@ -305,9 +288,7 @@ export class ChartStore {
     this.#clockTick = Date.now();
     try {
       localStorage.setItem(REFLECT_KEY, JSON.stringify(this.reflectAt));
-    } catch {
-      // storage blocked
-    }
+    } catch {}
   }
 
   load(): void {
@@ -327,9 +308,7 @@ export class ChartStore {
       }
       this.#adopt(migrateFromV1(localStorage.getItem(STORAGE_KEY)));
       this.saveNow();
-    } catch {
-      // private mode / blocked storage
-    }
+    } catch {}
   }
 
   #adopt(library: ChartLibrary): void {
@@ -387,7 +366,6 @@ export class ChartStore {
     this.focusedKey = null;
   }
 
-  /** Puts the open chart's lines into its record. True when they had changed since the last flush. */
   #flush(): boolean {
     const changed =
       JSON.stringify(activeRecord(this.#library).data) !== JSON.stringify(this.data);
@@ -422,7 +400,6 @@ export class ChartStore {
     if (this.backupState === "on") void this.#writeBackup();
   }
 
-  /** Persist the library without treating the open chart as edited. */
   #writeLibrary(): void {
     this.#catchUp(null);
     try {
@@ -461,7 +438,6 @@ export class ChartStore {
     this.#follow(was, keep !== null);
   }
 
-  /** Storage changed under this tab: the library another tab wrote comes in, and the chart in view follows. */
   #absorb(raw: string): void {
     if (raw === this.#seen) return;
     this.#seen = raw;
@@ -475,7 +451,6 @@ export class ChartStore {
     if (editing) this.save();
   }
 
-  /** The chart in view after a merge: another one if its own went away, or its lines if they changed elsewhere. */
   #follow(was: string, editing: boolean): void {
     const record = activeRecord(this.#library);
     if (record.id !== was) {
@@ -506,7 +481,6 @@ export class ChartStore {
   save(): void {
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
     this.#saveTimer = setTimeout(() => this.saveNow(), 300);
-    // Keep the public share page current without a manual push.
     if (this.autoShare && this.shareId) this.#scheduleAutoPublish();
     if (this.syncEnabled) this.#scheduleSyncPush();
   }
@@ -520,12 +494,10 @@ export class ChartStore {
     });
   }
 
-  /** Named slip. Repeats of the same action while it is still in the pile stamp the count. */
   note(kicker: string, subject: string, amount = 1, mixedBatch = false): void {
     this.#applyNote(this.#copySlips(), kicker, subject, amount, mixedBatch);
   }
 
-  /** Put back what the showing slip deleted. */
   undoSlip(): void {
     const front = this.slips.at(-1);
     if (!front || front.undo.length === 0) return;
@@ -534,7 +506,6 @@ export class ChartStore {
     this.restoreCharts(ids);
   }
 
-  /** Pause every slip's clock while the pointer is on the pile. */
   holdToasts(held: boolean): void {
     if (held === this.#toastsHeld) return;
     const now = Date.now();
@@ -644,9 +615,7 @@ export class ChartStore {
       document.documentElement.dataset.view = mode;
       try {
         localStorage.setItem("mandala_view_mode", mode);
-      } catch {
-        // storage blocked
-      }
+      } catch {}
       this.#applySavedGoalFit();
     };
     if (mode === this.viewMode || !animate) apply();
@@ -659,9 +628,7 @@ export class ChartStore {
     else delete document.documentElement.dataset.scale;
     try {
       localStorage.setItem("mandala_view_scale", scale);
-    } catch {
-      // storage blocked
-    }
+    } catch {}
     this.#applySavedGoalFit();
   }
 
@@ -687,7 +654,6 @@ export class ChartStore {
     this.#hold(done, after);
   }
 
-  /** Keeps what typing made whole until typing pauses or the field is left. A line cleared again lets go. */
   #hold(done: { pillars: number[]; chart: boolean }, now: { pillars: boolean[]; chart: boolean }): void {
     const held = this.#held;
     if (held) clearTimeout(held.timer);
@@ -701,7 +667,6 @@ export class ChartStore {
         : null;
   }
 
-  /** The pen lifted: the field was left, or typing paused. What it made whole lands now, if it still is. */
   settle(): void {
     const held = this.#held;
     if (!held) return;
@@ -715,7 +680,6 @@ export class ChartStore {
     if (done.pillars.length > 0 || done.chart) this.#land(done, false);
   }
 
-  /** Writing made something whole. Several lines landing together (a fill) read as one moment. */
   #land(done: { pillars: number[]; chart: boolean }, quiet: boolean): void {
     const current = this.landed;
     this.landed = {
@@ -788,7 +752,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** Bindu's suggestions turned down today, so they are not offered again today. */
   declineToday(keys: string[]): void {
     if (keys.length === 0) return;
     if (!this.data.days) this.data.days = {};
@@ -799,7 +762,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** Insights Bindu has shown today, so the greeting does not repeat itself. */
   noteShown(signature: string): void {
     if (!this.data.days) this.data.days = {};
     const dateKey = todayKey();
@@ -810,7 +772,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** A link that arrived by share or paste, waiting for a shelf. */
   pendingLink = $state<string | null>(null);
 
   offerLink(url: string): void {
@@ -854,7 +815,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** The person opened it. Today is logged, and a once tool leaves the rotation. */
   openTool(pillarIndex: number, id: string): void {
     this.#patchTool(pillarIndex, id, (tool) => opened(tool));
   }
@@ -870,7 +830,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** Replaces what Bindu kept from the draft. An empty brief is removed. */
   setBrief(brief: ChartBrief | undefined): void {
     const next = brief && Object.values(brief).some((value) => value?.trim()) ? brief : undefined;
     this.data = { ...this.data, brief: next };
@@ -906,9 +865,7 @@ export class ChartStore {
       this.syncRoom = room;
       this.#loadSyncState(room);
       void this.pullSync();
-    } catch {
-      // storage blocked
-    }
+    } catch {}
   }
 
   #loadSyncState(room: string): void {
@@ -944,7 +901,6 @@ export class ChartStore {
     }
   }
 
-  /** Pulls the sync row and reconciles it with local edits. Safe to call again. */
   async pullSync(): Promise<void> {
     if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
     this.#syncBusy = true;
@@ -956,8 +912,6 @@ export class ChartStore {
         return;
       }
       if (remote.chart && remote.updatedAt !== null) {
-        // A device that edited while the server moved ahead re-applies its
-        // own edits on top instead of clobbering the newer copy.
         const merged = this.#syncBase
           ? overlayLocalEdits(this.#syncBase, this.data, remote.chart)
           : cloneChart(remote.chart);
@@ -969,12 +923,10 @@ export class ChartStore {
         this.#syncBaseAt = remote.updatedAt;
         this.#persistSyncState();
         if (JSON.stringify(merged) !== JSON.stringify(remote.chart)) {
-          // Local edits rode on top; share the result with the other device.
           await this.#putSync(merged);
         }
         this.syncStatus = "synced";
       } else {
-        // Nothing in the cloud yet: this device seeds the row.
         await this.#putSync(this.data);
         this.syncStatus = "synced";
       }
@@ -985,7 +937,7 @@ export class ChartStore {
     }
   }
 
-  /** Pushes the whole chart; pulls first so a stale tab can't clobber newer work. */
+  /** Pulls first so a stale tab can't clobber newer work. */
   async pushSync(): Promise<void> {
     if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
     this.#syncBusy = true;
@@ -1068,13 +1020,10 @@ export class ChartStore {
     try {
       localStorage.removeItem(SYNC_ROOM_KEY);
       localStorage.removeItem(SYNC_STATE_KEY);
-    } catch {
-      // storage blocked
-    }
+    } catch {}
     this.say("Sync off.");
   }
 
-  /** Publishes the active chart (first time creates, after that updates). */
   async publishShare(): Promise<void> {
     if (this.shareBusy) return;
     this.shareBusy = true;
@@ -1088,7 +1037,6 @@ export class ChartStore {
     }
   }
 
-  /** Stops sharing and clears the auto-republish flag. */
   async stopSharing(): Promise<void> {
     if (!this.shareId) return;
     const id = this.shareId;
@@ -1099,7 +1047,6 @@ export class ChartStore {
     await unpublishChart(id);
   }
 
-  /** Turns auto-republish on or off; on, it pushes soon after any edit. */
   setAutoShare(on: boolean): void {
     this.autoShare = on;
     this.#persistShareState();
@@ -1148,7 +1095,7 @@ export class ChartStore {
   jumpToKey(key: string): void {
     this.select(blockOfKey(key));
     this.focusedKey = key;
-    if (this.viewMode === "view" || this.viewMode === "today") {
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
       this.setViewMode("edit");
     }
   }
@@ -1197,9 +1144,7 @@ export class ChartStore {
           localStorage.setItem("theme", theme);
           document.documentElement.setAttribute("data-theme", theme);
         }
-      } catch {
-        // private mode / storage blocked
-      }
+      } catch {}
       this.bumpTheme();
     }, "theme");
   }
@@ -1216,9 +1161,7 @@ export class ChartStore {
           localStorage.setItem("accent", accent);
           document.documentElement.setAttribute("data-accent", accent);
         }
-      } catch {
-        // private mode / storage blocked
-      }
+      } catch {}
     }, "theme");
   }
 

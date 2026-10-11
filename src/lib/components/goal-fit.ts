@@ -1,5 +1,6 @@
 export const GOAL_FONT_FLOOR_RATIO = 0.7;
 export const GOAL_FONT_MIN_PX = 11;
+export const FIELD_FONT_MIN_PX = 12;
 
 export type CellKind = 'goal' | 'pillar' | 'action';
 

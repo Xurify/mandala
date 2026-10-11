@@ -31,7 +31,6 @@
 </script>
 
 <div class="flex flex-col gap-4 px-4 pt-1 pb-4">
-	<!-- Bindu's note: what it would say first, if it could only say one thing. -->
 	<div class="rounded-[22px] rounded-ss-[8px] bg-bg px-4 py-3.5 motion-safe:animate-pop-in">
 		<p class="m-0 text-[1.02rem] leading-[1.45] text-pretty">{note.text}</p>
 		{#if note.insight?.key}
@@ -60,14 +59,12 @@
 					>
 						<span class="grid size-10 shrink-0 place-items-center rounded-full bg-sunken text-text group-hover/door:bg-surface" aria-hidden="true">
 							{#if door.page === 'today' && picked.length}
-								<!-- The pillars today's picks would come from. -->
 								<span class="flex items-center gap-[3px]">
 									{#each picked as pillarIndex, dot (dot)}
 										<span class="pip size-[7px] rounded-full" style:--pip-h={HUES[pillarIndex]}></span>
 									{/each}
 								</span>
 							{:else if door.page === 'progress'}
-								<!-- The ring, lit for each pillar ticked in the last 7 days. -->
 								<svg class="block size-[22px] overflow-visible" viewBox="0 0 100 100">
 									{#each arcs as arc (arc.pillarIndex)}
 										<path
