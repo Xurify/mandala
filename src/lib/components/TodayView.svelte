@@ -202,7 +202,6 @@
 	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
 	{@const tool = dealt.get(entry.key) ?? null}
-	<!-- The tick is one button. What the action uses sits under it, as its own controls, not inside the tick. -->
 	<div class="flex flex-col">
 		<button
 			type="button"

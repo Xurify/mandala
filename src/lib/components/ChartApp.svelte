@@ -299,7 +299,6 @@
 			Boolean(target?.isContentEditable);
 		// A letter with Ctrl, Cmd, or Alt belongs to the browser: Cmd+V has to reach the paste that opens a shelf.
 		const plain = !isTyping && !event.ctrlKey && !event.metaKey && !event.altKey;
-		// Enter on a focused control presses that control. Grid cells open their own block.
 		const onControl =
 			target !== null &&
 			target !== document.body &&
