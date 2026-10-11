@@ -149,7 +149,7 @@ export const dock = tv({
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] max-[600px]:gap-1.5 max-[600px]:px-3.5 max-[400px]:px-3 max-[400px]:text-[0.86rem] max-[370px]:px-2.5 max-[340px]:gap-1 max-[340px]:px-2 ${focus}`
 });
 
 export const toast = tv({

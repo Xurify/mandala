@@ -153,7 +153,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Today / Board / Chart / Edit / Split, Split desktop only). On a phone the tabs tighten so four fit at 320px. `Toast` sits directly above it.
 
 ### Menus
 
@@ -192,7 +192,20 @@ Today, before the day starts, is one sheet of paper with the decks below it on t
 
 ### The calendar
 
-Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which stays four doors wide.
+Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which holds the views you work in.
+
+### The board
+
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are the chart's own action cells, tinted in their pillar's hue, with the pillar's pip and name on top; the lists are recessed trays on the paper. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+
+- **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
+- **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
+- **Done is the milestone's done.** A card dropped in Done is marked done today (a plain action becomes a milestone), so the calendar shows it; taken out again, it reopens. Its check stamps as it lands. A routine never goes to Done: it is ticked in Today, day by day. Done dims while a routine is held over it and the card goes home.
+- **Moving.** Drag with a pointer; on touch, hold a moment first so a swipe still scrolls. The held card tilts like a drawn card, a recessed slot opens where it will land, and on release it flies into that slot. Near a list's edge the list scrolls under it. With the keyboard, Space picks a card up, the arrows carry it (left and right between lists, up and down in To do and Doing), Space or Enter puts it down, Escape puts it back; a live region says where it is. A click or Enter opens the card's sheet: the list as a segmented control, and Open in the editor.
+- **On a phone** one list shows at a time, chosen from a segmented control that sticks to the top. A held card shrinks toward the finger over the tabs, and resting on a tab opens that list. All four lists stay mounted, so the card held keeps its pointer.
+- **Narrowing.** A pillar select, and the header search: on the board, search narrows the cards instead of listing hits. Counts follow what is shown.
+- **New card.** The plus on a list writes a new action into the first empty cell of the pillar you pick, then files it in that list. Hidden once every pillar has eight.
+- **Today deals from it.** The Today picker puts pinned first, then Doing, then To do, each in board order. A card in today's three says Today; a routine says Routine.
 
 ### When the week is offered
 
@@ -226,14 +239,14 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ## Trying it
 
-`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the board, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 
 - Page max width 1180px, 28px gutters, safe-area aware.
 - Hero: title + actions on the left, progress ring + stats on the right. The method lives in How it works. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
-- Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only).
+- Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only), and `today`, `board`, `calendar`, which take the stage and keep the chart's hero card out of it.
 - The page reserves 128px of bottom padding for the fixed dock (112px under 900px). Anything new that scrolls on its own must do the same.
 
 ## Voice and copy

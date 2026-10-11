@@ -4,6 +4,7 @@ import { parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { completedBy, getByKey, wholeness } from './model.ts';
+import { boardOf, doneByWeek } from './board.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -56,5 +57,14 @@ describe('demos', () => {
 		expect(nextTool(data, 'a1_0', now)).not.toBeNull();
 		expect(nearKnown(data, now).map((entry) => entry.tool.id)).toEqual(['t-words']);
 		expect(suggestToday(data, now).some((pick) => pick.tool)).toBe(true);
+	});
+
+	it('sets the board with work in every list and a routine in Doing', () => {
+		const board = boardOf(demoSetup('board', now).data!);
+		expect(board.doing.map((card) => card.key)).toEqual(['a0_0', 'a5_0', 'a2_1']);
+		expect(board.doing[0]?.routine).toBe(true);
+		expect(board.todo).toHaveLength(3);
+		expect(doneByWeek(board.done, now).earlier.length).toBeGreaterThan(0);
+		expect(doneByWeek(board.done, now).week.length).toBeGreaterThan(0);
 	});
 });

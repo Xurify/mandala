@@ -34,6 +34,7 @@
 	import SidePanel from './SidePanel.svelte';
 	import TodayView from './TodayView.svelte';
 	import CalendarView from './CalendarView.svelte';
+	import BoardView from './BoardView.svelte';
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
@@ -98,7 +99,8 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
-	const dayView = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar');
+	/** Views with a stage of their own, where the chart's hero card and the method link stay out of the way. */
+	const offChart = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar' || effectiveViewMode === 'board');
 	const searching = $derived(chart.query.trim() !== '');
 
 	$effect(() => {
@@ -344,6 +346,9 @@
 		} else if (plain && (event.key === 'c' || event.key === 'C')) {
 			event.preventDefault();
 			chart.setViewMode('calendar');
+		} else if (plain && (event.key === 'b' || event.key === 'B')) {
+			event.preventDefault();
+			chart.setViewMode('board');
 		}
 	}
 
@@ -455,6 +460,7 @@
 	const paletteCommands = $derived.by((): CommandItem[] => {
 		const items: CommandItem[] = [
 			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('today') },
+			{ id: 'board', label: 'Go to Board', section: 'Actions', icon: 'board', run: () => chart.setViewMode('board') },
 			{ id: 'calendar', label: 'Go to Calendar', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('calendar') },
 			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
@@ -653,7 +659,7 @@
 			<div class="min-w-0">
 				<Eyebrow class="mb-2">Your chart</Eyebrow>
 				<ChartSwitcher />
-				{#if !dayView}
+				{#if !offChart}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
@@ -668,7 +674,7 @@
 			</div>
 
 			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
-			{#if !dayView && !(effectiveViewMode === 'view' && !chart.dirty)}
+			{#if !offChart && !(effectiveViewMode === 'view' && !chart.dirty)}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
 				<ProgressRing size={isMobile ? 56 : 76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
@@ -722,24 +728,27 @@
 		<ShelfSheet />
 	</header>
 
-	<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
-		{#if searching && !shownHits.length}
-			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
-		{/if}
-		{#each shownHits as key (key)}
-			<button
-				type="button"
-				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
-				onclick={(event) => openHit(event.currentTarget, key)}
-			>
-				<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
-				{getByKey(chart.data, key).trim()}
-			</button>
-		{/each}
-		{#if extraHits}
-			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">+{extraHits} more</div>
-		{/if}
-	</div>
+	<!-- On the board, search narrows the cards instead. -->
+	{#if effectiveViewMode !== 'board'}
+		<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
+			{#if searching && !shownHits.length}
+				<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
+			{/if}
+			{#each shownHits as key (key)}
+				<button
+					type="button"
+					class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+					onclick={(event) => openHit(event.currentTarget, key)}
+				>
+					<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
+					{getByKey(chart.data, key).trim()}
+				</button>
+			{/each}
+			{#if extraHits}
+				<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">+{extraHits} more</div>
+			{/if}
+		</div>
+	{/if}
 
 	{#if effectiveViewMode === 'view' && chart.dirty}
 		<div
@@ -762,7 +771,7 @@
 		bind:this={stage}
 		class={cn(
 			'flex w-full flex-wrap items-start gap-7 [view-transition-name:stage] print:!m-0 print:!block print:!gap-0 max-[900px]:block',
-			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'flex-col items-center'
+			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || offChart) && 'flex-col items-center'
 		)}
 	>
 		<div class="print-sheet contents">
@@ -778,7 +787,7 @@
 			<div
 				class={cn(
 					'chart min-w-0 @container',
-					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'hidden',
+					(effectiveViewMode === 'edit' || offChart) && 'hidden',
 					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full flex-none',
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
@@ -791,7 +800,7 @@
 					/>
 				{:else}
 					<MandalaGrid
-						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar' ? 'view' : effectiveViewMode}
+						mode={effectiveViewMode === 'split' ? 'split' : 'view'}
 						onSelect={selectBlock}
 						onEdit={handleEditBlock}
 					/>
@@ -829,6 +838,12 @@
 		{#if effectiveViewMode === 'calendar'}
 			<CalendarView />
 		{/if}
+		{#if effectiveViewMode === 'board'}
+			<!-- The pillar filter and a held card belong to one chart. -->
+			{#key chart.activeId}
+				<BoardView narrow={isMobile} />
+			{/key}
+		{/if}
 	</main>
 
 	{#if updateReady}
@@ -864,6 +879,14 @@
 			onclick={() => chart.setViewMode('today')}
 		>
 			Today
+		</DockTab>
+		<DockTab
+			icon="board"
+			selected={effectiveViewMode === 'board'}
+			title="Open, to do, doing, done (B)"
+			onclick={() => chart.setViewMode('board')}
+		>
+			Board
 		</DockTab>
 		<DockTab
 			icon="grid"

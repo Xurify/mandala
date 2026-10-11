@@ -41,3 +41,17 @@ describe('chart day log', () => {
 		expect(chart.data.brief).toBeUndefined();
 	});
 });
+
+describe('chart board', () => {
+	it('moves a card through the lists and refuses Done for a routine', () => {
+		chart.data.actions[0]![0] = 'Book a race';
+		chart.data.actions[0]![1] = 'Run 3 km';
+		chart.setActionMeta('a0_1', { kind: 'routine' });
+		expect(chart.moveCard('a0_0', 'doing', 0)).toBe(true);
+		expect(chart.data.meta?.a0_0).toMatchObject({ lane: 'doing', rank: 0 });
+		expect(chart.moveCard('a0_0', 'done', 0)).toBe(true);
+		expect(chart.data.meta?.a0_0).toMatchObject({ kind: 'milestone', done: true, doneAt: todayKey() });
+		expect(chart.moveCard('a0_1', 'done', 0)).toBe(false);
+		expect(chart.data.meta?.a0_1?.done).toBeUndefined();
+	});
+});

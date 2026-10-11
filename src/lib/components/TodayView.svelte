@@ -8,6 +8,7 @@
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { dealTools, toolsFor } from '$lib/chart/tools';
+	import { dealFirst } from '$lib/chart/board';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -64,10 +65,7 @@
 		});
 	}
 
-	const pickerActions = $derived([
-		...pickable.filter((entry) => entry.meta?.pinned),
-		...pickable.filter((entry) => !entry.meta?.pinned)
-	]);
+	const pickerActions = $derived([...pickable].sort((a, b) => dealFirst(a.meta, b.meta)));
 
 	let selectedKeys = $state<string[]>([]);
 	let confirmed = $state(chart.todayLog.started === true || chart.todayLog.focus.length > 0);

@@ -83,6 +83,7 @@
 		list: true,
 		eye: true,
 		columns: true,
+		board: true,
 		maximize: true,
 		minimize: true,
 		info: true,

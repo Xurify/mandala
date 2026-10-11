@@ -43,6 +43,7 @@ src/
     morph.ts                  view transitions for view, theme and accent changes
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each (pure, tested)
+    board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
@@ -53,6 +54,7 @@ src/
     BrandMark.svelte          logo mark, same geometry as the ring
     Helper*.svelte            Bindu: launcher, panel, and one component per page
     EmptyChart, WeeklyReflection, WeekStrip, MiniChart, CalendarView
+    BoardView.svelte          the board: Open, To do, Doing, Done; drag, keyboard carry, card sheet
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
@@ -67,6 +69,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Anything arranged in a circle (ring, mark, icon) places pillar `k` at `PILLAR_ANGLES[k]`, so it matches the grid spatially.
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
+- A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
 
 ## Conventions
 

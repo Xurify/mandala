@@ -15,6 +15,7 @@ export type DemoId =
 	| 'views'
 	| 'today'
 	| 'calendar'
+	| 'board'
 	| 'reflection'
 	| 'bindu-week'
 	| 'bindu-review'
@@ -74,6 +75,26 @@ function livedIn(now: Date): ChartData {
 		a1_6: { kind: 'milestone', done: true, doneAt: dateKeyOf(now) },
 		a2_7: { kind: 'milestone' },
 		a0_0: { kind: 'routine' }
+	};
+	return data;
+}
+
+function onTheBoard(now: Date): ChartData {
+	const data = livedIn(now);
+	const back = (days: number): string => {
+		const date = new Date(now);
+		date.setDate(now.getDate() - days);
+		return dateKeyOf(date);
+	};
+	data.meta = {
+		...data.meta,
+		a0_0: { kind: 'routine', lane: 'doing', rank: 0 },
+		a5_0: { kind: 'milestone', lane: 'doing', rank: 1 },
+		a2_1: { kind: 'milestone', lane: 'doing', rank: 2 },
+		a5_2: { kind: 'milestone', lane: 'todo', rank: 0 },
+		a4_0: { kind: 'milestone', lane: 'todo', rank: 1 },
+		a3_2: { kind: 'milestone', lane: 'todo', rank: 2 },
+		a1_4: { kind: 'milestone', done: true, doneAt: back(9) }
 	};
 	return data;
 }
@@ -184,6 +205,18 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'board',
+		title: 'The board',
+		group: 'Days and weeks',
+		steps: [
+			'Every action on the chart is a card. Open keeps the chart\'s order; To do, Doing, and Done hold what you moved.',
+			'Drag a card into another list, or up and down in To do and Doing. On a phone, hold a card for a moment before you drag, or drop it on a list\'s tab.',
+			'Drop one in Done: its check stamps, and the calendar shows it today. "Talk to yourself for 5 minutes after dinner" is a routine, so Done turns it away.',
+			'With the keyboard: Tab to a card, Space picks it up, the arrows carry it, Space puts it down, Escape puts it back.',
+			'Click a card to move it from a sheet, or open it in the editor. Today deals what is in Doing first.'
+		]
+	},
+	{
 		id: 'reflection',
 		title: 'Your week',
 		group: 'Days and weeks',
@@ -275,6 +308,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
 	if (id === 'today') return { data: livedIn(now), view: 'today' };
 	if (id === 'calendar') return { data: livedIn(now), view: 'calendar' };
+	if (id === 'board') return { data: onTheBoard(now), view: 'board' };
 	if (id === 'tools') {
 		const data = livedIn(now);
 		data.meta = { ...data.meta, a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } };

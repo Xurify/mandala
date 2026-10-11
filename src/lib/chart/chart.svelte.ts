@@ -1,4 +1,5 @@
 import { morph } from "./morph";
+import { moveCard as cardMove, type Lane } from "./board.ts";
 import { newTool, opened } from "./tools";
 import {
   blockOfK,
@@ -92,7 +93,7 @@ import {
 } from "./backup.ts";
 
 export type AppTheme = "system" | "light" | "dark";
-export type ViewMode = "view" | "edit" | "split" | "today" | "calendar";
+export type ViewMode = "view" | "edit" | "split" | "today" | "calendar" | "board";
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
 
@@ -133,7 +134,8 @@ function loadInitialViewMode(): ViewMode {
       storedMode === "edit" ||
       storedMode === "split" ||
       storedMode === "today" ||
-      storedMode === "calendar"
+      storedMode === "calendar" ||
+      storedMode === "board"
     ) {
       return storedMode;
     }
@@ -721,6 +723,17 @@ export class ChartStore {
     this.save();
   }
 
+  /** False when the card cannot go there: a routine is never done. */
+  moveCard(key: string, lane: Lane, index: number): boolean {
+    const patch = cardMove(this.data, key, lane, index);
+    if (!patch) return false;
+    if (Object.keys(patch).length === 0) return true;
+    for (const [actionKey, change] of Object.entries(patch)) setMeta(this.data, actionKey, change);
+    this.data = { ...this.data };
+    this.save();
+    return true;
+  }
+
   /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
   setFocus(dateKey: string, keys: string[], replaced = false): void {
     if (!this.data.days) this.data.days = {};
@@ -1095,7 +1108,7 @@ export class ChartStore {
   jumpToKey(key: string): void {
     this.select(blockOfKey(key));
     this.focusedKey = key;
-    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
       this.setViewMode("edit");
     }
   }

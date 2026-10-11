@@ -26,6 +26,10 @@ export type ActionMeta = {
 	done?: boolean;
 	doneAt?: string;
 	note?: string;
+	/** The board list an open action sits in. Without one it is in Open; a done one is in Done. */
+	lane?: 'todo' | 'doing';
+	/** Order within its lane, lowest first. */
+	rank?: number;
 };
 
 export type DayLog = {
@@ -165,6 +169,10 @@ export function cellKey(b: number, c: number): string {
 	if (i.type === 'goal') return 'g';
 	if (i.type === 'pillar') return `p${i.k}`;
 	return `a${i.k}_${idx(c)}`;
+}
+
+export function actionKey(k: number, j: number): string {
+	return `a${k}_${j}`;
 }
 
 export function allKeys(): string[] {

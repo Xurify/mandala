@@ -22,6 +22,7 @@ const GROUPS: readonly { title: string; items: readonly ShortcutDef[] }[] = [
 		title: 'Move around',
 		items: [
 			{ label: 'Today', keys: ['T'] },
+			{ label: 'Board', keys: ['B'] },
 			{ label: 'Calendar', keys: ['C'] },
 			{ label: 'Chart', keys: ['V'] },
 			{ label: 'Editor', keys: ['E'] },
@@ -38,6 +39,15 @@ const GROUPS: readonly { title: string; items: readonly ShortcutDef[] }[] = [
 			{ label: 'Duplicate', keys: ['D'] },
 			{ label: 'New chart', keys: ['N'] },
 			{ label: 'Delete chart', keys: ['Del'] }
+		]
+	},
+	{
+		title: 'On the board',
+		items: [
+			{ label: 'Pick up a card, or put it down', keys: ['Space'] },
+			{ label: 'Carry it to another list', keys: ['←', '→'] },
+			{ label: 'Carry it up or down', keys: ['↑', '↓'] },
+			{ label: 'Put it back where it was', keys: ['Esc'] }
 		]
 	},
 	{
