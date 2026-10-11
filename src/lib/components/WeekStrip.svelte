@@ -10,7 +10,7 @@
 	const STACK = 7;
 	const summary = $derived(strip.map((day) => day.ticks.length).join(', '));
 	/** The strip is as tall as the busiest day, so a quiet week is not a tall empty box. */
-	const tallest = $derived(Math.max(3, Math.min(STACK, ...strip.map((day) => day.ticks.length))));
+	const tallest = $derived(Math.max(3, Math.min(STACK, Math.max(0, ...strip.map((day) => day.ticks.length)))));
 </script>
 
 <div

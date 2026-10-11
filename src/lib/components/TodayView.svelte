@@ -287,8 +287,8 @@
 	</div>
 {/snippet}
 
-{#snippet calendarDoor()}
-	<IconButton icon="calendar" label="Calendar" class="size-10 shrink-0 text-muted hover:text-text" onclick={() => chart.setViewMode('calendar')} />
+{#snippet calendarDoor(className = '')}
+	<IconButton icon="calendar" label="Calendar" class={cn('size-10 shrink-0 text-muted hover:text-text', className)} onclick={() => chart.setViewMode('calendar')} />
 {/snippet}
 
 <div
@@ -402,7 +402,7 @@
 	{:else if picking}
 		<FocusPicker actions={pickerActions} bind:selected={selectedKeys}>
 			{#snippet head()}
-				<header class="flex items-start justify-between gap-4 px-1 pt-1">
+				<header class="flex items-start justify-between gap-4 pt-1">
 					<div class="min-w-0">
 						<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
 						<h2
@@ -415,7 +415,7 @@
 							Three actions from your chart, small enough to finish today.
 						</p>
 					</div>
-					{@render calendarDoor()}
+					{@render calendarDoor('-me-[13px]')}
 				</header>
 			{/snippet}
 			{#snippet extra()}
@@ -449,7 +449,7 @@
 			class="mx-auto mt-2 w-full max-w-[520px] rounded-[28px] bg-surface p-2 shadow-card max-[900px]:mt-0 max-[900px]:rounded-3xl"
 			aria-labelledby="today-title"
 		>
-			<header class="flex items-center justify-between gap-4 px-4 pt-4 pb-3">
+			<header class="flex items-end justify-between gap-4 px-3 pt-4 pb-3">
 				<div class="min-w-0">
 					<Eyebrow class="mb-1.5">{dayLabel}</Eyebrow>
 					<h2
@@ -465,12 +465,13 @@
 							<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
 						</p>
 					{/if}
-					{@render calendarDoor()}
+					<!-- The glyph's edge, not the button's, lines up with the pillar dots on the rows below. -->
+					{@render calendarDoor('-me-[13px]')}
 				</div>
 			</header>
 
 			{#if allActions.length === 0}
-				<div class="flex flex-col items-start gap-4 px-4 pt-1 pb-4">
+				<div class="flex flex-col items-start gap-4 px-3 pt-1 pb-4">
 					<p class="m-0 text-[0.92rem] text-pretty text-muted">Add actions on the chart first.</p>
 					<Button onclick={() => chart.setViewMode('view')}>Open the chart</Button>
 				</div>
@@ -493,7 +494,8 @@
 					{/if}
 				</div>
 
-				<div class="mt-2 flex items-center justify-between gap-2">
+				<!-- Pulled out by the difference between a small button's padding and a row's, so the icons sit on the rows' edges. -->
+				<div class="-mx-0.5 mt-2 flex items-center justify-between gap-2">
 					{#if pickable.length > 0}
 						<Button variant="ghost" size="sm" icon="refresh" onclick={adjust}>Adjust</Button>
 					{:else}

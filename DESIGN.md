@@ -196,7 +196,7 @@ Every day's finished things, on a month (`CalendarView.svelte`, rules in `calend
 
 ### The board
 
-What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are the chart's own action cells, tinted in their pillar's hue, with the pillar's pip and name on top; the lists are recessed trays on the paper. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are the chart's own action cells, tinted in their pillar's hue, with the pillar's name above the action in muted type and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are recessed trays on the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
 - **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.

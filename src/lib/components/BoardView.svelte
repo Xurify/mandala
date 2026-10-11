@@ -532,39 +532,28 @@
 	const todayFocus = $derived(new Set(chart.todayLog.focus));
 	const todayTicks = $derived(new Set(chart.todayLog.checked));
 
+	/** One quiet mark per card, in this order: when it was done, then today's three, then routine. */
+	function markOf(card: Card, inLane: Lane): { icon: 'check' | 'calendar' | 'refresh'; label: string } | null {
+		if (inLane === 'done') return { icon: 'check', label: shortDay(card.doneAt) };
+		if (todayFocus.has(card.key)) return { icon: 'calendar', label: 'Today' };
+		if (card.routine) return { icon: 'refresh', label: 'Routine' };
+		return null;
+	}
+
 	const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 </script>
 
 <svelte:window onkeydowncapture={onWindowKey} />
 
 {#snippet face(card: Card, inLane: Lane)}
-	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4">
-		<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[card.pillarIndex]} aria-hidden="true"></span>
-		<span class="min-w-0 flex-1 truncate font-semibold text-text">{pillarName(card.pillarIndex)}</span>
-		{#if inLane === 'done'}
-			<span class="flex shrink-0 items-center gap-1 text-muted">
-				<span
-					class={cn(
-						'flex size-4 items-center justify-center rounded-full bg-ink text-on-ink',
-						stamped === card.key && 'motion-safe:animate-stamp'
-					)}
-					aria-hidden="true"
-				>
-					<Icon name="check" size={10} strokeWidth={3} />
-				</span>
-				<span class="sr-only">Done</span>
-				<span class="tabular-nums">{shortDay(card.doneAt)}</span>
-			</span>
-		{:else if todayTicks.has(card.key) || todayFocus.has(card.key)}
-			<span class="flex shrink-0 items-center gap-1 text-muted">
-				<Icon name={todayTicks.has(card.key) ? 'check' : 'calendar'} size={12} />
-				{#if todayTicks.has(card.key)}<span class="sr-only">Ticked</span>{/if}
-				Today
-			</span>
-		{:else if card.routine}
-			<span class="flex shrink-0 items-center gap-1 text-muted">
-				<Icon name="refresh" size={12} />
-				Routine
+	{@const mark = markOf(card, inLane)}
+	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4 text-muted">
+		<span class="min-w-0 flex-1 truncate font-medium">{pillarName(card.pillarIndex)}</span>
+		{#if mark}
+			<span class="flex shrink-0 items-center gap-1">
+				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.key && 'motion-safe:animate-stamp')} />
+				{#if mark.icon === 'check'}<span class="sr-only">Done</span>{/if}
+				{mark.label}
 			</span>
 		{/if}
 	</span>
@@ -582,7 +571,7 @@
 		<button
 			type="button"
 			class={cn(
-				'pillar-action flex w-full cursor-grab flex-col gap-1.5 rounded-[18px] border-0 px-3.5 pt-3 pb-3.5 text-left shadow-card touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:shadow-float',
+				'pillar-action flex w-full cursor-grab flex-col gap-1.5 rounded-[16px] border-0 px-3.5 py-3 text-left shadow-card touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:shadow-float',
 				lifted && '-translate-y-1 rotate-[1.2deg] shadow-float can-hover:hover:-translate-y-1',
 				focusRing
 			)}
@@ -609,7 +598,7 @@
 		data-scroller={scrolls ? '' : undefined}
 		class={cn(
 			'relative m-0 flex list-none flex-col gap-2 p-2',
-			scrolls && 'max-h-[max(360px,calc(100dvh-236px))] min-h-[180px] flex-1 overflow-y-auto',
+			scrolls && 'max-h-[max(360px,calc(100dvh-300px))] min-h-[180px] flex-1 overflow-y-auto rounded-b-[24px]',
 			refused && 'opacity-45 motion-safe:transition-opacity motion-safe:duration-150'
 		)}
 		aria-label={LANE_NAMES[inLane]}
@@ -618,12 +607,12 @@
 			{#if entry.slot}
 				<li
 					data-slot
-					class="shrink-0 rounded-[18px] bg-sunken-hover shadow-[inset_0_1px_3px_oklch(0_0_0/0.08)]"
+					class="shrink-0 rounded-[16px] bg-sunken-hover shadow-[inset_0_1px_3px_oklch(0_0_0/0.08)]"
 					style:height="{drag?.h ?? 72}px"
 					aria-hidden="true"
 				></li>
 			{:else if entry.earlier}
-				<li class="px-2 pt-2.5 pb-0.5"><Eyebrow>Earlier</Eyebrow></li>
+				<li class="px-3.5 pt-2.5 pb-0.5"><Eyebrow>Earlier</Eyebrow></li>
 			{:else}
 				{@render cardItem(entry, inLane)}
 			{/if}
@@ -650,7 +639,8 @@
 			</p>
 		</div>
 		{#if pillarOptions.length > 2}
-			<Select size="sm" label="Show a pillar" options={pillarOptions} bind:value={pillar} class="w-[220px] max-[900px]:w-full" />
+			<!-- Centred on the summary line beside it, not sat on its baseline. -->
+			<Select size="sm" label="Show a pillar" options={pillarOptions} bind:value={pillar} class="w-[220px] min-[901px]:-mb-1.5 max-[900px]:w-full" />
 		{/if}
 	</header>
 
@@ -696,7 +686,7 @@
 					class={cn('flex min-w-0 flex-col rounded-[24px] bg-sunken', over && 'bg-sunken-hover')}
 					aria-labelledby="{uid}-{each}"
 				>
-					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-4 pe-1.5 pt-1.5">
+					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-[22px] pe-2 pt-1.5">
 						<h3 id="{uid}-{each}" class="m-0 flex items-baseline gap-2 text-[0.95rem] font-semibold text-text">
 							{LANE_NAMES[each]}
 							<span class="text-[0.82rem] font-medium text-muted tabular-nums">{counts[each]}</span>
@@ -726,7 +716,7 @@
 		>
 			<div
 				class={cn(
-					'pillar-action flex w-full flex-col gap-1.5 rounded-[18px] px-3.5 pt-3 pb-3.5 shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
+					'pillar-action flex w-full flex-col gap-1.5 rounded-[16px] px-3.5 py-3 shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.landing
 						? 'rotate-0'
 						: drag.tab
