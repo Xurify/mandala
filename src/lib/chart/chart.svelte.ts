@@ -1137,7 +1137,7 @@ export class ChartStore {
   jumpToKey(key: string): void {
     this.select(blockOfKey(key));
     this.focusedKey = key;
-    if (this.viewMode === "view" || this.viewMode === "today") {
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
       this.setViewMode("edit");
     }
   }

@@ -22,4 +22,10 @@ describe('shortcuts', () => {
 		expect(desktop.some((item) => item.label === 'Split view')).toBe(true);
 		expect(desktop.find((item) => item.label === 'Print')?.keys).toEqual(['⌘', 'P']);
 	});
+
+	it('lists the calendar under the key that opens it', () => {
+		const items = visibleShortcuts('Ctrl', true).flatMap((group) => group.items);
+		expect(items.find((item) => item.label === 'Calendar')?.keys).toEqual(['C']);
+		expect(items.some((item) => item.keys.includes('Y'))).toBe(false);
+	});
 });

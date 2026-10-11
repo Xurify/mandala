@@ -1,5 +1,7 @@
 export const GOAL_FONT_FLOOR_RATIO = 0.7;
 export const GOAL_FONT_MIN_PX = 11;
+/** The smallest a pillar or action shrinks to in the editor. Past it, the cell scrolls. */
+export const FIELD_FONT_MIN_PX = 12;
 
 export type CellKind = 'goal' | 'pillar' | 'action';
 

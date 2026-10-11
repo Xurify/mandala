@@ -291,8 +291,19 @@
 		if (inDialog) return;
 		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 
+		const target = event.target instanceof HTMLElement ? event.target : null;
 		const isTyping =
-			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			target instanceof HTMLSelectElement ||
+			Boolean(target?.isContentEditable);
+		// A letter with Ctrl, Cmd, or Alt belongs to the browser: Cmd+V has to reach the paste that opens a shelf.
+		const plain = !isTyping && !event.ctrlKey && !event.metaKey && !event.altKey;
+		// Enter on a focused control presses that control. Grid cells open their own block.
+		const onControl =
+			target !== null &&
+			target !== document.body &&
+			target.closest('button, a[href], summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"]') !== null;
 
 		if (event.key === 'Escape') {
 			if (chart.query.trim()) {
@@ -302,16 +313,16 @@
 			} else if (chart.sel !== 4) {
 				chart.selectGoal();
 			}
-		} else if (!isTyping && (event.key === 'v' || event.key === 'V')) {
+		} else if (plain && (event.key === 'v' || event.key === 'V')) {
 			event.preventDefault();
 			chart.setViewMode('view');
-		} else if (!isTyping && (event.key === 'e' || event.key === 'E')) {
+		} else if (plain && (event.key === 'e' || event.key === 'E')) {
 			event.preventDefault();
 			chart.setViewMode('edit');
-		} else if (!isTyping && !isMobile && (event.key === 's' || event.key === 'S')) {
+		} else if (plain && !isMobile && (event.key === 's' || event.key === 'S')) {
 			event.preventDefault();
 			chart.setViewMode('split');
-		} else if (!isTyping && event.key === 'Enter' && chart.viewMode === 'view') {
+		} else if (plain && !onControl && event.key === 'Enter' && chart.viewMode === 'view') {
 			event.preventDefault();
 			chart.setViewMode('edit');
 		} else if (event.altKey && event.key === 'ArrowRight') {
@@ -323,16 +334,16 @@
 		} else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
 			event.preventDefault();
 			paletteOpen = true;
-		} else if (!isTyping && event.key === '?') {
+		} else if (plain && event.key === '?') {
 			event.preventDefault();
 			shortcutsOpen = true;
-		} else if (event.key === '/' && !isTyping) {
+		} else if (plain && event.key === '/') {
 			event.preventDefault();
 			searchInputElement?.focus();
-		} else if (!isTyping && (event.key === 't' || event.key === 'T')) {
+		} else if (plain && (event.key === 't' || event.key === 'T')) {
 			event.preventDefault();
 			chart.setViewMode('today');
-		} else if (!isTyping && (event.key === 'c' || event.key === 'C')) {
+		} else if (plain && (event.key === 'c' || event.key === 'C')) {
 			event.preventDefault();
 			chart.setViewMode('calendar');
 		}

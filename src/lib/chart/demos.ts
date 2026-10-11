@@ -150,6 +150,7 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Moving around',
 		steps: [
 			'Click any cell. Its block grows into the editor.',
+			'Or Tab to a cell and press Enter. Its block opens with that cell ready to type.',
 			'Switch views with the dock. The dock stays where it is while the page changes under it.',
 			'Change the theme or the accent in the menu (the three dots). The page crossfades.'
 		]

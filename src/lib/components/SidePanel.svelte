@@ -3,6 +3,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
 	import {
+		FIELD_FONT_MIN_PX,
 		largestSizeThatFits,
 		remeasureWhenFontSettles,
 		saveGoalFitForNextVisit,
@@ -316,63 +317,108 @@
 			host?.style.removeProperty('--goal-fit');
 		};
 	};
+
+	/**
+	 * A pillar or action longer than its square shrinks until it fits, as the goal does, instead of running
+	 * under the bottom edge where a phone shows no scrollbar.
+	 */
+	const fitCellField: Attachment = (element) => {
+		if (!(element instanceof HTMLTextAreaElement)) return;
+		let frame = 0;
+
+		const apply = (): void => {
+			element.style.fontSize = '';
+			if (element.clientHeight <= 0 || element.value.trim() === '') return;
+			if (element.scrollHeight <= element.clientHeight + 1) return;
+			const max = parseFloat(getComputedStyle(element).fontSize);
+			if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX) return;
+			const fits = (size: number): boolean => {
+				element.style.fontSize = `${size}px`;
+				return element.scrollHeight <= element.clientHeight + 1;
+			};
+			const chosen = largestSizeThatFits(FIELD_FONT_MIN_PX, max, fits);
+			element.style.fontSize = `${Math.floor(chosen * 4) / 4}px`;
+		};
+
+		const schedule = (): void => {
+			cancelAnimationFrame(frame);
+			frame = requestAnimationFrame(apply);
+		};
+
+		apply();
+		const stopFace = remeasureWhenFontSettles(schedule);
+		const resizeObserver = new ResizeObserver(schedule);
+		resizeObserver.observe(element);
+		// The value changes without an input event when the editor turns to another block.
+		const textObserver = new MutationObserver(schedule);
+		textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
+		return () => {
+			cancelAnimationFrame(frame);
+			stopFace();
+			resizeObserver.disconnect();
+			textObserver.disconnect();
+			element.style.fontSize = '';
+		};
+	};
 </script>
 
 <div class="rounded-[30px] bg-surface p-6 shadow-card max-[900px]:rounded-[26px] max-[900px]:px-3.5 max-[900px]:py-[18px]">
-	<div class="mb-[26px] flex items-center gap-2.5 max-[900px]:mb-5 max-[900px]:gap-1.5 @max-[360px]:gap-1" role="tablist" aria-label="Chart sections">
-		<button
-			type="button"
-			role="tab"
-			class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text bg-sunken motion-safe:transition-[color,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-none active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
-			aria-selected={chart.sel === 4}
-			onclick={() => chart.selectGoal()}
-			aria-label="Center goal and core vision"
-		>
-			<Icon name="target" size={14} />
-			<span>Goal</span>
-		</button>
+	<div class="mb-[26px] flex items-center gap-2.5 max-[900px]:mb-5 max-[900px]:gap-1.5 @max-[360px]:gap-1">
+		<div class="flex min-w-0 flex-1 items-center gap-2.5 max-[900px]:gap-1.5 @max-[360px]:gap-1" role="tablist" aria-label="Chart sections">
+			<button
+				type="button"
+				role="tab"
+				class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text bg-sunken motion-safe:transition-[color,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
+				aria-selected={chart.sel === 4}
+				onclick={() => chart.selectGoal()}
+				aria-label="Center goal and core vision"
+			>
+				<Icon name="target" size={14} />
+				<span>Goal</span>
+			</button>
 
-		<div class="flex min-w-0 flex-1 items-center justify-center gap-1.5 max-[900px]:gap-1 @max-[360px]:gap-[3px]" role="group" aria-label="Select pillar">
-			{#each Array(8) as _, pillarIndex (pillarIndex)}
-				{@const isSelected = chart.sel !== 4 && idx(chart.sel) === pillarIndex}
-				{@const pillarName = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}
-				{@const actionsCount = chart.milestones.pillarActionCounts[pillarIndex] ?? 0}
-				{@const isFilled = actionsCount > 0 || (chart.data.pillars[pillarIndex] ?? '').trim() !== ''}
-				<button
-					type="button"
-					role="tab"
-					class={cn(
-						'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] focus-visible:outline-none active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
-						!isFilled && !isSelected && 'dot-fill',
-						isFilled && !isSelected && 'pillar-cell text-on-p',
-						!isSelected && 'can-hover:hover:pillar-cell can-hover:hover:text-on-p',
-						isSelected &&
-							'z-[2] text-[oklch(0.99_0_0)] bg-[oklch(0.6_0.14_var(--h))] shadow-[0_0_0_2px_var(--surface),0_0_0_4px_oklch(0.6_0.14_var(--h))]'
-					)}
-					style:--h={HUES[pillarIndex]}
-					title="{pillarName} ({actionsCount}/8 actions)"
-					aria-label="Pillar {pillarIndex + 1}: {pillarName}"
-					aria-selected={isSelected}
-					onclick={() => chart.selectPillar(pillarIndex)}
-				>
-					<span>{pillarIndex + 1}</span>
-					{#if actionsCount === 8}
-						{@const stamped = chart.landed?.pillars.includes(pillarIndex) || chart.landed?.chart}
-						{#key stamped ? chart.landed?.id : 0}
-							<span
-								class={cn(
-									'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]',
-									stamped && 'motion-safe:animate-stamp'
-								)}
-								style:animation-delay={stamped && chart.landed?.chart ? `${pillarIndex * 70}ms` : undefined}
-								aria-hidden="true"
-							>
-								<Icon name="check" size={10} strokeWidth={2.5} />
-							</span>
-						{/key}
-					{/if}
-				</button>
-			{/each}
+			<div class="flex min-w-0 flex-1 items-center justify-center gap-1.5 max-[900px]:gap-1 @max-[360px]:gap-[3px]">
+				{#each Array(8) as _, pillarIndex (pillarIndex)}
+					{@const isSelected = chart.sel !== 4 && idx(chart.sel) === pillarIndex}
+					{@const pillarName = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}
+					{@const actionsCount = chart.milestones.pillarActionCounts[pillarIndex] ?? 0}
+					{@const isFilled = actionsCount > 0 || (chart.data.pillars[pillarIndex] ?? '').trim() !== ''}
+					<button
+						type="button"
+						role="tab"
+						class={cn(
+							'relative inline-flex h-8 w-8 min-w-[22px] flex-[0_1_32px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-[0.78rem] font-[650] tabular-nums motion-safe:transition-[box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:-inset-y-1.5 after:-inset-x-0.5 after:content-[\'\'] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.94] max-[900px]:h-7 max-[900px]:w-7 max-[900px]:flex-[0_1_28px] max-[900px]:text-[0.74rem]',
+							!isFilled && !isSelected && 'dot-fill',
+							isFilled && !isSelected && 'pillar-cell text-on-p',
+							!isSelected && 'can-hover:hover:pillar-cell can-hover:hover:text-on-p',
+							isSelected &&
+								'z-[2] text-[oklch(0.99_0_0)] bg-[oklch(0.6_0.14_var(--h))] shadow-[0_0_0_2px_var(--surface),0_0_0_4px_oklch(0.6_0.14_var(--h))]'
+						)}
+						style:--h={HUES[pillarIndex]}
+						title="{pillarName} ({actionsCount}/8 actions)"
+						aria-label="Pillar {pillarIndex + 1}: {pillarName}"
+						aria-selected={isSelected}
+						onclick={() => chart.selectPillar(pillarIndex)}
+					>
+						<span>{pillarIndex + 1}</span>
+						{#if actionsCount === 8}
+							{@const stamped = chart.landed?.pillars.includes(pillarIndex) || chart.landed?.chart}
+							{#key stamped ? chart.landed?.id : 0}
+								<span
+									class={cn(
+										'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]',
+										stamped && 'motion-safe:animate-stamp'
+									)}
+									style:animation-delay={stamped && chart.landed?.chart ? `${pillarIndex * 70}ms` : undefined}
+									aria-hidden="true"
+								>
+									<Icon name="check" size={10} strokeWidth={2.5} />
+								</span>
+							{/key}
+						{/if}
+					</button>
+				{/each}
+			</div>
 		</div>
 		<!-- The pills already reach every section. On a narrow panel the arrows only crowd the eighth one. -->
 		<div class="inline-flex shrink-0 gap-0.5 @max-[440px]:hidden">
@@ -497,10 +543,8 @@
 					aria-label={describe(chart.sel, cellIndex)}
 					placeholder={placeholder(cellIndex)}
 					value={chart.textOf(cellKey(chart.sel, cellIndex))}
-					data-fit={info(chart.sel, cellIndex).type === 'goal'
-						? chart.textOf(cellKey(chart.sel, cellIndex))
-						: undefined}
-					{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : undefined}
+					data-fit={chart.textOf(cellKey(chart.sel, cellIndex))}
+					{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : fitCellField}
 					onfocus={() => {
 						activeCellIndex = cellIndex;
 					}}

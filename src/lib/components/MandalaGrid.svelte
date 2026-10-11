@@ -313,6 +313,12 @@
 					data-placeholder={cellPlaceholder(blockIndex, cellIndex)}
 					onclick={() => onSelect?.(blockIndex, key, cellIndex)}
 					ondblclick={() => onEdit?.(blockIndex, key)}
+					onkeydown={(event) => {
+						// Enter is the keyboard's double-click on the chart. In split, the click already lands in the editor.
+						if (event.key !== 'Enter' || !view || !onEdit) return;
+						event.preventDefault();
+						onEdit(blockIndex, key);
+					}}
 					onpointerenter={(event) => handlePointerEnter(blockIndex, cellIndex, event)}
 					onpointerleave={handlePointerLeave}
 				>
