@@ -171,7 +171,8 @@
 		data-tool={tool.id}
 		class={cn(
 			'flex flex-col rounded-[16px] focus:outline-none',
-			open && 'bg-surface shadow-card',
+			// A filled animation in the settings leaves a stacking context, so without a z-index a list opened there paints under later rows.
+			open && 'relative z-[1] bg-surface shadow-card',
 			added === tool.id && 'motion-safe:animate-pop-in'
 		)}
 		tabindex="-1"
