@@ -34,7 +34,6 @@ export function svgIn(text: string): string | null {
 
 /** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
 export function linkIn(text: string): string | null {
-	// Pasted SVG carries its namespace, http://www.w3.org/2000/svg, which is not a link.
 	if (svgIn(text)) return null;
 	const match = text.match(/https?:\/\/[^\s<>"']+/);
 	if (!match) return null;

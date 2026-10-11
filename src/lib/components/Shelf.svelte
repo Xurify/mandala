@@ -165,7 +165,6 @@
 			{#each tools as tool (tool.id)}
 				{@const host = hostOf(tool.url)}
 				{@const iconable = !thumbnailOf(tool.url)}
-				<!-- Focusable by click, so a paste right after pointing at a row lands on that row's site. -->
 				<li
 					class="flex flex-col gap-2 rounded-[18px] bg-bg px-3 py-2.5 focus:outline-none"
 					tabindex="-1"

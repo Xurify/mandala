@@ -72,7 +72,6 @@
 	function remove(): void {
 		const ids = pickedItems.map((item) => item.id);
 		if (ids.length === 0) return;
-		// Closed first, so the slip's Undo is in reach above the dock.
 		open = false;
 		chart.deleteCharts(ids);
 	}
