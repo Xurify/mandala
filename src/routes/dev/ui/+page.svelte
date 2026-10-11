@@ -90,6 +90,7 @@
 		calendar: true,
 		pin: true,
 		link: true,
+		shelf: true,
 		refresh: true,
 		folder: true,
 		command: true,

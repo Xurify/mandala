@@ -12,6 +12,7 @@
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Shelf from './Shelf.svelte';
+	import { fetchTitle, linkIn, toolsFor } from '$lib/chart/tools';
 	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
@@ -89,6 +90,27 @@
 	const activeActionKey = $derived(
 		effectiveCellIndex !== null ? cellKey(chart.sel, effectiveCellIndex) : null
 	);
+
+	const handedOut = $derived(activeActionKey ? toolsFor(chart.data, activeActionKey).filter((tool) => !tool.known).length : 0);
+
+	/** A link goes on the pillar's shelf, handed out by this action. */
+	function shelve(key: string, url: string, fromNote = false): void {
+		const match = key.match(/^a(\d)_(\d)$/);
+		if (!match) return;
+		const pillarIndex = Number(match[1]);
+		const tool = chart.addTool(pillarIndex, url);
+		chart.updateTool(pillarIndex, tool.id, { action: Number(match[2]) });
+		if (fromNote) chart.setActionMeta(key, { note: undefined });
+		void fetchTitle(url).then((title) => title && chart.updateTool(pillarIndex, tool.id, { title }));
+		chart.say(`Put on the shelf for action ${Number(match[2]) + 1}.`);
+	}
+
+	function pasteNote(event: ClipboardEvent, key: string): void {
+		const url = linkIn(event.clipboardData?.getData('text') ?? '');
+		if (!url) return;
+		event.preventDefault();
+		shelve(key, url);
+	}
 
 	const panelTitle = $derived.by(() => {
 		if (chart.sel === 4) return chart.data.goal.trim() || 'Goal and pillars';
@@ -498,16 +520,22 @@
 					</span>
 					{#if info(chart.sel, cellIndex).type === 'action'}
 						{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
-						{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note}
+						{@const shelved = toolsFor(chart.data, cellKey(chart.sel, cellIndex)).filter((tool) => !tool.known).length}
+						{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
 							<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
-								{#if actionMeta.pinned}
+								{#if actionMeta?.pinned}
 									<Icon name="pin" size={11} />
 								{/if}
-								{#if actionMeta.done}
+								{#if actionMeta?.done}
 									<Icon name="check" size={11} class="text-success" />
 								{/if}
-								{#if actionMeta.note}
-									<Icon name="link" size={11} class="opacity-80" />
+								{#if actionMeta?.note}
+									<Icon name="edit" size={11} class="opacity-80" />
+								{/if}
+								{#if shelved}
+									<span class="inline-flex items-center gap-0.5 text-[0.66rem] font-[650] tabular-nums" title="Hands out {shelved} from the shelf">
+										<Icon name="shelf" size={11} />{shelved}
+									</span>
 								{/if}
 							</span>
 						{/if}
@@ -613,32 +641,31 @@
 					</div>
 				</div>
 
-				<div class="flex items-center gap-2">
-					<div class="relative flex-1">
-						<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
-							<Icon name="link" size={16} />
-						</span>
-						<input
-							type="text"
-							class={cn(fieldInk, 'pr-4 pl-10')}
-							placeholder="Add link or note (e.g. YouTube, article, chapter)..."
-							value={meta?.note ?? ''}
-							oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
-						/>
-					</div>
-					{#if meta?.note && isUrl(meta.note)}
-						<a
-							href={meta.note}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="inline-flex size-[42px] shrink-0 items-center justify-center rounded-full text-muted bg-sunken hover:bg-sunken-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-							title="Open link in new tab"
-							aria-label="Open link in new tab"
-						>
-							<Icon name="arrow-right" size={13} />
-						</a>
-					{/if}
+				<div class="relative">
+					<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
+						<Icon name="edit" size={16} />
+					</span>
+					<input
+						type="text"
+						class={cn(fieldInk, 'pr-4 pl-10')}
+						placeholder="Add a note, like a chapter or a page"
+						aria-label="Note for action {idx(effectiveCellIndex) + 1}"
+						value={meta?.note ?? ''}
+						onpaste={(event) => pasteNote(event, activeActionKey)}
+						oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
+					/>
 				</div>
+				{#if meta?.note && isUrl(meta.note.trim())}
+					<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty text-muted">
+						<span>A link does more on the shelf: Today hands it out and counts the opens.</span>
+						<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionKey, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
+					</p>
+				{:else if handedOut > 0}
+					<p class="m-0 flex items-center gap-1.5 text-[0.82rem] leading-snug text-muted">
+						<Icon name="shelf" size={14} class="shrink-0" />
+						Hands out {handedOut} from the shelf below.
+					</p>
+				{/if}
 			</div>
 		{/if}
 	{/if}

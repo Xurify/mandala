@@ -199,9 +199,11 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Tools',
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, or the arrow for another.',
-			'Open Edit, then pillar 2, Listening. Its shelf lists every link: Once or Repeat, which action hands it out, Know this. One video was opened 11 of the last 14 days, so the shelf asks.',
-			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.',
-			'On pillar 5, Sentence patterns, press the image button beside the readline link and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.'
+			'Open Edit, then pillar 2, Listening. Each link is one line: who hands it out, how often, and Up next on the one Today shows. The arrow opens its settings. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
+			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
+			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
+			'On pillar 5, Sentence patterns, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
 		]
 	},
 	{

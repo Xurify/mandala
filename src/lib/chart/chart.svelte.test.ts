@@ -41,3 +41,15 @@ describe('chart day log', () => {
 		expect(chart.data.brief).toBeUndefined();
 	});
 });
+
+describe('chart shelves', () => {
+	it('puts a removed tool back where it was when the slip is undone', () => {
+		const first = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'First');
+		chart.addTool(1, 'https://youtu.be/wzMrFFcC1BU', 'Second');
+		chart.removeTool(1, first.id);
+		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['Second']);
+		expect(chart.slips.at(-1)?.kicker).toBe('Off the shelf');
+		chart.undoSlip();
+		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
+	});
+});

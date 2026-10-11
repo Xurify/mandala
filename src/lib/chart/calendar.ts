@@ -1,4 +1,4 @@
-import { dateKeyOf, getByKey, type ChartData } from './model.ts';
+import { dateKeyOf, getByKey, type ChartData, type Tool } from './model.ts';
 
 export type DayDone = {
 	key: string;
@@ -46,6 +46,17 @@ export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	for (const [key, meta] of Object.entries(data.meta ?? {})) {
 		if (meta.kind !== 'milestone' || !meta.done || meta.doneAt !== dateKey || seen.has(key)) continue;
 		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), milestone: true });
+	}
+	return out;
+}
+
+/** The shelf's tools opened that day, in pillar order. Opening is logged per day, without a time. */
+export function openedOn(data: ChartData, dateKey: string): { pillarIndex: number; tool: Tool }[] {
+	const out: { pillarIndex: number; tool: Tool }[] = [];
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		for (const tool of data.tools?.[`p${pillarIndex}`] ?? []) {
+			if (tool.opened?.includes(dateKey)) out.push({ pillarIndex, tool });
+		}
 	}
 	return out;
 }

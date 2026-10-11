@@ -503,7 +503,9 @@ export class ChartStore {
     if (!front || front.undo.length === 0) return;
     const ids = front.undo;
     this.slips = this.slips.filter((slip) => slip.id !== front.id);
-    this.restoreCharts(ids);
+    const tools = ids.filter((id) => this.#removedTools.has(id));
+    for (const token of tools) this.#restoreTool(token);
+    this.restoreCharts(ids.filter((id) => !tools.includes(id)));
   }
 
   holdToasts(held: boolean): void {
@@ -796,13 +798,33 @@ export class ChartStore {
     });
   }
 
+  /** Tools taken off a shelf while their slip can still undo it, by the slip's undo token. */
+  #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
+
   removeTool(pillarIndex: number, id: string): void {
     const key = `p${pillarIndex}`;
-    const rest = (this.data.tools?.[key] ?? []).filter((tool) => tool.id !== id);
+    const list = this.data.tools?.[key] ?? [];
+    const at = list.findIndex((tool) => tool.id === id);
+    if (at < 0) return;
+    const rest = list.filter((tool) => tool.id !== id);
     const tools = { ...this.data.tools };
     if (rest.length > 0) tools[key] = rest;
     else delete tools[key];
     this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+    this.save();
+    const token = `tool:${id}`;
+    this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
+    this.#place({ key: token, kicker: "Off the shelf", subject: list[at]!.title, undo: [token] });
+  }
+
+  #restoreTool(token: string): void {
+    const removed = this.#removedTools.get(token);
+    this.#removedTools.delete(token);
+    if (!removed || removed.chartId !== this.#library.activeId) return;
+    const key = `p${removed.pillarIndex}`;
+    const list = [...(this.data.tools?.[key] ?? [])];
+    list.splice(Math.min(removed.at, list.length), 0, removed.tool);
+    this.data = { ...this.data, tools: { ...this.data.tools, [key]: list } };
     this.save();
   }
 

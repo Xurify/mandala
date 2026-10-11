@@ -85,6 +85,32 @@ export function nextTool(data: ChartData, key: string, now: Date = new Date(), s
 	return [...pool].sort((a, b) => last(a).localeCompare(last(b)) || jitter(`${today}:${key}:${a.id}`) - jitter(`${today}:${key}:${b.id}`))[0] ?? null;
 }
 
+/** Every written action in the order Today deals them: pinned routines, the other routines, then the rest. */
+export function dealKeys(data: ChartData): string[] {
+	const written: string[] = [];
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
+			if ((data.actions[pillarIndex]?.[actionIndex] ?? '').trim()) written.push(`a${pillarIndex}_${actionIndex}`);
+		}
+	}
+	const meta = (key: string) => data.meta?.[key];
+	return [
+		...written.filter((key) => isRoutine(meta(key)) && meta(key)?.pinned),
+		...written.filter((key) => isRoutine(meta(key)) && !meta(key)?.pinned),
+		...written.filter((key) => !isRoutine(meta(key)))
+	];
+}
+
+/** The tool each of a pillar's actions hands out next, as tool id to action index. Matches what Today shows. */
+export function upNext(data: ChartData, pillarIndex: number, now: Date = new Date()): Map<string, number> {
+	const out = new Map<string, number>();
+	for (const [key, tool] of dealTools(data, dealKeys(data), now)) {
+		const at = parts(key);
+		if (tool && at?.pillarIndex === pillarIndex && !out.has(tool.id)) out.set(tool.id, at.actionIndex);
+	}
+	return out;
+}
+
 /**
  * Dealt in order, so two routines on one shelf never hold the same tool at once. When passing has used a
  * shelf up, it starts round again rather than showing nothing.
