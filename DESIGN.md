@@ -186,6 +186,10 @@ The dock (with its toast), Bindu, and an open menu float over the stage and stay
 
 Writing the last line of a pillar, or of the chart, is a moment too, without a layout of its own, because the person is at the keyboard. It plays where the data already shows: the editor's pill stamps its check, the block glows once in its hue, and the hero ring redraws the arc. A full chart redraws all eight and ends on a check, and says so in one toast. `chart.landed` carries it for three seconds and is never saved, so a reload does not replay it. Several lines landing together (a fill) make one moment at once. A typed line waits for the pen to lift: the field is left, or typing pauses for a beat (`chart.settle`). A line cleared again before that lets go, so a half-typed word never stamps.
 
+### Picking the day
+
+Today, before the day starts, is one sheet of paper with the decks below it on the desk. The sheet holds the date and the question, three slots, the habits already in the day (read, not ticked: they are ticked once the day starts), and one line of status beside Deal and Start my day. The calendar is an icon in the sheet's header. Each deck below is a pillar's top card with the rest of the deck as edges under it, and a quiet foot that counts the cards and spreads them. The sheet is where cards go; the decks are where they come from. In the Plan tomorrow dialog the dialog is the sheet.
+
 ### The calendar
 
 Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which stays four doors wide.

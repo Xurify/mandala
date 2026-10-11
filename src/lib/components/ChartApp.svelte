@@ -472,13 +472,7 @@
 			},
 			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
 			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
-			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') },
-			...ACCENTS.map((item) => ({
-				id: `accent-${item.id}`,
-				label: `${item.label} accent`,
-				section: 'Actions' as const,
-				run: () => chart.setAccent(item.id)
-			}))
+			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
 		);
 		if (supportsDirectoryPicker()) {
 			items.push({
