@@ -295,6 +295,8 @@
 
 		const isTyping =
 			event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+		// A letter held with Ctrl, Cmd or Alt is the browser's (copy, paste, find), not a view switch.
+		const plain = !isTyping && !event.ctrlKey && !event.metaKey && !event.altKey;
 
 		if (event.key === 'Escape') {
 			if (chart.query.trim()) {
@@ -304,16 +306,16 @@
 			} else if (chart.sel !== 4) {
 				chart.selectGoal();
 			}
-		} else if (!isTyping && (event.key === 'v' || event.key === 'V')) {
+		} else if (plain && (event.key === 'v' || event.key === 'V')) {
 			event.preventDefault();
 			chart.setViewMode('view');
-		} else if (!isTyping && (event.key === 'e' || event.key === 'E')) {
+		} else if (plain && (event.key === 'e' || event.key === 'E')) {
 			event.preventDefault();
 			chart.setViewMode('edit');
-		} else if (!isTyping && !isMobile && (event.key === 's' || event.key === 'S')) {
+		} else if (plain && !isMobile && (event.key === 's' || event.key === 'S')) {
 			event.preventDefault();
 			chart.setViewMode('split');
-		} else if (!isTyping && event.key === 'Enter' && chart.viewMode === 'view') {
+		} else if (plain && event.key === 'Enter' && chart.viewMode === 'view') {
 			event.preventDefault();
 			chart.setViewMode('edit');
 		} else if (event.altKey && event.key === 'ArrowRight') {
@@ -325,16 +327,16 @@
 		} else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
 			event.preventDefault();
 			paletteOpen = true;
-		} else if (!isTyping && event.key === '?') {
+		} else if (plain && event.key === '?') {
 			event.preventDefault();
 			shortcutsOpen = true;
-		} else if (event.key === '/' && !isTyping) {
+		} else if (event.key === '/' && plain) {
 			event.preventDefault();
 			searchInputElement?.focus();
-		} else if (!isTyping && (event.key === 't' || event.key === 'T')) {
+		} else if (plain && (event.key === 't' || event.key === 'T')) {
 			event.preventDefault();
 			chart.setViewMode('today');
-		} else if (!isTyping && (event.key === 'c' || event.key === 'C')) {
+		} else if (plain && (event.key === 'c' || event.key === 'C')) {
 			event.preventDefault();
 			chart.setViewMode('calendar');
 		}

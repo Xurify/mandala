@@ -1,4 +1,5 @@
 import { ICON_MAX } from './model.ts';
+import { svgIn } from './tools.ts';
 
 /** Longest side of an icon drawn down: twice the largest face, so it stays sharp on a dense screen. */
 const SIDE = 128;
@@ -42,5 +43,42 @@ export async function readIcon(file: File): Promise<string | null> {
 		return null;
 	} finally {
 		URL.revokeObjectURL(source);
+	}
+}
+
+function svgFile(svg: string): File {
+	return new File([svg], 'pasted.svg', { type: 'image/svg+xml' });
+}
+
+/**
+ * The picture in a paste, read at once so the paste can be claimed: an image file (a copied picture, a
+ * copied file), or SVG markup copied as text. Null when the paste holds no picture.
+ */
+export function pastedPicture(data: DataTransfer | null): File | null {
+	if (!data) return null;
+	const file = [...data.files].find((item) => item.type.startsWith('image/') || /\.svg$/i.test(item.name));
+	if (file) return file;
+	const svg = svgIn(data.getData('text/plain')) ?? svgIn(data.getData('text/html'));
+	return svg ? svgFile(svg) : null;
+}
+
+/** The picture on the clipboard, for a Paste button with no paste event behind it. Null when there is none, or the browser says no. */
+export async function clipboardPicture(): Promise<File | null> {
+	try {
+		if (navigator.clipboard?.read) {
+			for (const item of await navigator.clipboard.read()) {
+				const type = item.types.find((kind) => kind.startsWith('image/'));
+				if (type) return new File([await item.getType(type)], type === 'image/svg+xml' ? 'pasted.svg' : 'pasted', { type });
+				if (item.types.includes('text/plain')) {
+					const svg = svgIn(await (await item.getType('text/plain')).text());
+					if (svg) return svgFile(svg);
+				}
+			}
+			return null;
+		}
+		const svg = svgIn(await navigator.clipboard.readText());
+		return svg ? svgFile(svg) : null;
+	} catch {
+		return null;
 	}
 }

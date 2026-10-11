@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealTools, hostOf, iconOf, linkIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
+import { dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -135,5 +135,16 @@ describe('the shelf', () => {
 		);
 		expect(loaded?.icons).toEqual({ 'readline.app': png, 'localhost:5173': png });
 		expect(parseChart(JSON.stringify({ ...data, icons: { 'a.example': 'junk' } }))?.icons).toBeUndefined();
+	});
+
+	it('finds SVG markup in a paste, and does not read its namespace as a link', () => {
+		const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>';
+		expect(svgIn(svg)).toBe(svg);
+		expect(svgIn(`<?xml version="1.0"?>\n<!-- logo -->\n${svg}\n`)).toBe(svg);
+		expect(svgIn('<SVG\n  width="16">x</SVG>')).toBe('<SVG\n  width="16">x</SVG>');
+		expect(svgIn('<svgfoo></svg>')).toBeNull();
+		expect(svgIn('https://readline.app')).toBeNull();
+		expect(linkIn(svg)).toBeNull();
+		expect(linkIn('Watch this! https://youtu.be/6mCmru24BOI.')).toBe('https://youtu.be/6mCmru24BOI');
 	});
 });

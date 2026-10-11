@@ -31,8 +31,17 @@ export function iconOf(data: ChartData, url: string): string | null {
 	return data.icons?.[hostOf(url)] ?? null;
 }
 
-/** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
+/** SVG markup in some pasted text, as a design tool or an editor copies it. Null when there is none. */
+export function svgIn(text: string): string | null {
+	return text.match(/<svg[\s>][\s\S]*<\/svg>/i)?.[0] ?? null;
+}
+
+/**
+ * The first link in some text, so a pasted share ("Watch this! https://…") still lands. Pasted SVG is a
+ * picture, not a link, though its namespace (http://www.w3.org/2000/svg) reads as one.
+ */
 export function linkIn(text: string): string | null {
+	if (svgIn(text)) return null;
 	const match = text.match(/https?:\/\/[^\s<>"']+/);
 	if (!match) return null;
 	const url = match[0].replace(/[.,;:!?)]+$/, '');
