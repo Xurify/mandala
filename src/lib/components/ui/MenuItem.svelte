@@ -9,6 +9,8 @@
 		children: Snippet;
 		icon?: IconName;
 		badge?: string;
+		/** How many things are behind the item, as a pill so it does not read as a key. */
+		count?: number;
 		shortcut?: string;
 		tone?: 'default' | 'danger';
 		active?: boolean;
@@ -21,6 +23,7 @@
 		children,
 		icon,
 		badge,
+		count,
 		shortcut,
 		tone = 'default',
 		active = false,
@@ -54,6 +57,9 @@
 	</span>
 	{#if badge}
 		<span class={styles.badge()}>{badge}</span>
+	{/if}
+	{#if count}
+		<span class={styles.count()}>{count}</span>
 	{/if}
 	{#if shortcut}
 		<kbd class={cn(styles.badge(), 'coarse:hidden')}>{shortcut}</kbd>

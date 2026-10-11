@@ -496,7 +496,7 @@
 		<MenuDivider />
 		<MenuItem
 			icon="clock"
-			badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
+			count={chart.deletedCharts.length}
 			onclick={openDeleted}
 		>
 			Recently deleted
