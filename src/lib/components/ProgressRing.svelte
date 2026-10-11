@@ -28,7 +28,6 @@
 		})
 	);
 
-	/** A pillar that just got its last line redraws its arc; a full chart redraws all of them, in order. */
 	const landed = $derived(chart.landed);
 	function lands(pillarIndex: number): boolean {
 		return landed !== null && (landed.chart || landed.pillars.includes(pillarIndex));
@@ -66,7 +65,6 @@
 		{/each}
 		{#if landed?.chart}
 			{#key landed.id}
-				<!-- The last stroke of a full chart: the count steps aside for a check. -->
 				<polyline
 					class="fill-none stroke-current text-text [stroke-dasharray:1] [stroke-linecap:round] [stroke-linejoin:round] motion-safe:animate-seal-draw"
 					points="64 41 45.5 59.5 36 50"

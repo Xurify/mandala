@@ -12,7 +12,6 @@
 
 	const picks = $derived(helper.picks?.picks ?? []);
 	const scope = $derived(helper.picks?.scope ?? 'today');
-	/** Picks that arrived by a swap turn over in place. The first hand is dealt. */
 	let swapped = $state<Set<string>>(new Set());
 
 	let list: HTMLOListElement | null = $state(null);
@@ -75,7 +74,6 @@
 				</li>
 			{/each}
 		</ol>
-		<!-- Stays in reach while a long week scrolls under it. -->
 		<div class="sticky bottom-0 z-[2] -mx-4 -mb-4 flex items-center gap-2 bg-surface px-4 pt-2 pb-4">
 			<Button class="flex-1" onclick={() => helper.commit()}>{scope === 'today' ? 'Put these on today' : 'Pin these for the week'}</Button>
 			<Button variant="ghost" onclick={() => helper.decline()}>Not now</Button>

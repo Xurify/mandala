@@ -8,7 +8,6 @@
 	type Props = {
 		options: readonly SelectOption[];
 		value?: string;
-		/** Accessible name when no visible label is wired with `labelledBy`. */
 		label: string;
 		labelledBy?: string;
 		disabled?: boolean;

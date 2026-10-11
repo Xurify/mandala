@@ -156,7 +156,6 @@
 		if (names.length === 3) return `${names[0]}, ${names[1]}, and ${names[2]} moved forward.`;
 		return `${COUNT_WORDS[names.length]} pillars moved forward.`;
 	});
-	/** What comes before each named pillar in the line: nothing, "and", or a comma. */
 	const joiner = (index: number, count: number): string => (index === 0 ? '' : count === 2 ? ' and ' : index === count - 1 ? ', and ' : ', ');
 
 	function rise(seconds: number): { class: string; delay: string | undefined } {
@@ -248,7 +247,6 @@
 			<!-- Lined up under the text: the row's padding, the check, and the gap between them. -->
 			<div class="-mt-0.5 flex min-w-0 flex-col gap-0.5 ps-[46px] pe-3 pb-2.5">
 				{#if tool}
-					<!-- The material this action uses today. Opening it is logged; the tick above stays the person's. -->
 					<div class="flex min-w-0 items-center gap-1 rounded-[16px] bg-bg p-1.5 pe-1" role="group" aria-label="Today's tool for {entry.text}">
 						<a
 							href={tool.url}
@@ -297,7 +295,6 @@
 		picking && !closed ? 'max-w-[1040px]' : 'max-w-[620px]'
 	)}
 >
-	<!-- The days behind this one. Looked at often, so it sits where the eye lands before the list. -->
 	<div class={cn('mb-2 flex w-full justify-end max-[900px]:mb-1', !(picking && !closed) && 'mx-auto max-w-[520px]')}>
 		<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
 	</div>

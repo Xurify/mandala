@@ -19,7 +19,6 @@
 	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 
-	/** True when the editor is the only thing on screen, so its block can be the chart's block grown large. */
 	let { alone = false }: { alone?: boolean } = $props();
 
 	let gridElement: HTMLDivElement | null = $state(null);

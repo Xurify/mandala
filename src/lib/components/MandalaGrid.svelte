@@ -138,7 +138,6 @@
 		);
 	}
 
-	/** A block whose pillar just became whole glows once. A full chart glows block by block, in pillar order. */
 	function landedOn(blockIndex: number): boolean {
 		const landed = chart.landed;
 		if (source || !landed || blockIndex === 4) return false;

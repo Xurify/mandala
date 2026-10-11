@@ -90,7 +90,6 @@
 {/snippet}
 
 {#snippet thread(done: boolean)}
-	<!-- The thread between two steps fills in ink once the step above it is done. -->
 	<span class="absolute start-[13px] top-7 bottom-0 w-0.5 -translate-x-1/2 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
 		<span
 			class={cn(
@@ -138,7 +137,6 @@
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
 					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
-					<!-- The same prompt, straight into the chat app's box. The person still presses send there. -->
 					<Button size="sm" variant="soft" icon={app.icon} onclick={() => helper.openIn()}>Open in {app.label}</Button>
 					<Select
 						size="sm"

@@ -76,7 +76,6 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
-	/** The ways to start have left, once the chart has a line. */
 	let startsGone = $state(chart.dirty || chart.viewMode === 'view');
 	$effect(() => {
 		if (!chart.dirty && effectiveViewMode !== 'view') startsGone = false;
@@ -107,7 +106,6 @@
 		untrack(() => helper.follow(chartId));
 	});
 
-	/** Sets up one of the `/dev/demo` situations, as a new chart, after the saved charts have loaded. */
 	function openDemo(id: DemoId): void {
 		const setup = demoSetup(id);
 		const demo = DEMOS.find((entry) => entry.id === id);
@@ -235,7 +233,6 @@
 		chart.setViewMode('edit');
 	}
 
-	/** A link pasted anywhere that is not a field goes to a shelf. Fields, and Bindu, keep their own paste. */
 	function handleWindowPaste(event: ClipboardEvent): void {
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
@@ -523,7 +520,6 @@
 
 	let stage = $state<HTMLElement | null>(null);
 
-	/** In Edit view the editor sits alone on the stage. A click on the stage around it is a step back out. */
 	function handleStageClick(event: MouseEvent): void {
 		if (effectiveViewMode === 'edit' && event.target === stage) chart.setViewMode('view');
 	}
@@ -663,7 +659,6 @@
 				<ChartSwitcher />
 				{#if !dayView}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
-						<!-- Ways to start belong to an empty chart. Once it has a line, New chart in the menu starts another. -->
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>

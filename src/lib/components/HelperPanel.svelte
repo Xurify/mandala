@@ -35,7 +35,6 @@
 	});
 
 	let root: HTMLDivElement | null = $state(null);
-	/** Where focus goes after a page turn: into the new page, or back to the door it came out of. */
 	let previous: HelperPage | 'moment' | null = null;
 	$effect(() => {
 		const current = view;
@@ -60,7 +59,6 @@
 		else onclose?.();
 	}
 
-	/** A chart reply pasted anywhere in the panel lands on the write page, ready to keep. */
 	function onpaste(event: ClipboardEvent): void {
 		const target = event.target as HTMLElement | null;
 		if (target?.dataset.reply !== undefined) return;

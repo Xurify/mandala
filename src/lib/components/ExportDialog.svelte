@@ -18,7 +18,6 @@
 
 	let isExportingPng = $state(false);
 	let isSharing = $state(false);
-	/** Which share request is out, so its own button says so. */
 	let sharing = $state<'publish' | 'stop' | null>(null);
 
 	async function handlePublish(): Promise<void> {
