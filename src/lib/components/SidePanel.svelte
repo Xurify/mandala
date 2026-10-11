@@ -318,10 +318,6 @@
 		};
 	};
 
-	/**
-	 * A pillar or action longer than its square shrinks until it fits, as the goal does, instead of running
-	 * under the bottom edge where a phone shows no scrollbar.
-	 */
 	const fitCellField: Attachment = (element) => {
 		if (!(element instanceof HTMLTextAreaElement)) return;
 		let frame = 0;
