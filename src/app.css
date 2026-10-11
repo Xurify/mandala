@@ -128,6 +128,13 @@
 @utility shadow-float {
 	box-shadow: var(--shadow-md);
 }
+/* The page itself, for anything that stands in for it (a sticky bar), so the grain runs on under it. */
+@utility paper {
+	background: var(--grain) var(--bg);
+}
+@utility shadow-well {
+	box-shadow: var(--shadow-well);
+}
 @utility shadow-press {
 	box-shadow:
 		inset 0 1px 0 oklch(1 0 0 / 0.12),
@@ -150,7 +157,7 @@
 	background-color: var(--sunken);
 	color: var(--text);
 	font-family: var(--font);
-	box-shadow: inset 0 0 0 1px transparent;
+	box-shadow: var(--shadow-well);
 	transition-property: box-shadow;
 	transition-duration: 200ms;
 	transition-timing-function: var(--ease);
@@ -162,7 +169,7 @@
 	}
 	&:hover:not(:focus):not(:disabled) {
 		background-color: var(--sunken-hover);
-		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 16%, transparent);
+		box-shadow: var(--shadow-well), inset 0 0 0 1px color-mix(in oklch, var(--accent) 16%, transparent);
 	}
 	&:focus {
 		background-color: var(--surface);
@@ -807,8 +814,18 @@
 	--ring-fill-l: 0.66;
 	--soft: var(--sunken);
 	--soft-hover: var(--sunken-hover);
-	--shadow-sm: 0 1px 2px oklch(0.3 0.03 60 / 0.06), 0 0 0 1px oklch(0.3 0.03 60 / 0.055);
-	--shadow-md: 0 18px 40px -16px oklch(0.3 0.04 60 / 0.28), 0 0 0 1px oklch(0.3 0.03 60 / 0.06);
+	/* Card stock on paper: a lit top edge, a hairline, a contact shadow, then the soft fall of the sheet. */
+	--shadow-sm:
+		inset 0 1px 0 oklch(1 0 0 / 0.6), 0 0 0 1px oklch(0.32 0.03 60 / 0.07), 0 1px 2px oklch(0.32 0.04 60 / 0.07),
+		0 4px 10px -4px oklch(0.32 0.05 60 / 0.13);
+	--shadow-md:
+		inset 0 1px 0 oklch(1 0 0 / 0.6), 0 0 0 1px oklch(0.32 0.03 60 / 0.07), 0 2px 4px -1px oklch(0.32 0.04 60 / 0.08),
+		0 16px 32px -12px oklch(0.32 0.05 60 / 0.22), 0 40px 72px -32px oklch(0.32 0.06 60 / 0.26);
+	/* A tray pressed into the paper: shade under its top lip, light along its bottom edge. */
+	--shadow-well:
+		inset 0 2px 4px -1px oklch(0.32 0.04 60 / 0.1), inset 0 0 0 1px oklch(0.32 0.03 60 / 0.045),
+		0 1px 0 oklch(1 0 0 / 0.8);
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.32 0 0 0 0 0.25 0 0 0 0 0.16 0 0 0 0.2 -0.055'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
 	--scroll-thumb: oklch(0.5 0.02 65 / 0.32);
 	--scroll-thumb-hover: oklch(0.4 0.02 65 / 0.55);
 	--font: 'Source Sans 3 Variable', 'Source Sans 3 Fallback', 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -866,8 +883,12 @@
 		--ring-fill-l: 0.72;
 		--soft: oklch(0.36 0.012 65);
 		--soft-hover: oklch(0.42 0.014 65);
-		--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
-		--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
+		--shadow-sm:
+			inset 0 1px 0 oklch(1 0 0 / 0.07), 0 0 0 1px oklch(1 0 0 / 0.055), 0 2px 6px -2px oklch(0 0 0 / 0.55);
+		--shadow-md:
+			inset 0 1px 0 oklch(1 0 0 / 0.08), 0 0 0 1px oklch(1 0 0 / 0.07), 0 18px 44px -12px oklch(0 0 0 / 0.62);
+		--shadow-well: inset 0 2px 6px -1px oklch(0 0 0 / 0.42), inset 0 0 0 1px oklch(0 0 0 / 0.22), 0 1px 0 oklch(1 0 0 / 0.05);
+		--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.9 0 0 0 0 0.82 0 0 0 0.11 -0.035'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
 		--scroll-thumb: oklch(0.75 0.02 75 / 0.3);
 		--scroll-thumb-hover: oklch(0.85 0.02 75 / 0.5);
 		--swatch-walnut: oklch(0.52 0.075 80);
@@ -921,8 +942,12 @@
 	--ring-fill-l: 0.72;
 	--soft: oklch(0.36 0.012 65);
 	--soft-hover: oklch(0.42 0.014 65);
-	--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
-	--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
+	--shadow-sm:
+		inset 0 1px 0 oklch(1 0 0 / 0.07), 0 0 0 1px oklch(1 0 0 / 0.055), 0 2px 6px -2px oklch(0 0 0 / 0.55);
+	--shadow-md:
+		inset 0 1px 0 oklch(1 0 0 / 0.08), 0 0 0 1px oklch(1 0 0 / 0.07), 0 18px 44px -12px oklch(0 0 0 / 0.62);
+	--shadow-well: inset 0 2px 6px -1px oklch(0 0 0 / 0.42), inset 0 0 0 1px oklch(0 0 0 / 0.22), 0 1px 0 oklch(1 0 0 / 0.05);
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.9 0 0 0 0 0.82 0 0 0 0.11 -0.035'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
 	--scroll-thumb: oklch(0.75 0.02 75 / 0.3);
 	--scroll-thumb-hover: oklch(0.85 0.02 75 / 0.5);
 	--swatch-walnut: oklch(0.52 0.075 80);
@@ -1003,7 +1028,7 @@ html {
 
 body {
 	margin: 0;
-	background: var(--bg);
+	background: var(--grain) var(--bg);
 	color: var(--text);
 	font-family: var(--font);
 	line-height: 1.5;
