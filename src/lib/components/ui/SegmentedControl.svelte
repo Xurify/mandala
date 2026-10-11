@@ -3,13 +3,15 @@
 	import { cn } from './cn';
 	import { segmented } from './styles';
 
-	export type SegmentOption = { value: string; label: string; icon?: IconName; title?: string };
+	export type SegmentOption = { value: string; label: string; icon?: IconName; title?: string; detail?: string };
 
 	type Props = {
 		options: SegmentOption[];
 		value?: string;
 		size?: 'md' | 'sm';
 		label: string;
+		/** The options switch what a panel shows, so they are tabs: `aria-selected`, and arrow keys move between them. */
+		tabs?: boolean;
 		class?: string;
 		onchange?: (value: string) => void;
 	};
@@ -19,6 +21,7 @@
 		value = $bindable(''),
 		size = 'md',
 		label,
+		tabs = false,
 		class: className,
 		onchange
 	}: Props = $props();
@@ -53,9 +56,20 @@
 		value = next;
 		onchange?.(next);
 	}
+
+	function walk(event: KeyboardEvent): void {
+		const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+		if (!tabs || !step) return;
+		event.preventDefault();
+		const at = options.findIndex((option) => option.value === value);
+		const next = options[(at + step + options.length) % options.length];
+		if (!next) return;
+		pick(next.value);
+		track?.querySelector<HTMLButtonElement>(`[data-value="${CSS.escape(next.value)}"]`)?.focus();
+	}
 </script>
 
-<div bind:this={track} class={cn(styles.group(), className)} role="group" aria-label={label}>
+<div bind:this={track} class={cn(styles.group(), className)} role={tabs ? 'tablist' : 'group'} aria-label={label} onkeydown={walk}>
 	{#if thumbOn}
 		<span
 			class="pointer-events-none absolute top-[3px] bottom-[3px] z-0 rounded-full bg-surface shadow-seg motion-safe:transition-[left,width] motion-safe:duration-[380ms] motion-safe:ease-[cubic-bezier(0.4,0,0.15,1)]"
@@ -67,9 +81,12 @@
 	{#each options as option (option.value)}
 		<button
 			type="button"
-			class={cn(styles.option(), !thumbOn && 'aria-pressed:bg-surface aria-pressed:shadow-seg')}
+			class={cn(styles.option(), !thumbOn && 'aria-pressed:bg-surface aria-pressed:shadow-seg aria-selected:bg-surface aria-selected:shadow-seg')}
 			data-value={option.value}
-			aria-pressed={value === option.value}
+			role={tabs ? 'tab' : undefined}
+			aria-pressed={tabs ? undefined : value === option.value}
+			aria-selected={tabs ? value === option.value : undefined}
+			tabindex={tabs && value !== option.value ? -1 : undefined}
 			title={option.title}
 			onclick={() => pick(option.value)}
 		>
@@ -77,6 +94,9 @@
 				<Icon name={option.icon} size={size === 'sm' ? 13 : 16} />
 			{/if}
 			<span class="translate-y-px">{option.label}</span>
+			{#if option.detail}
+				<span class="translate-y-px font-[520] tabular-nums opacity-70">{option.detail}</span>
+			{/if}
 		</button>
 	{/each}
 </div>

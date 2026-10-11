@@ -12,7 +12,9 @@
 	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Shelf from './Shelf.svelte';
-	import { fetchTitle, linkIn, toolsFor } from '$lib/chart/tools';
+	import { fetchTitle, linkIn, shelfOf, toolsFor } from '$lib/chart/tools';
+	import { onMount, tick } from 'svelte';
+	import { slipOut } from './ui/motion';
 	import Button from './ui/Button.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
@@ -22,7 +24,7 @@
 
 	let { alone = false }: { alone?: boolean } = $props();
 
-	let gridElement: HTMLDivElement | null = $state(null);
+	let faceElement: HTMLDivElement | null = $state(null);
 	let titleElement: HTMLHeadingElement | null = $state(null);
 	/** The block the editor showed last, so the next one can arrive from where it sits on the map. */
 	let shownSel = chart.sel;
@@ -35,7 +37,7 @@
 		const dy = Math.floor(sel / 3) - Math.floor(from / 3);
 		const length = Math.hypot(dx, dy) || 1;
 		const offset = `translate(${(dx / length) * 40}px, ${(dy / length) * 40}px)`;
-		for (const node of [gridElement, titleElement]) {
+		for (const node of [faceElement, titleElement]) {
 			node?.animate([{ transform: offset, opacity: 0.15 }, { transform: 'none', opacity: 1 }], {
 				duration: 400,
 				easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
@@ -90,6 +92,40 @@
 	const activeActionKey = $derived(
 		effectiveCellIndex !== null ? cellKey(chart.sel, effectiveCellIndex) : null
 	);
+
+	const onShelf = $derived(chart.sel !== 4 && chart.face === 'shelf');
+	const shelfCount = $derived(chart.sel === 4 ? 0 : shelfOf(chart.data, idx(chart.sel)).length);
+	const faces = $derived([
+		{ value: 'actions', label: 'Actions' },
+		{ value: 'shelf', label: 'Shelf', detail: shelfCount ? String(shelfCount) : undefined }
+	]);
+	/** True when the face changed on the same pillar. Moving between pillars slides instead, and a reload does not swing. */
+	let swing = $state(false);
+	let seen = { face: chart.face, sel: chart.sel };
+	$effect.pre(() => {
+		const now = { face: chart.face, sel: chart.sel };
+		swing = now.face !== seen.face && now.sel === seen.sel;
+		seen = now;
+	});
+	let faceHeight = $state<number | null>(null);
+	/** While a face leaves, the block clips it to the new height; at rest it does not, so a menu can open past its edge. */
+	let turning = $state(false);
+	let faceSettled = $state(false);
+	onMount(() => {
+		const frame = requestAnimationFrame(() => (faceSettled = true));
+		return () => cancelAnimationFrame(frame);
+	});
+
+	const measureFace: Attachment<HTMLElement> = (node) => {
+		const update = (): void => {
+			// The face that is leaving keeps its size until it is gone; only the arriving one sets the height.
+			if (node.dataset.face === (onShelf ? 'shelf' : 'actions')) faceHeight = node.offsetHeight;
+		};
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		update();
+		return () => observer.disconnect();
+	};
 
 	const handedOut = $derived(activeActionKey ? toolsFor(chart.data, activeActionKey).filter((tool) => !tool.known).length : 0);
 
@@ -479,6 +515,17 @@
 		</div>
 
 		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
+		{#if chart.sel !== 4}
+			<SegmentedControl
+				tabs
+				size="sm"
+				class="mt-3.5"
+				label="Sides of {panelTitle}"
+				options={faces}
+				value={chart.face}
+				onchange={(value) => chart.setFace(value === 'shelf' ? 'shelf' : 'actions')}
+			/>
+		{/if}
 	</div>
 
 	{#if showHaradaNotice}
@@ -496,198 +543,226 @@
 		</div>
 	{/if}
 
-	<div bind:this={gridElement} class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
-		{#each Array(9) as _, cellIndex (cellIndex)}
+	<div
+		bind:this={faceElement}
+		class={cn('grid', faceSettled && 'motion-safe:transition-[height] motion-safe:duration-[420ms] motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)]', turning && 'overflow-clip [overflow-clip-margin:16px]')}
+		style:height={faceHeight === null ? undefined : `${faceHeight}px`}
+		role={chart.sel === 4 ? undefined : 'tabpanel'}
+		aria-label={chart.sel === 4 ? undefined : onShelf ? 'Shelf' : 'Actions'}
+	>
+		{#key onShelf}
 			<div
-				class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
+				class={cn('min-w-0 self-start [grid-area:1/1]', swing && 'motion-safe:animate-flip-in')}
+				data-face={onShelf ? 'shelf' : 'actions'}
+				out:slipOut
+				onoutrostart={() => (turning = true)}
+				onoutroend={() => (turning = false)}
+				{@attach measureFace}
 			>
-				{#if cellIndex === 4}
-					<span
-						class={cn(
-							'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
-							chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
-						)}
-					>
-						<Icon name={chart.sel === 4 ? 'target' : 'compass'} size={11} />
-						<span>{chart.sel === 4 ? 'Goal' : 'Pillar'}</span>
-					</span>
+				{#if onShelf}
+					<Shelf pillarIndex={idx(chart.sel)} />
 				{:else}
-					<span class="pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:left-2">
-						<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
-						{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
-							<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
-						{/if}
-					</span>
-					{#if info(chart.sel, cellIndex).type === 'action'}
-						{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
-						{@const shelved = toolsFor(chart.data, cellKey(chart.sel, cellIndex)).filter((tool) => !tool.known).length}
-						{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
-							<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
-								{#if actionMeta?.pinned}
-									<Icon name="pin" size={11} />
+					<div class={cn('grid grid-cols-3 gap-2.5 max-[900px]:gap-1.5', alone && '[view-transition-name:focus-block]')}>
+						{#each Array(9) as _, cellIndex (cellIndex)}
+							<div
+								class={cn('relative aspect-square w-full min-w-0', cellIndex === 4 && 'z-[2]')}
+							>
+								{#if cellIndex === 4}
+									<span
+										class={cn(
+											'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
+											chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
+										)}
+									>
+										<Icon name={chart.sel === 4 ? 'target' : 'compass'} size={11} />
+										<span>{chart.sel === 4 ? 'Goal' : 'Pillar'}</span>
+									</span>
+								{:else}
+									<span class="pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:left-2">
+										<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
+										{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
+											<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
+										{/if}
+									</span>
+									{#if info(chart.sel, cellIndex).type === 'action'}
+										{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
+										{@const shelved = toolsFor(chart.data, cellKey(chart.sel, cellIndex)).filter((tool) => !tool.known).length}
+										{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
+											<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
+												{#if actionMeta?.pinned}
+													<Icon name="pin" size={11} />
+												{/if}
+												{#if actionMeta?.done}
+													<Icon name="check" size={11} class="text-success" />
+												{/if}
+												{#if actionMeta?.note}
+													<Icon name="edit" size={11} class="opacity-80" />
+												{/if}
+												{#if shelved}
+													<span class="inline-flex items-center gap-0.5 text-[0.66rem] font-[650] tabular-nums" title="Hands out {shelved} from the shelf">
+														<Icon name="shelf" size={11} />{shelved}
+													</span>
+												{/if}
+											</span>
+										{/if}
+									{/if}
 								{/if}
-								{#if actionMeta?.done}
-									<Icon name="check" size={11} class="text-success" />
+								<textarea
+									bind:this={textareaElements[cellIndex]}
+									class={cn(
+										'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
+										info(chart.sel, cellIndex).type === 'goal' &&
+											'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
+										info(chart.sel, cellIndex).type === 'pillar' &&
+											'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px]',
+										info(chart.sel, cellIndex).type === 'action' &&
+											'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
+										info(chart.sel, cellIndex).type === 'action' &&
+											chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
+											'line-through opacity-60 text-muted',
+										isPanelCellHighlighted(cellIndex) && 'highlight',
+										activePulseIndex === cellIndex && 'motion-safe:animate-target',
+										// The cell a search hit or a finding opened: a chip that names it travels here.
+										activePulseIndex === cellIndex && '[view-transition-name:travel]'
+									)}
+									style:--h={hue(cellIndex)}
+									maxlength="120"
+									spellcheck="false"
+									autocapitalize="sentences"
+									aria-label={describe(chart.sel, cellIndex)}
+									placeholder={placeholder(cellIndex)}
+									value={chart.textOf(cellKey(chart.sel, cellIndex))}
+									data-fit={chart.textOf(cellKey(chart.sel, cellIndex))}
+									{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : fitCellField}
+									onfocus={() => {
+										activeCellIndex = cellIndex;
+									}}
+									onblur={() => chart.settle()}
+									onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
+									oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
+									onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
+									onpointerleave={handleFieldPointerLeave}
+								></textarea>
+								{#if info(chart.sel, cellIndex).type === 'goal'}
+									<span
+										class="goal-clamp pointer-events-none absolute inset-0 z-[1] px-4 text-center font-serif text-[length:var(--goal-fit,17px)] leading-[1.35] font-[520] text-goal-fg opacity-0 max-[900px]:px-2 max-[900px]:text-[length:var(--goal-fit,15px)] max-[900px]:leading-[1.25] [[data-goal-clamped]:not(:focus-within)_&]:opacity-100"
+										style:padding-top="{GOAL_PAD_TOP}px"
+										style:padding-bottom="{GOAL_PAD_BOTTOM}px"
+										aria-hidden="true">{chart.textOf(cellKey(chart.sel, cellIndex))}</span
+									>
 								{/if}
-								{#if actionMeta?.note}
-									<Icon name="edit" size={11} class="opacity-80" />
-								{/if}
-								{#if shelved}
-									<span class="inline-flex items-center gap-0.5 text-[0.66rem] font-[650] tabular-nums" title="Hands out {shelved} from the shelf">
-										<Icon name="shelf" size={11} />{shelved}
+								{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
+									<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
+										{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
 									</span>
 								{/if}
-							</span>
+							</div>
+						{/each}
+					</div>
+
+					{#if activeActionKey && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
+						{@const meta = chart.metaOf(activeActionKey)}
+						{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
+						{#if actionHasText}
+							<div class="mt-4 flex flex-col gap-2.5">
+								<div class="flex flex-wrap items-center justify-between gap-2">
+									<div class="flex flex-wrap items-center gap-2.5">
+										<Eyebrow>Action {idx(effectiveCellIndex) + 1}</Eyebrow>
+										<SegmentedControl
+											size="sm"
+											label="Action type"
+											options={actionKinds}
+											value={meta?.kind ?? 'standard'}
+											onchange={(value) => {
+												chart.setActionMeta(activeActionKey, {
+													kind: value === 'routine' || value === 'milestone' ? value : undefined
+												});
+											}}
+										/>
+									</div>
+
+									<div class="flex items-center gap-1.5">
+										{#if meta?.kind === 'routine'}
+											<Button
+												size="sm"
+												variant={meta?.pinned ? 'soft' : 'ghost'}
+												icon="pin"
+												aria-pressed={Boolean(meta?.pinned)}
+												onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
+											>
+												{meta?.pinned ? 'Pinned' : 'Pin'}
+											</Button>
+										{/if}
+										{#if meta?.kind === 'milestone'}
+											<Button
+												size="sm"
+												variant={meta?.done ? 'soft' : 'ghost'}
+												icon="check"
+												aria-pressed={Boolean(meta?.done)}
+												onclick={() => chart.toggleDone(activeActionKey)}
+											>
+												{meta?.done ? 'Completed' : 'Mark done'}
+											</Button>
+										{/if}
+									</div>
+								</div>
+
+								<div class="relative">
+									<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
+										<Icon name="edit" size={16} />
+									</span>
+									<input
+										type="text"
+										class={cn(fieldInk, 'pr-4 pl-10')}
+										placeholder="Add a note, like a chapter or a page"
+										aria-label="Note for action {idx(effectiveCellIndex) + 1}"
+										value={meta?.note ?? ''}
+										onpaste={(event) => pasteNote(event, activeActionKey)}
+										oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
+									/>
+								</div>
+								{#if meta?.note && isUrl(meta.note.trim())}
+									<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty text-muted">
+										<span>A link does more on the shelf: Today hands it out and counts the opens.</span>
+										<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionKey, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
+									</p>
+								{:else if handedOut > 0}
+									<Button
+										size="sm"
+										variant="ghost"
+										icon="shelf"
+										class="-ms-2 self-start"
+										onclick={async () => {
+											chart.setFace('shelf');
+											await tick();
+											faceElement?.parentElement?.querySelector<HTMLElement>('[role="tab"][data-value="shelf"]')?.focus();
+										}}
+									>
+										Hands out {handedOut} from the shelf
+									</Button>
+								{/if}
+							</div>
 						{/if}
 					{/if}
-				{/if}
-				<textarea
-					bind:this={textareaElements[cellIndex]}
-					class={cn(
-						'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto max-[900px]:[scrollbar-width:none] max-[900px]:[&::-webkit-scrollbar]:hidden',
-						info(chart.sel, cellIndex).type === 'goal' &&
-							'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
-						info(chart.sel, cellIndex).type === 'pillar' &&
-							'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px]',
-						info(chart.sel, cellIndex).type === 'action' &&
-							'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
-						info(chart.sel, cellIndex).type === 'action' &&
-							chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
-							'line-through opacity-60 text-muted',
-						isPanelCellHighlighted(cellIndex) && 'highlight',
-						activePulseIndex === cellIndex && 'motion-safe:animate-target',
-						// The cell a search hit or a finding opened: a chip that names it travels here.
-						activePulseIndex === cellIndex && '[view-transition-name:travel]'
-					)}
-					style:--h={hue(cellIndex)}
-					maxlength="120"
-					spellcheck="false"
-					autocapitalize="sentences"
-					aria-label={describe(chart.sel, cellIndex)}
-					placeholder={placeholder(cellIndex)}
-					value={chart.textOf(cellKey(chart.sel, cellIndex))}
-					data-fit={chart.textOf(cellKey(chart.sel, cellIndex))}
-					{@attach info(chart.sel, cellIndex).type === 'goal' ? fitGoalField : fitCellField}
-					onfocus={() => {
-						activeCellIndex = cellIndex;
-					}}
-					onblur={() => chart.settle()}
-					onkeydown={(event) => handleFieldKeydown(cellIndex, event)}
-					oninput={(event) => chart.setText(cellKey(chart.sel, cellIndex), event.currentTarget.value)}
-					onpointerenter={(event) => handleFieldPointerEnter(cellIndex, event)}
-					onpointerleave={handleFieldPointerLeave}
-				></textarea>
-				{#if info(chart.sel, cellIndex).type === 'goal'}
-					<span
-						class="goal-clamp pointer-events-none absolute inset-0 z-[1] px-4 text-center font-serif text-[length:var(--goal-fit,17px)] leading-[1.35] font-[520] text-goal-fg opacity-0 max-[900px]:px-2 max-[900px]:text-[length:var(--goal-fit,15px)] max-[900px]:leading-[1.25] [[data-goal-clamped]:not(:focus-within)_&]:opacity-100"
-						style:padding-top="{GOAL_PAD_TOP}px"
-						style:padding-bottom="{GOAL_PAD_BOTTOM}px"
-						aria-hidden="true">{chart.textOf(cellKey(chart.sel, cellIndex))}</span
-					>
-				{/if}
-				{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
-					<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
-						{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
-					</span>
+
+					<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">
+						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
+						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
+						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>
+						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
+							<button
+								type="button"
+								class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
+								onclick={() => (haradaOpen = true)}
+							>
+								Suggest pillars
+							</button>
+						</li>
+					</ul>
 				{/if}
 			</div>
-		{/each}
+		{/key}
 	</div>
-
-	{#if activeActionKey && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
-		{@const meta = chart.metaOf(activeActionKey)}
-		{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
-		{#if actionHasText}
-			<div class="mt-4 flex flex-col gap-2.5">
-				<div class="flex flex-wrap items-center justify-between gap-2">
-					<div class="flex flex-wrap items-center gap-2.5">
-						<Eyebrow>Action {idx(effectiveCellIndex) + 1}</Eyebrow>
-						<SegmentedControl
-							size="sm"
-							label="Action type"
-							options={actionKinds}
-							value={meta?.kind ?? 'standard'}
-							onchange={(value) => {
-								chart.setActionMeta(activeActionKey, {
-									kind: value === 'routine' || value === 'milestone' ? value : undefined
-								});
-							}}
-						/>
-					</div>
-
-					<div class="flex items-center gap-1.5">
-						{#if meta?.kind === 'routine'}
-							<Button
-								size="sm"
-								variant={meta?.pinned ? 'soft' : 'ghost'}
-								icon="pin"
-								aria-pressed={Boolean(meta?.pinned)}
-								onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
-							>
-								{meta?.pinned ? 'Pinned' : 'Pin'}
-							</Button>
-						{/if}
-						{#if meta?.kind === 'milestone'}
-							<Button
-								size="sm"
-								variant={meta?.done ? 'soft' : 'ghost'}
-								icon="check"
-								aria-pressed={Boolean(meta?.done)}
-								onclick={() => chart.toggleDone(activeActionKey)}
-							>
-								{meta?.done ? 'Completed' : 'Mark done'}
-							</Button>
-						{/if}
-					</div>
-				</div>
-
-				<div class="relative">
-					<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
-						<Icon name="edit" size={16} />
-					</span>
-					<input
-						type="text"
-						class={cn(fieldInk, 'pr-4 pl-10')}
-						placeholder="Add a note, like a chapter or a page"
-						aria-label="Note for action {idx(effectiveCellIndex) + 1}"
-						value={meta?.note ?? ''}
-						onpaste={(event) => pasteNote(event, activeActionKey)}
-						oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
-					/>
-				</div>
-				{#if meta?.note && isUrl(meta.note.trim())}
-					<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty text-muted">
-						<span>A link does more on the shelf: Today hands it out and counts the opens.</span>
-						<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionKey, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
-					</p>
-				{:else if handedOut > 0}
-					<p class="m-0 flex items-center gap-1.5 text-[0.82rem] leading-snug text-muted">
-						<Icon name="shelf" size={14} class="shrink-0" />
-						Hands out {handedOut} from the shelf below.
-					</p>
-				{/if}
-			</div>
-		{/if}
-	{/if}
-
-	{#if chart.sel !== 4}
-		<Shelf pillarIndex={idx(chart.sel)} />
-	{/if}
-
-	<ul class="mt-6 list-none border-t border-line pt-[18px] text-[0.86rem] text-muted max-[900px]:hidden">
-		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
-		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
-		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>
-		<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
-			<button
-				type="button"
-				class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
-				onclick={() => (haradaOpen = true)}
-			>
-				Suggest pillars
-			</button>
-		</li>
-	</ul>
 
 	<HaradaOnboarding bind:open={haradaOpen} />
 </div>

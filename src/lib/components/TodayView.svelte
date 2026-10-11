@@ -265,6 +265,12 @@
 								onclick={() => passOver(entry.key, tool.id)}
 							/>
 						{/if}
+						<IconButton
+							icon="shelf"
+							label="Open the {entry.pillarName} shelf"
+							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+							onclick={() => chart.openShelf(entry.pillarIndex)}
+						/>
 					</div>
 				{/if}
 				{#if entry.meta?.note}

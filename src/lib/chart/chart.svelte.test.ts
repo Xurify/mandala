@@ -43,6 +43,18 @@ describe('chart day log', () => {
 });
 
 describe('chart shelves', () => {
+	it('turns a pillar to its shelf, and back to its actions when a door names a cell', () => {
+		chart.viewMode = 'split';
+		chart.openShelf(2);
+		expect(chart.face).toBe('shelf');
+		chart.selectPillar(5);
+		expect(chart.face).toBe('shelf');
+		chart.jumpToKey('a5_1');
+		expect(chart.face).toBe('actions');
+		expect(chart.focusedKey).toBe('a5_1');
+		chart.clearFocusedKey();
+	});
+
 	it('puts a removed tool back where it was when the slip is undone', () => {
 		const first = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'First');
 		chart.addTool(1, 'https://youtu.be/wzMrFFcC1BU', 'Second');

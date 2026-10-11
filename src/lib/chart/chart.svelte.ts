@@ -215,6 +215,8 @@ export class ChartStore {
   themeTick = $state(0);
   hoveredColorIndex = $state<number | null>(null);
   focusedKey = $state<string | null>(null);
+  /** Which side of a pillar's block the editor shows. The shelf is its back. */
+  face = $state<"actions" | "shelf">("actions");
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
   /** The library JSON this tab last wrote or read, so a change in storage can be told from its own. */
@@ -1116,7 +1118,20 @@ export class ChartStore {
 
   jumpToKey(key: string): void {
     this.select(blockOfKey(key));
+    this.face = "actions";
     this.focusedKey = key;
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
+      this.setViewMode("edit");
+    }
+  }
+
+  setFace(face: "actions" | "shelf"): void {
+    this.face = face;
+  }
+
+  openShelf(pillarIndex: number): void {
+    this.selectPillar(pillarIndex);
+    this.face = "shelf";
     if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
       this.setViewMode("edit");
     }

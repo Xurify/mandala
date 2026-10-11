@@ -8,7 +8,6 @@
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
-	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
@@ -231,6 +230,9 @@
 					<Button size="sm" variant="soft" icon={tool.known ? 'undo' : 'check'} onclick={() => setKnown(tool, !tool.known)}>
 						{tool.known ? 'Back in rotation' : 'Know this'}
 					</Button>
+					{#if tool.action !== undefined}
+						<Button size="sm" variant="ghost" icon="arrow-left" onclick={() => chart.jumpToKey(`a${pillarIndex}_${tool.action}`)}>See action {tool.action + 1}</Button>
+					{/if}
 					{#if iconable}
 						{@const icon = iconOf(chart.data, tool.url)}
 						<Menu
@@ -266,14 +268,7 @@
 	</li>
 {/snippet}
 
-<section bind:this={section} class="mt-6 flex flex-col gap-2.5" aria-labelledby="shelf-{pillarIndex}">
-	<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-		<Eyebrow pip={pillarIndex}><span id="shelf-{pillarIndex}">Shelf</span></Eyebrow>
-		{#if tools.length}
-			<span class="text-[0.82rem] text-muted tabular-nums">{rotation.length} in rotation</span>
-		{/if}
-	</div>
-
+<section bind:this={section} class="flex flex-col gap-2.5" aria-label="Shelf">
 	{#if tools.length === 0}
 		<p class="m-0 max-w-[48ch] text-[0.86rem] leading-snug text-pretty text-muted">
 			The material this pillar's actions use: videos, texts, sites. A routine hands them out one a day in Today.

@@ -513,6 +513,12 @@
 		}
 		const needle = paletteQuery.trim().toLowerCase();
 		if (needle) {
+			for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+				const count = shelfOf(chart.data, pillarIndex).length;
+				if (!count) continue;
+				const name = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+				items.push({ id: `shelf-${pillarIndex}`, label: `Open the ${name} shelf`, section: 'Actions', icon: 'shelf', hint: `${count} on the shelf`, run: () => chart.openShelf(pillarIndex) });
+			}
 			const shelved = Array.from({ length: 8 }, (_, pillarIndex) => shelfOf(chart.data, pillarIndex).map((tool) => ({ pillarIndex, tool }))).flat();
 			for (const { pillarIndex, tool } of shelved.filter(({ tool }) => tool.title.toLowerCase().includes(needle)).slice(0, 4)) {
 				items.push({
