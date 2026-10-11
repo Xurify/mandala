@@ -77,7 +77,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Icon-only buttons need `aria-label`. Toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
 - Copy: sentence case, short, warm, no emoji, toasts in past tense ("Copied as text").
 - Don't edit generated files (`static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/favicon.svg`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.
-- Comments only for constraints the code can't show.
+- Comments only for constraints the code can't show: a why, a browser quirk, a magic number. No comment that restates the code, names the element, or repeats the commit message. When in doubt, leave it out.
 
 ## Done means
 

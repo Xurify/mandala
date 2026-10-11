@@ -1,19 +1,12 @@
 import { flushSync } from 'svelte';
 
-/** True while a transition's changes are being applied. */
 let inside = false;
-/** Changes waiting for the transition that has started but not applied yet. */
 let queue: (() => void)[] | null = null;
 let active: ViewTransition | null = null;
 
 /**
- * Runs a change that swaps what is on screen as one view transition. The stage fades, and anything that
- * carries the same `view-transition-name` before and after travels from its old place to its new one.
- * `type` lets the stylesheet treat a kind of change on its own, like a theme that crossfades the whole page.
- *
  * The browser applies the change a frame later, after taking the before picture. A morph called inside that
- * change, or before it runs (a click that selects and then switches view), joins it, so it is one
- * transition. Without the API, or under reduced motion, the change just happens.
+ * change, or before it runs (a click that selects and then switches view), joins it, so it is one transition.
  */
 export function morph(update: () => void, type?: string): ViewTransition | null {
 	if (inside) {

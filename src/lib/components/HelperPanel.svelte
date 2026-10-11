@@ -35,7 +35,6 @@
 	});
 
 	let root: HTMLDivElement | null = $state(null);
-	/** Where focus goes after a page turn: into the new page, or back to the door it came out of. */
 	let previous: HelperPage | 'moment' | null = null;
 	$effect(() => {
 		const current = view;
@@ -60,7 +59,6 @@
 		else onclose?.();
 	}
 
-	/** A chart reply pasted anywhere in the panel lands on the write page, ready to keep. */
 	function onpaste(event: ClipboardEvent): void {
 		const target = event.target as HTMLElement | null;
 		if (target?.dataset.reply !== undefined) return;
@@ -90,7 +88,7 @@
 	{onpaste}
 	{@attach focusOnMount}
 >
-	<header class="flex shrink-0 items-center gap-1 ps-2.5 pe-2 pt-2.5 pb-1.5">
+	<div class="flex shrink-0 items-center gap-1 ps-2.5 pe-2 pt-2.5 pb-1.5">
 		<!-- The back button opens out from nothing, so the face slides over to make room. -->
 		<div
 			class={cn(
@@ -121,7 +119,7 @@
 		{#if onclose}
 			<IconButton icon="close" label="Close Bindu" onclick={onclose} />
 		{/if}
-	</header>
+	</div>
 
 	<Pages view={view} direction={helper.direction} label={heading.title} pageClass="pt-1">
 		{#snippet page(current)}

@@ -19,7 +19,6 @@
 			<Icon name="trash" size={24} />
 		</span>
 	{:else}
-		<!-- The chart's ring with nothing on it: the same picture as the progress ring, empty. -->
 		<span class="relative block size-[76px]" aria-hidden="true">
 			<svg class="block overflow-visible" viewBox="0 0 100 100" width="76" height="76">
 				{#each segments as segment, index (index)}

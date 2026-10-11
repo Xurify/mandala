@@ -2,8 +2,6 @@ import { ACTION_MAX, briefLines, PILLAR_MAX } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, isOpenFocus, isRoutine, labelOfKey, weekStartKey, type ChartData } from './model.ts';
 
-/* Line primitives: the review, the writer, and the holdout all judge cells with these. */
-
 export const UNTICKABLE =
 	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder|get better|be more|be better)\b/i;
 export const UNCONTROLLED = /\b(\d[\d,.]*\s*(million|billion)\s+views|followers|go viral|get famous|get rich)\b/i;
@@ -24,7 +22,6 @@ function contentTokens(value: string): string[] {
 		.map((token) => (token.length > 3 && token.endsWith('s') ? token.slice(0, -1) : token));
 }
 
-/** True when two cells are the same action with different filler words. */
 export function nearCopy(left: string, right: string): boolean {
 	const a = contentTokens(left);
 	const b = contentTokens(right);
@@ -48,9 +45,7 @@ export function restated(pillar: string, action: string): boolean {
 	return stripped !== cell && stripped === base;
 }
 
-/** The pages of Bindu's panel. */
 export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'review' | 'write';
-/** What the prompt for a chat app is for. */
 export type WriteMode = 'new' | 'fill' | 'review' | 'ask';
 
 export type CellEdit = { key: string; before: string; after: string };
@@ -58,15 +53,10 @@ export type CellEdit = { key: string; before: string; after: string };
 export type HelperMood = 'idle' | 'listening' | 'happy' | 'puzzled' | 'offering' | 'curious';
 
 export type HelperMoodOptions = {
-	/** A moment just landed: a chart kept, today set, a clean review. */
 	cheer?: boolean;
-	/** The review page has lines to tighten. */
 	puzzled?: boolean;
-	/** A text field in the panel has focus. */
 	listening?: boolean;
-	/** Picks are on the table. */
 	offering?: boolean;
-	/** A prompt was copied and the reply is not back yet. */
 	waiting?: boolean;
 };
 
@@ -91,7 +81,6 @@ export type HelperPick = {
 	text: string;
 	pillarIndex: number;
 	why: string;
-	/** The material the action would use today, when its pillar's shelf has some. */
 	tool?: { id: string; title: string; url: string; kind: 'once' | 'repeat' };
 };
 
@@ -103,7 +92,6 @@ function filled(value: string | undefined): boolean {
 	return (value ?? '').trim() !== '';
 }
 
-/** Pillars with empty actions, and which ones are empty. */
 export function actionGaps(data: ChartData): { pillarIndex: number; empty: number[] }[] {
 	return [0, 1, 2, 3, 4, 5, 6, 7].flatMap((pillarIndex) => {
 		const empty = (data.actions[pillarIndex] ?? []).flatMap((action, index) => (filled(action) ? [] : [index]));
@@ -111,7 +99,6 @@ export function actionGaps(data: ChartData): { pillarIndex: number; empty: numbe
 	});
 }
 
-/** What is still empty on a chart that has a goal: pillars first, then actions under named pillars. */
 export function gapsOf(data: ChartData): { pillars: number[]; actions: { pillarIndex: number; empty: number[] }[]; total: number } {
 	if (!filled(data.goal)) return { pillars: [], actions: [], total: 0 };
 	const pillars = data.pillars.flatMap((pillar, index) => (filled(pillar) ? [] : [index]));
@@ -226,25 +213,19 @@ function dayJitter(dateKey: string, key: string): number {
 }
 
 export type ActionHistory = {
-	/** Days since the last tick, or null if never ticked. */
 	sinceTick: number | null;
-	/** Ticks in the last 7 days, today excluded. */
 	recentTicks: number;
-	/** Days picked in the last 14 days without being ticked that day. */
 	missedPicks: number;
-	/** Days it was taken off the list in the last 7 days. */
 	recentDrops: number;
 };
 
 export type PickHistory = {
 	actions: Map<string, ActionHistory>;
-	/** Days since each pillar last had a tick, or null if never. */
 	pillarSinceTick: (number | null)[];
 	declinedToday: Set<string>;
 	droppedToday: Set<string>;
 };
 
-/** What the day logs say about each action and pillar. Picks without a tick do not count as done. */
 export function pickHistory(data: ChartData, now: Date = new Date()): PickHistory {
 	const actions = new Map<string, ActionHistory>();
 	const entry = (key: string) => {
@@ -288,7 +269,6 @@ export function isStuck(history: ActionHistory | undefined): boolean {
 	return (history?.missedPicks ?? 0) >= STUCK_PICKS && (history?.recentTicks ?? 0) === 0;
 }
 
-/** The pillar that has waited longest for a tick. Ties settle by the day, the same way picks do. */
 export function quietestPillar(history: PickHistory, dateKey: string, among: readonly number[]): number | null {
 	const gap = (index: number) => Math.min(history.pillarSinceTick[index] ?? 99, 99);
 	const ranked = [...among].sort((a, b) => gap(b) - gap(a) || dayJitter(dateKey, `p${b}`) - dayJitter(dateKey, `p${a}`));
@@ -357,10 +337,6 @@ function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: 
 	return pick;
 }
 
-/**
- * Today's three, as a mix: pins first, then one from the pillar that has waited longest,
- * one that keeps something going, and the best of the rest. One per pillar while it can.
- */
 export function suggestToday(
 	data: ChartData,
 	now: Date = new Date(),
@@ -393,7 +369,6 @@ export function suggestToday(
 	return picks;
 }
 
-/** Five to eight for the week: one per pillar, the ones that waited longest first. */
 export function suggestWeek(
 	data: ChartData,
 	count = 6,
@@ -423,15 +398,11 @@ export function suggestWeek(
 	}
 	return picks;
 }
-/** The insight worth opening with, if one is strong and not shown lately. */
 export function greetingInsight(data: ChartData, now: Date = new Date()): HelperInsight | null {
 	const top = unseenInsights(data, now)[0];
 	return top && top.weight >= 30 ? top : null;
 }
-/**
- * The lines a completed chart adds to this one: only cells that are empty here and written there. A filled
- * cell is never replaced, so a reply that rewrote one costs nothing.
- */
+/** A filled cell is never replaced, so a reply that rewrote one costs nothing. */
 export function fillEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	const edits: CellEdit[] = [];
 	current.pillars.forEach((pillar, pillarIndex) => {
@@ -446,7 +417,6 @@ export function fillEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	);
 	return edits;
 }
-/** The lines a reviewed chart changes: cells written here and written differently there. Empty cells here are filled too. */
 export function reviseEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	const edits: CellEdit[] = [];
 	const differs = (before: string, after: string) => after !== '' && norm(before) !== norm(after);
@@ -463,7 +433,6 @@ export function reviseEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	return edits;
 }
 
-/** A question for a chat app, with the chart it is about. Without one, the person asks it there. */
 export function askPrompt(data: ChartData, question = ''): string {
 	const asked = question.replace(/\s+/g, ' ').trim().slice(0, 600);
 	return [
@@ -477,7 +446,6 @@ export function askPrompt(data: ChartData, question = ''): string {
 	].join('\n');
 }
 
-/** A cells card's edits, one group per pillar, so the pillar is named once. Pillar names form their own group. */
 export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: string; label: string; pillarIndex: number | null; edits: CellEdit[] }[] {
 	const groups: { key: string; label: string; pillarIndex: number | null; edits: CellEdit[] }[] = [];
 	for (const edit of edits) {
@@ -503,7 +471,6 @@ export function draftButton(current: ChartData): string {
 	return hasContent(current) ? 'Open as a new chart' : 'Start this chart';
 }
 
-/** What a cells card does, in the chart's words: its button, and what Bindu says once it is used. */
 export function editWords(data: ChartData, edits: readonly CellEdit[]): { button: string; done: string } {
 	const count = edits.length;
 	const pillarCount = edits.filter((edit) => edit.key.startsWith('p')).length;
@@ -556,9 +523,7 @@ export type HelperInsight = {
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
-	/** The action it is about, when there is one. */
 	key?: string;
-	/** What else makes it the same insight: a pillar, a week. */
 	ref?: string;
 };
 
@@ -569,7 +534,6 @@ export function insightSignature(insight: HelperInsight): string {
 const DAY_BOUND = new Set<HelperInsight['id']>(['today', 'yesterday', 'comeback']);
 const SHOWN_WINDOW = 3;
 
-/** Insights not shown lately. A day-bound one waits a day, the rest wait three. */
 export function unseenInsights(data: ChartData, now: Date = new Date()): HelperInsight[] {
 	const shown = new Map<string, number>();
 	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
@@ -588,10 +552,7 @@ function quote(text: string): string {
 	return `\u201c${text}\u201d`;
 }
 
-/**
- * What the log says right now. Short windows on purpose: today, yesterday, this week.
- * Every number is counted from `days`.
- */
+/** Short windows on purpose: today, yesterday, this week. */
 export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsight[] {
 	if (!filled(data.goal) || !data.days) return [];
 	const insights: HelperInsight[] = [];
@@ -676,7 +637,6 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 	return insights.sort((a, b) => b.weight - a.weight);
 }
 
-/** Last week's reflection note, said back once the new week starts. */
 function ownWords(data: ChartData, now: Date): HelperInsight[] {
 	const lastWeek = new Date(now);
 	lastWeek.setDate(now.getDate() - 7);
@@ -689,7 +649,6 @@ function ownWords(data: ChartData, now: Date): HelperInsight[] {
 
 const FOLLOW_WINDOW = 28;
 
-/** Which pillar's picks get finished, against which don't. Needs enough picks to mean something. */
 function followThrough(data: ChartData, now: Date): HelperInsight[] {
 	const picked = Array.from({ length: 8 }, () => 0);
 	const finished = Array.from({ length: 8 }, () => 0);
@@ -741,7 +700,6 @@ function readyToRetire(data: ChartData, now: Date): HelperInsight[] {
 	return out;
 }
 
-/** The last seven days, oldest first: each day's ticks as the pillar each one belongs to. */
 export function weekStrip(data: ChartData, now: Date = new Date()): { key: string; label: string; today: boolean; ticks: number[] }[] {
 	const letters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 	return Array.from({ length: 7 }, (_, index) => {
@@ -757,21 +715,16 @@ export function weekStrip(data: ChartData, now: Date = new Date()): { key: strin
 }
 
 export type HelperProgress = {
-	/** Ticks in the last 7 days, today included. */
 	ticks: number;
-	/** Pillars with a tick in the last 7 days. */
 	pillars: number[];
 	streak: number;
 	milestones: number;
 	written: number;
 	everTicked: boolean;
-	/** Named pillars with actions and no tick for 7 days. */
 	quiet: number[];
-	/** What else the log says, strongest first. */
 	insights: HelperInsight[];
 };
 
-/** "How is it going", counted from the log. Nothing here is written by guesswork. */
 export function progressOf(data: ChartData, now: Date = new Date()): HelperProgress {
 	const history = pickHistory(data, now);
 	const strip = weekStrip(data, now);
@@ -787,7 +740,6 @@ export function progressOf(data: ChartData, now: Date = new Date()): HelperProgr
 	};
 }
 
-/** What Bindu says first on the home page: the strongest thing about this chart right now. */
 export function noteFor(
 	data: ChartData,
 	now: Date = new Date(),
@@ -816,7 +768,6 @@ export function noteFor(
 
 export type HelperDoor = { page: HelperPage; mode?: WriteMode; label: string; detail: string };
 
-/** The move the home page leads with, as its one primary button. */
 export function nextMove(data: ChartData, now: Date = new Date()): HelperDoor {
 	if (!filled(data.goal)) return { page: 'write', mode: 'new', label: 'Start a chart', detail: '' };
 	if (gapsOf(data).total > 0) return { page: 'write', mode: 'fill', label: 'Fill the gaps', detail: '' };
@@ -825,7 +776,6 @@ export function nextMove(data: ChartData, now: Date = new Date()): HelperDoor {
 	return { page: 'progress', label: 'See how it is going', detail: '' };
 }
 
-/** Everything else Bindu can do on this chart, each with a line of what it would find. */
 export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] {
 	if (!filled(data.goal)) return [];
 	const lead = nextMove(data, now);
@@ -861,8 +811,8 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 }
 
 /**
- * How much of the chart is written outside plain Latin letters. The review's rules read English; a chart in
- * another language gets a note that says so rather than a clean pass it did not earn.
+ * The review's rules read English; a chart in another language gets a note that says so rather than a
+ * clean pass it did not earn.
  */
 export function foreignShare(data: ChartData): number {
 	const lines = [...data.pillars, ...data.actions.flat()].map((line) => line.trim()).filter(Boolean);
@@ -871,7 +821,6 @@ export function foreignShare(data: ChartData): number {
 	return foreign / lines.length;
 }
 
-/** A repeat tool opened most days lately has probably sunk in. The shelf has the button. */
 function knownByNow(data: ChartData, now: Date): HelperInsight[] {
 	return nearKnown(data, now).slice(0, 1).map(({ pillarIndex, tool, days }) => ({
 		id: 'tool',
@@ -882,16 +831,12 @@ function knownByNow(data: ChartData, now: Date): HelperInsight[] {
 }
 
 export type WeekReview = {
-	/** Milestones marked done since Monday. */
 	closed: { key: string; text: string; pillarIndex: number }[];
-	/** Named pillars with actions and no tick in 7 days: the action to look at first, and the others. */
 	quiet: { pillarIndex: number; lead: { key: string; text: string }; rest: { key: string; text: string }[] }[];
-	/** Pillars with a tick in the last 7 days. */
 	moved: number[];
 	ticks: number;
 };
 
-/** What the weekly reflection walks through, counted from the chart and its log. `since` is the week's Monday. */
 export function weekInReview(data: ChartData, now: Date = new Date(), since: string = weekStartKey(now)): WeekReview {
 	const today = dateKeyOf(now);
 	const closed: WeekReview['closed'] = [];

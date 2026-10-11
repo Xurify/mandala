@@ -6,7 +6,6 @@
 
 	interface Props {
 		tool: Pick<Tool, 'url' | 'title' | 'kind' | 'known'>;
-		/** `sm` is a row in a list; `md` is a card's face. */
 		size?: 'sm' | 'md';
 		class?: string;
 	}
@@ -22,7 +21,6 @@
 	);
 </script>
 
-<!-- A tool's face: the video's own picture when it has one, the site's name when it does not. -->
 <span class={cn('flex min-w-0 items-center gap-3', className)}>
 	<span
 		class={cn(

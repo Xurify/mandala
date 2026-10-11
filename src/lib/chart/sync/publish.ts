@@ -1,16 +1,5 @@
 import type { ChartData } from '../model.ts';
 
-/**
- * Client helpers for the one-row cloud API (/api/chart/<key>). Everything is
- * same-origin: the API routes ship with the app, so there is no server URL to
- * configure and no CORS to negotiate.
- *
- * Two uses of one row shape:
- *   - a published share: public id, owner keeps the write secret in
- *     localStorage so edits can be re-published and the share revoked
- *   - a device-sync copy: the owner's personal sync key is both key and
- *     secret; devices pull on open and push after edits
- */
 const SECRET_KEY = 'mandala-share-secrets-v1';
 
 export type PublishedShare = { id: string; updatedAt: number };
@@ -36,7 +25,6 @@ export function secretFor(id: string): string | null {
 	return readSecrets()[id] ?? null;
 }
 
-/** The share page lives on this app, so a share link is always same-origin. */
 export function shareUrl(id: string): string {
 	const origin = typeof location === 'undefined' ? '' : location.origin;
 	return `${origin}/s/${id}`;
@@ -68,7 +56,6 @@ async function request(
 	});
 }
 
-/** Publishes the chart (or updates an existing share) and returns the public id. */
 export async function publishChart(
 	data: ChartData,
 	existingId: string | null
@@ -93,7 +80,6 @@ export async function publishChart(
 	return { id, updatedAt: stored.updatedAt };
 }
 
-/** Removes a published share. */
 export async function unpublishChart(id: string): Promise<void> {
 	const secret = secretFor(id);
 	if (!secret) throw new Error('The update secret for this share is missing on this device.');
@@ -108,11 +94,6 @@ export async function unpublishChart(id: string): Promise<void> {
 
 export type FetchedRow = { chart: ChartData | null; updatedAt: number | null; unchanged: boolean };
 
-/**
- * Fetches a row (share snapshot or device copy). Pass `ifNoneMatch` (a
- * previous updatedAt) for a cheap conditional read: an unchanged row comes
- * back as `{ chart: null, unchanged: true }` without a body.
- */
 export async function fetchRow(id: string, ifNoneMatch: number | null = null): Promise<FetchedRow> {
 	const headers: Record<string, string> =
 		ifNoneMatch === null ? {} : { 'if-none-match': `"${ifNoneMatch.toString(36)}"` };
@@ -124,11 +105,9 @@ export async function fetchRow(id: string, ifNoneMatch: number | null = null): P
 	return { chart: (payload.chart as ChartData) ?? null, updatedAt: payload.updatedAt, unchanged: false };
 }
 
-/** The share page reads through the same helper; the name says what it means there. */
 export const fetchShare = fetchRow;
 
-/** Pushes a whole chart as the row's latest snapshot. For device sync, the
- * sync key doubles as the write secret. */
+/** For device sync, the sync key doubles as the write secret. */
 export async function pushRow(
 	key: string,
 	secret: string,

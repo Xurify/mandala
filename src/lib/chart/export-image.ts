@@ -164,26 +164,21 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 				document.fonts.load('500 18px "Source Sans 3 Variable"'),
 				document.fonts.ready
 			]);
-		} catch {
-			// font fallback
-		}
+		} catch {}
 	}
 
-	// Canvas paper background
 	context.fillStyle = PALETTE.paper;
 	context.fillRect(0, 0, totalSize, totalSize);
 
-	// Grid geometry: mathematically balanced 2100px square grid
 	const gridSize = 2100;
-	const sideMargin = Math.round((totalSize - gridSize) / 2); // 200px
+	const sideMargin = Math.round((totalSize - gridSize) / 2);
 	const gridTop = 240;
 	const blockGap = 24;
-	const blockSize = Math.round((gridSize - blockGap * 2) / 3); // 684px
+	const blockSize = Math.round((gridSize - blockGap * 2) / 3);
 	const blockPadding = 18;
 	const cellGap = 12;
-	const cellSize = Math.round((blockSize - blockPadding * 2 - cellGap * 2) / 3); // 208px
+	const cellSize = Math.round((blockSize - blockPadding * 2 - cellGap * 2) / 3);
 
-	// Header
 	context.textAlign = 'center';
 	context.textBaseline = 'top';
 
@@ -214,19 +209,16 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 		);
 	}
 
-	// Reset letter spacing for grid text
 	if ('letterSpacing' in context) {
 		context.letterSpacing = '0px';
 	}
 
-	// Render the 9 blocks
 	for (let blockIndex = 0; blockIndex < 9; blockIndex++) {
 		const blockColumn = blockIndex % 3;
 		const blockRow = Math.floor(blockIndex / 3);
 		const blockX = sideMargin + blockColumn * (blockSize + blockGap);
 		const blockY = gridTop + blockRow * (blockSize + blockGap);
 
-		// Block card container
 		const blockRadius = 30;
 		drawRoundedRectangle(context, blockX, blockY, blockSize, blockSize, blockRadius);
 		context.fillStyle = PALETTE.surface;
@@ -235,7 +227,6 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 		context.lineWidth = 1;
 		context.stroke();
 
-		// Render the 9 cells inside the block
 		for (let cellIndex = 0; cellIndex < 9; cellIndex++) {
 			const cellColumn = cellIndex % 3;
 			const cellRow = Math.floor(cellIndex / 3);
@@ -248,29 +239,27 @@ export async function createChartPosterCanvas(data: ChartData): Promise<HTMLCanv
 
 			let fillColor = PALETTE.surface;
 			let textColor = PALETTE.ink;
-			let cornerRadius = Math.round(cellSize * 0.13); // 27px
+			let cornerRadius = Math.round(cellSize * 0.13);
 
 			if (cellInformation.type === 'goal') {
 				fillColor = PALETTE.ink;
 				textColor = PALETTE.onInk;
-				cornerRadius = Math.round(cellSize * 0.28); // 58px
+				cornerRadius = Math.round(cellSize * 0.28);
 			} else if (cellInformation.type === 'pillar') {
 				const hue = HUES[cellInformation.k];
 				fillColor = toHex(oklchToRgb(0.845, 0.082, hue));
 				textColor = PALETTE.ink;
-				cornerRadius = Math.round(cellSize * 0.28); // 58px
+				cornerRadius = Math.round(cellSize * 0.28);
 			} else {
 				const hue = HUES[cellInformation.k];
 				fillColor = toHex(oklchToRgb(0.945, 0.03, hue));
 				textColor = PALETTE.ink;
 			}
 
-			// Draw cell background
 			drawRoundedRectangle(context, cellX, cellY, cellSize, cellSize, cornerRadius);
 			context.fillStyle = fillColor;
 			context.fill();
 
-			// Render text
 			if (text) {
 				context.save();
 				drawRoundedRectangle(context, cellX, cellY, cellSize, cellSize, cornerRadius);

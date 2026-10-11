@@ -18,7 +18,6 @@ const PROMPT_INTRO = [
 	'',
 ];
 
-/** How to fill a chart, the tests every line passes, and the JSON shape to return. */
 const PROMPT_METHOD = [
 	'',
 	'[How to fill it]',
@@ -53,11 +52,9 @@ const PROMPT_METHOD = [
 	`- goal is one line, at most ${GOAL_MAX} characters. Exactly 8 pillars, each at most ${PILLAR_MAX} characters. Each pillar has exactly 8 actions, each at most ${ACTION_MAX} characters.`
 ];
 
-/** The new chart's reply also carries what the person said, so later prompts can use it. */
 const BRIEF_RULE =
 	'- Add "brief" to the JSON with what I told you, a few words each: {"timeline":"...","situation":"...","focus":"...","constraint":"..."}. Leave out a field I did not answer.';
 
-/** The prompt for a new chart. The chat app asks what would change the plan, then writes all of it. */
 export function newChartPrompt(goal = ''): string {
 	const aim = goal.replace(/\s+/g, ' ').trim().slice(0, 200);
 	return [
@@ -72,7 +69,6 @@ export function newChartPrompt(goal = ''): string {
 	].join('\n');
 }
 
-/** The prompt that completes a chart: every written line stays as it is, every empty one gets filled. */
 export function fillPrompt(data: ChartData): string {
 	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [
@@ -86,7 +82,6 @@ export function fillPrompt(data: ChartData): string {
 	].join('\n');
 }
 
-/** What the person told the chat app when the chart was made, for the prompts that come after. */
 export function briefLines(brief: ChartBrief | undefined): string[] {
 	if (!brief) return [];
 	const said = [
@@ -144,15 +139,11 @@ export function isChatApp(value: unknown): value is ChatApp {
 	return CHAT_APPS.some((app) => app.id === value);
 }
 
-/** A chat app opened with the prompt already in its box. The person still presses send there. */
 export function chatLink(app: ChatApp, prompt: string): string {
 	return `${CHAT_APPS.find((entry) => entry.id === app)!.url}${encodeURIComponent(prompt)}`;
 }
 
-/**
- * The prompt that reviews a chart: every line against the two tests, in whatever language it is written.
- * The reply is the whole chart again, so the lines that changed can be shown and kept.
- */
+/** The reply is the whole chart again, so the lines that changed can be shown and kept. */
 export function reviewPrompt(data: ChartData): string {
 	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [

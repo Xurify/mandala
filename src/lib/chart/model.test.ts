@@ -269,11 +269,9 @@ describe('companion helpers', () => {
 	});
 
 	it('computes weekStartKey as Monday', () => {
-		// A known Wednesday: 2026-09-30
 		const wednesday = new Date('2026-09-30T12:00:00Z');
 		expect(weekStartKey(wednesday)).toBe('2026-09-28');
 
-		// A known Sunday: 2026-10-04
 		const sunday = new Date('2026-10-04T12:00:00Z');
 		expect(weekStartKey(sunday)).toBe('2026-09-28');
 	});

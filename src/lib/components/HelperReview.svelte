@@ -10,7 +10,6 @@
 
 	let { helper, reveal }: { helper: HelperStore; reveal: (key: string) => void } = $props();
 
-	// Live: a line fixed in the chart leaves this list while the page is open.
 	const findings = $derived(reviewChart(helper.data));
 	const lines = $derived(helper.data.pillars.filter((pillar) => pillar.trim()).length + helper.data.actions.flat().filter((action) => action.trim()).length);
 	/** Most of the chart is in another language. The rules here read English, so say so and point to the prompt. */
@@ -19,7 +18,6 @@
 	function reviewWithPrompt(): void {
 		helper.go('write', 'review');
 	}
-	/** The sweep plays when the page opens. Later changes just show. */
 	let reading = $state(true);
 	onMount(() => {
 		const timer = setTimeout(() => (reading = false), 1100);
@@ -66,7 +64,6 @@
 	{#if foreign}
 		<Button class="self-start" icon="arrow-right" onclick={reviewWithPrompt}>Review with a prompt</Button>
 	{:else if lines > 0}
-		<!-- The rules here are quick and shallow. The prompt reads every line properly, and rewrites what fails. -->
 		<Button class="self-start" size="sm" variant="ghost" icon="arrow-right" onclick={reviewWithPrompt}>Review with a prompt instead</Button>
 	{/if}
 

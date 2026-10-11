@@ -23,14 +23,11 @@ export type DemoId =
 	| 'tools';
 
 export type DemoSetup = {
-	/** The chart to open. Null opens a new, empty one. */
+	/** Null opens a new, empty one. */
 	data: ChartData | null;
 	view: ViewMode;
-	/** A cell to put the cursor in. */
 	focus?: string;
-	/** Text to search for. */
 	query?: string;
-	/** Something to open once the chart is in view. */
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true };
 };
 
@@ -38,9 +35,7 @@ export type Demo = {
 	id: DemoId;
 	title: string;
 	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Tools' | 'Bindu';
-	/** What to do once it opens, in order. */
 	steps: string[];
-	/** A chat app's reply to paste back, for the demos that need one. */
 	reply?: () => string;
 };
 
@@ -48,7 +43,6 @@ function preset(id: PresetId): ChartData {
 	return buildChart(getPreset(id)!);
 }
 
-/** A history of ticks: for each day back, which actions were picked and ticked. */
 function history(data: ChartData, now: Date, days: Record<number, { focus: string[]; checked: string[] }>): void {
 	data.days = {};
 	for (const [back, log] of Object.entries(days)) {
@@ -60,7 +54,6 @@ function history(data: ChartData, now: Date, days: Record<number, { focus: strin
 	}
 }
 
-/** A lived-in week: most pillars ticked, two quiet, a milestone closed, and one pick that keeps slipping. */
 function livedIn(now: Date): ChartData {
 	const data = preset('language');
 	history(data, now, {
@@ -83,7 +76,6 @@ function livedIn(now: Date): ChartData {
 	return data;
 }
 
-/** A shelf of real links, titles as YouTube gives them. `opened` makes one of them near known. */
 function shelves(now: Date): NonNullable<ChartData['tools']> {
 	const days = (count: number) =>
 		Array.from({ length: count }, (_, index) => {
@@ -150,6 +142,7 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Moving around',
 		steps: [
 			'Click any cell. Its block grows into the editor.',
+			'Or Tab to a cell and press Enter. Its block opens with that cell ready to type.',
 			'Switch views with the dock. The dock stays where it is while the page changes under it.',
 			'Change the theme or the accent in the menu (the three dots). The page crossfades.'
 		]
@@ -251,7 +244,6 @@ export const DEMOS: readonly Demo[] = [
 	}
 ];
 
-/** What a demo opens. `now` fixes the history to a day. */
 export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'complete') {
 		const data = preset('language');

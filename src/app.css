@@ -133,8 +133,7 @@
 		inset 0 1px 0 oklch(1 0 0 / 0.12),
 		0 1px 2px oklch(0 0 0 / 0.14);
 }
-/* Top and side inset for every page. The wordmark row is 42px, so the mark
-   lands in the same place as the home toolbar. */
+/* The wordmark row is 42px, so the mark lands where the home toolbar does. */
 @utility page-gutter {
 	padding-top: max(24px, env(safe-area-inset-top, 24px));
 	padding-right: max(28px, env(safe-area-inset-right, 28px));
@@ -145,7 +144,7 @@
 		padding-left: max(14px, env(safe-area-inset-left, 14px));
 	}
 }
-/* Shared text-field chrome. Size, radius, and padding stay on the caller. */
+/* Size, radius, and padding stay on the caller. */
 @utility field-ink {
 	border-width: 0;
 	background-color: var(--sunken);
@@ -217,7 +216,7 @@
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 	color: oklch(var(--dot-fg-l) 0.09 var(--h));
 }
-/* A pillar's name as text, in its hue. At least 4.5:1 on bg and surface in both themes. */
+/* At least 4.5:1 on bg and surface in both themes. */
 @utility pillar-ink {
 	color: oklch(var(--pillar-ink-l) var(--pillar-ink-c) var(--h));
 }
@@ -532,7 +531,7 @@
 	}
 }
 
-/* A card landing: a short rise, no spin. The tilt it keeps is the card's own. */
+/* No spin: the tilt it keeps is the card's own. */
 @keyframes deal-in {
 	from {
 		opacity: 0;
@@ -593,14 +592,12 @@
 	}
 }
 
-/* An arc that just became whole swells once while it draws. */
 @keyframes swell {
 	40% {
 		stroke-width: 15px;
 	}
 }
 
-/* A check pressed onto a pill: it comes down large and tilted, and lands flat. */
 @keyframes stamp {
 	from {
 		opacity: 0;
@@ -615,7 +612,6 @@
 	}
 }
 
-/* A block that just became whole: a ring of its own hue spreads out and fades. */
 @keyframes glow {
 	0% {
 		box-shadow:
@@ -634,7 +630,6 @@
 	}
 }
 
-/* A card turned over in place: the old face is gone, the new one swings in and lands. */
 @keyframes flip-in {
 	from {
 		opacity: 0;
@@ -654,8 +649,6 @@
 		stroke-dashoffset: 0;
 	}
 }
-/* Switching views (chart, edit, today) is one view transition, started by `morph`. The stage fades out
-   quickly and the new view rises into place. The selected block travels between the chart and the editor. */
 ::view-transition-group(*) {
 	animation-duration: 440ms;
 	animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
@@ -666,7 +659,7 @@
 ::view-transition-new(stage) {
 	animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both view-in;
 }
-/* The chrome around the stage swaps at once, as it did before. A crossfade there only doubles the title. */
+/* The chrome around the stage swaps at once. A crossfade there only doubles the title. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
 	animation: none;
@@ -680,8 +673,8 @@
 ::view-transition-new(focus-block) {
 	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
 }
-/* Floating chrome (the dock with its toast, Bindu, an open menu) has its own layer, so it stays on top and
-   still while the stage changes under it. The menu sits above the rest: it is what the person is using. */
+/* Floating chrome has its own layer, so it stays on top and still while the stage changes under it.
+   The menu sits above the rest: it is what the person is using. */
 ::view-transition-group(dock),
 ::view-transition-group(bindu-launcher),
 ::view-transition-group(bindu-panel),
@@ -705,7 +698,6 @@
 ::view-transition-new(menu) {
 	animation: none;
 }
-/* A theme or accent change crossfades the whole page in place. Nothing travels. */
 :root:active-view-transition-type(theme)::view-transition-old(root),
 :root:active-view-transition-type(theme)::view-transition-old(stage),
 :root:active-view-transition-type(theme)::view-transition-old(dock),
@@ -848,9 +840,9 @@
 		--success: oklch(0.78 0.13 150);
 		--danger: oklch(0.72 0.14 8);
 		--goal-ring: oklch(0.8 0.01 85);
-		--p-l: 0.56;
+		--p-l: 0.54;
 		--p-c: 0.11;
-		--p-l-hover: 0.61;
+		--p-l-hover: 0.59;
 		--p-c-hover: 0.13;
 		--on-p: oklch(0.99 0.004 85);
 		--t-l: 0.285;
@@ -903,9 +895,9 @@
 	--success: oklch(0.78 0.13 150);
 	--danger: oklch(0.72 0.14 8);
 	--goal-ring: oklch(0.8 0.01 85);
-	--p-l: 0.56;
+	--p-l: 0.54;
 	--p-c: 0.11;
-	--p-l-hover: 0.61;
+	--p-l-hover: 0.59;
 	--p-c-hover: 0.13;
 	--on-p: oklch(0.99 0.004 85);
 	--t-l: 0.285;
@@ -939,8 +931,6 @@
 	--swatch-field-on: oklch(0.985 0.006 85);
 	color-scheme: dark;
 }
-
-/* Accent choices. Ink stays the default alias above. Each swatch uses a white label. */
 
 :root[data-accent='walnut'] {
 	--accent: var(--swatch-walnut);

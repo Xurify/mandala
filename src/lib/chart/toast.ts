@@ -1,6 +1,5 @@
 import { UNTITLED } from './library.ts';
 
-/** Title when one burst covers charts that do not share a name. */
 const MANY = 'Charts';
 
 export type SlipBurst = {
@@ -10,7 +9,7 @@ export type SlipBurst = {
 	mixed: boolean;
 };
 
-/** Spoken sentence. Mixed bursts say how many charts, since one name would be wrong. */
+/** Mixed bursts say how many charts, since one name would be wrong. */
 export function burstToast(kicker: string, subject: string, count: number, mixed = false): string {
 	if (mixed) return `${kicker} ${count} ${count === 1 ? 'chart' : 'charts'}.`;
 	const name = subject.trim() || UNTITLED;
@@ -18,11 +17,6 @@ export function burstToast(kicker: string, subject: string, count: number, mixed
 	return `${kicker} “${name}”.`;
 }
 
-/**
- * Continue a burst only while the same action is still on screen.
- * `amount` is how many this gesture did. A different action starts over.
- * Names that diverge drop the single title.
- */
 export function nextSlipBurst(
 	previous: SlipBurst | null,
 	key: string,
@@ -57,14 +51,9 @@ export type Slip = {
 	count: number;
 	mixed: boolean;
 	until: number;
-	/** Deleted chart ids the slip can put back. */
 	undo: string[];
 };
 
-/**
- * One slip at a time. A repeat of the showing action merges into it and restarts its clock.
- * A different action replaces it.
- */
 export function placeSlip(
 	pile: readonly Slip[],
 	now: number,
@@ -142,7 +131,6 @@ function freshSlip(
 	};
 }
 
-/** One shared title, or a mixed batch. */
 export function batchSubject(titles: readonly string[]): { subject: string; mixed: boolean } {
 	const names = titles.map((title) => title.trim() || UNTITLED);
 	const subject = names[0] ?? UNTITLED;

@@ -93,60 +93,62 @@
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<Pages view={current.title} {direction} label={current.title} class="overflow-x-clip">
 			{#snippet page()}
-				<div class="grid grid-cols-7 gap-y-0.5" role="grid" tabindex="-1" aria-label={current.title} onkeydown={walk}>
+				<div class="flex flex-col gap-y-0.5" role="grid" tabindex="-1" aria-label={current.title} onkeydown={walk}>
 					{#each current.weeks as week, rowIndex (week[0]?.key)}
-						{#each week as day, columnIndex (day.key)}
-							{#if !day.inMonth}
-								<span class="h-12" aria-hidden="true"></span>
-							{:else}
-								{@const chosen = day.key === picked?.key}
-								<button
-									type="button"
-									role="gridcell"
-									data-day={day.key}
-									class={cn(
-										'grid h-12 cursor-pointer place-items-center rounded-[14px] border-0 bg-transparent p-0 font-sans focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink',
-										day.future ? 'cursor-default' : !chosen && 'hover:bg-sunken',
-										chosen && 'bg-sunken'
-									)}
-									aria-selected={chosen}
-									aria-label={spoken(day)}
-									disabled={day.future}
-									onclick={() => open(day)}
-								>
-									{#if day.pillars.length > 0}
-										<svg class="size-[42px] overflow-visible [grid-area:1/1]" viewBox="0 0 {VIEW} {VIEW}" aria-hidden="true">
-											{#each ARCS as arc (arc.pillarIndex)}
-												{@const order = day.pillars.indexOf(arc.pillarIndex)}
-												{#if order < 0}
-													<path class="ring-track fill-none stroke-[9] [stroke-linecap:round]" d={arc.path} style:--h={arc.hue} />
-												{:else}
-													<path
-														class="pillar-stroke fill-none stroke-[9] [stroke-dasharray:1] [stroke-linecap:round] motion-safe:animate-seal-draw"
-														d={arc.path}
-														pathLength="1"
-														style:--h={arc.hue}
-														style:animation-delay="{rowIndex * 50 + columnIndex * 15 + order * 40}ms"
-													/>
-												{/if}
-											{/each}
-										</svg>
-									{/if}
-									<span
+						<div class="grid grid-cols-7" role="row">
+							{#each week as day, columnIndex (day.key)}
+								{#if !day.inMonth}
+									<span class="h-12" aria-hidden="true"></span>
+								{:else}
+									{@const chosen = day.key === picked?.key}
+									<button
+										type="button"
+										role="gridcell"
+										data-day={day.key}
 										class={cn(
-											'grid size-6 place-items-center rounded-full text-[0.84rem] leading-none tabular-nums [grid-area:1/1]',
-											day.today
-												? 'bg-ink font-[650] text-on-ink'
-												: day.future
-													? 'font-[560] text-muted opacity-45'
-													: day.done.length > 0
-														? 'font-[650] text-text'
-														: 'font-[560] text-muted'
-										)}>{day.day}</span
+											'grid h-12 cursor-pointer place-items-center rounded-[14px] border-0 bg-transparent p-0 font-sans focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink',
+											day.future ? 'cursor-default' : !chosen && 'hover:bg-sunken',
+											chosen && 'bg-sunken'
+										)}
+										aria-selected={chosen}
+										aria-label={spoken(day)}
+										disabled={day.future}
+										onclick={() => open(day)}
 									>
-								</button>
-							{/if}
-						{/each}
+										{#if day.pillars.length > 0}
+											<svg class="size-[42px] overflow-visible [grid-area:1/1]" viewBox="0 0 {VIEW} {VIEW}" aria-hidden="true">
+												{#each ARCS as arc (arc.pillarIndex)}
+													{@const order = day.pillars.indexOf(arc.pillarIndex)}
+													{#if order < 0}
+														<path class="ring-track fill-none stroke-[9] [stroke-linecap:round]" d={arc.path} style:--h={arc.hue} />
+													{:else}
+														<path
+															class="pillar-stroke fill-none stroke-[9] [stroke-dasharray:1] [stroke-linecap:round] motion-safe:animate-seal-draw"
+															d={arc.path}
+															pathLength="1"
+															style:--h={arc.hue}
+															style:animation-delay="{rowIndex * 50 + columnIndex * 15 + order * 40}ms"
+														/>
+													{/if}
+												{/each}
+											</svg>
+										{/if}
+										<span
+											class={cn(
+												'grid size-6 place-items-center rounded-full text-[0.84rem] leading-none tabular-nums [grid-area:1/1]',
+												day.today
+													? 'bg-ink font-[650] text-on-ink'
+													: day.future
+														? 'font-[560] text-muted opacity-45'
+														: day.done.length > 0
+															? 'font-[650] text-text'
+															: 'font-[560] text-muted'
+											)}>{day.day}</span
+										>
+									</button>
+								{/if}
+							{/each}
+						</div>
 					{/each}
 				</div>
 			{/snippet}

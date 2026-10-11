@@ -22,7 +22,7 @@ const GROUPS: readonly { title: string; items: readonly ShortcutDef[] }[] = [
 		title: 'Move around',
 		items: [
 			{ label: 'Today', keys: ['T'] },
-			{ label: 'Year in focus', keys: ['Y'] },
+			{ label: 'Calendar', keys: ['C'] },
 			{ label: 'Chart', keys: ['V'] },
 			{ label: 'Editor', keys: ['E'] },
 			{ label: 'Split view', keys: ['S'], desktopOnly: true },
