@@ -1088,11 +1088,14 @@ html[style*='--goal-field-size'] textarea.goal {
 	font-size: var(--goal-field-size);
 }
 
-.cell {
+/* Cells size their text to fit, so a scrollbar only ever shows rounding. Unlayered, since no utility can beat the `*` rule. */
+.cell,
+.field {
 	scrollbar-width: none;
 }
 
-.cell::-webkit-scrollbar {
+.cell::-webkit-scrollbar,
+.field::-webkit-scrollbar {
 	display: none;
 	width: 0;
 	height: 0;
