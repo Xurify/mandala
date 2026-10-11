@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { fetchTitle, linkIn, nearKnown, openedLately, shelfOf } from '$lib/chart/tools';
+	import { readIcon } from '$lib/chart/site-icon';
+	import { fetchTitle, hostOf, iconOf, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf } from '$lib/chart/tools';
 	import { isRoutine } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
+	import Menu from './ui/Menu.svelte';
+	import MenuDivider from './ui/MenuDivider.svelte';
+	import MenuItem from './ui/MenuItem.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
@@ -31,6 +35,29 @@
 	const asked = $derived(new Set(nearKnown(chart.data).filter((entry) => entry.pillarIndex === pillarIndex).map((entry) => entry.tool.id)));
 
 	let draft = $state('');
+	let picker = $state<HTMLInputElement | null>(null);
+	/** The site the file picker is choosing an icon for. */
+	let iconFor = '';
+
+	function chooseIcon(host: string): void {
+		iconFor = host;
+		picker?.click();
+	}
+
+	async function onpick(event: Event & { currentTarget: HTMLInputElement }): Promise<void> {
+		const input = event.currentTarget;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file || !iconFor) return;
+		const host = iconFor;
+		const icon = await readIcon(file);
+		if (!icon) {
+			chart.say("Couldn't read that image. Try an SVG, PNG or JPEG.");
+			return;
+		}
+		chart.setIcon(host, icon);
+		chart.say(`Icon set for ${host}.`);
+	}
 	let rejected = $state(false);
 
 	/** A pasted link lands as a tool at once; its title arrives when the site answers. */
@@ -85,6 +112,7 @@
 			oninput={() => (rejected = false)}
 		/>
 	</div>
+	<input bind:this={picker} type="file" accept="image/*,.svg,.ico" class="hidden" tabindex="-1" aria-hidden="true" onchange={onpick} />
 	{#if rejected}
 		<p class="m-0 -mt-1 text-[0.8rem] text-muted">That is not a link. Paste one that starts with https.</p>
 	{/if}
@@ -107,6 +135,30 @@
 						>
 							<ToolFace {tool} />
 						</a>
+						{#if !thumbnailOf(tool.url)}
+							{@const host = hostOf(tool.url)}
+							{#if iconOf(chart.data, tool.url)}
+								<Menu label="Icon for {host}">
+									{#snippet trigger({ expanded, toggle })}
+										<IconButton icon="image" label="Icon for {host}" class="size-9 text-muted hover:text-text" aria-haspopup="menu" aria-expanded={expanded} onclick={toggle} />
+									{/snippet}
+									<MenuItem icon="image" onclick={() => chooseIcon(host)}>Choose another image</MenuItem>
+									<MenuDivider />
+									<MenuItem
+										icon="trash"
+										tone="danger"
+										onclick={() => {
+											chart.setIcon(host, null);
+											chart.say(`Icon removed from ${host}.`);
+										}}
+									>
+										Remove icon
+									</MenuItem>
+								</Menu>
+							{:else}
+								<IconButton icon="image" label="Add an icon for {host}" class="size-9 text-muted hover:text-text" onclick={() => chooseIcon(host)} />
+							{/if}
+						{/if}
 						<IconButton icon="trash" label="Remove {tool.title}" class="size-9 text-muted hover:text-danger" onclick={() => chart.removeTool(pillarIndex, tool.id)} />
 					</div>
 					{#if asked.has(tool.id)}

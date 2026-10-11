@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealTools, hostOf, linkIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
+import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
+import { dealTools, hostOf, iconOf, linkIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -104,5 +104,36 @@ describe('the shelf', () => {
 		data.tools = { p1: [tool('a', { action: 1, opened: [day(-1)] })], p9: [tool('x')] };
 		const loaded = parseChart(JSON.stringify({ ...data, tools: { ...data.tools, p2: [{ id: 'bad', url: 'not a link' }, 'junk'] } }));
 		expect(loaded?.tools).toEqual({ p1: [tool('a', { action: 1, opened: [day(-1)] })] });
+	});
+
+	it('gives every tool on a site the icon the person set for it', () => {
+		const data = chart();
+		const svg = 'data:image/svg+xml,%3Csvg%2F%3E';
+		data.icons = { 'readline.app': svg };
+		expect(iconOf(data, 'https://www.readline.app/moya-devushka')).toBe(svg);
+		expect(iconOf(data, 'https://readline.app/other')).toBe(svg);
+		expect(iconOf(data, 'https://example.com')).toBeNull();
+		expect(iconOf(emptyChart(), 'https://readline.app')).toBeNull();
+	});
+
+	it('keeps icons through save and load, and drops what is not a picture', () => {
+		const data = chart();
+		const png = 'data:image/png;base64,iVBORw0KGgo=';
+		const loaded = parseChart(
+			JSON.stringify({
+				...data,
+				icons: {
+					'Readline.app': png,
+					'localhost:5173': png,
+					'bad host/': png,
+					'script.example': 'javascript:alert(1)',
+					'html.example': 'data:text/html,<p>',
+					'huge.example': `data:image/png;base64,${'A'.repeat(ICON_MAX)}`,
+					'number.example': 4
+				}
+			})
+		);
+		expect(loaded?.icons).toEqual({ 'readline.app': png, 'localhost:5173': png });
+		expect(parseChart(JSON.stringify({ ...data, icons: { 'a.example': 'junk' } }))?.icons).toBeUndefined();
 	});
 });

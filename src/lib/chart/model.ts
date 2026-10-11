@@ -101,7 +101,23 @@ export type ChartData = {
 	brief?: ChartBrief;
 	/** Shelves, keyed by pillar: `p0` to `p7`. */
 	tools?: Record<string, Tool[]>;
+	/** A picture for a site that has none of its own, keyed by host (`readline.app`), as a data URL. */
+	icons?: Record<string, string>;
 };
+
+/** Longest icon kept, in characters of its data URL. A 128px PNG or a plain SVG fits well inside. */
+export const ICON_MAX = 96_000;
+
+export function parseIcons(value: unknown): Record<string, string> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const out: Record<string, string> = {};
+	for (const [host, icon] of Object.entries(value as Record<string, unknown>)) {
+		if (!/^[a-z0-9.-]+(?::\d+)?$/i.test(host) || typeof icon !== 'string') continue;
+		if (!icon.startsWith('data:image/') || icon.length > ICON_MAX) continue;
+		out[host.toLowerCase()] = icon;
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 	if (!value || typeof value !== 'object') return undefined;
@@ -324,7 +340,8 @@ export function parseChart(raw: string): ChartData | null {
 			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
 			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
 			brief: parseBrief(record.brief),
-			tools: parseTools(record.tools)
+			tools: parseTools(record.tools),
+			icons: parseIcons(record.icons)
 		};
 	} catch {
 		return null;

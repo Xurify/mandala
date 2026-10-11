@@ -55,6 +55,14 @@ export function overlayLocalEdits(
 		}
 	});
 
+	overlayGroup(base.icons, edited.icons, (host, value) => {
+		if (value === null) delete merged.icons?.[host];
+		else {
+			merged.icons ??= {};
+			merged.icons[host] = value;
+		}
+	});
+
 	if (JSON.stringify(base.brief ?? null) !== JSON.stringify(edited.brief ?? null)) {
 		merged.brief = edited.brief ? structuredClone(edited.brief) : undefined;
 	}

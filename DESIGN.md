@@ -180,7 +180,7 @@ A floating panel with more than one job is a few pages, not a chat and not tabs.
 
 ### Floating chrome
 
-The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through.
+The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through. The dock carries its `view-transition-name` only while `[data-morphing]` is set. A named element is a backdrop root, so at rest the name would leave the bar's blur nothing to sample, and the bar would read as see-through all the time.
 
 ### Moments on the chart
 
@@ -198,7 +198,7 @@ The weekly reflection is offered from an hour of a weekday the person chooses (S
 
 A video, a text, a site is a **tool**: material behind a pillar, not a cell. The cell stays a sentence you can tick ("Play 15 minutes of audio at breakfast"); the shelf under the pillar holds what it plays. Thirty videos never become thirty actions.
 
-- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, the site's name when it does not. Its caption is one string built in script, since Svelte trims the space at the start of a block.
+- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, else the icon the person gave the site, else a link glyph, with the site's name beside it. An icon belongs to a host (`data.icons`), so every tool on that site wears it. The image button beside a tool on the shelf takes any picture the browser can draw, and once one is set it opens a menu to choose another or remove it: an SVG is kept as written when it is small, anything else is drawn down to 128px. Icons stay out of share links, which they would outgrow. Its caption is one string built in script, since Svelte trims the space at the start of a block.
 - **Two kinds and one exit.** `once` retires itself the first time it is opened. `repeat` stays in rotation until the person presses **Know this**. "Watch daily" and "until it sticks" are both repeat; the difference is whether that button ever gets pressed.
 - **Who hands it out.** A tool named for an action is handed out by that action. An unassigned tool is handed out by any routine in its pillar. Today shows the day's tool under the action's row, with one tap to open it and an arrow for another. Opening is logged; the tick stays the person's.
 - **Rotation.** Never opened first, then the one that waited longest, holding still within a day and seeded by the action, so two routines on one shelf do not hand out the same thing.

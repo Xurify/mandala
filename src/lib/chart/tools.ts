@@ -26,6 +26,11 @@ export function hostOf(url: string): string {
 	}
 }
 
+/** The picture the person gave the link's site, if any. A video's own thumbnail comes first, in the face. */
+export function iconOf(data: ChartData, url: string): string | null {
+	return data.icons?.[hostOf(url)] ?? null;
+}
+
 /** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
 export function linkIn(text: string): string | null {
 	const match = text.match(/https?:\/\/[^\s<>"']+/);

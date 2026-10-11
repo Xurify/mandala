@@ -205,7 +205,8 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, or the arrow for another.',
 			'Open Edit, then pillar 2, Listening. Its shelf lists every link: Once or Repeat, which action hands it out, Know this. One video was opened 11 of the last 14 days, so the shelf asks.',
-			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.'
+			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.',
+			'On pillar 5, Sentence patterns, press the image button beside the readline link and pick any picture, an SVG included. Every readline link wears it, in Today too.'
 		]
 	},
 	{

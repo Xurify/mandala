@@ -843,6 +843,16 @@ export class ChartStore {
     this.save();
   }
 
+  /** Gives a site a picture, or with null takes it away. Every tool on that site wears it. */
+  setIcon(host: string, icon: string | null): void {
+    if (!host) return;
+    const icons = { ...this.data.icons };
+    if (icon) icons[host] = icon;
+    else delete icons[host];
+    this.data = { ...this.data, icons: Object.keys(icons).length > 0 ? icons : undefined };
+    this.save();
+  }
+
   /** The person opened it. Today is logged, and a once tool leaves the rotation. */
   openTool(pillarIndex: number, id: string): void {
     this.#patchTool(pillarIndex, id, (tool) => opened(tool));
