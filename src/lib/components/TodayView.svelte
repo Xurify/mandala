@@ -296,7 +296,6 @@
 {/snippet}
 
 {#snippet calendarDoor()}
-	<!-- The days behind this one. Looked at often, so it sits in the day's header. -->
 	<IconButton icon="calendar" label="Calendar" class="size-10 shrink-0 text-muted hover:text-text" onclick={() => chart.setViewMode('calendar')} />
 {/snippet}
 
@@ -307,7 +306,6 @@
 	)}
 >
 	{#if closed}
-		<!-- The days behind this one. Elsewhere it sits in the day's own header. -->
 		<div class="mx-auto mb-2 flex w-full max-w-[520px] justify-end max-[900px]:mb-1">
 			<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
 		</div>
@@ -430,7 +428,6 @@
 			{/snippet}
 			{#snippet extra()}
 				{#if habits.length > 0}
-					<!-- Habits are in every day already, so here they are read, not chosen. They are ticked once the day starts. -->
 					<section class="rounded-[20px] bg-sunken px-4 pt-3 pb-3.5" aria-labelledby="habits-today">
 						<div class="flex items-baseline justify-between gap-3">
 							<Eyebrow><span id="habits-today">Habits</span></Eyebrow>

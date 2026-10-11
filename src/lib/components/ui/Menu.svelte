@@ -14,7 +14,6 @@
 		align?: 'start' | 'end';
 		label?: string;
 		class?: string;
-		/** Whether the menu is open. Bind it to close the menu from outside, after a paste into it say. */
 		open?: boolean;
 		onopenchange?: (open: boolean) => void;
 	};

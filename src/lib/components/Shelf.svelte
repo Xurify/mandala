@@ -38,7 +38,6 @@
 
 	let draft = $state('');
 	let picker = $state<HTMLInputElement | null>(null);
-	/** The site the file picker is choosing an icon for. */
 	let iconFor = '';
 
 	function chooseIcon(host: string): void {
@@ -63,7 +62,6 @@
 		if (file && iconFor) void setIcon(iconFor, file);
 	}
 
-	/** The tool whose icon menu is open, so a paste into it can close it. */
 	let iconMenu = $state<string | null>(null);
 	const mod = typeof navigator === 'undefined' ? 'Ctrl' : modifierLabel(isApplePlatform(navigator.userAgent));
 
@@ -73,7 +71,6 @@
 		else chart.say(`Nothing to paste. Copy an image or SVG code, then press ${mod} V on the link.`);
 	}
 
-	/** A picture pasted anywhere on a link's row, the menu included, becomes its site's icon. */
 	function onRowPaste(event: ClipboardEvent & { currentTarget: HTMLElement }, toolId: string, host: string): void {
 		if ((event.target as HTMLElement | null)?.closest('input, textarea')) return;
 		const file = pastedPicture(event.clipboardData);
@@ -88,7 +85,6 @@
 		void setIcon(host, file);
 	}
 	let rejected = $state(false);
-	/** A picture was pasted where links go. */
 	let picture = $state(false);
 
 	/** A pasted link lands as a tool at once; its title arrives when the site answers. */

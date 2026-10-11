@@ -101,11 +101,9 @@ export type ChartData = {
 	brief?: ChartBrief;
 	/** Shelves, keyed by pillar: `p0` to `p7`. */
 	tools?: Record<string, Tool[]>;
-	/** A picture for a site that has none of its own, keyed by host (`readline.app`), as a data URL. */
 	icons?: Record<string, string>;
 };
 
-/** Longest icon kept, in characters of its data URL. A 128px PNG or a plain SVG fits well inside. */
 export const ICON_MAX = 96_000;
 
 export function parseIcons(value: unknown): Record<string, string> | undefined {

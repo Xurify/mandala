@@ -1,5 +1,4 @@
 <script lang="ts">
-	/** The box on a row that can be picked with others. Sits inside a `group` row that carries the state. */
 	let { on }: { on: boolean } = $props();
 </script>
 

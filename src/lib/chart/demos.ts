@@ -31,7 +31,6 @@ export type DemoSetup = {
 	focus?: string;
 	/** Text to search for. */
 	query?: string;
-	/** Copies of the chart to add next to it. */
 	copies?: number;
 	/** Something to open once the chart is in view. */
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };

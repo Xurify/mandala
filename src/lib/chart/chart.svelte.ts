@@ -277,7 +277,6 @@ export class ChartStore {
    */
   /** The weekly reflection is open. Any view can open it. */
   reflecting = $state(false);
-  /** The dialog that picks several charts at once. */
   selecting = $state(false);
 
   landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
@@ -846,7 +845,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** Gives a site a picture, or with null takes it away. Every tool on that site wears it. */
   setIcon(host: string, icon: string | null): void {
     if (!host) return;
     const icons = { ...this.data.icons };
@@ -1331,7 +1329,6 @@ export class ChartStore {
     this.#applyNote(held, "Deleted", title, 1, false, [id]);
   }
 
-  /** Several charts to recently deleted at once, with one slip that can undo them all. */
   deleteCharts(ids: string[]): void {
     if (ids.length === 0) return;
     if (ids.length === 1) {

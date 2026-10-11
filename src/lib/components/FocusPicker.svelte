@@ -25,9 +25,7 @@
 		selected?: string[];
 		max?: number;
 		inset?: boolean;
-		/** Opens the day's panel: the date and the question. */
 		head?: Snippet;
-		/** What is in the day without being picked, under the three. */
 		extra?: Snippet;
 		footer?: Snippet;
 	};
@@ -363,7 +361,6 @@
 {#snippet stack(group: DeckGroup)}
 	{@const top = group.top}
 	<li class="group relative min-w-0 pb-3" style:--h={HUES[group.pillarIndex]}>
-		<!-- The rest of the deck shows as the edges of cards under the top one, and fans out on hover. -->
 		{#if group.deck.length > 2}
 			<span
 				class="pillar-action pointer-events-none absolute inset-x-0 top-0 bottom-3 origin-bottom rounded-[22px] opacity-45 translate-y-3 scale-x-[0.88] motion-safe:transition-[rotate,translate,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:group-hover:translate-y-1 can-hover:group-hover:scale-x-100 can-hover:group-hover:rotate-[-5deg]"
@@ -469,8 +466,6 @@
 {/snippet}
 
 <div bind:this={root} {@attach trackColumns} class="@container flex flex-col gap-10">
-	<!-- The day is one sheet of paper: the question, the slots, what is already in it, and the way in. The decks
-	     it draws from lie below it on the desk. In a dialog the dialog is the sheet. -->
 	<section
 		class={cn(
 			'flex flex-col gap-5',

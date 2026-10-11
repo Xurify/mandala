@@ -24,7 +24,6 @@
 	);
 </script>
 
-<!-- A tool's face: the video's own picture when it has one, else the icon the person gave its site, else a link. -->
 <span class={cn('flex min-w-0 items-center gap-3', className)}>
 	<span
 		class={cn(

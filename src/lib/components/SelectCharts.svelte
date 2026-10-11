@@ -34,7 +34,6 @@
 		return list;
 	});
 	const pickedItems = $derived(chart.charts.filter((item) => picked.includes(item.id)));
-	/** Select all works on what the search shows, so a search for a title and Select all picks every copy of it. */
 	const allShown = $derived(rows.length > 0 && rows.every((item) => picked.includes(item.id)));
 	const everything = $derived(pickedItems.length === chart.charts.length);
 
@@ -46,7 +45,6 @@
 		now = Date.now();
 	});
 
-	// A chart deleted or restored elsewhere leaves the selection.
 	$effect(() => {
 		const live = new Set(chart.charts.map((item) => item.id));
 		const next = picked.filter((id) => live.has(id));

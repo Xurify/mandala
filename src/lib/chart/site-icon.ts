@@ -1,13 +1,8 @@
 import { ICON_MAX } from './model.ts';
 import { svgIn } from './tools.ts';
 
-/** Longest side of an icon drawn down: twice the largest face, so it stays sharp on a dense screen. */
 const SIDE = 128;
 
-/**
- * Any picture the browser can draw, as a data URL small enough to keep: an SVG as written when it is small,
- * anything else (or a heavy SVG) drawn at 128px. Null when the browser cannot read it.
- */
 export async function readIcon(file: File): Promise<string | null> {
 	const svg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
 	if (svg) {
@@ -24,7 +19,6 @@ export async function readIcon(file: File): Promise<string | null> {
 		await image.decode();
 		const width = image.naturalWidth || SIDE;
 		const height = image.naturalHeight || SIDE;
-		// A vector grows to the full size; a small bitmap is not blown up.
 		const scale = svg ? SIDE / Math.max(width, height) : Math.min(1, SIDE / Math.max(width, height));
 		const canvas = document.createElement('canvas');
 		canvas.width = Math.max(1, Math.round(width * scale));
@@ -50,10 +44,6 @@ function svgFile(svg: string): File {
 	return new File([svg], 'pasted.svg', { type: 'image/svg+xml' });
 }
 
-/**
- * The picture in a paste, read at once so the paste can be claimed: an image file (a copied picture, a
- * copied file), or SVG markup copied as text. Null when the paste holds no picture.
- */
 export function pastedPicture(data: DataTransfer | null): File | null {
 	if (!data) return null;
 	const file = [...data.files].find((item) => item.type.startsWith('image/') || /\.svg$/i.test(item.name));
@@ -62,7 +52,6 @@ export function pastedPicture(data: DataTransfer | null): File | null {
 	return svg ? svgFile(svg) : null;
 }
 
-/** The picture on the clipboard, for a Paste button with no paste event behind it. Null when there is none, or the browser says no. */
 export async function clipboardPicture(): Promise<File | null> {
 	try {
 		if (navigator.clipboard?.read) {

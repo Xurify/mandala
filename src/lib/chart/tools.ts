@@ -26,21 +26,17 @@ export function hostOf(url: string): string {
 	}
 }
 
-/** The picture the person gave the link's site, if any. A video's own thumbnail comes first, in the face. */
 export function iconOf(data: ChartData, url: string): string | null {
 	return data.icons?.[hostOf(url)] ?? null;
 }
 
-/** SVG markup in some pasted text, as a design tool or an editor copies it. Null when there is none. */
 export function svgIn(text: string): string | null {
 	return text.match(/<svg[\s>][\s\S]*<\/svg>/i)?.[0] ?? null;
 }
 
-/**
- * The first link in some text, so a pasted share ("Watch this! https://…") still lands. Pasted SVG is a
- * picture, not a link, though its namespace (http://www.w3.org/2000/svg) reads as one.
- */
+/** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
 export function linkIn(text: string): string | null {
+	// Pasted SVG carries its namespace, http://www.w3.org/2000/svg, which is not a link.
 	if (svgIn(text)) return null;
 	const match = text.match(/https?:\/\/[^\s<>"']+/);
 	if (!match) return null;
