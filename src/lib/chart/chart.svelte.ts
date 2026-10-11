@@ -41,6 +41,7 @@ import {
   activeRecord,
   cloneChart,
   deleteFromLibrary,
+  deleteManyFromLibrary,
   emptyLibrary,
   flushActive,
   forgetManyFromLibrary,
@@ -276,6 +277,8 @@ export class ChartStore {
    */
   /** The weekly reflection is open. Any view can open it. */
   reflecting = $state(false);
+  /** The dialog that picks several charts at once. */
+  selecting = $state(false);
 
   landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
     null,
@@ -1326,6 +1329,32 @@ export class ChartStore {
     const held = this.#copySlips();
     this.saveNow();
     this.#applyNote(held, "Deleted", title, 1, false, [id]);
+  }
+
+  /** Several charts to recently deleted at once, with one slip that can undo them all. */
+  deleteCharts(ids: string[]): void {
+    if (ids.length === 0) return;
+    if (ids.length === 1) {
+      this.deleteChart(ids[0]!);
+      return;
+    }
+    this.#flush();
+    const want = new Set(ids);
+    const doomed = this.#library.charts.filter((item) => want.has(item.id));
+    const next = deleteManyFromLibrary(this.#library, doomed.map((item) => item.id));
+    if (!next || doomed.length === 0) return;
+    const activeChanged = next.activeId !== this.#library.activeId;
+    this.#library = next;
+    if (activeChanged) {
+      this.data = cloneChart(activeRecord(next).data);
+      this.#resetView();
+      this.#adoptShareState();
+      this.#applySavedGoalFit();
+    }
+    const batch = batchSubject(doomed.map((item) => titleOf(item.data)));
+    const held = this.#copySlips();
+    this.saveNow();
+    this.#applyNote(held, "Deleted", batch.subject, doomed.length, batch.mixed, doomed.map((item) => item.id));
   }
 
   restoreChart(id: string): void {

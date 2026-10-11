@@ -20,7 +20,8 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
-	| 'tools';
+	| 'tools'
+	| 'select';
 
 export type DemoSetup = {
 	/** The chart to open. Null opens a new, empty one. */
@@ -30,8 +31,10 @@ export type DemoSetup = {
 	focus?: string;
 	/** Text to search for. */
 	query?: string;
+	/** Copies of the chart to add next to it. */
+	copies?: number;
 	/** Something to open once the chart is in view. */
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true };
+	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
 export type Demo = {
@@ -210,6 +213,16 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'select',
+		title: 'Clearing out copies',
+		group: 'Moving around',
+		steps: [
+			'Select charts opens with six copies of one chart. Select all, or type part of a name and Select these to pick every match.',
+			'Untick the one to keep, or shift-click to pick a run of rows. Delete moves them to recently deleted, and the slip can undo all of them at once.',
+			'It also opens from the chart switcher, under the list: Select charts.'
+		]
+	},
+	{
 		id: 'bindu-week',
 		title: 'Bindu with a week behind it',
 		group: 'Bindu',
@@ -277,6 +290,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.tools = shelves(now);
 		return { data, view: 'today' };
 	}
+	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };
 	if (id === 'bindu-review') {

@@ -254,6 +254,17 @@ export function deleteFromLibrary(
 	return { activeId, charts: remaining, deleted };
 }
 
+/** Move several charts to recently deleted at once. Deleting every chart leaves one blank chart open. */
+export function deleteManyFromLibrary(
+	library: ChartLibrary,
+	ids: readonly string[],
+	now = Date.now()
+): ChartLibrary | null {
+	let next: ChartLibrary | null = null;
+	for (const id of ids) next = deleteFromLibrary(next ?? library, id, now) ?? next;
+	return next;
+}
+
 /** Put deleted charts back. The newest one becomes the open chart. */
 export function restoreManyFromLibrary(
 	library: ChartLibrary,

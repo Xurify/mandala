@@ -54,3 +54,76 @@ $ vite dev --port "5199"
 3:44:32 PM [vite] (client) page reload .svelte-kit/generated/root.js
 3:44:32 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
 3:44:32 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:44:52 PM [vite] (client) hmr update /src/lib/components/ToolFace.svelte, /src/app.css
+3:44:53 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:44:53 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:44:53 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:44:54 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:44:54 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:44:54 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:44:54 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:44:54 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:44:54 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:44:54 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:45:55 PM [vite] (client) hmr update /src/routes/+error.svelte, /src/lib/components/BrandMark.svelte, /src/lib/components/ChartApp.svelte, /src/lib/components/ChartSwitcher.svelte, /src/lib/components/ExportDialog.svelte, /src/lib/components/MandalaGrid.svelte, /src/lib/components/ProgressRing.svelte, /src/lib/components/TodayView.svelte, /src/lib/components/CalendarView.svelte, /src/lib/components/ShelfSheet.svelte, /src/lib/components/SidePanel.svelte, /src/lib/components/WeeklyReflection.svelte and 6 more
+3:45:55 PM [vite] (client) hmr update /src/app.css
+3:45:55 PM [vite] (client) hmr update /src/app.css, /src/lib/components/BrandMark.svelte, /src/lib/components/ChartApp.svelte, /src/lib/components/ChartSwitcher.svelte, /src/lib/components/ExportDialog.svelte, /src/lib/components/MandalaGrid.svelte, /src/lib/components/ProgressRing.svelte, /src/lib/components/TodayView.svelte, /src/lib/components/CalendarView.svelte, /src/lib/components/ShelfSheet.svelte, /src/lib/components/SidePanel.svelte, /src/lib/components/WeeklyReflection.svelte, /src/lib/components/FocusPicker.svelte and 4 more
+3:46:00 PM [vite] (client) hmr update /src/app.css, /src/lib/components/BrandMark.svelte, /src/lib/components/ChartApp.svelte, /src/lib/components/ChartSwitcher.svelte, /src/lib/components/ExportDialog.svelte, /src/lib/components/MandalaGrid.svelte, /src/lib/components/ProgressRing.svelte, /src/lib/components/TodayView.svelte, /src/lib/components/CalendarView.svelte, /src/lib/components/ShelfSheet.svelte, /src/lib/components/SidePanel.svelte, /src/lib/components/WeeklyReflection.svelte, /src/lib/components/FocusPicker.svelte and 4 more
+3:46:46 PM [vite] (client) hmr update /src/lib/components/ChartSwitcher.svelte, /src/app.css
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:46:47 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:46:47 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:46:47 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:46:47 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:46:47 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:46:57 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:46:57 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:46:57 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:46:57 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:46:57 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:47:15 PM [vite] (client) hmr update /src/lib/components/SelectCharts.svelte
+3:49:13 PM [vite] (client) hmr update /src/app.css, /src/lib/components/BrandMark.svelte, /src/lib/components/ChartApp.svelte, /src/lib/components/ChartSwitcher.svelte, /src/lib/components/ExportDialog.svelte, /src/lib/components/MandalaGrid.svelte, /src/lib/components/ProgressRing.svelte, /src/lib/components/TodayView.svelte, /src/lib/components/CalendarView.svelte, /src/lib/components/ShelfSheet.svelte, /src/lib/components/SidePanel.svelte, /src/lib/components/WeeklyReflection.svelte, /src/lib/components/FocusPicker.svelte and 5 more
+3:49:13 PM [vite] (client) hmr update /src/app.css, /src/lib/components/ChartApp.svelte
+3:49:14 PM [vite] (client) hmr update /src/lib/components/ChartApp.svelte, /src/app.css
+3:49:14 PM [vite] (client) hmr update /src/lib/components/ChartSwitcher.svelte, /src/app.css
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:49:15 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:49:15 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:49:15 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:49:15 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:49:15 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:49:25 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:49:25 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:49:25 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:49:25 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:49:25 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte
+3:49:37 PM [vite] (client) hmr update /src/app.css, /src/lib/components/ChartApp.svelte
+3:49:37 PM [vite] (client) hmr update /src/lib/components/SelectCharts.svelte, /src/app.css
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/0.js
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/1.js
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/client/nodes/2.js
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/client/app.js
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/client/matchers.js
+3:49:52 PM [vite] (ssr) page reload .svelte-kit/generated/shared/error-template.js
+3:49:52 PM [vite] (ssr) page reload .svelte-kit/generated/server/internal.js
+3:49:52 PM [vite] (client) page reload .svelte-kit/generated/root.js
+3:49:52 PM [vite] (ssr) page reload .svelte-kit/generated/root.js
+3:49:52 PM [vite] (ssr) page reload .svelte-kit/generated/root.svelte

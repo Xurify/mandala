@@ -157,7 +157,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Menus
 
-`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height. **Select charts** and **Recently deleted** are the same dialog with two jobs: rows with a box each, shift-click for a run, Select all for what the search shows ("Select these" while searching), and the one action in the footer with the count on it. Deleting from Select charts is one click, since the charts wait in recently deleted and the slip undoes the whole batch.
 
 ### Dialogs
 

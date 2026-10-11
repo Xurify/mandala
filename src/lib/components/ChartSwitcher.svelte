@@ -17,6 +17,8 @@
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
+	import PickMark from './PickMark.svelte';
+	import SelectCharts from './SelectCharts.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -491,13 +493,17 @@
 			</MenuItem>
 		</div>
 		<MenuDivider />
-		<MenuItem
-			icon="clock"
-			badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
-			onclick={openDeleted}
-		>
-			Recently deleted
-		</MenuItem>
+		<div class="flex gap-px">
+			<MenuItem icon="list" class="flex-1" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
+			<MenuItem
+				icon="clock"
+				class="flex-1"
+				badge={chart.deletedCharts.length > 0 ? String(chart.deletedCharts.length) : undefined}
+				onclick={openDeleted}
+			>
+				Recently deleted
+			</MenuItem>
+		</div>
 		<MenuItem icon="trash" tone="danger" shortcut="Del" onclick={handleDelete}>Delete chart</MenuItem>
 	</div>
 </Menu>
@@ -526,27 +532,6 @@
 		<Button size="sm" class="coarse:min-h-11" data-autofocus onclick={confirmDelete}>Delete chart</Button>
 	{/snippet}
 </Dialog>
-
-{#snippet pickMark(on: boolean)}
-	<span
-		class="flex size-4 shrink-0 items-center justify-center rounded-[5px] motion-safe:transition-colors motion-safe:duration-150 {on
-			? 'bg-accent text-on-accent'
-			: 'shadow-[inset_0_0_0_1.5px_var(--line)] group-hover:shadow-[inset_0_0_0_1.5px_var(--muted)]'}"
-		aria-hidden="true"
-	>
-		{#if on}
-			<svg class="block" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-				<path
-					d="M3.45 8.95 6.2 11.7 12.45 5.35"
-					stroke="currentColor"
-					stroke-width="2.25"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				/>
-			</svg>
-		{/if}
-	</span>
-{/snippet}
 
 {#snippet deletedFooter()}
 	{@const count = pickedItems.length}
@@ -606,6 +591,8 @@
 	</div>
 {/snippet}
 
+<SelectCharts bind:open={chart.selecting} />
+
 <Dialog
 	bind:open={deletedOpen}
 	title="Recently deleted"
@@ -635,7 +622,7 @@
 									aria-label="{item.title}. {item.filled} of 73. Deleted {deletedDayLabel(item.deletedAt)} at {deletedClock(item.deletedAt)}{item.daysLeft <= SOON_DAYS ? `. ${formatDaysLeft(item.daysLeft)}` : ''}"
 									onclick={(event) => toggleDeleted(item.id, event.shiftKey)}
 								>
-									{@render pickMark(on)}
+									<PickMark {on} />
 									<FillRing filled={item.filled} />
 									<span class="min-w-0 flex-1 truncate text-[0.92rem] font-medium text-text">{item.title}</span>
 									{#if item.daysLeft <= SOON_DAYS}

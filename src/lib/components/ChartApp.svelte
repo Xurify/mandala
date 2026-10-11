@@ -115,6 +115,7 @@
 		if (setup.data) chart.importChart(setup.data, `Demo ready: ${demo?.title ?? id}.`);
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
+		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
 		if (setup.focus) chart.jumpToKey(setup.focus);
 		if (setup.query) chart.setQuery(setup.query);
 		const open = setup.open;
@@ -122,6 +123,7 @@
 		// After the chart switch has settled, so Bindu does not start over on the new chart's first page.
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
+			else if ('select' in open) chart.selecting = true;
 			else if (open.bindu === 'home') helper.show();
 			else if (open.bindu === 'review') helper.show('review');
 			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
