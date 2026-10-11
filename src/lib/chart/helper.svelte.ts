@@ -24,7 +24,7 @@ import { blockOfK, hasContent, todayKey, wholeness, type ChartData } from './mod
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
-/** What the helper may read and change. The app passes the chart store; the lab passes a sandbox. */
+/** The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
 	data(): ChartData;
 	applyDraft(next: ChartData): boolean;
@@ -32,15 +32,10 @@ export type HelperTarget = {
 	setToday(keys: string[]): void;
 	pinWeek(keys: string[]): void;
 	showCell(key: string): void;
-	/** Suggestions turned down today, so they are not offered again today. */
 	decline?(keys: string[]): void;
-	/** An insight was shown, so the next opening does not repeat it. */
 	noteShown?(signature: string): void;
-	/** A tool was opened from a pick, so the shelf logs it. */
 	openTool?(pillarIndex: number, id: string): void;
-	/** The calendar of finished days, outside the panel. */
 	openCalendar?(): void;
-	/** The chart Bindu is reading. The lab leaves it out. */
 	chartId?(): string;
 };
 
@@ -57,24 +52,17 @@ function loadChatApp(): ChatApp {
 	}
 }
 
-/** What a pasted reply would do here: a new chart, lines for the empty cells, nothing new, or not a chart. */
 export type HelperOutcome =
 	| { kind: 'chart'; data: ChartData }
 	| { kind: 'cells'; edits: CellEdit[] }
 	| { kind: 'nothing' }
 	| { kind: 'unread' };
 
-/** A thing that just became true. It takes over the page until the person closes it. */
 export type HelperMoment = { title: string; detail: string; pillars: number[] };
 
-/**
- * Bindu: a few pages that read the chart, the day log and the method, instantly and offline. Writing lines
- * is handed to whatever chat app the person uses: Bindu writes the prompt and reads the pasted reply.
- */
 export class HelperStore {
 	open = $state(false);
 	page = $state<HelperPage>('home');
-	/** 1 when a page opens from home, -1 on the way back. The panel turns its pages that way. */
 	direction = $state<1 | -1>(1);
 	listening = $state(false);
 	picks = $state<HelperPicks | null>(null);
@@ -83,13 +71,10 @@ export class HelperStore {
 	goal = $state('');
 	question = $state('');
 	reply = $state('');
-	/** The prompt copied last, so the page can say what comes next. */
 	copied = $state<WriteMode | null>(null);
-	/** The chat app the prompt was opened in, when it went by link rather than the clipboard. */
 	sent = $state<ChatApp | null>(null);
-	/** The chat app the person uses. Remembered on the device, across charts. */
 	app = $state<ChatApp>(loadChatApp());
-	/** The insight the panel opened with. Held still, so marking it seen does not swap it out mid-read. */
+	/** Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,7 +115,6 @@ export class HelperStore {
 		return this.#target.data();
 	}
 
-	/** Bindu follows the chart in view. A different chart starts on the home page. */
 	follow(chartId: string): void {
 		if (chartId === this.#chartId) return;
 		this.#chartId = chartId;
@@ -139,8 +123,8 @@ export class HelperStore {
 	}
 
 	/**
-	 * Opens the panel. With a page, on that page. Without one, where it was left, so a person who went to
-	 * paste a prompt comes back to the box for the reply. A finished moment does not wait for a reopen.
+	 * Without a page, opens where it was left, so a person who went to paste a prompt comes back to the box
+	 * for the reply. A finished moment does not wait for a reopen.
 	 */
 	show(page?: HelperPage, mode?: WriteMode): void {
 		const opening = !this.open;
@@ -173,13 +157,11 @@ export class HelperStore {
 		this.picks = null;
 	}
 
-	/** The single door out of a moment: close the panel, and leave Bindu on its home page. */
 	finish(): void {
 		this.hide();
 		this.reset();
 	}
 
-	/** Trade one pick for the next best, from a pillar the others don't use where it can. */
 	swap(key: string): void {
 		const current = this.picks;
 		if (!current) return;
@@ -194,7 +176,6 @@ export class HelperStore {
 		this.picks = { ...current, picks: next ? current.picks.map((pick) => (pick.key === key ? next : pick)) : keep };
 	}
 
-	/** Puts the picks on today, or pins them for the week. */
 	commit(): void {
 		const current = this.picks;
 		if (!current || current.picks.length === 0) return;
@@ -209,7 +190,6 @@ export class HelperStore {
 		}
 	}
 
-	/** "Not now": today's picks are turned down for today, so they are not offered again until tomorrow. */
 	decline(): void {
 		const current = this.picks;
 		if (current?.scope === 'today') this.#target.decline?.(current.picks.map((pick) => pick.key));
@@ -224,13 +204,11 @@ export class HelperStore {
 		this.#target.openTool?.(pillarIndex, id);
 	}
 
-	/** The calendar is a view of its own, so the panel steps aside for it. */
 	openCalendar(): void {
 		this.#target.openCalendar?.();
 		this.hide();
 	}
 
-	/** The prompt for the write page's mode, with what the person typed into it. */
 	prompt(mode: WriteMode = this.mode): string {
 		const data = this.#target.data();
 		if (mode === 'new') return newChartPrompt(this.goal);
@@ -244,7 +222,6 @@ export class HelperStore {
 		this.sent = null;
 	}
 
-	/** Opens the chat app with the prompt in its box. Copying and pasting are done; the reply still comes back here. */
 	openIn(app: ChatApp = this.app): void {
 		this.useApp(app);
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
@@ -261,7 +238,6 @@ export class HelperStore {
 		}
 	}
 
-	/** Text pasted anywhere in the panel. A chart reply opens the write page on it; anything else is ignored. */
 	receive(text: string): boolean {
 		if (!parseDraftText(text)) return false;
 		this.reply = text;
@@ -270,7 +246,6 @@ export class HelperStore {
 		return true;
 	}
 
-	/** Keeps what the pasted reply offers: a new chart, or the lines for the empty cells. */
 	applyReply(): void {
 		const outcome = this.outcome;
 		if (outcome?.kind === 'chart') {
@@ -323,7 +298,6 @@ export class HelperStore {
 		this.#cheerTimer = setTimeout(() => (this.#cheer = false), 2400);
 	}
 
-	/** Back to the home page with nothing in hand. */
 	reset(): void {
 		this.page = 'home';
 		this.direction = -1;
