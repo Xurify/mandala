@@ -90,6 +90,7 @@
 		calendar: true,
 		pin: true,
 		link: true,
+		shelf: true,
 		refresh: true,
 		folder: true,
 		command: true,
@@ -377,6 +378,7 @@
 
 	let scale = $state('fit');
 	let kind = $state('routine');
+	let side = $state('actions');
 	let view = $state('edit');
 	let dockView = $state('edit');
 	let dialogOpen = $state(false);
@@ -791,6 +793,16 @@
 		<Eyebrow>Segmented control</Eyebrow>
 		<SegmentedControl label="Chart scale" options={scales} bind:value={scale} />
 		<SegmentedControl size="sm" label="Action type" options={actionKinds} bind:value={kind} />
+		<SegmentedControl
+			tabs
+			size="sm"
+			label="Sides of a pillar"
+			options={[
+				{ value: 'actions', label: 'Actions' },
+				{ value: 'shelf', label: 'Shelf', detail: '4' }
+			]}
+			bind:value={side}
+		/>
 	</Card>
 
 	<Card id="menus" class="flex scroll-mt-6 flex-col gap-4">

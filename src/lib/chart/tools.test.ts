@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, videoId } from './tools.ts';
+import { dealKeys, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -81,6 +81,25 @@ describe('the shelf', () => {
 		// Passing over everything starts the shelf round again instead of leaving the row empty.
 		const all = new Map([['a1_1', new Set(['a', 'b', 'c'])]]);
 		expect(dealTools(data, ['a1_0', 'a1_1'], now, all).get('a1_1')).not.toBeNull();
+	});
+
+	it('deals in the order Today does: pinned routines, other routines, then the rest', () => {
+		const data = chart();
+		data.actions[0] = ['Say hello', '', '', '', '', '', '', ''];
+		data.meta = { a1_1: { kind: 'routine', pinned: true }, a1_0: { kind: 'routine' } };
+		expect(dealKeys(data)).toEqual(['a1_1', 'a1_0', 'a0_0']);
+	});
+
+	it('shows on the shelf what each action hands out next, the same as Today', () => {
+		const data = chart();
+		data.meta = { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' } };
+		data.tools = { p1: [tool('a', { opened: [day(-1)] }), tool('b'), tool('c', { action: 1 }), tool('d', { known: true })] };
+		const dealt = dealTools(data, dealKeys(data), now);
+		const next = upNext(data, 1, now);
+		expect(next.get(dealt.get('a1_0')!.id)).toBe(0);
+		expect(next.get(dealt.get('a1_1')!.id)).toBe(1);
+		expect(next.has('d')).toBe(false);
+		expect(upNext(data, 2, now).size).toBe(0);
 	});
 
 	it('retires a once tool when it is opened, and keeps a repeat one', () => {

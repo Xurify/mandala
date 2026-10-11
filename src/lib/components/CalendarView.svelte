@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth, type MonthDay } from '$lib/chart/calendar';
+	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type MonthDay } from '$lib/chart/calendar';
 	import { HUES, todayKey } from '$lib/chart/model';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
 	import Icon from './Icon.svelte';
+	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
@@ -35,6 +36,7 @@
 	const selectedDay = $derived(days.find((day) => day.inMonth && day.key === selected));
 	const fallbackKey = $derived(thisMonth ? today : lastDoneDay(current));
 	const picked = $derived(selectedDay ?? days.find((day) => day.key === fallbackKey) ?? null);
+	const opened = $derived(picked ? openedOn(chart.data, picked.key) : []);
 
 	function go(by: 1 | -1): void {
 		direction = by;
@@ -198,6 +200,29 @@
 											<span class="shrink-0 text-[0.78rem] text-muted tabular-nums">{clock(entry.at)}</span>
 										{/if}
 									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					{#if opened.length > 0}
+						<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
+							<h4 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="shelf" size={14} />Opened from the shelf</h4>
+							<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{opened.length}</span>
+						</div>
+						<ul class="m-0 flex list-none flex-col gap-px p-0">
+							{#each opened as entry, index (entry.tool.id)}
+								<li class="motion-safe:animate-pop-in" style:animation-delay="{(picked.done.length + index) * 45}ms">
+									<a
+										href={entry.tool.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="flex min-h-11 min-w-0 items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-text no-underline hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+										onclick={() => chart.openTool(entry.pillarIndex, entry.tool.id)}
+									>
+										<ToolFace tool={entry.tool} class="min-w-0 flex-1" />
+										<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[entry.pillarIndex]} title={chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`} aria-hidden="true"></span>
+										<span class="sr-only">, {chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`}</span>
+									</a>
 								</li>
 							{/each}
 						</ul>

@@ -77,7 +77,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Icon-only buttons need `aria-label`. Toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
 - Copy: sentence case, short, warm, no emoji, toasts in past tense ("Copied as text").
 - Don't edit generated files (`static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/favicon.svg`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.
-- Comments only for constraints the code can't show: a why, a browser quirk, a magic number. No comment that restates the code, names the element, or repeats the commit message. When in doubt, leave it out.
+- Comments only for constraints the code can't show: a why, a browser or platform quirk, where a magic number comes from. No comment that restates the code, names the element, or repeats the commit message. When in doubt, leave it out.
 
 ## Done means
 
@@ -85,6 +85,14 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 2. `bun run test` passes (add tests beside `model.ts` / `library.ts` / `draft.ts` when you change them).
 3. UI changes are looked at, not assumed: light and dark theme, desktop (split mode) and a ≤900px mobile width, keyboard focus visible. Use the browser tools to screenshot if you have them. A new interaction gets a card on `/dev/demo`.
 4. The change passes the checklist in `.cursor/skills/mandala-ui-review/SKILL.md`.
+
+## Git
+
+- Name a branch for the work: `<type>/<short-topic>`, lowercase, words joined by hyphens. Types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`. For example `fix/ux-review-keyboard-editor`, `feat/weekly-reflection`.
+- A session that starts on a generated branch (`claude/<word>-<word>-<id>`) renames it with `git branch -m <new-name>` before the first push. This is standing permission. Never push a randomly named branch.
+- Everything asked for in one session goes on that session's branch, docs and AGENTS.md included. Don't split it onto a second branch.
+- No pull request unless asked.
+- A PR description says what changed for the person using the app, and why. It never lists a change the diff does not contain.
 
 ## Skills in this repo
 

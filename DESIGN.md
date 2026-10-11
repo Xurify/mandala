@@ -84,7 +84,7 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | --- | --- |
 | `pop-in` | A line or row arriving. Stagger a list by index, 40–50ms apart |
 | `deal-in` | A hand of cards arriving, 70ms apart. Overshoots |
-| `flip-in` | One card replaced in place (a swap). The old face fades where it is; the new one swings in |
+| `flip-in` | One card replaced in place (a swap). The old face fades where it is; the new one swings in. A pillar's block turned over to its shelf does the same, and the block eases to the new face's height |
 | `stack-in` | Pips stacking into a column, staggered by column, then by row |
 | `scan` + `mark-in` | Reading a chart: cells light in reading order, then each flagged cell gets a ring that closes in |
 | `seal-in` + `seal-draw` | A moment: the ring arrives, its arcs draw in pillar order, the check is the last stroke |
@@ -145,7 +145,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Segmented control
 
-`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock.
+`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
 
 ### Select
 
@@ -200,13 +200,18 @@ The weekly reflection is offered from an hour of a weekday the person chooses (S
 
 ### Tools on a shelf
 
-A video, a text, a site is a **tool**: material behind a pillar, not a cell. The cell stays a sentence you can tick ("Play 15 minutes of audio at breakfast"); the shelf under the pillar holds what it plays. Thirty videos never become thirty actions.
+A video, a text, a site is a **tool**: material behind a pillar, not a cell. The cell stays a sentence you can tick ("Play 15 minutes of audio at breakfast"); the shelf behind the pillar holds what it plays. Thirty videos never become thirty actions.
 
-- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, else the icon the person gave the site, else a link glyph, with the site's name beside it. An icon belongs to a host (`data.icons`), so every tool on that site wears it. The image button beside a tool on the shelf opens a menu: choose an image, paste one, and once one is set, remove it. A picture pasted anywhere on that tool's row (a copied image, or SVG code from a design tool) sets it too, and the row takes focus on a click so a paste right after lands there. A picture pasted into the link field is not a link: the field says where it goes instead. It takes any picture the browser can draw: an SVG is kept as written when it is small, anything else is drawn down to 128px. Icons stay out of share links, which they would outgrow. Its caption is one string built in script, since Svelte trims the space at the start of a block.
+- **The back of the block.** In the editor a pillar's block has two faces, picked under its name: Actions and Shelf, with the shelf's count beside it (`chart.face`). Turning it over swings the shelf in where the grid was, at the top, so the shelf never waits below the action bar and the tips. Moving to another pillar keeps the face, so shelves can be read one after another. A door that names a cell (a search hit, See action 2 on a tool, a tick in the calendar) turns the block back to its actions. Today's tool row has a shelf button and the command palette has Open the … shelf; both land on this face (`chart.openShelf`).
+
+- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, else the icon the person gave the site, else a link glyph, with the site's name beside it. An icon belongs to a host (`data.icons`), so every tool on that site wears it. Add an icon, in a tool's settings, opens a menu: choose an image, paste one, and once one is set, remove it. A picture pasted anywhere on that tool's row (a copied image, or SVG code from a design tool) sets it too, and the row takes focus on a click so a paste right after lands there. A picture pasted into the link field is not a link: the field says where it goes instead. It takes any picture the browser can draw: an SVG is kept as written when it is small, anything else is drawn down to 128px. Icons stay out of share links, which they would outgrow. Its caption is one string built in script, since Svelte trims the space at the start of a block.
 - **Two kinds and one exit.** `once` retires itself the first time it is opened. `repeat` stays in rotation until the person presses **Know this**. "Watch daily" and "until it sticks" are both repeat; the difference is whether that button ever gets pressed.
 - **Who hands it out.** A tool named for an action is handed out by that action. An unassigned tool is handed out by any routine in its pillar. Today shows the day's tool under the action's row, with one tap to open it and an arrow for another. Opening is logged; the tick stays the person's.
 - **Rotation.** Never opened first, then the one that waited longest, holding still within a day and seeded by the action, so two routines on one shelf do not hand out the same thing.
-- **Known by now.** A repeat tool opened on 10 of the last 14 days gets a line on the shelf and a note from Bindu. The shelf has the button.
+- **Known by now.** A repeat tool opened on 10 of the last 14 days gets a line on the shelf and a note from Bindu. The shelf has the button. Known tools wait folded at the end of the shelf, under Known by now, so the plank holds only what is in rotation.
+- **A row is one line.** The shelf is one plank (`bg-bg`) of rows. A row is the face, and under the title who hands it out and how often ("any routine", "for action 2 · once"), with an Up next tag on the tool Today shows (`upNext`, dealt in Today's order by `dealKeys`). The arrow opens that row's settings under it, one row at a time, and the row lifts onto the panel's paper: Handed out by, Comes round, Know this, the site's icon, and Remove last, in the danger tone. Settings that are set once stay closed. The field that adds one is the last slot on the plank, so a pasted link lands just above it. Removing a tool leaves a slip with Undo, which puts it back where it was.
+- **One link field.** An action's own field is a note ("a chapter or a page"). A link pasted into it goes on the pillar's shelf, handed out by that action, and the note stays as it was. A link already typed as a note offers Move to the shelf. In the editor, an action cell counts what it hands out with the shelf mark, and the action's "Hands out 3 from the shelf" turns the block over. A tool named for an action has See action 2 in its settings, which turns back to that cell.
+- **Through the app.** The calendar's day lists what was opened from a shelf, under what was finished. The command palette finds a tool by its title and opens it, which counts as opening it.
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
