@@ -157,7 +157,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Menus
 
-`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height. **Select charts** and **Recently deleted** are the same dialog with two jobs: rows with a box each, shift-click for a run, Select all for what the search shows ("Select these" while searching), and the one action in the footer with the count on it. Deleting from Select charts is one click, since the charts wait in recently deleted and the slip undoes the whole batch.
 
 ### Dialogs
 
@@ -180,11 +180,15 @@ A floating panel with more than one job is a few pages, not a chat and not tabs.
 
 ### Floating chrome
 
-The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through.
+The dock (with its toast), Bindu, and an open menu float over the stage and stay still while it changes. In a view transition each has its own layer, above the stage, with no animation, the menu above the rest since it is what the person is using, and the dock's frosted bar turns solid paper for the duration (`[data-morphing]` on the root): a frosted thing is captured without what is behind it, and would read as see-through. The dock carries its `view-transition-name` only while `[data-morphing]` is set. A named element is a backdrop root, so at rest the name would leave the bar's blur nothing to sample, and the bar would read as see-through all the time.
 
 ### Moments on the chart
 
 Writing the last line of a pillar, or of the chart, is a moment too, without a layout of its own, because the person is at the keyboard. It plays where the data already shows: the editor's pill stamps its check, the block glows once in its hue, and the hero ring redraws the arc. A full chart redraws all eight and ends on a check, and says so in one toast. `chart.landed` carries it for three seconds and is never saved, so a reload does not replay it. Several lines landing together (a fill) make one moment at once. A typed line waits for the pen to lift: the field is left, or typing pauses for a beat (`chart.settle`). A line cleared again before that lets go, so a half-typed word never stamps.
+
+### Picking the day
+
+Today, before the day starts, is one sheet of paper with the decks below it on the desk. The sheet holds the date and the question, three slots, the habits already in the day (read, not ticked: they are ticked once the day starts), and one line of status beside Deal and Start my day. The calendar is an icon in the sheet's header. Each deck below is a pillar's top card with the rest of the deck as edges under it, and a quiet foot that counts the cards and spreads them. The sheet is where cards go; the decks are where they come from. In the Plan tomorrow dialog the dialog is the sheet.
 
 ### The calendar
 
@@ -198,7 +202,7 @@ The weekly reflection is offered from an hour of a weekday the person chooses (S
 
 A video, a text, a site is a **tool**: material behind a pillar, not a cell. The cell stays a sentence you can tick ("Play 15 minutes of audio at breakfast"); the shelf under the pillar holds what it plays. Thirty videos never become thirty actions.
 
-- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, the site's name when it does not. Its caption is one string built in script, since Svelte trims the space at the start of a block.
+- **One face** (`ToolFace.svelte`): YouTube's own thumbnail when the link has one, else the icon the person gave the site, else a link glyph, with the site's name beside it. An icon belongs to a host (`data.icons`), so every tool on that site wears it. The image button beside a tool on the shelf opens a menu: choose an image, paste one, and once one is set, remove it. A picture pasted anywhere on that tool's row (a copied image, or SVG code from a design tool) sets it too, and the row takes focus on a click so a paste right after lands there. A picture pasted into the link field is not a link: the field says where it goes instead. It takes any picture the browser can draw: an SVG is kept as written when it is small, anything else is drawn down to 128px. Icons stay out of share links, which they would outgrow. Its caption is one string built in script, since Svelte trims the space at the start of a block.
 - **Two kinds and one exit.** `once` retires itself the first time it is opened. `repeat` stays in rotation until the person presses **Know this**. "Watch daily" and "until it sticks" are both repeat; the difference is whether that button ever gets pressed.
 - **Who hands it out.** A tool named for an action is handed out by that action. An unassigned tool is handed out by any routine in its pillar. Today shows the day's tool under the action's row, with one tap to open it and an arrow for another. Opening is logged; the tick stays the person's.
 - **Rotation.** Never opened first, then the one that waited longest, holding still within a day and seeded by the action, so two routines on one shelf do not hand out the same thing.

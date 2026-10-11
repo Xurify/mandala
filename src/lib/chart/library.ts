@@ -250,6 +250,16 @@ export function deleteFromLibrary(
 	return { activeId, charts: remaining, deleted };
 }
 
+export function deleteManyFromLibrary(
+	library: ChartLibrary,
+	ids: readonly string[],
+	now = Date.now()
+): ChartLibrary | null {
+	let next: ChartLibrary | null = null;
+	for (const id of ids) next = deleteFromLibrary(next ?? library, id, now) ?? next;
+	return next;
+}
+
 export function restoreManyFromLibrary(
 	library: ChartLibrary,
 	ids: readonly string[],

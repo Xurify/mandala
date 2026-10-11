@@ -31,6 +31,14 @@ describe('share encoding', () => {
 		expect(decoded?.brief).toBeUndefined();
 	});
 
+	it('leaves site icons out of the link', async () => {
+		const data = sampleChart();
+		data.icons = { 'readline.app': 'data:image/png;base64,iVBORw0KGgo=' };
+		const decoded = await decodeChartShare(`#${await encodeChartShare(data)}`);
+		expect(decoded?.goal).toBe('Run a half marathon');
+		expect(decoded?.icons).toBeUndefined();
+	});
+
 	it('round-trips a plain (uncompressed) payload', async () => {
 		const json = JSON.stringify(sampleChart());
 		let binary = '';

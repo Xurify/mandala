@@ -5,6 +5,7 @@ import {
 	cloneChart,
 	daysUntilPurge,
 	deleteFromLibrary,
+	deleteManyFromLibrary,
 	emptyLibrary,
 	flushActive,
 	forgetManyFromLibrary,
@@ -223,6 +224,27 @@ describe('recently deleted', () => {
 		expect(deleteFromLibrary(library, middle.id, now)?.activeId).toBe(oldest.id);
 		expect(deleteFromLibrary({ ...library, activeId: oldest.id }, oldest.id, now)?.activeId).toBe(middle.id);
 		expect(deleteFromLibrary({ ...library, activeId: newest.id }, middle.id, now)?.activeId).toBe(newest.id);
+	});
+
+	it('deletes several charts at once and opens one that is left', () => {
+		const [newest, middle, oldest] = [newRecord(emptyChart(), 3), newRecord(emptyChart(), 2), newRecord(emptyChart(), 1)];
+		const library = { activeId: middle.id, charts: [oldest, newest, middle], deleted: [] };
+		const next = deleteManyFromLibrary(library, [middle.id, oldest.id], now);
+		expect(next?.charts.map((chart) => chart.id)).toEqual([newest.id]);
+		expect(next?.activeId).toBe(newest.id);
+		expect(next?.deleted.map((chart) => chart.id).sort()).toEqual([middle.id, oldest.id].sort());
+		expect(deleteManyFromLibrary(library, ['missing'], now)).toBeNull();
+	});
+
+	it('leaves one blank chart after deleting every chart', () => {
+		const [first, second] = [newRecord(emptyChart(), 2), newRecord(emptyChart(), 1)];
+		first.data.goal = 'First';
+		const library = { activeId: first.id, charts: [first, second], deleted: [] };
+		const next = deleteManyFromLibrary(library, [first.id, second.id], now);
+		expect(next?.charts).toHaveLength(1);
+		expect(next?.charts[0]?.data.goal).toBe('');
+		expect(next?.activeId).toBe(next?.charts[0]?.id);
+		expect(next?.deleted).toHaveLength(2);
 	});
 
 	it('restores a deleted chart as the active one', () => {

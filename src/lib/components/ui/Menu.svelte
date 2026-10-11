@@ -14,6 +14,7 @@
 		align?: 'start' | 'end';
 		label?: string;
 		class?: string;
+		open?: boolean;
 		onopenchange?: (open: boolean) => void;
 	};
 
@@ -23,10 +24,10 @@
 		align = 'end',
 		label = 'More actions',
 		class: className,
+		open: expanded = $bindable(false),
 		onopenchange
 	}: Props = $props();
 
-	let expanded = $state(false);
 	let root = $state<HTMLDivElement | null>(null);
 	const styles = $derived(menu({ align }));
 

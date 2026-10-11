@@ -25,6 +25,8 @@
 		selected?: string[];
 		max?: number;
 		inset?: boolean;
+		head?: Snippet;
+		extra?: Snippet;
 		footer?: Snippet;
 	};
 
@@ -42,7 +44,7 @@
 		returning: boolean;
 	};
 
-	let { actions, selected = $bindable([]), max = 3, inset = false, footer }: Props = $props();
+	let { actions, selected = $bindable([]), max = 3, inset = false, head, extra, footer }: Props = $props();
 
 	let root = $state<HTMLDivElement | null>(null);
 	let limited = $state(false);
@@ -85,10 +87,9 @@
 		if (drag.over === 'day' || !picked[drag.over]) return picked.length;
 		return null;
 	});
-	const goal = $derived(chart.data.goal.trim());
 	const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five'];
 	const maxWord = $derived(COUNT_WORDS[max] ?? String(max));
-	const SLOT_TILT = [-0.8, 0.55, -0.3, 0.45, -0.6];
+	const SLOT_TILT = [-0.6, 0.45, -0.3, 0.4, -0.5];
 	const FAN_TILT = [-0.65, 0.5, -0.3, 0.4, -0.5, 0.25, -0.4, 0.55];
 
 	type DeckGroup = {
@@ -362,13 +363,13 @@
 	<li class="group relative min-w-0 pb-3" style:--h={HUES[group.pillarIndex]}>
 		{#if group.deck.length > 2}
 			<span
-				class="pillar-action pointer-events-none absolute inset-x-0 top-0 bottom-3 origin-bottom rounded-[22px] opacity-50 shadow-card rotate-[-4deg] motion-safe:transition-[rotate,translate] motion-safe:duration-200 can-hover:group-hover:rotate-[-8deg] can-hover:group-hover:-translate-x-1.5"
+				class="pillar-action pointer-events-none absolute inset-x-0 top-0 bottom-3 origin-bottom rounded-[22px] opacity-45 translate-y-3 scale-x-[0.88] motion-safe:transition-[rotate,translate,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:group-hover:translate-y-1 can-hover:group-hover:scale-x-100 can-hover:group-hover:rotate-[-5deg]"
 				aria-hidden="true"
 			></span>
 		{/if}
 		{#if group.deck.length > 1}
 			<span
-				class="pillar-action pointer-events-none absolute inset-x-0 top-0 bottom-3 origin-bottom rounded-[22px] opacity-80 shadow-card rotate-[3deg] motion-safe:transition-[rotate,translate] motion-safe:duration-200 can-hover:group-hover:rotate-[7deg] can-hover:group-hover:translate-x-1.5"
+				class="pillar-action pointer-events-none absolute inset-x-0 top-0 bottom-3 origin-bottom rounded-[22px] opacity-75 translate-y-1.5 scale-x-[0.94] motion-safe:transition-[rotate,translate,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:group-hover:translate-y-0.5 can-hover:group-hover:scale-x-100 can-hover:group-hover:rotate-[4deg]"
 				aria-hidden="true"
 			></span>
 		{/if}
@@ -379,8 +380,8 @@
 					<button
 						type="button"
 						class={cn(
-							'pillar-action relative flex min-h-[176px] w-full cursor-grab flex-col gap-3 rounded-[22px] border-0 p-4 text-left text-text shadow-card motion-safe:transition-[translate,box-shadow,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:shadow-float active:scale-[0.97]',
-							group.deck.length > 1 ? 'pb-16' : 'pb-4',
+							'pillar-action relative flex min-h-[164px] w-full cursor-grab flex-col gap-2.5 rounded-[22px] border-0 p-4 text-left text-text shadow-card motion-safe:transition-[translate,box-shadow,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-1 can-hover:hover:shadow-float active:scale-[0.97]',
+							group.deck.length > 1 ? 'pb-14' : 'pb-4',
 							flipDirection === 1 ? 'motion-safe:animate-card-in' : 'motion-safe:animate-pop-in',
 							full && 'opacity-80',
 							drag?.entry.key === top.key && 'invisible',
@@ -403,7 +404,7 @@
 						type="button"
 						data-spread-toggle={group.pillarIndex}
 						class={cn(
-							'absolute inset-x-3 bottom-3 flex h-11 cursor-pointer items-center justify-between gap-2 rounded-full border-0 px-3.5 text-text bg-[color-mix(in_oklch,var(--text)_10%,transparent)] motion-safe:transition-[translate,scale] motion-safe:duration-150 can-hover:hover:-translate-y-0.5 can-hover:hover:bg-[color-mix(in_oklch,var(--text)_16%,transparent)] active:scale-[0.97]',
+							'absolute inset-x-2 bottom-2 flex h-10 cursor-pointer items-center justify-between gap-2 rounded-full border-0 bg-transparent ps-2.5 pe-3 text-text motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-[color-mix(in_oklch,var(--surface)_60%,transparent)] active:scale-[0.97] coarse:h-11',
 							focusRing
 						)}
 						onclick={() => openSpread(group.pillarIndex)}
@@ -411,7 +412,7 @@
 						aria-controls="spread-deck"
 						aria-label="Spread {group.pillarName} deck, {group.deck.length} actions"
 					>
-						<span class="text-[0.76rem] text-muted tabular-nums">{group.at + 1} / {group.deck.length}</span>
+						<span class="text-[0.78rem] text-muted tabular-nums">{group.deck.length} cards</span>
 						<span class="flex items-center gap-1 text-[0.82rem] font-semibold">
 							{group.deck.length === 2 ? 'See both' : 'See all'}
 							<Icon name="chevron-down" size={15} />
@@ -420,7 +421,7 @@
 				{/if}
 			</div>
 		{:else}
-			<div class="relative flex min-h-[176px] flex-col justify-between gap-3 rounded-[22px] bg-sunken p-4 text-muted">
+			<div class="relative flex min-h-[164px] flex-col justify-between gap-3 rounded-[22px] bg-sunken p-4 text-muted">
 				<span class="flex items-center gap-2">
 					<span
 						class="pip size-2.5 shrink-0 rounded-full opacity-40"
@@ -466,13 +467,20 @@
 
 <div bind:this={root} {@attach trackColumns} class="@container flex flex-col gap-10">
 	<section
-		class={cn('flex flex-col gap-4', shaking && 'motion-safe:animate-shake')}
+		class={cn(
+			'flex flex-col gap-5',
+			!inset && 'rounded-[28px] bg-surface p-5 shadow-card max-[900px]:rounded-3xl max-[900px]:p-3.5',
+			shaking && 'motion-safe:animate-shake'
+		)}
 		aria-label="Your {maxWord}"
 		data-drop
 		onanimationend={(event) => {
 			if (event.target === event.currentTarget) shaking = false;
 		}}
 	>
+		{#if head}
+			{@render head()}
+		{/if}
 		<ol class="m-0 grid list-none gap-3 p-0 @min-[540px]:grid-cols-3" aria-label="Chosen actions">
 			{#each Array(max) as _, slot (slot)}
 				{@const entry = picked[slot]}
@@ -484,7 +492,7 @@
 								type="button"
 								class={cn(
 									'pillar-cell group relative flex w-full cursor-pointer flex-col justify-between gap-3 rounded-[22px] border-0 p-4 text-left text-on-p shadow-float rotate-[var(--tilt)] motion-safe:animate-deal-in motion-safe:transition-[rotate,translate,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:rotate-0 can-hover:hover:-translate-y-1',
-									inset ? 'min-h-[118px]' : 'min-h-[92px] @min-[540px]:min-h-[164px]',
+									inset ? 'min-h-[118px]' : 'min-h-[92px] @min-[540px]:min-h-[148px]',
 									over && 'scale-[0.95] rotate-0 opacity-60',
 									focusRing
 								)}
@@ -528,7 +536,7 @@
 						<div
 							class={cn(
 								'flex h-full scale-100 flex-col justify-between gap-3 rounded-[22px] p-4 text-muted bg-sunken motion-safe:transition-[scale] motion-safe:duration-200 motion-safe:ease-ui',
-								inset ? 'min-h-[118px]' : 'min-h-[92px] @min-[540px]:min-h-[164px]',
+								inset ? 'min-h-[118px]' : 'min-h-[92px] @min-[540px]:min-h-[148px]',
 								dragging && slot === picked.length && 'bg-sunken-hover text-text',
 								landing === slot && 'scale-[1.04]'
 							)}
@@ -546,6 +554,10 @@
 				</li>
 			{/each}
 		</ol>
+
+		{#if extra}
+			{@render extra()}
+		{/if}
 
 		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
 			<p class="m-0 text-[0.9rem] text-pretty text-muted" aria-live="polite">
@@ -577,14 +589,7 @@
 	</section>
 
 	<section class="flex flex-col gap-4" aria-label="Your pillars">
-		<div class="flex flex-col gap-1">
-			<Eyebrow>Your pillars</Eyebrow>
-			{#if goal}
-				<p class="m-0 text-[0.92rem] text-pretty text-muted">
-					Toward <span class="font-medium text-text">{goal}</span>
-				</p>
-			{/if}
-		</div>
+		<Eyebrow class={cn(!inset && 'px-1')}>Draw from your pillars</Eyebrow>
 
 		{#if spreadOpen && spreadGroup}
 			<div class="flex flex-col gap-5">

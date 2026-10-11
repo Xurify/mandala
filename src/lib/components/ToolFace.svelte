@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { chart } from '$lib/chart/chart.svelte';
 	import type { Tool } from '$lib/chart/model';
-	import { hostOf, thumbnailOf, videoId } from '$lib/chart/tools';
+	import { hostOf, iconOf, thumbnailOf, videoId } from '$lib/chart/tools';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 
@@ -13,6 +14,7 @@
 	let { tool, size = 'sm', class: className }: Props = $props();
 
 	const picture = $derived(thumbnailOf(tool.url));
+	const icon = $derived(picture ? null : iconOf(chart.data, tool.url));
 	const host = $derived(hostOf(tool.url));
 	const short = $derived(/\/shorts\//.test(tool.url));
 	// Built as one string: Svelte trims the space at the start of a block, so pieces would run together.
@@ -37,12 +39,14 @@
 					<svg viewBox="0 0 10 10" class="ms-px size-2.5 fill-current"><path d="M2 1.2v7.6L8.4 5z" /></svg>
 				</span>
 			</span>
+		{:else if icon}
+			<img src={icon} alt="" class={cn('size-full object-contain', size === 'sm' ? 'p-1.5' : 'p-2.5')} decoding="async" />
 		{:else}
 			<span class="grid size-full place-items-center text-muted"><Icon name="link" size={size === 'sm' ? 14 : 18} /></span>
 		{/if}
 	</span>
 	<span class="flex min-w-0 flex-1 flex-col gap-0.5">
-		<span class={cn('truncate leading-snug font-[560]', size === 'sm' ? 'text-[0.9rem]' : 'text-[0.95rem]', tool.known && 'text-muted')}>{tool.title || host}</span>
-		<span class="truncate text-[0.74rem] leading-none text-muted">{caption}</span>
+		<span class={cn('truncate font-[560]', size === 'sm' ? 'text-[0.9rem] leading-snug' : 'text-[0.95rem] leading-snug', tool.known && 'text-muted')}>{tool.title || host}</span>
+		<span class="truncate text-[0.74rem] leading-snug text-muted">{caption}</span>
 	</span>
 </span>

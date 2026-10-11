@@ -20,7 +20,8 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
-	| 'tools';
+	| 'tools'
+	| 'select';
 
 export type DemoSetup = {
 	/** Null opens a new, empty one. */
@@ -28,7 +29,8 @@ export type DemoSetup = {
 	view: ViewMode;
 	focus?: string;
 	query?: string;
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true };
+	copies?: number;
+	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
 export type Demo = {
@@ -198,7 +200,18 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, or the arrow for another.',
 			'Open Edit, then pillar 2, Listening. Its shelf lists every link: Once or Repeat, which action hands it out, Know this. One video was opened 11 of the last 14 days, so the shelf asks.',
-			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.'
+			'Paste a YouTube link into the shelf, or anywhere on the chart, and pick a pillar for it. On Android, share from YouTube to Mandala does the same.',
+			'On pillar 5, Sentence patterns, press the image button beside the readline link and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.'
+		]
+	},
+	{
+		id: 'select',
+		title: 'Clearing out copies',
+		group: 'Moving around',
+		steps: [
+			'Select charts opens with six copies of one chart. Select all, or type part of a name and Select these to pick every match.',
+			'Untick the one to keep, or shift-click to pick a run of rows. Delete moves them to recently deleted, and the slip can undo all of them at once.',
+			'It also opens from the chart switcher, under the list: Select charts.'
 		]
 	},
 	{
@@ -268,6 +281,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.tools = shelves(now);
 		return { data, view: 'today' };
 	}
+	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };
 	if (id === 'bindu-review') {

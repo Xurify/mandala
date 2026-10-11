@@ -67,7 +67,7 @@ export async function encodeChartShare(data: ChartData): Promise<string> {
 	const tools = data.tools
 		? Object.fromEntries(Object.entries(data.tools).map(([key, list]) => [key, list.map(({ opened: _opened, known: _known, ...tool }) => tool)]))
 		: undefined;
-	const raw = new TextEncoder().encode(exportJson({ ...data, brief: undefined, tools }));
+	const raw = new TextEncoder().encode(exportJson({ ...data, brief: undefined, tools, icons: undefined }));
 	const compressed = await gzipBytes(raw);
 	if (compressed && compressed.length < raw.length) {
 		return `${SHARE_PREFIX}${COMPRESSED_PREFIX}${bytesToBase64Url(compressed)}`;

@@ -24,8 +24,17 @@ export function hostOf(url: string): string {
 	}
 }
 
+export function iconOf(data: ChartData, url: string): string | null {
+	return data.icons?.[hostOf(url)] ?? null;
+}
+
+export function svgIn(text: string): string | null {
+	return text.match(/<svg[\s>][\s\S]*<\/svg>/i)?.[0] ?? null;
+}
+
 /** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
 export function linkIn(text: string): string | null {
+	if (svgIn(text)) return null;
 	const match = text.match(/https?:\/\/[^\s<>"']+/);
 	if (!match) return null;
 	const url = match[0].replace(/[.,;:!?)]+$/, '');

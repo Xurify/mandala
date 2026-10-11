@@ -289,17 +289,23 @@
 	</div>
 {/snippet}
 
+{#snippet calendarDoor()}
+	<IconButton icon="calendar" label="Calendar" class="size-10 shrink-0 text-muted hover:text-text" onclick={() => chart.setViewMode('calendar')} />
+{/snippet}
+
 <div
 	class={cn(
 		'mx-auto w-full px-4 py-6 max-[900px]:px-0 max-[900px]:py-2',
 		picking && !closed ? 'max-w-[1040px]' : 'max-w-[620px]'
 	)}
 >
-	<div class={cn('mb-2 flex w-full justify-end max-[900px]:mb-1', !(picking && !closed) && 'mx-auto max-w-[520px]')}>
-		<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
-	</div>
+	{#if closed}
+		<div class="mx-auto mb-2 flex w-full max-w-[520px] justify-end max-[900px]:mb-1">
+			<Button size="sm" variant="ghost" icon="calendar" onclick={() => chart.setViewMode('calendar')}>Calendar</Button>
+		</div>
+	{/if}
 	{#if chart.weekReflectionDue}
-		<div class="mb-5 max-w-[620px]">
+		<div class={cn('mb-5', picking && !closed ? 'max-w-full' : 'mx-auto max-w-[520px]')}>
 			<Notice>
 				{#snippet children()}
 					Take a moment to reflect on your week.
@@ -396,28 +402,44 @@
 			{/if}
 		</div>
 	{:else if picking}
-		<div class="mb-7 max-[900px]:mb-5">
-			<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
-			<h2
-				class="m-0 font-serif text-[2.3rem] leading-[1.05] font-[480] tracking-[-0.03em] text-balance text-text max-[900px]:text-[1.8rem]"
-			>
-				{heading}
-			</h2>
-			<p class="m-0 mt-2 max-w-[52ch] text-[1rem] text-pretty text-muted">
-				Three actions from your chart, small enough to finish today.
-			</p>
-		</div>
-		{#if habits.length > 0}
-			<section class="mb-6 max-w-[620px]" aria-label="Habits">
-				<Eyebrow class="mb-1">Habits</Eyebrow>
-				<div class="flex flex-col">
-					{#each habits as entry (entry.key)}
-						{@render checkRow(entry)}
-					{/each}
-				</div>
-			</section>
-		{/if}
 		<FocusPicker actions={pickerActions} bind:selected={selectedKeys}>
+			{#snippet head()}
+				<header class="flex items-start justify-between gap-4 px-1 pt-1">
+					<div class="min-w-0">
+						<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
+						<h2
+							id="today-title"
+							class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.025em] text-balance text-text max-[900px]:text-[1.6rem]"
+						>
+							{heading}
+						</h2>
+						<p class="m-0 mt-1.5 max-w-[52ch] text-[0.95rem] text-pretty text-muted">
+							Three actions from your chart, small enough to finish today.
+						</p>
+					</div>
+					{@render calendarDoor()}
+				</header>
+			{/snippet}
+			{#snippet extra()}
+				{#if habits.length > 0}
+					<section class="rounded-[20px] bg-sunken px-4 pt-3 pb-3.5" aria-labelledby="habits-today">
+						<div class="flex items-baseline justify-between gap-3">
+							<Eyebrow><span id="habits-today">Habits</span></Eyebrow>
+							<span class="text-[0.8rem] text-muted">Already in your day</span>
+						</div>
+						<ul class="m-0 mt-2.5 grid list-none gap-x-6 gap-y-2 p-0 @min-[540px]:grid-cols-2">
+							{#each habits as entry (entry.key)}
+								{@const done = chart.todayLog.checked.includes(entry.key)}
+								<li class="flex min-w-0 items-center gap-2.5 text-[0.9rem] leading-snug">
+									<span class={cn('pip size-2 shrink-0 rounded-full', done && 'opacity-40')} style:--pip-h={HUES[entry.pillarIndex]} aria-hidden="true"></span>
+									<span class={cn('min-w-0 truncate', done && 'text-muted line-through')}>{entry.text}</span>
+									{#if done}<span class="sr-only">, done</span>{/if}
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+			{/snippet}
 			{#snippet footer()}
 				<Button disabled={selectedKeys.length === 0 && habits.length === 0} onclick={confirm}>
 					Start my day
@@ -429,7 +451,7 @@
 			class="mx-auto mt-2 w-full max-w-[520px] rounded-[28px] bg-surface p-2 shadow-card max-[900px]:mt-0 max-[900px]:rounded-3xl"
 			aria-labelledby="today-title"
 		>
-			<header class="flex items-end justify-between gap-4 px-4 pt-4 pb-3">
+			<header class="flex items-center justify-between gap-4 px-4 pt-4 pb-3">
 				<div class="min-w-0">
 					<Eyebrow class="mb-1.5">{dayLabel}</Eyebrow>
 					<h2
@@ -439,11 +461,14 @@
 						{heading}
 					</h2>
 				</div>
-				{#if trackedKeys.length > 0}
-					<p class="m-0 shrink-0 pb-1 text-[0.84rem] text-muted tabular-nums">
-						<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
-					</p>
-				{/if}
+				<div class="flex shrink-0 items-center gap-1">
+					{#if trackedKeys.length > 0}
+						<p class="m-0 pe-1 text-[0.84rem] text-muted tabular-nums">
+							<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
+						</p>
+					{/if}
+					{@render calendarDoor()}
+				</div>
 			</header>
 
 			{#if allActions.length === 0}

@@ -41,6 +41,18 @@ describe('overlayLocalEdits', () => {
 		expect(merged.pillars[1]).toBe('Untouched');
 	});
 
+	it('moves site icons by host: this device adds and removes, the server keeps the rest', () => {
+		const png = 'data:image/png;base64,iVBORw0KGgo=';
+		const base = chartWith('Goal');
+		base.icons = { 'old.example': png };
+		const edited = structuredClone(base);
+		edited.icons = { 'readline.app': png };
+		const server = chartWith('Goal');
+		server.icons = { 'old.example': png, 'there.example': png };
+
+		expect(overlayLocalEdits(base, edited, server).icons).toEqual({ 'there.example': png, 'readline.app': png });
+	});
+
 	it('lets the device win when both sides edited the same cell', () => {
 		const base = chartWith('Base', '');
 		const edited = chartWith('Device edit', '');
