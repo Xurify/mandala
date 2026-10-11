@@ -35,7 +35,7 @@ export const iconButton = tv({
 
 export const segmented = tv({
 	slots: {
-		group: 'relative inline-flex w-fit gap-0.5 self-start rounded-full bg-sunken p-[3px] shadow-well',
+		group: 'relative inline-flex w-fit gap-0.5 self-start rounded-full bg-sunken p-[3px]',
 		option: `relative z-[1] inline-flex cursor-pointer appearance-none items-center gap-1.5 rounded-full border-0 py-0 font-sans font-[560] text-muted transition-[color,scale] duration-150 ease-ui hover:text-text active:scale-[0.96] aria-pressed:text-text ${focus}`
 	},
 	variants: {

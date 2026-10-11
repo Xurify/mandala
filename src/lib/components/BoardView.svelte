@@ -533,20 +533,14 @@
 	const todayTicks = $derived(new Set(chart.todayLog.checked));
 
 	const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
-	/** In dark the sunken tone is lighter than a card, so a tray drops to the page's own tone to stay below its cards. */
-	const tray = 'rounded-[24px] bg-sunken shadow-well dark:bg-bg';
-	/** An index card: paper, with its pillar's hue along the top edge. */
-	const cardStock =
-		'relative flex flex-col gap-1.5 overflow-hidden rounded-[16px] bg-surface px-3.5 pt-[15px] pb-3.5 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1 before:pillar-cell';
 </script>
 
 <svelte:window onkeydowncapture={onWindowKey} />
 
 {#snippet face(card: Card, inLane: Lane)}
-	<span class="flex min-w-0 items-center gap-2 text-[0.74rem] leading-4">
-		<span class="pillar-ink min-w-0 flex-1 truncate font-bold tracking-[0.06em] uppercase" style:--h={HUES[card.pillarIndex]}
-			>{pillarName(card.pillarIndex)}</span
-		>
+	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4">
+		<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[card.pillarIndex]} aria-hidden="true"></span>
+		<span class="min-w-0 flex-1 truncate font-semibold text-text">{pillarName(card.pillarIndex)}</span>
 		{#if inLane === 'done'}
 			<span class="flex shrink-0 items-center gap-1 text-muted">
 				<span
@@ -574,7 +568,7 @@
 			</span>
 		{/if}
 	</span>
-	<span class="block text-[0.96rem] leading-[1.34] font-[520] text-pretty text-text">{card.text}</span>
+	<span class="block text-[0.93rem] leading-[1.32] font-medium text-pretty text-text">{card.text}</span>
 {/snippet}
 
 {#snippet cardItem(entry: Entry, inLane: Lane)}
@@ -588,8 +582,7 @@
 		<button
 			type="button"
 			class={cn(
-				cardStock,
-				'w-full cursor-grab border-0 text-left shadow-card touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:shadow-float',
+				'pillar-action flex w-full cursor-grab flex-col gap-1.5 rounded-[18px] border-0 px-3.5 pt-3 pb-3.5 text-left shadow-card touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:shadow-float',
 				lifted && '-translate-y-1 rotate-[1.2deg] shadow-float can-hover:hover:-translate-y-1',
 				focusRing
 			)}
@@ -674,7 +667,7 @@
 	{:else if narrow}
 		<div
 			data-lane-tabs
-			class="paper sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-[14px] flex justify-center px-[14px] py-2.5"
+			class="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-[14px] flex justify-center bg-bg px-[14px] py-2.5"
 		>
 			<SegmentedControl
 				label="List"
@@ -685,7 +678,7 @@
 		</div>
 		<!-- Every list stays mounted, so a card held while the tabs switch keeps its pointer. -->
 		{#each LANES as each (each)}
-			<section data-lane={each} class={cn(tray, 'mt-1', each !== lane && 'hidden')} aria-label={LANE_NAMES[each]}>
+			<section data-lane={each} class={cn('mt-1 rounded-[24px] bg-sunken', each !== lane && 'hidden')} aria-label={LANE_NAMES[each]}>
 				{@render list(each, false)}
 				{#if each !== 'done' && roomy.length > 0}
 					<div class="px-2 pb-2">
@@ -700,16 +693,13 @@
 				{@const over = drag !== null && !drag.landing && drag.lane === each && each !== drag.from && canGo(drag.card, each)}
 				<section
 					data-lane={each}
-					class={cn(tray, 'flex min-w-0 flex-col', over && 'bg-sunken-hover dark:bg-sunken')}
+					class={cn('flex min-w-0 flex-col rounded-[24px] bg-sunken', over && 'bg-sunken-hover')}
 					aria-labelledby="{uid}-{each}"
 				>
 					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-4 pe-1.5 pt-1.5">
-						<h3 id="{uid}-{each}" class="m-0 flex items-center gap-2 text-[0.98rem] font-[620] tracking-[-0.005em] text-text">
-							<Icon name="lane-{each}" size={17} class={each === 'open' || each === 'todo' ? 'text-muted' : 'text-text'} />
+						<h3 id="{uid}-{each}" class="m-0 flex items-baseline gap-2 text-[0.95rem] font-semibold text-text">
 							{LANE_NAMES[each]}
-							<span class="min-w-6 rounded-full bg-surface px-1.5 py-px text-center text-[0.74rem] font-semibold text-muted tabular-nums shadow-card"
-								>{counts[each]}</span
-							>
+							<span class="text-[0.82rem] font-medium text-muted tabular-nums">{counts[each]}</span>
 						</h3>
 						{#if each !== 'done' && roomy.length > 0}
 							<IconButton icon="plus" label="Add a card to {LANE_NAMES[each]}" class="text-muted hover:text-text" onclick={() => openAdd(each)} />
@@ -736,8 +726,7 @@
 		>
 			<div
 				class={cn(
-					cardStock,
-					'shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
+					'pillar-action flex w-full flex-col gap-1.5 rounded-[18px] px-3.5 pt-3 pb-3.5 shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.landing
 						? 'rotate-0'
 						: drag.tab

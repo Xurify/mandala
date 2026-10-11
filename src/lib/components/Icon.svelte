@@ -31,10 +31,6 @@
 		| 'eye'
 		| 'columns'
 		| 'board'
-		| 'lane-open'
-		| 'lane-todo'
-		| 'lane-doing'
-		| 'lane-done'
 		| 'maximize'
 		| 'minimize'
 		| 'info'
@@ -218,20 +214,6 @@
 		<line x1="8" y1="7" x2="8" y2="15" />
 		<line x1="12" y1="7" x2="12" y2="11" />
 		<line x1="16" y1="7" x2="16" y2="17" />
-	{:else if name === 'lane-open'}
-		<circle cx="12" cy="12" r="8" stroke-dasharray="2.4 2.8" />
-	{:else if name === 'lane-todo'}
-		<circle cx="12" cy="12" r="8" />
-	{:else if name === 'lane-doing'}
-		<circle cx="12" cy="12" r="8" />
-		<path d="M12 7.5a4.5 4.5 0 0 1 0 9Z" fill="currentColor" stroke="none" />
-	{:else if name === 'lane-done'}
-		<path
-			fill="currentColor"
-			stroke="none"
-			fill-rule="evenodd"
-			d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm4.03 6.47a.75.75 0 0 1 0 1.06l-4.75 4.75a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l1.72 1.72 4.22-4.22a.75.75 0 0 1 1.06 0Z"
-		/>
 	{:else if name === 'maximize'}
 		<polyline points="15 3 21 3 21 9" />
 		<polyline points="9 21 3 21 3 15" />

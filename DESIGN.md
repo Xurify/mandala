@@ -17,11 +17,10 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It aliases `--ink` until the more-actions menu picks Leaf, Field, Walnut, or Olive. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
 3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
-4. **Things are made of something.** The page is paper with a little tooth. A card is card stock lying on it: a lit top edge, a contact shadow, a soft fall. A field, a segmented track, or a tray is pressed into the paper: shade under its top lip, light along its bottom edge. Raised is something you hold; recessed is somewhere you put things.
-5. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
-6. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
-7. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
-8. **Both themes are first-class.** Every new token gets a dark value in the same commit.
+4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
+5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
+6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
+7. **Both themes are first-class.** Every new token gets a dark value in the same commit.
 
 ## Making a component
 
@@ -72,10 +71,8 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 
 ### Elevation and motion
 
-- `--grain`: the paper's tooth, a tiled noise drawn under `--bg` on the body. Anything that stands in for the page (a sticky bar) uses the `paper` utility so the grain runs on under it. Print drops it.
-- `--shadow-sm` (`shadow-card`): resting cards. A lit top edge, a hairline, a contact shadow, then a soft fall. In dark the edge and hairline carry it, because shadows vanish on dark paper.
-- `--shadow-md` (`shadow-float`): floating things (menus, dialogs, dock, toast), and a card while it is held.
-- `--shadow-well` (`shadow-well`): recessed things. Text fields (`field-ink`), the segmented track, the board's trays. In dark `--sunken` is lighter than `--surface`, so a tray that holds cards drops to `--bg` to stay below them.
+- `--shadow-sm`: resting cards. In dark it's a 1px light hairline, because shadows vanish on dark paper.
+- `--shadow-md`: floating things (menus, dialogs, dock, toast).
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
 - Motion uses the `motion-safe:` variant so it drops out under `prefers-reduced-motion`. Opacity may still fade.
@@ -199,7 +196,7 @@ Every day's finished things, on a month (`CalendarView.svelte`, rules in `calend
 
 ### The board
 
-What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. Each card is an index card: paper with its pillar's hue along the top edge, the pillar's name in `pillar-ink` capitals, then the action. The lists are trays pressed into the paper, each headed by a mark of where its cards stand (a dashed ring for Open, a ring for To do, a half-filled ring for Doing, a solid check for Done) and its count on a chip. Tinted cards, the chart's own action cells, were the first take: on a board a whole wall of pastel washes the pillars out and leaves nothing to lead the eye. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are the chart's own action cells, tinted in their pillar's hue, with the pillar's pip and name on top; the lists are recessed trays on the paper. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
 - **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
