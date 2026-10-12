@@ -271,8 +271,8 @@
 			<button
 				type="button"
 				class="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink coarse:size-11"
-				aria-label="{timed.length ? 'Stop the block' : 'Stop the clock'} on {entry.text}, {minutes === 1 ? '1 minute' : `${minutes} minutes`} so far"
-				title={timed.length ? 'Stop the block' : 'Stop the clock'}
+				aria-label="{timed.length ? 'Stop the block' : 'Stop the stopwatch'} on {entry.text}, {minutes === 1 ? '1 minute' : `${minutes} minutes`} so far"
+				title={timed.length ? 'Stop the block' : 'Stop the stopwatch'}
 				onclick={() => chart.stopTimer()}
 			>
 				<TimerRing share={ringShare(timed, minuteNow)} hue={HUES[entry.pillarIndex]} class="size-6" />
@@ -289,10 +289,14 @@
 						onclick={toggle}
 					/>
 				{/snippet}
-				<MenuItem icon="timer" badge="until you stop" onclick={() => startTimer(entry.key)}>Start the clock</MenuItem>
+				<MenuItem icon="timer" badge="until you stop" onclick={() => startTimer(entry.key)}>Stopwatch</MenuItem>
 				<MenuItem icon="hourglass" badge="{BLOCK_MINUTES} min, then a break" onclick={() => startTimer(entry.key, BLOCK_MINUTES)}>Focus block</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="plus" onclick={() => (chart.loggingTime = { key: entry.key })}>Log time</MenuItem>
+				{#if spent > 0}
+					<MenuDivider />
+					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.key)}>Remove today's time</MenuItem>
+				{/if}
 			</Menu>
 		{/if}
 		</div>

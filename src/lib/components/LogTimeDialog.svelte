@@ -49,7 +49,7 @@
 		if (!value) chart.loggingTime = null;
 	}}
 	title={forgotten ? 'How long did it take?' : 'Log time'}
-	description={forgotten ? `The clock ran ${formatMinutes(Math.floor(elapsedMs(forgotten, Date.now()) / 60_000))}, from ${startedAt(forgotten.since)}.` : 'Time you spent away from the app.'}
+	description={forgotten ? `The stopwatch ran ${formatMinutes(Math.floor(elapsedMs(forgotten, Date.now()) / 60_000))}, from ${startedAt(forgotten.since)}.` : 'Time you spent away from the app.'}
 	size="sm"
 >
 	<form

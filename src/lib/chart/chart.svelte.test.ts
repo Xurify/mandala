@@ -77,7 +77,7 @@ describe('chart time', () => {
 		chart.loggingTime = null;
 	});
 
-	it('logs the clock when it is stopped, and leaves the tick alone', () => {
+	it('logs the stopwatch when it is stopped, and leaves the tick alone', () => {
 		chart.startTimer('a0_0');
 		chart.data.timer!.since -= 12 * MINUTE;
 		chart.stopTimer();
@@ -107,7 +107,7 @@ describe('chart time', () => {
 		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([25]);
 	});
 
-	it('asks how long instead of logging a clock left on for hours', () => {
+	it('asks how long instead of logging a stopwatch left on for hours', () => {
 		chart.startTimer('a0_0');
 		chart.data.timer!.since -= 9 * 60 * MINUTE;
 		chart.stopTimer();
@@ -117,6 +117,31 @@ describe('chart time', () => {
 		expect(chart.timer).toBeNull();
 		const sessions = Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []);
 		expect(sessions.map((session) => session.minutes)).toEqual([40]);
+	});
+
+	it('logs nothing for under a minute', () => {
+		chart.startTimer('a0_0');
+		chart.data.timer!.since -= 50_000;
+		chart.stopTimer();
+		expect(chart.data.days?.[todayKey()]?.sessions).toBeUndefined();
+		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', minutes: 0 });
+	});
+
+	it('takes logged time off, one session or a whole day, and puts it back on undo', () => {
+		chart.logTime('a3_2', 45);
+		chart.logTime('a3_2', 20);
+		chart.logTime('a0_0', 15);
+		const day = todayKey();
+		const twenty = chart.data.days![day]!.sessions!.find((session) => session.minutes === 20)!;
+		chart.removeTime(day, 'a3_2', twenty);
+		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes)).toEqual([45, 15]);
+		expect(chart.slips.at(-1)?.kicker).toBe('Removed');
+		chart.undoSlip();
+		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes).sort()).toEqual([15, 20, 45]);
+		chart.removeTime(day, 'a3_2');
+		expect(chart.data.days![day]!.sessions!.map((session) => session.key)).toEqual(['a0_0']);
+		chart.removeTime(day, 'a0_0');
+		expect(chart.data.days![day]!.sessions).toBeUndefined();
 	});
 
 	it('adds time spent away from the app', () => {

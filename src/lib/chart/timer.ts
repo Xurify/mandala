@@ -2,7 +2,7 @@ import { clockOf, dateKeyOf, getByKey, type ChartData, type Session, type Timer 
 
 export const BLOCK_MINUTES = 25;
 export const BREAK_MINUTES = 5;
-/** A clock that ran longer than this was most likely left on, so stopping it asks how long instead of logging it. */
+/** A stopwatch that ran longer than this was most likely left on, so stopping it asks how long instead of logging it. */
 export const FORGOTTEN_MINUTES = 180;
 
 const MINUTE = 60_000;
@@ -11,7 +11,7 @@ export function elapsedMs(timer: Timer, now: number): number {
 	return Math.max(0, now - timer.since);
 }
 
-/** Null for a clock, which has no end. */
+/** Null for a stopwatch, which has no end. */
 export function remainingMs(timer: Timer, now: number): number | null {
 	if (!timer.length) return null;
 	return Math.max(0, timer.since + timer.length * MINUTE - now);
@@ -21,9 +21,9 @@ export function isOver(timer: Timer, now: number): boolean {
 	return remainingMs(timer, now) === 0;
 }
 
-/** Whole minutes, to the nearest. A block counts no further than its length, however late it was stopped. */
+/** Whole minutes run, so under a minute is none. A block counts no further than its length, however late it was stopped. */
 export function minutesRun(timer: Timer, now: number): number {
-	const minutes = Math.round(elapsedMs(timer, now) / MINUTE);
+	const minutes = Math.floor(elapsedMs(timer, now) / MINUTE);
 	return timer.length ? Math.min(timer.length, minutes) : minutes;
 }
 
@@ -91,7 +91,7 @@ export function clockFace(ms: number): string {
 	return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`;
 }
 
-/** How far round the ring is, 0 to 1. A block empties over its length; the clock goes round once an hour. */
+/** How far round the ring is, 0 to 1. A block empties over its length; the stopwatch goes round once an hour. */
 export function ringShare(timer: Timer, now: number): number {
 	const remaining = remainingMs(timer, now);
 	if (remaining !== null) return remaining / (timer.length! * MINUTE);

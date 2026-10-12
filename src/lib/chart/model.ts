@@ -54,7 +54,7 @@ export type Timer = {
 	/** A break has none. */
 	key?: string;
 	since: number;
-	/** Minutes, for a block or a break. Without one the clock runs until it is stopped. */
+	/** Minutes, for a block or a break. Without one it is a stopwatch, and runs until it is stopped. */
 	length?: number;
 };
 

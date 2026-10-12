@@ -127,7 +127,7 @@ export function firstDoneMonth(data: ChartData): { year: number; month: number }
 }
 
 export function monthLine(month: Month): string {
-	const clock = month.minutes > 0 ? `${formatMinutes(month.minutes)} on the clock` : '';
+	const clock = month.minutes > 0 ? `${formatMinutes(month.minutes)} logged` : '';
 	if (month.finishedCount === 0) return clock ? `Nothing finished yet, ${clock}.` : 'Nothing finished this month yet.';
 	const things = month.finishedCount === 1 ? '1 thing' : `${month.finishedCount} things`;
 	const days = month.finishedDays === 1 ? '1 day' : `${month.finishedDays} days`;

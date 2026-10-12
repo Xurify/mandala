@@ -60,7 +60,7 @@ describe('demos', () => {
 	});
 
 	it('starts each timer where its card says, and gives the week a pillar that leads', () => {
-		const clock = demoSetup('time-clock', now).data!.timer!;
+		const clock = demoSetup('time-stopwatch', now).data!.timer!;
 		expect(clock.length).toBeUndefined();
 		const block = demoSetup('time-block', now).data!.timer!;
 		expect(isOver(block, now.getTime())).toBe(false);

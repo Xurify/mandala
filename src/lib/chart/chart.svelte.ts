@@ -31,6 +31,7 @@ import {
   type DayLog,
   type Milestones,
   type ReflectAt,
+  type Session,
   type Timer,
   type Tool,
   type ToolKind,
@@ -528,7 +529,9 @@ export class ChartStore {
     this.slips = this.slips.filter((slip) => slip.id !== front.id);
     const tools = ids.filter((id) => this.#removedTools.has(id));
     for (const token of tools) this.#restoreTool(token);
-    this.restoreCharts(ids.filter((id) => !tools.includes(id)));
+    const time = ids.filter((id) => this.#removedTime.has(id));
+    for (const token of time) this.#restoreTime(token);
+    this.restoreCharts(ids.filter((id) => !tools.includes(id) && !time.includes(id)));
   }
 
   holdToasts(held: boolean): void {
@@ -800,17 +803,17 @@ export class ChartStore {
   timer: Timer | null = $derived(this.data.timer ?? null);
   /** Not saved, so a reload does not say it again. */
   timerEnd = $state<TimerEnd | null>(null);
-  /** The Log time dialog. `forgotten` is a clock left on, which the dialog logs instead of its hours. */
+  /** The Log time dialog. `forgotten` is a stopwatch left on, which the dialog logs instead of its hours. */
   loggingTime = $state<{ key: string; forgotten?: Timer } | null>(null);
   #endSeq = 1;
 
-  /** Without a length the clock runs until it is stopped. One runs at a time, so the one before is logged. */
+  /** Without a length it is a stopwatch, and runs until it is stopped. One runs at a time, so the one before is logged. */
   startTimer(key: string, length?: number): void {
     const now = Date.now();
     const previous = this.data.timer;
     if (previous?.key) {
       if (isForgotten(previous, now)) {
-        this.say(`The clock on ${timerLabel(this.data, previous)} ran for hours, so it was not logged.`);
+        this.say(`The stopwatch on ${timerLabel(this.data, previous)} ran for hours, so it was not logged.`);
       } else {
         const logged = this.#logTimer(previous, now);
         if (logged) this.say(`Logged ${formatMinutes(logged.minutes)} on ${timerLabel(this.data, previous)}.`);
@@ -829,7 +832,7 @@ export class ChartStore {
     this.save();
   }
 
-  /** A clock left on for hours asks how long instead of logging them. */
+  /** A stopwatch left on for hours asks how long instead of logging them. */
   stopTimer(): void {
     const timer = this.data.timer;
     if (!timer) return;
@@ -858,7 +861,7 @@ export class ChartStore {
     this.timerEnd = null;
   }
 
-  /** For a clock left on: it stops without logging anything. */
+  /** For a stopwatch left on: it stops without logging anything. */
   discardTimer(): void {
     if (!this.data.timer) return;
     this.loggingTime = null;
@@ -878,6 +881,41 @@ export class ChartStore {
     }
     this.loggingTime = null;
     this.say(`Logged ${formatMinutes(minutes)} on ${timerLabel(this.data, { key, since: 0 })}.`);
+  }
+
+  #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
+  #timeSeq = 1;
+
+  /** Takes logged time off a day: one session, or without one, all of the action's time that day. The slip can undo it. */
+  removeTime(dateKey: string, key: string, session?: Session): void {
+    const log = this.data.days?.[dateKey];
+    const all = log?.sessions ?? [];
+    let matched = false;
+    const removed: Session[] = [];
+    const rest = all.filter((entry) => {
+      if (entry.key !== key) return true;
+      if (session && (matched || entry.at !== session.at || entry.minutes !== session.minutes)) return true;
+      matched = true;
+      removed.push(entry);
+      return false;
+    });
+    if (!log || removed.length === 0) return;
+    this.data.days![dateKey] = { ...log, sessions: rest.length > 0 ? rest : undefined };
+    this.data = { ...this.data };
+    this.save();
+    const token = `time:${this.#timeSeq++}`;
+    this.#removedTime.set(token, { chartId: this.#library.activeId, dateKey, sessions: removed });
+    const minutes = removed.reduce((sum, entry) => sum + entry.minutes, 0);
+    this.#place({ key: token, kicker: "Removed", subject: `${formatMinutes(minutes)} on ${timerLabel(this.data, { key, since: 0 })}`, undo: [token] });
+  }
+
+  #restoreTime(token: string): void {
+    const removed = this.#removedTime.get(token);
+    this.#removedTime.delete(token);
+    if (!removed || removed.chartId !== this.#library.activeId) return;
+    for (const session of removed.sessions) addSession(this.data, removed.dateKey, session);
+    this.data = { ...this.data };
+    this.save();
   }
 
   #logTimer(timer: Timer, now: number, minutes?: number): { minutes: number } | null {

@@ -22,7 +22,7 @@ export type DemoId =
 	| 'bindu-new'
 	| 'tools'
 	| 'select'
-	| 'time-clock'
+	| 'time-stopwatch'
 	| 'time-block'
 	| 'time-log'
 	| 'time-forgot'
@@ -85,7 +85,7 @@ function livedIn(now: Date): ChartData {
 
 const MINUTE = 60_000;
 
-/** A week of time on the clock, most of it on Listening, on top of the ticks. */
+/** A week of time logged, most of it on Listening, on top of the ticks. */
 function clocked(data: ChartData, now: Date): ChartData {
 	const week: Record<number, [string, string, number][]> = {
 		0: [['a2_0', '07:40', 20]],
@@ -222,14 +222,15 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
-		id: 'time-clock',
-		title: 'The clock on an action',
+		id: 'time-stopwatch',
+		title: 'A stopwatch on an action',
 		group: 'Time',
 		steps: [
-			'Today opens with the clock already running on one action, 12 minutes in. It rides on the dock, so switch to the chart or the editor and it comes along. The tab title counts too.',
+			'Today opens with a stopwatch already running on one action, 12 minutes in. It rides on the dock, so switch to the chart or the editor and it comes along. The tab title counts too.',
 			"Its ring goes round once an hour in the pillar's hue. On the row, a smaller ring stands in for the timer button.",
-			'Press the square to stop it. The minutes are logged on today, the row says so, and the slip offers Tick it, then leaves on its own. Point at it to keep it.',
-			"Start the clock on another row while one runs: the first is logged, and a slip says how long."
+			'Press the square to stop it. The whole minutes are logged on today, the row says so, and the slip offers Tick it, then leaves on its own. Point at it to keep it.',
+			'Start a stopwatch on another row and stop it within a minute: nothing is logged. Start one while another runs: the first is logged, and a slip says how long.',
+			"To take time off, open the row's timer button: Remove today's time. The slip can undo it."
 		]
 	},
 	{
@@ -250,25 +251,25 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			"Most of the work happens away from the screen. On any row in Today, press the timer button, then Log time.",
 			'Pick 15 to 60 minutes, or type any length. The row shows the time logged today.',
-			'Open the calendar from the top of Today: the day lists it under On the clock, with when it started.'
+			'Open the calendar from the top of Today: the day lists it under Time logged, with when it started. The cross beside a stretch takes it off, and the slip can undo it.'
 		]
 	},
 	{
 		id: 'time-forgot',
-		title: 'A clock left on',
+		title: 'A stopwatch left on',
 		group: 'Time',
 		steps: [
-			'The clock has been running on one action for over nine hours.',
+			'A stopwatch has been running on one action for over nine hours.',
 			'Stop it. Nothing is logged yet: a dialog asks how long it really took, or lets you not log it.'
 		]
 	},
 	{
 		id: 'time-week',
-		title: 'A week on the clock',
+		title: 'A week of time logged',
 		group: 'Time',
 		steps: [
 			'Seven days of time, on top of the ticks. The calendar opens on today; the month line adds the time up.',
-			'Tap a day: under what was finished, On the clock lists each stretch, how long, and from when.',
+			'Tap a day: under what was finished, Time logged lists each stretch, how long, and from when.',
 			"Open Bindu: the first note says where most of the week's time went. How it is going shows time per pillar, longest first."
 		]
 	},
@@ -363,7 +364,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.tools = shelves(now);
 		return { data, view: 'today' };
 	}
-	if (id === 'time-clock') return { data: { ...livedIn(now), timer: { key: 'a2_0', since: now.getTime() - 12 * MINUTE } }, view: 'today' };
+	if (id === 'time-stopwatch') return { data: { ...livedIn(now), timer: { key: 'a2_0', since: now.getTime() - 12 * MINUTE } }, view: 'today' };
 	if (id === 'time-block') return { data: { ...livedIn(now), timer: { key: 'a4_0', since: now.getTime() - 25 * MINUTE + 40_000, length: 25 } }, view: 'today' };
 	if (id === 'time-log') return { data: livedIn(now), view: 'today' };
 	if (id === 'time-forgot') return { data: { ...livedIn(now), timer: { key: 'a2_0', since: now.getTime() - 552 * MINUTE } }, view: 'today' };

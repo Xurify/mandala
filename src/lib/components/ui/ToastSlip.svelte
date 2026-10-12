@@ -122,7 +122,10 @@
 			{/key}
 		{/if}
 		{#if onundo}
-			<Button size="sm" variant="soft" icon="undo" class="shrink-0" onclick={onundo}>Undo</Button>
+			<!-- On a small phone the words would get only a sliver beside it, so it drops under them. -->
+			<div class="shrink-0 max-[400px]:flex max-[400px]:basis-full max-[400px]:ps-[50px]">
+				<Button size="sm" variant="soft" icon="undo" onclick={onundo}>Undo</Button>
+			</div>
 		{/if}
 	</div>
 </div>

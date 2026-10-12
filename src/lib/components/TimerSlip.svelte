@@ -41,7 +41,7 @@
 	const minutesIn = $derived(timer ? Math.floor(elapsedMs(timer, now) / 60_000) : 0);
 	const nextLabel = $derived(breakAfter ? timerLabel(chart.data, { key: breakAfter, since: 0 }) : '');
 	const label = $derived(!timer ? '' : timer.key ? timerLabel(chart.data, timer) : nextLabel ? `Then ${nextLabel}` : 'Away from the screen');
-	const kicker = $derived(!timer ? '' : !timer.key ? `Break · ${timer.length} min` : timer.length ? `Focus block · ${timer.length} min` : 'On the clock');
+	const kicker = $derived(!timer ? '' : !timer.key ? `Break · ${timer.length} min` : timer.length ? `Focus block · ${timer.length} min` : 'Stopwatch');
 	const spoken = $derived.by(() => {
 		if (!timer) return '';
 		if (remaining === null) return `${minutesIn === 1 ? '1 minute' : `${minutesIn} minutes`} so far`;
@@ -135,7 +135,7 @@
 	<!-- On a phone it shares the row above the dock with the Bindu launcher, so it centers in the space beside it. -->
 	<div
 		bind:this={slip}
-		class="pointer-events-auto w-[min(25rem,calc(100vw-2rem))] max-[600px]:w-[calc(100vw-2rem-var(--dock-aside,0px))] max-[600px]:[translate:calc(var(--dock-aside,0px)/-2)_0] print:hidden"
+		class="@container pointer-events-auto w-[min(25rem,calc(100vw-2rem))] max-[600px]:w-[calc(100vw-2rem-var(--dock-aside,0px))] max-[600px]:[translate:calc(var(--dock-aside,0px)/-2)_0] print:hidden"
 		role="group"
 		aria-label="Timer"
 		out:slipOut={{ duration: 600 }}
@@ -159,15 +159,17 @@
 					onclick={() => chart.setViewMode('today')}
 				>
 					<TimerRing share={ringShare(timer, now)} hue={hueOf(timer.key)} class="size-10" />
+					<!-- A phone's slip is too narrow for the name beside the time, so the time goes on top of the name. -->
 					<span class="flex min-w-0 flex-1 flex-col gap-0.5">
-						<Eyebrow>{kicker}</Eyebrow>
-						<span class="truncate text-[0.94rem] leading-tight font-medium">{label}</span>
+						<Eyebrow class="@max-[21rem]:hidden">{kicker}</Eyebrow>
+						<span class="hidden text-[1.15rem] leading-none font-[620] tracking-[-0.02em] tabular-nums @max-[21rem]:block">{face}</span>
+						<span class="truncate text-[0.94rem] leading-tight font-medium @max-[21rem]:text-[0.86rem] @max-[21rem]:text-muted">{label}</span>
 					</span>
-					<span class="shrink-0 text-[1.15rem] leading-none font-[620] tracking-[-0.02em] tabular-nums">{face}</span>
+					<span class="shrink-0 text-[1.15rem] leading-none font-[620] tracking-[-0.02em] tabular-nums @max-[21rem]:hidden">{face}</span>
 				</button>
 				<IconButton
 					icon="stop"
-					label={!timer.key ? 'End the break' : timer.length ? 'Stop the block' : 'Stop the clock'}
+					label={!timer.key ? 'End the break' : timer.length ? 'Stop the block' : 'Stop the stopwatch'}
 					class="shrink-0"
 					onclick={stop}
 				/>
@@ -187,27 +189,30 @@
 						</span>
 					</div>
 				{/key}
-				{#if end.kind === 'stopped'}
-					{#if end.minutes > 0}
-						<Button size="sm" variant="soft" class="shrink-0" icon={ticked ? 'check' : undefined} disabled={ticked} data-next onclick={tickIt}>
-							{ticked ? 'Ticked' : 'Tick it'}
-						</Button>
-					{/if}
-				{:else}
+				{#if end.kind !== 'stopped'}
 					<IconButton icon="close" label="Close" class="size-9 shrink-0 self-start" onclick={close} />
-					{#if end.kind === 'block' || breakAfter}
-						<!-- Under the words, lined up with them: the ring, its gap, and the row's inset. -->
-						<div class="flex basis-full items-center gap-1 ps-[54px] pb-1 motion-safe:animate-done-in motion-safe:[animation-delay:0.65s]">
-							{#if end.kind === 'block'}
-								<Button size="sm" variant="soft" data-next onclick={takeBreak}>Take {BREAK_MINUTES}</Button>
-								<Button size="sm" variant="ghost" icon={ticked ? 'check' : undefined} disabled={ticked} onclick={tickIt}>
-									{ticked ? 'Ticked' : 'Tick it'}
-								</Button>
-							{:else}
-								<Button size="sm" variant="soft" data-next onclick={nextBlock}>Another {BLOCK_MINUTES}</Button>
-							{/if}
-						</div>
-					{/if}
+				{/if}
+				{#if end.kind === 'block' || (end.kind === 'stopped' && end.minutes > 0) || breakAfter}
+					<!-- Under the words, lined up with them: the ring, its gap, and the row's inset. -->
+					<div class="flex basis-full flex-wrap items-center gap-1 ps-[54px] pb-1 motion-safe:animate-done-in motion-safe:[animation-delay:0.65s]">
+						{#if end.kind === 'block'}
+							<Button size="sm" variant="soft" data-next onclick={takeBreak}>Take {BREAK_MINUTES}</Button>
+						{:else if end.kind === 'break'}
+							<Button size="sm" variant="soft" data-next onclick={nextBlock}>Another {BLOCK_MINUTES}</Button>
+						{/if}
+						{#if end.kind !== 'break'}
+							<Button
+								size="sm"
+								variant={end.kind === 'block' ? 'ghost' : 'soft'}
+								icon={ticked ? 'check' : undefined}
+								disabled={ticked}
+								data-next={end.kind === 'stopped' ? true : undefined}
+								onclick={tickIt}
+							>
+								{ticked ? 'Ticked' : 'Tick it'}
+							</Button>
+						{/if}
+					</div>
 				{/if}
 			{/if}
 		</div>

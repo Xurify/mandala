@@ -68,7 +68,7 @@ describe('monthOf', () => {
 		expect(monthLine(monthOf(chart(), 2026, 7, now))).toBe('Nothing finished this month yet.');
 	});
 
-	it('counts time on the clock, on days with ticks and days without', () => {
+	it('counts time logged, on days with ticks and days without', () => {
 		const data = chart();
 		data.days!['2026-10-09']!.sessions = [{ key: 'a0_0', at: '07:00', minutes: 30 }];
 		data.days!['2026-10-10']!.sessions = [{ key: 'a0_1', at: '09:00', minutes: 50 }];
@@ -76,10 +76,10 @@ describe('monthOf', () => {
 		const month = monthOf(data, 2026, 9, now);
 		expect(month.weeks[1]![4]!.minutes).toBe(30);
 		expect(month.minutes).toBe(80);
-		expect(monthLine(month)).toBe('3 things finished on 1 day, 1 h 20 min on the clock.');
+		expect(monthLine(month)).toBe('3 things finished on 1 day, 1 h 20 min logged.');
 		data.days = { '2026-08-03': { focus: [], checked: [], sessions: [{ key: 'a0_0', at: '07:00', minutes: 45 }] } };
 		data.meta = {};
-		expect(monthLine(monthOf(data, 2026, 7, now))).toBe('Nothing finished yet, 45 min on the clock.');
+		expect(monthLine(monthOf(data, 2026, 7, now))).toBe('Nothing finished yet, 45 min logged.');
 		expect(firstDoneMonth(data)).toEqual({ year: 2026, month: 7 });
 	});
 

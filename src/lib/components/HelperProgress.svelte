@@ -64,7 +64,7 @@
 			{@const longest = timed[0]?.minutes ?? 1}
 			<section class="flex flex-col gap-2 rounded-[18px] bg-bg px-3 pt-2.5 pb-3" aria-labelledby="bindu-time">
 				<div class="flex items-baseline justify-between gap-3">
-					<h3 id="bindu-time" class="m-0 text-[0.76rem] font-normal text-muted">On the clock</h3>
+					<h3 id="bindu-time" class="m-0 text-[0.76rem] font-normal text-muted">Time logged</h3>
 					<p class="m-0 text-[1.05rem] leading-tight font-[620] tabular-nums">{formatMinutes(timeTotal)}</p>
 				</div>
 				<ul class="m-0 flex list-none flex-col gap-1.5 p-0">

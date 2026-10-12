@@ -30,10 +30,11 @@ function chart(): ChartData {
 	return data;
 }
 
-describe('the clock', () => {
-	it('counts up to the nearest minute and has no end', () => {
+describe('the stopwatch', () => {
+	it('counts whole minutes and has no end', () => {
 		const timer = { key: 'a0_0', since: start };
-		expect(minutesRun(timer, start + 12 * MINUTE + 40_000)).toBe(13);
+		expect(minutesRun(timer, start + 12 * MINUTE + 40_000)).toBe(12);
+		expect(minutesRun(timer, start + 59_000)).toBe(0);
 		expect(remainingMs(timer, start + 5 * MINUTE)).toBeNull();
 		expect(isOver(timer, start + 600 * MINUTE)).toBe(false);
 	});
@@ -45,10 +46,11 @@ describe('the clock', () => {
 
 	it('logs nothing for under a minute, or for a break', () => {
 		expect(sessionOf({ key: 'a0_0', since: start }, start + 20_000)).toBeNull();
+		expect(sessionOf({ key: 'a0_0', since: start }, start + 59_999)).toBeNull();
 		expect(sessionOf({ since: start, length: 5 }, start + 5 * MINUTE)).toBeNull();
 	});
 
-	it('takes a clock left on for hours as forgotten', () => {
+	it('takes a stopwatch left on for hours as forgotten', () => {
 		expect(isForgotten({ key: 'a0_0', since: start }, start + 181 * MINUTE)).toBe(true);
 		expect(isForgotten({ key: 'a0_0', since: start }, start + 90 * MINUTE)).toBe(false);
 		expect(isForgotten({ key: 'a0_0', since: start, length: 25 }, start + 600 * MINUTE)).toBe(false);

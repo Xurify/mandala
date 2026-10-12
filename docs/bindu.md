@@ -86,13 +86,13 @@ Routines are habits that are always on, so they are never picked.
 - `dropped`: picks you took off the list that day. When Bindu's picks replace the list, the old ones are not counted.
 - `declined`: Bindu's suggestions turned down that day.
 - `shown`: insights Bindu opened with that day.
-- `sessions`: time on an action, `{ key, at, minutes }`, from the clock, a focus block, or Log time. It never ticks anything.
+- `sessions`: time on an action, `{ key, at, minutes }`, from a stopwatch, a focus block, or Log time. It never ticks anything.
 
 All of it syncs with the chart.
 
 ## Insights
 
-**Built** (`insightsFor`): a repeat tool opened on 10 of the last 14 days ("Know it by now?"), today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with "Open it"), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, the pillar that got half or more of this week's time on the clock, once there is an hour of it, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The note on the first page is the strongest one not shown lately (`unseenInsights`), held still while the panel is open. "How it is going" lists up to three under its counts, and time per pillar on the clock this week, longest first; the time insight stays off that list, since the bars say it. Most need only a day or two of history.
+**Built** (`insightsFor`): a repeat tool opened on 10 of the last 14 days ("Know it by now?"), today's picks done, yesterday's result, a comeback after 4+ quiet days, a streak of 3+, a pick that keeps not getting ticked (with "Open it"), an action taken off the list twice this week, the pillar that has waited longest, time of day once there are 5 timed ticks in 2 weeks, the pillar that got half or more of this week's time logged, once there is an hour of it, last week's reflection note, follow-through by pillar over 4 weeks, and a routine ready to retire. The note on the first page is the strongest one not shown lately (`unseenInsights`), held still while the panel is open. "How it is going" lists up to three under its counts, and time per pillar logged this week, longest first; the time insight stays off that list, since the bars say it. Most need only a day or two of history.
 
 **Still to build:** the four below, and "Not useful" on an insight.
 

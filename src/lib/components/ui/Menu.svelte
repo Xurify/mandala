@@ -29,7 +29,18 @@
 	}: Props = $props();
 
 	let root = $state<HTMLDivElement | null>(null);
+	let up = $state(false);
 	const styles = $derived(menu({ align }));
+	/** The dock floats over the bottom of the page: 18px off the edge, a 54px bar, and a gap above it. */
+	const DOCK_ROOM = 96;
+
+	/** A menu low on the page would open under the dock, so it opens upward when there is room above. */
+	function place(panel: HTMLElement): void {
+		const below = panel.getBoundingClientRect();
+		const trigger = root?.getBoundingClientRect();
+		if (!trigger) return;
+		up = below.bottom > window.innerHeight - DOCK_ROOM && trigger.top - below.height - 8 > 8;
+	}
 
 	function close(): void {
 		if (!expanded) return;
@@ -41,6 +52,7 @@
 	function toggle(): void {
 		if (expanded) close();
 		else {
+			up = false;
 			expanded = true;
 			onopenchange?.(true);
 		}
@@ -125,7 +137,12 @@
 	</div>
 	{#if expanded}
 		<div class={styles.backdrop()} aria-hidden="true" onclick={close}></div>
-		<div class={styles.panel()} role="menu" aria-label={label}>
+		<div
+			class={cn(styles.panel(), up && 'top-auto bottom-[calc(100%+8px)]', up && (align === 'start' ? 'origin-bottom-left' : 'origin-bottom-right'))}
+			role="menu"
+			aria-label={label}
+			{@attach place}
+		>
 			{@render children()}
 		</div>
 	{/if}
