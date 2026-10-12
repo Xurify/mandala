@@ -29,17 +29,17 @@
 
 	let sheet = $state<HTMLDivElement | null>(null);
 
-	const meta = $derived(chart.metaOf(card.key));
+	const meta = $derived(chart.metaOf(card.id));
 	const pillar = $derived(chart.data.pillars[card.pillarIndex]?.trim() || `Pillar ${card.pillarIndex + 1}`);
-	const history = $derived(historyOf(chart.data, card.key));
+	const history = $derived(historyOf(chart.data, card.id));
 	const today = $derived(chart.today);
 
 	const status = $derived.by((): string | null => {
 		if (lane === 'done') return card.doneAt === today ? 'Finished today. It is on the calendar.' : `Finished ${dayOf(card.doneAt ?? today).toLowerCase()}. It is on the calendar.`;
-		if (card.routine && chart.todayLog.checked.includes(card.key)) return 'A routine, ticked today. It never goes to Done.';
+		if (card.routine && chart.todayLog.checked.includes(card.id)) return 'A routine, ticked today. It never goes to Done.';
 		if (card.routine) return 'A routine never goes to Done. Tick it in Today, day by day.';
-		if (chart.todayLog.focus.includes(card.key)) return "One of today's three.";
-		if (chart.data.days?.[tomorrowOf(today)]?.focus.includes(card.key)) return 'Planned for tomorrow.';
+		if (chart.todayLog.focus.includes(card.id)) return "One of today's three.";
+		if (chart.data.days?.[tomorrowOf(today)]?.focus.includes(card.id)) return 'Planned for tomorrow.';
 		return null;
 	});
 
@@ -65,7 +65,7 @@
 		return moment.dateKey > today ? 'Planned for the day' : 'Picked for the day';
 	}
 
-	const key = $derived(card.key);
+	const key = $derived(card.id);
 
 	// The board hands over a fresh card on every edit; only a different card takes focus back to the sheet.
 	$effect(() => {
@@ -103,8 +103,8 @@
 			maxlength="120"
 			rows="1"
 			aria-label="Action"
-			value={chart.textOf(card.key)}
-			oninput={(event) => chart.setText(card.key, event.currentTarget.value)}
+			value={chart.textOf(card.id)}
+			oninput={(event) => chart.setText(card.id, event.currentTarget.value)}
 			onkeydown={(event) => {
 				if (event.key === 'Enter') {
 					event.preventDefault();
@@ -131,7 +131,7 @@
 					size="sm"
 					options={KINDS}
 					value={meta?.kind ?? 'standard'}
-					onchange={(value) => chart.setActionMeta(card.key, { kind: value === 'routine' || value === 'milestone' ? value : undefined })}
+					onchange={(value) => chart.setActionMeta(card.id, { kind: value === 'routine' || value === 'milestone' ? value : undefined })}
 				/>
 			</dd>
 		</dl>
@@ -148,7 +148,7 @@
 				value={meta?.details ?? ''}
 				oninput={(event) => {
 					const value = event.currentTarget.value;
-					chart.setActionMeta(card.key, { details: value.trim() ? value : undefined });
+					chart.setActionMeta(card.id, { details: value.trim() ? value : undefined });
 				}}
 			></textarea>
 		</section>

@@ -4,7 +4,7 @@
 	import { exampleChart } from '$lib/chart/example';
 	import { describeKey, gapsOf, reviewChart, suggestToday, suggestWeek } from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
-	import { dateKeyOffset, emptyChart, HUES, setByKey, setMeta, todayKey, type ChartData } from '$lib/chart/model';
+	import { dateKeyOffset, emptyChart, HUES, idOfKey, setByKey, setMeta, todayKey, type ActionId, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import HelperFace from '$lib/components/HelperFace.svelte';
 	import HelperPanel from '$lib/components/HelperPanel.svelte';
@@ -39,11 +39,12 @@
 		if (kind === 'empty') return emptyChart();
 		const data = exampleChart();
 		if (kind === 'example') {
+			const ids = (...keys: string[]) => keys.map((key) => idOfKey(data, key)!);
 			data.days = {
-				[dateKeyOffset(-1)]: { focus: ['a0_0', 'a1_0', 'a2_0'], checked: ['a0_0', 'a1_0'], started: true },
-				[dateKeyOffset(-2)]: { focus: ['a0_1', 'a3_0', 'a1_2'], checked: ['a3_0'], started: true }
+				[dateKeyOffset(-1)]: { focus: ids('a0_0', 'a1_0', 'a2_0'), checked: ids('a0_0', 'a1_0'), started: true },
+				[dateKeyOffset(-2)]: { focus: ids('a0_1', 'a3_0', 'a1_2'), checked: ids('a3_0'), started: true }
 			};
-			data.meta = { a4_1: { kind: 'milestone', pinned: true } };
+			data.meta = { [idOfKey(data, 'a4_1')!]: { kind: 'milestone', pinned: true } };
 		}
 		if (kind === 'half') {
 			data.pillars[6] = '';
@@ -123,9 +124,9 @@
 	<span class="pip mt-[0.38em] size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[pillarIndex]} aria-hidden="true"></span>
 {/snippet}
 
-{#snippet picks(list: { key: string; text: string; pillarIndex: number; why: string }[])}
+{#snippet picks(list: { id: ActionId; text: string; pillarIndex: number; why: string }[])}
 	<ul class="m-0 flex list-none flex-col gap-2 p-0">
-		{#each list as pick (pick.key)}
+		{#each list as pick (pick.id)}
 			<li class="flex min-w-0 gap-2.5 text-[0.88rem] leading-snug">
 				{@render dot(pick.pillarIndex)}
 				<span class="flex min-w-0 flex-col">

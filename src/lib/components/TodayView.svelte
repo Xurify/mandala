@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { HUES, getByKey, isOpenFocus, isRoutine, isUrl, dateKeyOffset } from '$lib/chart/model';
-	import type { ActionMeta } from '$lib/chart/model';
+	import { HUES, idAt, isOpenFocus, isRoutine, isUrl, dateKeyOffset } from '$lib/chart/model';
+	import type { ActionId, ActionMeta } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
-	import { dealKeys, dealTools, toolsFor } from '$lib/chart/tools';
+	import { dealOrder, dealTools, toolsFor } from '$lib/chart/tools';
 	import { dealFirst, finishedOn } from '$lib/chart/board';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -17,10 +17,10 @@
 
 	const dateKey = chart.today;
 	/** Tools passed over with "Another" this visit, per action. Forgotten on reload, so nothing is lost. */
-	let passed = $state<Map<string, Set<string>>>(new Map());
+	let passed = $state<Map<ActionId, Set<string>>>(new Map());
 
 	type ActionEntry = {
-		key: string;
+		id: ActionId;
 		text: string;
 		meta: ActionMeta | undefined;
 		pillarIndex: number;
@@ -32,10 +32,10 @@
 		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 			const pillarName = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
 			for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
-				const key = `a${pillarIndex}_${actionIndex}`;
-				const text = getByKey(chart.data, key).trim();
+				const text = (chart.data.actions[pillarIndex]?.[actionIndex] ?? '').trim();
 				if (!text) continue;
-				entries.push({ key, text, meta: chart.metaOf(key), pillarIndex, pillarName });
+				const id = idAt(chart.data, pillarIndex, actionIndex);
+				entries.push({ id, text, meta: chart.metaOf(id), pillarIndex, pillarName });
 			}
 		}
 		return entries;
@@ -50,28 +50,28 @@
 
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
 	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
-	const dealt = $derived(dealTools(chart.data, dealKeys(chart.data), new Date(), passed));
+	const dealt = $derived(dealTools(chart.data, dealOrder(chart.data), new Date(), passed));
 
-	function passOver(key: string, id: string): void {
+	function passOver(key: ActionId, id: string): void {
 		const next = new Map(passed);
 		next.set(key, new Set([...(passed.get(key) ?? []), id]));
 		passed = next;
 	}
 
-	function openKeys(keys: string[]): string[] {
+	function openKeys(keys: ActionId[]): ActionId[] {
 		return keys.filter((key) => {
-			const entry = allActions.find((action) => action.key === key);
+			const entry = allActions.find((action) => action.id === key);
 			return entry ? isOpenFocus(entry.meta) : false;
 		});
 	}
 
 	const pickerActions = $derived([...pickable].sort((a, b) => dealFirst(a.meta, b.meta)));
 
-	const ticked = (key: string): boolean => finishedOn(chart.data, key, dateKey);
+	const ticked = (key: ActionId): boolean => finishedOn(chart.data, key, dateKey);
 
-	let selectedKeys = $state<string[]>([]);
+	let selectedKeys = $state<ActionId[]>([]);
 	let confirmed = $state(chart.todayLog.started === true || chart.todayLog.focus.length > 0);
-	let justCheckedKey = $state<string | null>(null);
+	let justCheckedKey = $state<ActionId | null>(null);
 	let celebrate = $state(false);
 
 	// Re-seed whenever today's focus changes outside this view (load, or Bindu picking three).
@@ -103,14 +103,14 @@
 
 	const focusEntries = $derived.by((): ActionEntry[] => {
 		return chart.todayLog.focus
-			.map((focusKey) => allActions.find((actionEntry) => actionEntry.key === focusKey))
-			.filter((entry): entry is ActionEntry => entry !== undefined && (isOpenFocus(entry.meta) || ticked(entry.key)));
+			.map((focusKey) => allActions.find((actionEntry) => actionEntry.id === focusKey))
+			.filter((entry): entry is ActionEntry => entry !== undefined && (isOpenFocus(entry.meta) || ticked(entry.id)));
 	});
 
-	const trackedKeys = $derived.by((): string[] => {
-		const keys = habits.map((entry) => entry.key);
+	const trackedKeys = $derived.by((): ActionId[] => {
+		const keys = habits.map((entry) => entry.id);
 		if (confirmed) {
-			for (const entry of focusEntries) keys.push(entry.key);
+			for (const entry of focusEntries) keys.push(entry.id);
 		}
 		return keys;
 	});
@@ -123,7 +123,7 @@
 			trackedKeys.every(ticked)
 	);
 
-	function toggleChecked(key: string): void {
+	function toggleChecked(key: ActionId): void {
 		const wasChecked = ticked(key);
 		const wasDone = allDone;
 		if (wasChecked) chart.reopen(key);
@@ -178,7 +178,7 @@
 	});
 
 	let planningOpen = $state(false);
-	let tomorrowSelected = $state<string[]>([]);
+	let tomorrowSelected = $state<ActionId[]>([]);
 	const tomorrowPlannedCount = $derived(openKeys(chart.data.days?.[tomorrowKey]?.focus ?? []).length);
 
 	function openPlanning(): void {
@@ -199,14 +199,14 @@
 </script>
 
 {#snippet checkRow(entry: ActionEntry)}
-	{@const isChecked = ticked(entry.key)}
-	{@const justChecked = justCheckedKey === entry.key}
-	{@const tool = dealt.get(entry.key) ?? null}
+	{@const isChecked = ticked(entry.id)}
+	{@const justChecked = justCheckedKey === entry.id}
+	{@const tool = dealt.get(entry.id) ?? null}
 	<div class="flex flex-col">
 		<button
 			type="button"
 			class={rowClass}
-			onclick={() => toggleChecked(entry.key)}
+			onclick={() => toggleChecked(entry.id)}
 			aria-pressed={isChecked}
 		>
 			<span
@@ -258,12 +258,12 @@
 						>
 							<ToolFace {tool} class="min-w-0 flex-1" />
 						</a>
-						{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
+						{#if toolsFor(chart.data, entry.id).filter((other) => !other.known).length > 1}
 							<IconButton
 								icon="refresh"
 								label="Another tool for {entry.text}"
 								class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
-								onclick={() => passOver(entry.key, tool.id)}
+								onclick={() => passOver(entry.id, tool.id)}
 							/>
 						{/if}
 						<IconButton
@@ -375,7 +375,7 @@
 				<span>Today</span>
 				<span class="tabular-nums">{closedEntries.length} of {closedEntries.length}</span>
 			</p>
-			{#each closedEntries as entry (entry.key)}
+			{#each closedEntries as entry (entry.id)}
 				{@render checkRow(entry)}
 			{/each}
 			{#if chart.data.goal.trim()}
@@ -435,8 +435,8 @@
 							<span class="text-[0.8rem] text-muted">Already in your day</span>
 						</div>
 						<ul class="m-0 mt-2.5 grid list-none gap-x-6 gap-y-2 p-0 @min-[540px]:grid-cols-2">
-							{#each habits as entry (entry.key)}
-								{@const done = ticked(entry.key)}
+							{#each habits as entry (entry.id)}
+								{@const done = ticked(entry.id)}
 								<li class="flex min-w-0 items-center gap-2.5 text-[0.9rem] leading-snug">
 									<span class={cn('pip size-2 shrink-0 rounded-full', done && 'opacity-40')} style:--pip-h={HUES[entry.pillarIndex]} aria-hidden="true"></span>
 									<span class={cn('min-w-0 truncate', done && 'text-muted line-through')}>{entry.text}</span>
@@ -488,13 +488,13 @@
 					{#if habits.length > 0 && focusEntries.length > 0}
 						<Eyebrow class="mt-1 mb-1 px-3">Habits</Eyebrow>
 					{/if}
-					{#each habits as entry (entry.key)}
+					{#each habits as entry (entry.id)}
 						{@render checkRow(entry)}
 					{/each}
 					{#if habits.length > 0 && focusEntries.length > 0}
 						<Eyebrow class="mt-3 mb-1 px-3">One-time</Eyebrow>
 					{/if}
-					{#each focusEntries as entry (entry.key)}
+					{#each focusEntries as entry (entry.id)}
 						{@render checkRow(entry)}
 					{/each}
 					{#if habits.length === 0 && focusEntries.length === 0}

@@ -16,7 +16,7 @@
 		type Card,
 		type Lane
 	} from '$lib/chart/board';
-	import { HUES, actionKey, dateKeyOffset, weekStartKey } from '$lib/chart/model';
+	import { HUES, dateKeyOffset, idAt, weekStartKey, type ActionId } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import CardSheet from './CardSheet.svelte';
@@ -67,18 +67,18 @@
 		landing: boolean;
 	};
 
-	type Lift = { key: string; from: Lane; fromIndex: number; lane: Lane; index: number };
+	type Lift = { id: ActionId; from: Lane; fromIndex: number; lane: Lane; index: number };
 
 	let root = $state<HTMLDivElement | null>(null);
 	let drag = $state<Drag | null>(null);
 	let lift = $state<Lift | null>(null);
-	let stamped = $state<string | null>(null);
+	let stamped = $state<ActionId | null>(null);
 	let said = $state('');
 	let swallowClick = false;
 	let pointer = { x: 0, y: 0 };
 	let frame = 0;
 
-	const view = $derived(lift ? placed(board, lift.key, lift.lane, lift.index, today) : board);
+	const view = $derived(lift ? placed(board, lift.id, lift.lane, lift.index, today) : board);
 
 	const firstLane = (): Lane => (board.doing.length > 0 ? 'doing' : board.todo.length > 0 ? 'todo' : 'open');
 	let lane = $state<Lane>(firstLane());
@@ -124,13 +124,13 @@
 		return date.toLocaleDateString('en-US', sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
 	}
 
-	function where(key: string, inLane: Lane): string {
+	function where(key: ActionId, inLane: Lane): string {
 		const list = view[inLane].filter(shown);
-		const at = list.findIndex((card) => card.key === key);
+		const at = list.findIndex((card) => card.id === key);
 		return inLane === 'todo' || inLane === 'doing' ? `${LANE_NAMES[inLane]}, ${at + 1} of ${list.length}` : LANE_NAMES[inLane];
 	}
 
-	function stamp(key: string): void {
+	function stamp(key: ActionId): void {
 		stamped = key;
 		setTimeout(() => {
 			if (stamped === key) stamped = null;
@@ -138,20 +138,20 @@
 	}
 
 	function commit(card: Card, from: Lane, to: Lane, index: number): boolean {
-		if (!chart.moveCard(card.key, to, index)) return false;
-		if (to === 'done' && from !== 'done') stamp(card.key);
+		if (!chart.moveCard(card.id, to, index)) return false;
+		if (to === 'done' && from !== 'done') stamp(card.id);
 		return true;
 	}
 
-	async function focusCard(key: string): Promise<void> {
+	async function focusCard(key: ActionId): Promise<void> {
 		await tick();
 		const button = root?.querySelector<HTMLElement>(`[data-card="${key}"] button`);
 		button?.focus({ preventScroll: true });
 		button?.scrollIntoView({ block: 'nearest' });
 	}
 
-	function restOf(inLane: Lane, key: string): Card[] {
-		return board[inLane].filter((card) => card.key !== key);
+	function restOf(inLane: Lane, key: ActionId): Card[] {
+		return board[inLane].filter((card) => card.id !== key);
 	}
 
 	function laneAt(x: number, y: number): { lane: Lane; tab: boolean } | null {
@@ -163,7 +163,7 @@
 		return tray ? { lane: tray.dataset.lane as Lane, tab: false } : null;
 	}
 
-	function indexAt(inLane: Lane, y: number, key: string): number {
+	function indexAt(inLane: Lane, y: number, key: ActionId): number {
 		const items = [...(root?.querySelectorAll<HTMLElement>(`[data-list="${inLane}"] [data-card]`) ?? [])].filter(
 			(item) => item.dataset.card !== key
 		);
@@ -201,7 +201,7 @@
 		current.lane = target?.lane ?? null;
 		current.tab = target?.tab ?? false;
 		if (!target || !canGo(current.card, target.lane)) return;
-		current.index = target.tab ? restOf(target.lane, current.card.key).length : indexAt(target.lane, y, current.card.key);
+		current.index = target.tab ? restOf(target.lane, current.card.id).length : indexAt(target.lane, y, current.card.id);
 	}
 
 	function autoscroll(): void {
@@ -252,14 +252,14 @@
 			await new Promise((resolve) => setTimeout(resolve, 220));
 		}
 		if (moved && commit(current.card, current.from, to, index)) {
-			said = `Moved to ${where(current.card.key, to)}.`;
+			said = `Moved to ${where(current.card.id, to)}.`;
 			if (narrow && to !== lane) chart.say(`Moved to ${LANE_NAMES[to]}.`);
 		}
 		if (drag === current) drag = null;
 	}
 
 	// Touch waits for a still press so a swipe keeps scrolling the page.
-	function draggable(key: string): Attachment<HTMLElement> {
+	function draggable(key: ActionId): Attachment<HTMLElement> {
 		return (node) => {
 			let pointerId = -1;
 			let startX = 0;
@@ -371,8 +371,8 @@
 		if (!lift) return;
 		lift = { ...lift, lane: to, index };
 		if (narrow) lane = to;
-		said = where(card.key, to);
-		await focusCard(card.key);
+		said = where(card.id, to);
+		await focusCard(card.id);
 	}
 
 	async function onCardKey(event: KeyboardEvent, card: Card): Promise<void> {
@@ -385,10 +385,10 @@
 		if (event.repeat && take) return;
 
 		if (take && !held) {
-			const found = findCard(board, card.key);
+			const found = findCard(board, card.id);
 			if (!found || drag) return;
-			lift = { key: card.key, from: found.lane, fromIndex: found.index, lane: found.lane, index: found.index };
-			said = `Picked up ${card.text}. ${where(card.key, found.lane)}. Arrows carry it, Space puts it down, Escape puts it back.`;
+			lift = { id: card.id, from: found.lane, fromIndex: found.index, lane: found.lane, index: found.index };
+			said = `Picked up ${card.text}. ${where(card.id, found.lane)}. Arrows carry it, Space puts it down, Escape puts it back.`;
 			return;
 		}
 		if (!held) return;
@@ -397,32 +397,32 @@
 			lift = null;
 			const moved = held.lane !== held.from || ((held.lane === 'todo' || held.lane === 'doing') && held.index !== held.fromIndex);
 			if (moved) commit(card, held.from, held.lane, held.index);
-			said = moved ? `Put down in ${where(card.key, held.lane)}.` : 'Put down where it was.';
-			await focusCard(card.key);
+			said = moved ? `Put down in ${where(card.id, held.lane)}.` : 'Put down where it was.';
+			await focusCard(card.id);
 			return;
 		}
 		if (event.key === 'Escape') {
 			lift = null;
 			if (narrow) lane = held.from;
 			said = `Put back in ${LANE_NAMES[held.from]}.`;
-			await focusCard(card.key);
+			await focusCard(card.id);
 			return;
 		}
 		if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
 			const to = besideLane(card, held.lane, event.key === 'ArrowRight' ? 1 : -1);
 			if (!to) return;
-			const at = view[held.lane].filter(shown).findIndex((entry) => entry.key === card.key);
-			await carry(card, to, wholeIndex(restOf(to, card.key), shown, at));
+			const at = view[held.lane].filter(shown).findIndex((entry) => entry.id === card.id);
+			await carry(card, to, wholeIndex(restOf(to, card.id), shown, at));
 			return;
 		}
 		if (held.lane !== 'todo' && held.lane !== 'doing') {
 			said = held.lane === 'open' ? 'Open keeps the order of the chart.' : 'Done keeps the newest first.';
 			return;
 		}
-		const at = view[held.lane].filter(shown).findIndex((entry) => entry.key === card.key);
+		const at = view[held.lane].filter(shown).findIndex((entry) => entry.id === card.id);
 		const next = at + (event.key === 'ArrowDown' ? 1 : -1);
 		if (next < 0 || next >= view[held.lane].filter(shown).length) return;
-		await carry(card, held.lane, wholeIndex(restOf(held.lane, card.key), shown, next));
+		await carry(card, held.lane, wholeIndex(restOf(held.lane, card.id), shown, next));
 	}
 
 	type Entry = { id: string; card?: Card; source?: boolean; slot?: boolean; earlier?: boolean };
@@ -432,21 +432,21 @@
 		const cards = view[inLane].filter(shown);
 		let slotAt = -1;
 		if (current && current.lane === inLane && !current.tab && canGo(current.card, inLane)) {
-			slotAt = placed(board, current.card.key, inLane, current.index, today)[inLane]
+			slotAt = placed(board, current.card.id, inLane, current.index, today)[inLane]
 				.filter(shown)
-				.findIndex((card) => card.key === current.card.key);
+				.findIndex((card) => card.id === current.card.id);
 		}
 		const out: Entry[] = [];
 		let count = 0;
 		let past = false;
 		for (const card of cards) {
-			const source = current?.card.key === card.key;
+			const source = current?.card.id === card.id;
 			if (!source && count === slotAt) out.push({ id: 'slot', slot: true });
 			if (inLane === 'done' && !past && (card.doneAt ?? '') < monday && !source) {
 				past = true;
 				if (out.some((entry) => entry.card && !entry.source)) out.push({ id: 'earlier', earlier: true });
 			}
-			out.push({ id: card.key, card, source });
+			out.push({ id: card.id, card, source });
 			if (!source) count += 1;
 		}
 		if (slotAt >= count) out.push({ id: 'slot', slot: true });
@@ -461,12 +461,12 @@
 	};
 
 	let sheetOpen = $state(false);
-	let sheetKey = $state<string | null>(null);
+	let sheetKey = $state<ActionId | null>(null);
 	const sheet = $derived(sheetKey ? findCard(board, sheetKey) : null);
 
 	function openSheet(card: Card): void {
 		if (swallowClick || lift || drag) return;
-		sheetKey = card.key;
+		sheetKey = card.id;
 		sheetOpen = true;
 	}
 
@@ -482,7 +482,7 @@
 	function moveFromSheet(to: Lane): void {
 		const found = sheet;
 		if (!found) return;
-		commit(found.card, found.lane, to, restOf(to, found.card.key).length);
+		commit(found.card, found.lane, to, restOf(to, found.card.id).length);
 	}
 
 	function openInEditor(): void {
@@ -515,8 +515,8 @@
 		const pillarIndex = Number(addPillar);
 		const slot = chart.data.actions[pillarIndex]?.findIndex((action) => !action.trim()) ?? -1;
 		if (!text || addPillar === '' || slot < 0) return;
-		const key = actionKey(pillarIndex, slot);
-		chart.setText(key, text);
+		chart.setText(`a${pillarIndex}_${slot}`, text);
+		const key = idAt(chart.data, pillarIndex, slot);
 		if (addLane !== 'open') chart.moveCard(key, addLane, restOf(addLane, key).length);
 		addOpen = false;
 		if (narrow) lane = addLane;
@@ -529,9 +529,9 @@
 
 	function markOf(card: Card, inLane: Lane): { icon: 'check' | 'calendar' | 'refresh'; label: string } | null {
 		if (inLane === 'done') return { icon: 'check', label: shortDay(card.doneAt) };
-		if (card.routine && todayTicks.has(card.key)) return { icon: 'check', label: 'Today' };
-		if (todayFocus.has(card.key)) return { icon: 'calendar', label: 'Today' };
-		if (tomorrowFocus.has(card.key)) return { icon: 'calendar', label: 'Tomorrow' };
+		if (card.routine && todayTicks.has(card.id)) return { icon: 'check', label: 'Today' };
+		if (todayFocus.has(card.id)) return { icon: 'calendar', label: 'Today' };
+		if (tomorrowFocus.has(card.id)) return { icon: 'calendar', label: 'Tomorrow' };
 		if (card.routine) return { icon: 'refresh', label: 'Routine' };
 		return null;
 	}
@@ -546,13 +546,13 @@
 	{@const mark = markOf(card, inLane)}
 	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4 text-muted">
 		<span class="pillar-ink min-w-0 flex-1 truncate font-medium" style:--h={HUES[card.pillarIndex]}>{pillarName(card.pillarIndex)}</span>
-		{#if chart.metaOf(card.key)?.details}
+		{#if chart.metaOf(card.id)?.details}
 			<Icon name="file-text" size={12} class="shrink-0" />
 			<span class="sr-only">Has notes</span>
 		{/if}
 		{#if mark}
 			<span class="flex shrink-0 items-center gap-1">
-				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.key && 'motion-safe:animate-stamp')} />
+				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.id && 'motion-safe:animate-stamp')} />
 				{#if mark.icon === 'check'}<span class="sr-only">Done</span>{/if}
 				{mark.label}
 			</span>
@@ -563,9 +563,9 @@
 
 {#snippet cardItem(entry: Entry, inLane: Lane)}
 	{@const card = entry.card!}
-	{@const lifted = lift?.key === card.key}
+	{@const lifted = lift?.id === card.id}
 	<li
-		data-card={card.key}
+		data-card={card.id}
 		class={cn('min-w-0', entry.source && 'pointer-events-none absolute h-0 w-full overflow-hidden opacity-0')}
 		aria-hidden={entry.source ? 'true' : undefined}
 	>
@@ -584,7 +584,7 @@
 			onkeyup={(event) => {
 				if (event.key === ' ') event.preventDefault();
 			}}
-			{@attach draggable(card.key)}
+			{@attach draggable(card.id)}
 		>
 			{@render face(card, inLane)}
 		</button>

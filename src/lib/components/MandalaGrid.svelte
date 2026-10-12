@@ -5,6 +5,7 @@
 		cellKey,
 		describe,
 		getByKey,
+		idOfKey,
 		HUES,
 		idx,
 		info,
@@ -43,7 +44,8 @@
 	}
 
 	function metaOf(key: string): ActionMeta | undefined {
-		return data.meta?.[key];
+		const id = idOfKey(data, key);
+		return id ? data.meta?.[id] : undefined;
 	}
 
 	function hue(blockIndex: number, cellIndex: number): number | undefined {

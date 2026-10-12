@@ -20,7 +20,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { blockOfK, hasContent, todayKey, wholeness, type ChartData } from './model.ts';
+import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
@@ -29,10 +29,11 @@ export type HelperTarget = {
 	data(): ChartData;
 	applyDraft(next: ChartData): boolean;
 	setCells(edits: CellEdit[]): void;
-	setToday(keys: string[]): void;
-	pinWeek(keys: string[]): void;
-	showCell(key: string): void;
-	decline?(keys: string[]): void;
+	setToday(ids: ActionId[]): void;
+	pinWeek(ids: ActionId[]): void;
+	/** `ref` is a cell or an action's id. */
+	showCell(ref: string): void;
+	decline?(ids: ActionId[]): void;
 	noteShown?(signature: string): void;
 	openTool?(pillarIndex: number, id: string): void;
 	openCalendar?(): void;
@@ -78,7 +79,7 @@ export class HelperStore {
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
-	#swapped = new Set<string>();
+	#swapped = new Set<ActionId>();
 	#target: HelperTarget;
 	#chartId = '';
 
@@ -162,24 +163,24 @@ export class HelperStore {
 		this.reset();
 	}
 
-	swap(key: string): void {
+	swap(key: ActionId): void {
 		const current = this.picks;
 		if (!current) return;
 		this.#swapped.add(key);
 		if (current.scope === 'today') this.#target.decline?.([key]);
-		const keep = current.picks.filter((pick) => pick.key !== key);
-		const exclude = new Set([...current.picks.map((pick) => pick.key), ...this.#swapped]);
+		const keep = current.picks.filter((pick) => pick.id !== key);
+		const exclude = new Set([...current.picks.map((pick) => pick.id), ...this.#swapped]);
 		const data = this.#target.data();
 		const options = current.scope === 'today' ? suggestToday(data, new Date(), 8, exclude) : suggestWeek(data, 8, new Date(), exclude);
 		const taken = new Set(keep.map((pick) => pick.pillarIndex));
 		const next = options.find((pick) => !taken.has(pick.pillarIndex)) ?? options[0];
-		this.picks = { ...current, picks: next ? current.picks.map((pick) => (pick.key === key ? next : pick)) : keep };
+		this.picks = { ...current, picks: next ? current.picks.map((pick) => (pick.id === key ? next : pick)) : keep };
 	}
 
 	commit(): void {
 		const current = this.picks;
 		if (!current || current.picks.length === 0) return;
-		const keys = current.picks.map((pick) => pick.key);
+		const keys = current.picks.map((pick) => pick.id);
 		const pillars = current.picks.map((pick) => pick.pillarIndex);
 		if (current.scope === 'today') {
 			this.#target.setToday(keys);
@@ -192,7 +193,7 @@ export class HelperStore {
 
 	decline(): void {
 		const current = this.picks;
-		if (current?.scope === 'today') this.#target.decline?.(current.picks.map((pick) => pick.key));
+		if (current?.scope === 'today') this.#target.decline?.(current.picks.map((pick) => pick.id));
 		this.back();
 	}
 

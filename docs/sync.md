@@ -27,7 +27,8 @@ So a feature that saves something new has to decide where it goes, in the same c
 - **Newer charts are refused, not trimmed.** `parseChart` returns null for a `version` above `CHART_VERSION`, so an older app never drops fields it does not know and writes the rest back.
 - **Remote charts are read like local ones.** `fetchRow` runs `parseChart` on what the server sends, and fails loudly on a chart it cannot read instead of treating it as missing, which would let this device write over it.
 - **One record of done.** Today's tick, the board's Done, and the editor's Mark done write the action's `done`/`doneAt` and the day's tick together (`finish`, `reopen` in `board.ts`), so no view can disagree with another after a merge that keeps both halves.
-- **Ids are UUIDs**, for charts and for tools.
+- **Everything has an id that says what it is.** Charts, actions, tools, and shares get a TypeID from `id.ts`: `chart_…`, `action_…`, `tool_…`, `share_…`, then a UUIDv7 in base32, so ids sort by when they were made and fit a UUID column on a server. Days and weeks are keyed by their date, and pillars by their place, on purpose: two devices ticking the same day land in the same log, and a pillar's hue and angle belong to its place.
+- **An action is its id, not its cell.** `meta`, ticks, and a tool kept for an action point at `actionIds`, never at `a{k}_{j}`. A line keeps its id while its words change. A cleared line gets a new id, and what pointed at the old one stays with it: `cleared` keeps its words and place, so its days still name it, and the same words back in the same place bring it back whole. A duplicate, an import, or a share gets new action ids (`withNewIds`), so no two charts hold the same action.
 - **The prototype carries one chart.** Sync remembers the chart it was turned on for, and does not push or pull while another is open.
 
 ## Still to do before cloud sync
@@ -35,12 +36,11 @@ So a feature that saves something new has to decide where it goes, in the same c
 Ordered by how much each would cost to get wrong.
 
 1. **Sync the library, not the open chart.** One row per chart id, plus tombstones for deleted charts kept on the server for good. The prototype's single row cannot carry more than one chart.
-2. **Stable ids for actions.** An action is its slot (`a{k}_{j}`). If one device rewrites a line while another ticks it, the tick lands on the new words. Give each action an id that survives a rewrite, and key `meta`, ticks, and tools by it.
-3. **Merge per field, not per chart.** Today the library takes the later chart whole, and the prototype replaces a whole day log, so two devices ticking on the same day lose one side. Use per-field last write wins with a hybrid logical clock, and set union for `checked`, `focus`, and `dropped`. Merge tools by id.
-4. **Compare and swap on the server.** The PUT reads, then writes. Send the version it read (`If-Match`), answer 412 when it moved, and merge again.
-5. **Ranks set only on the card that moved.** To do and Doing renumber the whole list on every move, so two devices moving cards touch many keys and collide. Use fractional ranks between the neighbours. `rank` on a done card is a timestamp; give it its own field.
-6. **Times with a zone.** Day keys and `doneAt` are local dates, and tick times are local `HH:MM`. Keep the date keys (they are what the person lived), and store a UTC time with the offset beside each tick, so two devices in different zones agree on order.
-7. **The open chart is the device's.** `activeId` lives inside the library; move it to a device key so syncing does not switch charts under someone.
-8. **Room to grow.** Site icons can reach 96KB each; store them once by content hash outside the chart. Move the library from `localStorage` (about 5MB) to IndexedDB before `days` and the trash outgrow it.
-9. **Pushes that wait.** A push skipped while another runs is not retried, and nothing goes out as the page closes. Keep a queue of pending changes and drain it.
-10. **Share ownership on the server.** A share's update secret lives on the device that published it, so another device cannot update it. Tie shares to the account once there is one.
+2. **Merge per field, not per chart.** Today the library takes the later chart whole, and the prototype replaces a whole day log, so two devices ticking on the same day lose one side. Use per-field last write wins with a hybrid logical clock, and set union for `checked`, `focus`, and `dropped`. Merge tools by id. Merge a cell's id and words as one value, and when one side cleared a line the other side ticked, write its `cleared` record in the merge.
+3. **Compare and swap on the server.** The PUT reads, then writes. Send the version it read (`If-Match`), answer 412 when it moved, and merge again.
+4. **Ranks set only on the card that moved.** To do and Doing renumber the whole list on every move, so two devices moving cards touch many keys and collide. Use fractional ranks between the neighbours. `rank` on a done card is a timestamp; give it its own field.
+5. **Times with a zone.** Day keys and `doneAt` are local dates, and tick times are local `HH:MM`. Keep the date keys (they are what the person lived), and store a UTC time with the offset beside each tick, so two devices in different zones agree on order.
+6. **The open chart is the device's.** `activeId` lives inside the library; move it to a device key so syncing does not switch charts under someone.
+7. **Room to grow.** Site icons can reach 96KB each; store them once by content hash outside the chart. Move the library from `localStorage` (about 5MB) to IndexedDB before `days` and the trash outgrow it.
+8. **Pushes that wait.** A push skipped while another runs is not retried, and nothing goes out as the page closes. Keep a queue of pending changes and drain it.
+9. **Share ownership on the server.** A share's update secret lives on the device that published it, so another device cannot update it. Tie shares to the account once there is one.

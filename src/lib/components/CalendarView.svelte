@@ -60,7 +60,7 @@
 
 	function openEntry(entry: GoalDone): void {
 		if (entry.goal !== chart.activeId) chart.switchChart(entry.goal);
-		chart.jumpToKey(entry.key);
+		chart.jumpToKey(entry.id);
 	}
 
 	function go(by: 1 | -1): void {
@@ -221,7 +221,7 @@
 						{/if}
 						{#if group.done.length > 0}
 							<ul class="m-0 flex list-none flex-col gap-px p-0">
-								{#each group.done as entry, index (entry.key)}
+								{#each group.done as entry, index (entry.id)}
 									<li class="motion-safe:animate-pop-in" style:animation-delay="{(groupIndex * 2 + index) * 45}ms">
 										<button
 											type="button"

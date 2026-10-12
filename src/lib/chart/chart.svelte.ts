@@ -15,6 +15,8 @@ import {
   getWeekReflection,
   hasContent,
   idx,
+  isActionId,
+  keyOf,
   pillarActivityLast7,
   progressMilestones,
   reflectionWeekOf,
@@ -25,6 +27,8 @@ import {
   weekHadTicks,
   weekStartKey,
   wholeness,
+  withNewIds,
+  type ActionId,
   type ActionMeta,
   type ChartBrief,
   type ChartData,
@@ -780,35 +784,36 @@ export class ChartStore {
     this.#landedTimer = setTimeout(() => (this.landed = null), 3200);
   }
 
-  textOf(key: string): string {
-    return getByKey(this.data, key);
+  /** `ref` is a cell or an action's id. */
+  textOf(ref: string): string {
+    return getByKey(this.data, ref);
   }
 
-  metaOf(key: string): ActionMeta | undefined {
-    return getMeta(this.data, key);
+  metaOf(id: ActionId): ActionMeta | undefined {
+    return getMeta(this.data, id);
   }
 
-  setActionMeta(key: string, patch: Partial<ActionMeta>): void {
-    setMeta(this.data, key, patch);
+  setActionMeta(id: ActionId, patch: Partial<ActionMeta>): void {
+    setMeta(this.data, id, patch);
     this.data = { ...this.data };
     this.save();
   }
 
-  toggleDone(key: string): void {
-    if (getMeta(this.data, key)?.done) this.reopen(key);
-    else this.finish(key);
+  toggleDone(id: ActionId): void {
+    if (getMeta(this.data, id)?.done) this.reopen(id);
+    else this.finish(id);
   }
 
-  finish(key: string): void {
-    this.#apply(finishAction(this.data, key, this.today));
+  finish(id: ActionId): void {
+    this.#apply(finishAction(this.data, id, this.today));
   }
 
-  reopen(key: string): void {
-    this.#apply(reopenAction(this.data, key, this.today));
+  reopen(id: ActionId): void {
+    this.#apply(reopenAction(this.data, id, this.today));
   }
 
-  moveCard(key: string, lane: Lane, index: number): boolean {
-    const change = cardMove(this.data, key, lane, index, this.today);
+  moveCard(id: ActionId, lane: Lane, index: number): boolean {
+    const change = cardMove(this.data, id, lane, index, this.today);
     if (!change) return false;
     this.#apply(change);
     return true;
@@ -821,23 +826,23 @@ export class ChartStore {
   }
 
   /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
-  setFocus(dateKey: string, keys: string[], replaced = false): void {
+  setFocus(dateKey: string, ids: ActionId[], replaced = false): void {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    const removed = replaced ? [] : existing.focus.filter((key) => !keys.includes(key));
-    const dropped = [...(existing.dropped ?? []).filter((key) => !keys.includes(key)), ...removed];
-    const log: DayLog = { ...existing, focus: keys, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
+    const removed = replaced ? [] : existing.focus.filter((id) => !ids.includes(id));
+    const dropped = [...(existing.dropped ?? []).filter((id) => !ids.includes(id)), ...removed];
+    const log: DayLog = { ...existing, focus: ids, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
     this.data.days[dateKey] = log;
     this.data = { ...this.data };
     this.save();
   }
 
-  declineToday(keys: string[]): void {
-    if (keys.length === 0) return;
+  declineToday(ids: ActionId[]): void {
+    if (ids.length === 0) return;
     if (!this.data.days) this.data.days = {};
     const dateKey = this.today;
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...keys])] };
+    this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...ids])] };
     this.data = { ...this.data };
     this.save();
   }
@@ -937,7 +942,7 @@ export class ChartStore {
 
   saveWeekReflection(
     weekKey: string,
-    patch: Partial<{ note: string; swapped: string[] }>,
+    patch: Partial<{ note: string }>,
   ): void {
     if (!this.data.weeks) this.data.weeks = {};
     const existing = getWeekReflection(this.data, weekKey);
@@ -1201,7 +1206,10 @@ export class ChartStore {
     return exportText(this.data);
   }
 
-  jumpToKey(key: string): void {
+  /** `ref` is a cell or an action's id. */
+  jumpToKey(ref: string): void {
+    const key = isActionId(ref) ? keyOf(this.data, ref) : ref;
+    if (!key) return;
     this.select(blockOfKey(key));
     this.face = "actions";
     this.focusedKey = key;
@@ -1328,7 +1336,7 @@ export class ChartStore {
     const record = newRecord(emptyChart());
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
-    this.data = emptyChart();
+    this.data = cloneChart(record.data);
     this.#resetView();
     const held = this.#copySlips();
     this.saveNow();
@@ -1452,7 +1460,7 @@ export class ChartStore {
 
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
-      this.data = cloneChart(next);
+      this.data = withNewIds(next);
       this.#resetView();
       this.saveNow();
       if (message) this.say(message);
@@ -1462,7 +1470,7 @@ export class ChartStore {
     const record = newRecord(next);
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
-    this.data = cloneChart(next);
+    this.data = cloneChart(record.data);
     this.#resetView();
     this.saveNow();
     if (message) this.say(message);

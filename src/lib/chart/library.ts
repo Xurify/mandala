@@ -1,7 +1,9 @@
+import { newId } from './id.ts';
 import {
 	emptyChart,
 	filledCount,
 	parseChart,
+	withNewIds,
 	type ChartData
 } from './model.ts';
 
@@ -132,18 +134,11 @@ export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibr
 	return { ...library, deleted };
 }
 
-export function newId(): string {
-	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-		return crypto.randomUUID();
-	}
-	return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
 export function newRecord(data: ChartData, at = Date.now()): ChartRecord {
 	return {
-		id: newId(),
+		id: newId('chart', at),
 		updatedAt: at,
-		data: cloneChart(data)
+		data: withNewIds(data)
 	};
 }
 

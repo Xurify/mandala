@@ -1,4 +1,4 @@
-import type { ActionMeta, ChartBrief, ChartData, DayLog, Tool, WeekReflection } from './model.ts';
+import type { ActionMeta, ChartBrief, ChartData, ClearedAction, DayLog, Tool, WeekReflection } from './model.ts';
 
 /**
  * Where each piece of saved data may travel. `shared`: with anyone, by link or published share, and between your
@@ -16,12 +16,14 @@ export const CHART: Record<keyof ChartData, Reach> = {
 	goal: 'shared',
 	pillars: 'shared',
 	actions: 'shared',
+	actionIds: 'shared',
 	meta: 'shared',
 	days: 'shared',
 	weeks: 'shared',
 	tools: 'shared',
 	brief: 'yours',
-	icons: 'yours'
+	icons: 'yours',
+	cleared: 'shared'
 };
 
 export const ACTION_META: Record<keyof ActionMeta, Reach> = {
@@ -47,7 +49,6 @@ export const DAY_LOG: Record<keyof DayLog, Reach> = {
 
 export const WEEK: Record<keyof WeekReflection, Reach> = {
 	note: 'shared',
-	swapped: 'shared',
 	dismissed: 'shared',
 	savedAt: 'shared'
 };
@@ -60,6 +61,12 @@ export const TOOL: Record<keyof Tool, Reach> = {
 	action: 'shared',
 	known: 'yours',
 	opened: 'yours'
+};
+
+export const CLEARED: Record<keyof ClearedAction, Reach> = {
+	text: 'shared',
+	pillar: 'shared',
+	slot: 'shared'
 };
 
 export const BRIEF: Record<keyof ChartBrief, Reach> = {

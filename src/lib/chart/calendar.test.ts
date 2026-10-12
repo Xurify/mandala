@@ -1,35 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import { dayTitle, doneOn, openedOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth, type Goal } from './calendar.ts';
+import { A, slotted } from './fixtures.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function chart(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Speak Slovak';
 	data.pillars[0] = 'Listening';
 	data.pillars[2] = 'Speaking';
 	data.actions[0] = ['Play audio at breakfast', 'Shadow a clip', '', '', '', '', '', ''];
 	data.actions[2] = ['Say one new sentence', '', '', '', '', '', '', ''];
 	data.days = {
-		'2026-10-09': { focus: ['a0_0', 'a2_0'], checked: ['a2_0', 'a0_0', 'a0_1'], at: { a2_0: '19:10', a0_0: '07:30', a0_1: '12:00' } },
-		'2026-10-10': { focus: ['a0_1'], checked: [] },
-		'2026-09-28': { focus: ['a0_0'], checked: ['a0_0'] }
+		'2026-10-09': { focus: [A.a0_0, A.a2_0], checked: [A.a2_0, A.a0_0, A.a0_1], at: { [A.a2_0]: '19:10', [A.a0_0]: '07:30', [A.a0_1]: '12:00' } },
+		'2026-10-10': { focus: [A.a0_1], checked: [] },
+		'2026-09-28': { focus: [A.a0_0], checked: [A.a0_0] }
 	};
-	data.meta = { a0_1: { kind: 'milestone', done: true, doneAt: '2026-10-09' } };
+	data.meta = { [A.a0_1]: { kind: 'milestone', done: true, doneAt: '2026-10-09' } };
 	return data;
 }
 
 const mine = (): Goal[] => [{ id: 'slovak', title: 'Speak Slovak', data: chart() }];
 
 function running(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Run a half marathon';
 	data.actions[1]![0] = 'Run 5 km';
-	data.days = { '2026-10-09': { focus: [], checked: ['a1_0'], at: { a1_0: '06:40' } } };
+	data.days = { '2026-10-09': { focus: [], checked: [A.a1_0], at: { [A.a1_0]: '06:40' } } };
 	return data;
 }
 
 function saving(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Save for a trip';
 	data.actions[3]![0] = 'Move 50 to savings';
 	return data;
@@ -52,7 +53,7 @@ describe('openedOn', () => {
 describe('doneOn', () => {
 	it('lists what was finished in the order it happened, and says which closed a milestone', () => {
 		const done = doneOn(chart(), '2026-10-09');
-		expect(done.map((entry) => entry.key)).toEqual(['a0_0', 'a0_1', 'a2_0']);
+		expect(done.map((entry) => entry.id)).toEqual([A.a0_0, A.a0_1, A.a2_0]);
 		expect(done[0]).toMatchObject({ text: 'Play audio at breakfast', pillarIndex: 0, at: '07:30', milestone: false });
 		expect(done[1]).toMatchObject({ text: 'Shadow a clip', milestone: true });
 		expect(doneOn(chart(), '2026-10-10')).toEqual([]);
@@ -121,11 +122,11 @@ describe('across goals', () => {
 		const month = monthOf(goals(), 2026, 9, now);
 		const ninth = month.weeks[1]![4]!;
 		expect(ninth.goals).toEqual(['slovak', 'run']);
-		expect(ninth.done.map((entry) => [entry.goal, entry.key, entry.at])).toEqual([
-			['slovak', 'a0_0', '07:30'],
-			['slovak', 'a0_1', '12:00'],
-			['slovak', 'a2_0', '19:10'],
-			['run', 'a1_0', '06:40']
+		expect(ninth.done.map((entry) => [entry.goal, entry.id, entry.at])).toEqual([
+			['slovak', A.a0_0, '07:30'],
+			['slovak', A.a0_1, '12:00'],
+			['slovak', A.a2_0, '19:10'],
+			['run', A.a1_0, '06:40']
 		]);
 		expect(month.moved).toEqual(['slovak', 'run']);
 		expect(month.quiet).toEqual(['save']);
@@ -134,7 +135,7 @@ describe('across goals', () => {
 
 	it('starts at the first month any goal finished something', () => {
 		const later = running();
-		later.days = { '2026-11-02': { focus: [], checked: ['a1_0'] } };
+		later.days = { '2026-11-02': { focus: [], checked: [A.a1_0] } };
 		expect(firstDoneMonth([{ id: 'run', title: 'Run', data: later }, ...mine()])).toEqual({ year: 2026, month: 8 });
 	});
 });

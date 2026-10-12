@@ -32,7 +32,9 @@ src/
   routes/+layout.svelte       fonts, app.css, theme-color metas, favicon
   routes/+page.svelte         mounts ChartApp
   lib/chart/
-    model.ts                  chart data model, HUES, block/cell indexing (pure, tested)
+    model.ts                  chart data model, HUES, block/cell indexing, action ids (pure, tested)
+    id.ts                     prefixed, sortable ids (TypeID): chart_, action_, tool_, share_
+    fixtures.ts               for tests: `A.a0_0`, an id that names its cell, and `slotted` to give a chart those ids
     chart.svelte.ts           ChartStore singleton `chart`: state, persistence, theme, view mode
     ring.ts                   ring geometry (PILLAR_ANGLES, pillarArc, arcPath) + OKLCH→sRGB + BRAND colors
     library.ts                multiple saved charts
@@ -72,6 +74,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 - A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
+- Saved things have ids from `id.ts`: `chart_`, `action_`, `tool_`, `share_`, then a sortable UUIDv7. A new kind of saved thing gets its own prefix there. `meta`, day logs, and tools point at an action by its id (`ActionId`), never by its cell; `a{k}_{j}` is only a place on the grid. Convert with `idAt`, `slotOf`, `keyOf`, and `idOfKey` in `model.ts`. A cleared line gets a new id (`setByKey`), and a copy gets new ids for all (`withNewIds`). Tests name actions with `A.a0_0` from `fixtures.ts`.
 - Saved data has a place in the sync contract (`contract.ts`, `docs/sync.md`). A new field on a saved type fails `bun run check` until it is placed, and a new `localStorage` key fails `contract.test.ts` until `BROWSER_KEYS` lists it. Decide where it goes in the same change, and keep what is not `shared` out of `forSharing`.
 - Saved charts carry a `version` (`CHART_VERSION` in `model.ts`), stamped by `parseChart`, which every chart passes through on load, import, share, and sync. There are no users yet, so there is no upgrade or legacy code: change the shape of saved data freely, and don't add a fallback for an old shape. Write upgrades in `parseChart` once people have data to keep.
 - Done is one record across Today, the board, the editor, and the calendar: the action's `done`/`doneAt` and the day's tick are written together. Finish or reopen with `chart.finish` / `chart.reopen` (or `chart.moveCard`), never by writing one of them alone. Ask `finishedOn` in `board.ts` whether something was finished on a day.

@@ -1,7 +1,7 @@
-import { dateKeyOf, getByKey, hasContent, type ChartData, type Tool } from './model.ts';
+import { dateKeyOf, hasContent, pillarOfAction, wordsOf, type ActionId, type ChartData, type Tool } from './model.ts';
 
 export type DayDone = {
-	key: string;
+	id: ActionId;
 	text: string;
 	pillarIndex: number;
 	/** Local time of the tick, "HH:MM", when the log kept it. */
@@ -39,20 +39,15 @@ export type Month = {
 	quiet: string[];
 };
 
-function pillarOf(key: string): number {
-	return Number(key.slice(1).split('_')[0]);
-}
-
 export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	const log = data.days?.[dateKey];
 	const out: DayDone[] = [];
-	const seen = new Set<string>();
-	for (const key of log?.checked ?? []) {
-		if (!key.startsWith('a') || seen.has(key)) continue;
-		seen.add(key);
-		const meta = data.meta?.[key];
+	for (const id of new Set(log?.checked ?? [])) {
+		const pillarIndex = pillarOfAction(data, id);
+		if (pillarIndex === null) continue;
+		const meta = data.meta?.[id];
 		const milestone = meta?.kind === 'milestone' && meta.done === true && meta.doneAt === dateKey;
-		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), at: log?.at?.[key], milestone });
+		out.push({ id, text: wordsOf(data, id) || 'A line since removed', pillarIndex, at: log?.at?.[id], milestone });
 	}
 	out.sort((a, b) => (a.at ?? '99').localeCompare(b.at ?? '99'));
 	return out;

@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { weekInReview } from '$lib/chart/helper';
-	import { HUES } from '$lib/chart/model';
+	import { HUES, type ActionId } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import Icon from './Icon.svelte';
 	import WeekStrip from './WeekStrip.svelte';
@@ -40,7 +40,7 @@
 	let step = $state<Step>('week');
 	let direction = $state(1);
 	let note = $state('');
-	let editingKey = $state<string | null>(null);
+	let editingKey = $state<ActionId | null>(null);
 	let expanded = $state<number | null>(null);
 	/** The pillars the week moved, held when it is saved, so the ring draws what was true then. */
 	let sealed = $state<number[]>([]);
@@ -107,7 +107,7 @@
 		return () => node.removeEventListener('input', grow);
 	}
 
-	function onkeydown(event: KeyboardEvent, key: string): void {
+	function onkeydown(event: KeyboardEvent, key: ActionId): void {
 		if (event.key === 'Enter') {
 			event.preventDefault();
 			(event.currentTarget as HTMLTextAreaElement).blur();
@@ -131,8 +131,8 @@
 	</span>
 {/snippet}
 
-{#snippet rewrite(entry: { key: string; text: string }, pillarIndex: number, lead: boolean)}
-	{#if editingKey === entry.key}
+{#snippet rewrite(entry: { id: ActionId; text: string }, pillarIndex: number, lead: boolean)}
+	{#if editingKey === entry.id}
 		<div class={cn(row, 'flex-1 bg-sunken shadow-[inset_0_0_0_1.5px_var(--ink)]')}>
 			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
@@ -142,10 +142,10 @@
 					maxlength="120"
 					aria-label="Rewrite {entry.text}"
 					onblur={() => {
-						if (editingKey === entry.key) editingKey = null;
+						if (editingKey === entry.id) editingKey = null;
 					}}
-					onchange={(event) => chart.setText(entry.key, event.currentTarget.value.replace(/\s+/g, ' ').trim())}
-					onkeydown={(event) => onkeydown(event, entry.key)}
+					onchange={(event) => chart.setText(entry.id, event.currentTarget.value.replace(/\s+/g, ' ').trim())}
+					onkeydown={(event) => onkeydown(event, entry.id)}
 					{@attach focusField}>{entry.text}</textarea
 				>
 				{#if lead}
@@ -157,7 +157,7 @@
 		<button
 			type="button"
 			class={cn(row, 'group/line flex-1 cursor-pointer border-0 bg-transparent text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink')}
-			onclick={() => (editingKey = entry.key)}
+			onclick={() => (editingKey = entry.id)}
 		>
 			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
@@ -240,7 +240,7 @@
 					{:else if at === 'closed'}
 						{#if review.closed.length > 0}
 							<ul class="-mx-3 m-0 flex list-none flex-col gap-0.5 p-0">
-								{#each review.closed as milestone, position (milestone.key)}
+								{#each review.closed as milestone, position (milestone.id)}
 									<li class={row}>
 										<span
 											class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface motion-safe:animate-stamp"
@@ -288,7 +288,7 @@
 									</div>
 									{#if expanded === pillar.pillarIndex}
 										<div class="flex flex-col motion-safe:animate-pop-in">
-											{#each pillar.rest as action (action.key)}
+											{#each pillar.rest as action (action.id)}
 												{@render rewrite(action, pillar.pillarIndex, false)}
 											{/each}
 										</div>

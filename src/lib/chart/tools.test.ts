@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { A, slotted } from './fixtures.ts';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealKeys, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, upNext, videoId } from './tools.ts';
+import { dealOrder, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
 
 function chart(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Hold a conversation in Slovak';
 	data.pillars[1] = 'Listening';
 	data.actions[1] = ['Watch one vlog at breakfast', 'Shadow a clip after lunch', '', '', '', '', '', ''];
-	data.meta = { a1_0: { kind: 'routine' } };
+	data.meta = { [A.a1_0]: { kind: 'routine' } };
 	return data;
 }
 
@@ -45,10 +46,10 @@ describe('links', () => {
 describe('the shelf', () => {
 	it('hands unassigned tools to routines, and named ones to their action', () => {
 		const data = chart();
-		data.tools = { p1: [tool('a'), tool('b', { action: 1 }), tool('c', { action: 0 })] };
-		expect(toolsFor(data, 'a1_0').map((entry) => entry.id)).toEqual(['a', 'c']);
-		expect(toolsFor(data, 'a1_1').map((entry) => entry.id)).toEqual(['b']);
-		expect(toolsFor(data, 'a2_0')).toEqual([]);
+		data.tools = { p1: [tool('a'), tool('b', { action: A.a1_1 }), tool('c', { action: A.a1_0 })] };
+		expect(toolsFor(data, A.a1_0).map((entry) => entry.id)).toEqual(['a', 'c']);
+		expect(toolsFor(data, A.a1_1).map((entry) => entry.id)).toEqual(['b']);
+		expect(toolsFor(data, A.a2_0)).toEqual([]);
 	});
 
 	it('rotates: never opened first, then the one that waited longest, holding still within a day', () => {
@@ -56,48 +57,48 @@ describe('the shelf', () => {
 		data.tools = {
 			p1: [tool('a', { opened: [day(-1)] }), tool('b', { opened: [day(-5)] }), tool('c'), tool('d', { known: true })]
 		};
-		expect(nextTool(data, 'a1_0', now)?.id).toBe('c');
-		expect(nextTool(data, 'a1_0', now)?.id).toBe('c');
-		expect(nextTool(data, 'a1_0', now, new Set(['c']))?.id).toBe('b');
+		expect(nextTool(data, A.a1_0, now)?.id).toBe('c');
+		expect(nextTool(data, A.a1_0, now)?.id).toBe('c');
+		expect(nextTool(data, A.a1_0, now, new Set(['c']))?.id).toBe('b');
 		data.tools.p1 = data.tools.p1!.map((entry) => (entry.id === 'c' ? opened(entry, now) : entry));
 		// Opened today, c steps aside for the rest; once they are all opened today it comes round again.
-		expect(nextTool(data, 'a1_0', now)?.id).toBe('b');
+		expect(nextTool(data, A.a1_0, now)?.id).toBe('b');
 		data.tools.p1 = data.tools.p1!.map((entry) => (entry.known ? entry : opened(entry, now)));
-		expect(nextTool(data, 'a1_0', now)).not.toBeNull();
+		expect(nextTool(data, A.a1_0, now)).not.toBeNull();
 	});
 
 	it('deals different tools to two routines, and passes over one without moving the other', () => {
 		const data = chart();
-		data.meta = { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' } };
+		data.meta = { [A.a1_0]: { kind: 'routine' }, [A.a1_1]: { kind: 'routine' } };
 		data.tools = { p1: [tool('a'), tool('b'), tool('c')] };
-		const dealt = dealTools(data, ['a1_0', 'a1_1'], now);
-		expect(dealt.get('a1_0')?.id).not.toBe(dealt.get('a1_1')?.id);
-		const first = dealt.get('a1_0')!.id;
-		const passed = new Map([['a1_1', new Set([dealt.get('a1_1')!.id])]]);
-		const again = dealTools(data, ['a1_0', 'a1_1'], now, passed);
-		expect(again.get('a1_0')?.id).toBe(first);
-		expect(again.get('a1_1')?.id).not.toBe(dealt.get('a1_1')?.id);
-		expect(again.get('a1_1')?.id).not.toBe(first);
+		const dealt = dealTools(data, [A.a1_0, A.a1_1], now);
+		expect(dealt.get(A.a1_0)?.id).not.toBe(dealt.get(A.a1_1)?.id);
+		const first = dealt.get(A.a1_0)!.id;
+		const passed = new Map([[A.a1_1, new Set([dealt.get(A.a1_1)!.id])]]);
+		const again = dealTools(data, [A.a1_0, A.a1_1], now, passed);
+		expect(again.get(A.a1_0)?.id).toBe(first);
+		expect(again.get(A.a1_1)?.id).not.toBe(dealt.get(A.a1_1)?.id);
+		expect(again.get(A.a1_1)?.id).not.toBe(first);
 		// Passing over everything starts the shelf round again instead of leaving the row empty.
-		const all = new Map([['a1_1', new Set(['a', 'b', 'c'])]]);
-		expect(dealTools(data, ['a1_0', 'a1_1'], now, all).get('a1_1')).not.toBeNull();
+		const all = new Map([[A.a1_1, new Set(['a', 'b', 'c'])]]);
+		expect(dealTools(data, [A.a1_0, A.a1_1], now, all).get(A.a1_1)).not.toBeNull();
 	});
 
 	it('deals in the order Today does: pinned routines, other routines, then the rest', () => {
 		const data = chart();
 		data.actions[0] = ['Say hello', '', '', '', '', '', '', ''];
-		data.meta = { a1_1: { kind: 'routine', pinned: true }, a1_0: { kind: 'routine' } };
-		expect(dealKeys(data)).toEqual(['a1_1', 'a1_0', 'a0_0']);
+		data.meta = { [A.a1_1]: { kind: 'routine', pinned: true }, [A.a1_0]: { kind: 'routine' } };
+		expect(dealOrder(data)).toEqual([A.a1_1, A.a1_0, A.a0_0]);
 	});
 
 	it('shows on the shelf what each action hands out next, the same as Today', () => {
 		const data = chart();
-		data.meta = { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' } };
-		data.tools = { p1: [tool('a', { opened: [day(-1)] }), tool('b'), tool('c', { action: 1 }), tool('d', { known: true })] };
-		const dealt = dealTools(data, dealKeys(data), now);
+		data.meta = { [A.a1_0]: { kind: 'routine' }, [A.a1_1]: { kind: 'routine' } };
+		data.tools = { p1: [tool('a', { opened: [day(-1)] }), tool('b'), tool('c', { action: A.a1_1 }), tool('d', { known: true })] };
+		const dealt = dealTools(data, dealOrder(data), now);
 		const next = upNext(data, 1, now);
-		expect(next.get(dealt.get('a1_0')!.id)).toBe(0);
-		expect(next.get(dealt.get('a1_1')!.id)).toBe(1);
+		expect(next.get(dealt.get(A.a1_0)!.id)).toBe(0);
+		expect(next.get(dealt.get(A.a1_1)!.id)).toBe(1);
 		expect(next.has('d')).toBe(false);
 		expect(upNext(data, 2, now).size).toBe(0);
 	});
@@ -120,9 +121,9 @@ describe('the shelf', () => {
 
 	it('survives save and load, and drops what is not a tool', () => {
 		const data = chart();
-		data.tools = { p1: [tool('a', { action: 1, opened: [day(-1)] })], p9: [tool('x')] };
+		data.tools = { p1: [tool('a', { action: A.a1_1, opened: [day(-1)] })], p9: [tool('x')] };
 		const loaded = parseChart(JSON.stringify({ ...data, tools: { ...data.tools, p2: [{ id: 'bad', url: 'not a link' }, 'junk'] } }));
-		expect(loaded?.tools).toEqual({ p1: [tool('a', { action: 1, opened: [day(-1)] })] });
+		expect(loaded?.tools).toEqual({ p1: [tool('a', { action: A.a1_1, opened: [day(-1)] })] });
 	});
 
 	it('gives every tool on a site the icon the person set for it', () => {

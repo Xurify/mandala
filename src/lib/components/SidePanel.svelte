@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
+	import { cellKey, describe, HUES, idOfKey, idx, info, isUrl, POS, slotOf, type ActionId } from '$lib/chart/model';
 	import {
 		FIELD_FONT_MIN_PX,
 		largestSizeThatFits,
@@ -66,6 +66,8 @@
 	const activeActionKey = $derived(
 		effectiveCellIndex !== null ? cellKey(chart.sel, effectiveCellIndex) : null
 	);
+	const activeActionId = $derived(activeActionKey ? idOfKey(chart.data, activeActionKey) : null);
+	const idIn = (cellIndex: number): ActionId | null => idOfKey(chart.data, cellKey(chart.sel, cellIndex));
 
 	const onShelf = $derived(chart.sel !== 4 && chart.face === 'shelf');
 	const shelfCount = $derived(chart.sel === 4 ? 0 : shelfOf(chart.data, idx(chart.sel)).length);
@@ -100,24 +102,23 @@
 		return () => observer.disconnect();
 	};
 
-	const handedOut = $derived(activeActionKey ? toolsFor(chart.data, activeActionKey).filter((tool) => !tool.known).length : 0);
+	const handedOut = $derived(activeActionId ? toolsFor(chart.data, activeActionId).filter((tool) => !tool.known).length : 0);
 
-	function shelve(key: string, url: string, fromNote = false): void {
-		const match = key.match(/^a(\d)_(\d)$/);
-		if (!match) return;
-		const pillarIndex = Number(match[1]);
-		const tool = chart.addTool(pillarIndex, url);
-		chart.updateTool(pillarIndex, tool.id, { action: Number(match[2]) });
-		if (fromNote) chart.setActionMeta(key, { note: undefined });
-		void fetchTitle(url).then((title) => title && chart.updateTool(pillarIndex, tool.id, { title }));
-		chart.say(`Put on the shelf for action ${Number(match[2]) + 1}.`);
+	function shelve(id: ActionId, url: string, fromNote = false): void {
+		const at = slotOf(chart.data, id);
+		if (!at) return;
+		const tool = chart.addTool(at.pillarIndex, url);
+		chart.updateTool(at.pillarIndex, tool.id, { action: id });
+		if (fromNote) chart.setActionMeta(id, { note: undefined });
+		void fetchTitle(url).then((title) => title && chart.updateTool(at.pillarIndex, tool.id, { title }));
+		chart.say(`Put on the shelf for action ${at.slot + 1}.`);
 	}
 
-	function pasteNote(event: ClipboardEvent, key: string): void {
+	function pasteNote(event: ClipboardEvent, id: ActionId): void {
 		const url = linkIn(event.clipboardData?.getData('text') ?? '');
 		if (!url) return;
 		event.preventDefault();
-		shelve(key, url);
+		shelve(id, url);
 	}
 
 	const panelTitle = $derived.by(() => {
@@ -542,8 +543,9 @@
 										{/if}
 									</span>
 									{#if info(chart.sel, cellIndex).type === 'action'}
-										{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
-										{@const shelved = toolsFor(chart.data, cellKey(chart.sel, cellIndex)).filter((tool) => !tool.known).length}
+										{@const actionId = idIn(cellIndex)!}
+										{@const actionMeta = chart.metaOf(actionId)}
+										{@const shelved = toolsFor(chart.data, actionId).filter((tool) => !tool.known).length}
 										{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
 											<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
 												{#if actionMeta?.pinned}
@@ -575,7 +577,7 @@
 										info(chart.sel, cellIndex).type === 'action' &&
 											'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 										info(chart.sel, cellIndex).type === 'action' &&
-											chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
+											chart.metaOf(idIn(cellIndex)!)?.done &&
 											'line-through opacity-60 text-muted',
 										isPanelCellHighlighted(cellIndex) && 'highlight',
 										activePulseIndex === cellIndex && 'motion-safe:animate-target',
@@ -617,9 +619,9 @@
 						{/each}
 					</div>
 
-					{#if activeActionKey && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
-						{@const meta = chart.metaOf(activeActionKey)}
-						{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
+					{#if activeActionId && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
+						{@const meta = chart.metaOf(activeActionId)}
+						{@const actionHasText = chart.textOf(activeActionId).trim().length > 0}
 						{#if actionHasText}
 							<div class="mt-4 flex flex-col gap-2.5">
 								<div class="flex flex-wrap items-center justify-between gap-2">
@@ -631,7 +633,7 @@
 											options={actionKinds}
 											value={meta?.kind ?? 'standard'}
 											onchange={(value) => {
-												chart.setActionMeta(activeActionKey, {
+												chart.setActionMeta(activeActionId, {
 													kind: value === 'routine' || value === 'milestone' ? value : undefined
 												});
 											}}
@@ -645,7 +647,7 @@
 												variant={meta?.pinned ? 'soft' : 'ghost'}
 												icon="pin"
 												aria-pressed={Boolean(meta?.pinned)}
-												onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
+												onclick={() => chart.setActionMeta(activeActionId, { pinned: !meta?.pinned })}
 											>
 												{meta?.pinned ? 'Pinned' : 'Pin'}
 											</Button>
@@ -656,7 +658,7 @@
 												variant={meta?.done ? 'soft' : 'ghost'}
 												icon="check"
 												aria-pressed={Boolean(meta?.done)}
-												onclick={() => chart.toggleDone(activeActionKey)}
+												onclick={() => chart.toggleDone(activeActionId)}
 											>
 												{meta?.done ? 'Completed' : 'Mark done'}
 											</Button>
@@ -674,14 +676,14 @@
 										placeholder="Add a note, like a chapter or a page"
 										aria-label="Note for action {idx(effectiveCellIndex) + 1}"
 										value={meta?.note ?? ''}
-										onpaste={(event) => pasteNote(event, activeActionKey)}
-										oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
+										onpaste={(event) => pasteNote(event, activeActionId)}
+										oninput={(event) => chart.setActionMeta(activeActionId, { note: event.currentTarget.value })}
 									/>
 								</div>
 								{#if meta?.note && isUrl(meta.note.trim())}
 									<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty text-muted">
 										<span>A link does more on the shelf: Today hands it out and counts the opens.</span>
-										<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionKey, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
+										<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionId, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
 									</p>
 								{:else if handedOut > 0}
 									<Button

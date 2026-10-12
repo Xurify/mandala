@@ -1,7 +1,7 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
 import { applyChange, finish } from './board.ts';
-import { dateKeyOf, setMeta, type ActionMeta, type ChartData, type Tool } from './model.ts';
+import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type ChartData, type Tool } from './model.ts';
 
 /**
  * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
@@ -44,6 +44,15 @@ function preset(id: PresetId): ChartData {
 	return buildChart(getPreset(id)!);
 }
 
+/** The demos name actions by their cell, `a{k}_{j}`, which reads better here than an id. */
+function idIn(data: ChartData, key: string): ActionId {
+	return idOfKey(data, key)!;
+}
+
+function metaFor(data: ChartData, byCell: Record<string, ActionMeta>): Record<ActionId, ActionMeta> {
+	return Object.fromEntries(Object.entries(byCell).map(([key, meta]) => [idIn(data, key), meta]));
+}
+
 /** Ticks go through `finish`, the same as in the app, so a one-time action ticked here is done that day. */
 function history(data: ChartData, now: Date, days: Record<number, { focus: string[]; checked: string[] }>): void {
 	data.days = {};
@@ -52,14 +61,16 @@ function history(data: ChartData, now: Date, days: Record<number, { focus: strin
 		date.setDate(now.getDate() - back);
 		const dateKey = dateKeyOf(date);
 		const { focus, checked } = days[back]!;
-		data.days[dateKey] = { focus, checked: [], started: focus.length > 0 };
-		checked.forEach((key, index) => applyChange(data, finish(data, key, dateKey, `0${7 + (index % 3)}:${10 + index * 7}`, date.getTime() + index)));
+		data.days[dateKey] = { focus: focus.map((key) => idIn(data, key)), checked: [], started: focus.length > 0 };
+		checked.forEach((key, index) =>
+			applyChange(data, finish(data, idIn(data, key), dateKey, `0${7 + (index % 3)}:${10 + index * 7}`, date.getTime() + index))
+		);
 	}
 }
 
 function livedIn(now: Date): ChartData {
 	const data = preset('language');
-	data.meta = { a2_7: { kind: 'milestone' }, a0_0: { kind: 'routine' } };
+	data.meta = metaFor(data, { a2_7: { kind: 'milestone' }, a0_0: { kind: 'routine' } });
 	history(data, now, {
 		0: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a1_6', 'a0_1'] },
 		1: { focus: ['a0_0', 'a1_0', 'a3_2'], checked: ['a0_0', 'a1_0', 'a3_2'] },
@@ -74,7 +85,7 @@ function livedIn(now: Date): ChartData {
 
 function inTraining(now: Date): ChartData {
 	const data = preset('fitness');
-	data.meta = { a1_0: { kind: 'routine' } };
+	data.meta = metaFor(data, { a1_0: { kind: 'routine' } });
 	history(data, now, {
 		0: { focus: ['a2_1', 'a3_0'], checked: ['a1_0'] },
 		2: { focus: ['a0_2', 'a6_1'], checked: ['a1_0', 'a0_2'] },
@@ -94,14 +105,14 @@ function onTheBoard(now: Date): ChartData {
 		a4_0: { kind: 'milestone', lane: 'todo', rank: 1 },
 		a3_1: { kind: 'milestone', lane: 'todo', rank: 2 }
 	};
-	for (const [key, meta] of Object.entries(filed)) setMeta(data, key, meta);
+	for (const [key, meta] of Object.entries(filed)) setMeta(data, idIn(data, key), meta);
 	const nineDaysAgo = new Date(now);
 	nineDaysAgo.setDate(now.getDate() - 9);
-	applyChange(data, finish(data, 'a1_4', dateKeyOf(nineDaysAgo), '19:40', nineDaysAgo.getTime()));
+	applyChange(data, finish(data, idIn(data, 'a1_4'), dateKeyOf(nineDaysAgo), '19:40', nineDaysAgo.getTime()));
 	return data;
 }
 
-function shelves(now: Date): NonNullable<ChartData['tools']> {
+function shelves(data: ChartData, now: Date): NonNullable<ChartData['tools']> {
 	const days = (count: number) =>
 		Array.from({ length: count }, (_, index) => {
 			const date = new Date(now);
@@ -110,7 +121,7 @@ function shelves(now: Date): NonNullable<ChartData['tools']> {
 		}).reverse();
 	const tool = (id: string, url: string, title: string, extra: Partial<Tool> = {}): Tool => ({ id, url, title, kind: 'repeat', ...extra });
 	return {
-		p0: [tool('t-conv', 'https://youtu.be/6mCmru24BOI', 'Jak začít a udržet konverzaci s kýmkoliv', { kind: 'once', action: 1 })],
+		p0: [tool('t-conv', 'https://youtu.be/6mCmru24BOI', 'Jak začít a udržet konverzaci s kýmkoliv', { kind: 'once', action: idAt(data, 0, 1) })],
 		p1: [
 			tool('t-easy', 'https://youtu.be/SZaaZpKLTFE', "you'll understand this video WITHOUT subtitles! 💯🇷🇺 | Super Easy Russian", { opened: days(3) }),
 			tool('t-talk', 'https://youtu.be/wzMrFFcC1BU', "Let's Talk IN RUSSIAN! Easy Russian Listening Practice about new hobbies and life updates"),
@@ -125,8 +136,8 @@ function shelves(now: Date): NonNullable<ChartData['tools']> {
 			tool('t-test', 'https://youtu.be/1FWYOawIJNA', 'Are you really A2 level? Take this vocabulary test', { kind: 'once', known: true, opened: days(1) })
 		],
 		p4: [
-			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: 0 }),
-			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: 0 })
+			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: idAt(data, 4, 0) }),
+			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: idAt(data, 4, 0) })
 		]
 	};
 }
@@ -279,8 +290,8 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'board') return { data: onTheBoard(now), view: 'board' };
 	if (id === 'tools') {
 		const data = livedIn(now);
-		data.meta = { ...data.meta, a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } };
-		data.tools = shelves(now);
+		data.meta = { ...data.meta, ...metaFor(data, { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } }) };
+		data.tools = shelves(data, now);
 		return { data, view: 'today' };
 	}
 	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };

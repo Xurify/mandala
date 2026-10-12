@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { BRIEF, BROWSER_KEYS, CHART, TOOL } from './contract.ts';
+import { A, slotted } from './fixtures.ts';
 import { emptyChart, type ChartData, type Tool } from './model.ts';
 import { forSharing } from './share.ts';
 
@@ -10,15 +11,16 @@ const src = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('the sync contract', () => {
 	it('gives another person what is shared, and only that', () => {
-		const tool: Tool = { id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat', action: 0, known: true, opened: ['2026-10-01'] };
+		const tool: Tool = { id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat', action: A.a0_0, known: true, opened: ['2026-10-01'] };
 		const full: ChartData = {
-			...emptyChart(),
-			meta: { a0_0: { kind: 'routine' } },
+			...slotted(emptyChart()),
+			meta: { [A.a0_0]: { kind: 'routine' } },
 			days: { '2026-10-01': { focus: [], checked: [] } },
-			weeks: { '2026-09-28': { note: '', swapped: [] } },
+			weeks: { '2026-09-28': { note: '' } },
 			tools: { p0: [tool] },
 			brief: { timeline: 'October' },
-			icons: { 'youtu.be': 'data:image/png;base64,AAAA' }
+			icons: { 'youtu.be': 'data:image/png;base64,AAAA' },
+			cleared: { [`action_${'0'.repeat(24)}99`]: { text: 'An old line', pillar: 0, slot: 1 } }
 		};
 		const shared = forSharing(full);
 		for (const [field, reach] of Object.entries(CHART)) {

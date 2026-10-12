@@ -1,5 +1,5 @@
-import { newId } from './library.ts';
-import { dateKeyOf, isRoutine, isUrl, type ChartData, type Tool, type ToolKind } from './model.ts';
+import { newId } from './id.ts';
+import { dateKeyOf, idAt, isRoutine, isUrl, slotOf, type ActionId, type ChartData, type Tool, type ToolKind } from './model.ts';
 
 /** How many of the last 14 days a repeat tool is opened before Bindu asks if it is known. */
 export const KNOWN_DAYS = 10;
@@ -43,7 +43,7 @@ export function linkIn(text: string): string | null {
 }
 
 export function newTool(url: string, title = '', kind: ToolKind = 'repeat'): Tool {
-	return { id: newId(), url: url.trim(), title: title.trim() || hostOf(url), kind };
+	return { id: newId('tool'), url: url.trim(), title: title.trim() || hostOf(url), kind };
 }
 
 export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {
@@ -54,16 +54,19 @@ export function toolCount(data: ChartData): number {
 	return Object.values(data.tools ?? {}).reduce((sum, list) => sum + list.length, 0);
 }
 
-function parts(key: string): { pillarIndex: number; actionIndex: number } | null {
-	const match = key.match(/^a([0-7])_([0-7])$/);
-	return match ? { pillarIndex: Number(match[1]), actionIndex: Number(match[2]) } : null;
+/** The action a tool is kept for, while that action is on the chart. */
+export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
+	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
 }
 
-export function toolsFor(data: ChartData, key: string): Tool[] {
-	const at = parts(key);
+export function toolsFor(data: ChartData, id: ActionId): Tool[] {
+	const at = slotOf(data, id);
 	if (!at) return [];
-	const routine = isRoutine(data.meta?.[key]);
-	return shelfOf(data, at.pillarIndex).filter((tool) => tool.action === at.actionIndex || (tool.action === undefined && routine));
+	const routine = isRoutine(data.meta?.[id]);
+	return shelfOf(data, at.pillarIndex).filter((tool) => {
+		const kept = keptFor(data, tool);
+		return kept === id || (kept === undefined && routine);
+	});
 }
 
 function jitter(seed: string): number {
@@ -75,38 +78,38 @@ function jitter(seed: string): number {
 	return (hash >>> 0) / 4294967296;
 }
 
-export function nextTool(data: ChartData, key: string, now: Date = new Date(), skip: ReadonlySet<string> = new Set()): Tool | null {
+export function nextTool(data: ChartData, id: ActionId, now: Date = new Date(), skip: ReadonlySet<string> = new Set()): Tool | null {
 	const today = dateKeyOf(now);
-	const open = toolsFor(data, key).filter((tool) => !tool.known && !skip.has(tool.id));
+	const open = toolsFor(data, id).filter((tool) => !tool.known && !skip.has(tool.id));
 	if (open.length === 0) return null;
 	const fresh = open.filter((tool) => !tool.opened?.includes(today));
 	const pool = fresh.length > 0 ? fresh : open;
 	const last = (tool: Tool) => tool.opened?.[tool.opened.length - 1] ?? '';
 	// Ties settle by the day and the action, so two routines on one shelf do not hand out the same thing.
-	return [...pool].sort((a, b) => last(a).localeCompare(last(b)) || jitter(`${today}:${key}:${a.id}`) - jitter(`${today}:${key}:${b.id}`))[0] ?? null;
+	return [...pool].sort((a, b) => last(a).localeCompare(last(b)) || jitter(`${today}:${id}:${a.id}`) - jitter(`${today}:${id}:${b.id}`))[0] ?? null;
 }
 
-export function dealKeys(data: ChartData): string[] {
-	const written: string[] = [];
+export function dealOrder(data: ChartData): ActionId[] {
+	const written: ActionId[] = [];
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 		for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
-			if ((data.actions[pillarIndex]?.[actionIndex] ?? '').trim()) written.push(`a${pillarIndex}_${actionIndex}`);
+			if ((data.actions[pillarIndex]?.[actionIndex] ?? '').trim()) written.push(idAt(data, pillarIndex, actionIndex));
 		}
 	}
-	const meta = (key: string) => data.meta?.[key];
+	const meta = (id: ActionId) => data.meta?.[id];
 	return [
-		...written.filter((key) => isRoutine(meta(key)) && meta(key)?.pinned),
-		...written.filter((key) => isRoutine(meta(key)) && !meta(key)?.pinned),
-		...written.filter((key) => !isRoutine(meta(key)))
+		...written.filter((id) => isRoutine(meta(id)) && meta(id)?.pinned),
+		...written.filter((id) => isRoutine(meta(id)) && !meta(id)?.pinned),
+		...written.filter((id) => !isRoutine(meta(id)))
 	];
 }
 
 /** The tool each of a pillar's actions hands out next, as tool id to action index. Matches what Today shows. */
 export function upNext(data: ChartData, pillarIndex: number, now: Date = new Date()): Map<string, number> {
 	const out = new Map<string, number>();
-	for (const [key, tool] of dealTools(data, dealKeys(data), now)) {
-		const at = parts(key);
-		if (tool && at?.pillarIndex === pillarIndex && !out.has(tool.id)) out.set(tool.id, at.actionIndex);
+	for (const [id, tool] of dealTools(data, dealOrder(data), now)) {
+		const at = slotOf(data, id);
+		if (tool && at?.pillarIndex === pillarIndex && !out.has(tool.id)) out.set(tool.id, at.slot);
 	}
 	return out;
 }
@@ -117,17 +120,17 @@ export function upNext(data: ChartData, pillarIndex: number, now: Date = new Dat
  */
 export function dealTools(
 	data: ChartData,
-	keys: readonly string[],
+	ids: readonly ActionId[],
 	now: Date = new Date(),
-	passed: ReadonlyMap<string, ReadonlySet<string>> = new Map()
-): Map<string, Tool | null> {
-	const out = new Map<string, Tool | null>();
+	passed: ReadonlyMap<ActionId, ReadonlySet<string>> = new Map()
+): Map<ActionId, Tool | null> {
+	const out = new Map<ActionId, Tool | null>();
 	const taken = new Set<string>();
-	for (const key of keys) {
-		const own = passed.get(key) ?? new Set<string>();
+	for (const id of ids) {
+		const own = passed.get(id) ?? new Set<string>();
 		const tool =
-			nextTool(data, key, now, new Set([...own, ...taken])) ?? nextTool(data, key, now, taken) ?? nextTool(data, key, now, own) ?? nextTool(data, key, now);
-		out.set(key, tool);
+			nextTool(data, id, now, new Set([...own, ...taken])) ?? nextTool(data, id, now, taken) ?? nextTool(data, id, now, own) ?? nextTool(data, id, now);
+		out.set(id, tool);
 		if (tool) taken.add(tool.id);
 	}
 	return out;

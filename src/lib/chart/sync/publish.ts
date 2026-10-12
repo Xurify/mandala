@@ -1,3 +1,4 @@
+import { newId } from '../id.ts';
 import { parseChart, type ChartData } from '../model.ts';
 import { forSharing } from '../share.ts';
 
@@ -31,11 +32,6 @@ export function shareUrl(id: string): string {
 	return `${origin}/s/${id}`;
 }
 
-function newId(): string {
-	const bytes = crypto.getRandomValues(new Uint8Array(16));
-	return Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 22);
-}
-
 function newSecret(): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(24));
 	return Array.from(bytes, (b) => b.toString(36).padStart(2, '0')).join('');
@@ -61,7 +57,7 @@ export async function publishChart(
 	data: ChartData,
 	existingId: string | null
 ): Promise<PublishedShare> {
-	const id = existingId ?? newId();
+	const id = existingId ?? newId('share');
 	const secret = existingId ? secretFor(id) : null;
 	if (existingId && !secret) {
 		throw new Error('The update secret for this share is missing on this device.');

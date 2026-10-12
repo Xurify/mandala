@@ -1,3 +1,5 @@
+import { isId, newId, type Id } from './id.ts';
+
 export const HUES = [25, 60, 100, 150, 195, 240, 290, 345] as const;
 export const POS = [
 	'top left',
@@ -19,6 +21,8 @@ export type CellInfo =
 
 export type ActionKind = 'routine' | 'milestone';
 
+export type ActionId = Id<'action'>;
+
 export type ActionMeta = {
 	kind: ActionKind;
 	pinned?: boolean;
@@ -32,20 +36,19 @@ export type ActionMeta = {
 };
 
 export type DayLog = {
-	focus: string[];
-	checked: string[];
+	focus: ActionId[];
+	checked: ActionId[];
 	started?: boolean;
 	/** Local time of each tick, "HH:MM". */
-	at?: Record<string, string>;
-	dropped?: string[];
-	declined?: string[];
+	at?: Record<ActionId, string>;
+	dropped?: ActionId[];
+	declined?: ActionId[];
 	/** As `id:key`. */
 	shown?: string[];
 };
 
 export type WeekReflection = {
 	note: string;
-	swapped: string[];
 	dismissed?: boolean;
 	savedAt?: string;
 };
@@ -82,8 +85,8 @@ export type Tool = {
 	title: string;
 	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. */
 	kind: ToolKind;
-	/** Without one, any routine in the pillar may hand it out. */
-	action?: number;
+	/** Without one, or while its action is cleared, any routine in the pillar may hand it out. */
+	action?: ActionId;
 	known?: boolean;
 	/** Oldest first. */
 	opened?: string[];
@@ -95,14 +98,20 @@ export type ChartData = {
 	goal: string;
 	pillars: string[];
 	actions: string[][];
-	meta?: Record<string, ActionMeta>;
+	/** Each action's id, in the same places as `actions`. A line keeps its id while its words change, and gets a new one once it is cleared. */
+	actionIds: ActionId[][];
+	meta?: Record<ActionId, ActionMeta>;
 	days?: Record<string, DayLog>;
 	weeks?: Record<string, WeekReflection>;
 	brief?: ChartBrief;
 	/** Keyed `p0` to `p7`. */
 	tools?: Record<string, Tool[]>;
 	icons?: Record<string, string>;
+	cleared?: Record<ActionId, ClearedAction>;
 };
+
+/** A line cleared from the chart that something still points at, so its days still name it, and the same words back in the same place bring it back whole. */
+export type ClearedAction = { text: string; pillar: number; slot: number };
 
 export const ICON_MAX = 96_000;
 
@@ -132,7 +141,7 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 				title: typeof record.title === 'string' ? record.title.trim().slice(0, TEXT_MAX * 2) : '',
 				kind: record.kind === 'once' ? 'once' : 'repeat'
 			};
-			if (typeof record.action === 'number' && record.action >= 0 && record.action < 8) tool.action = record.action;
+			if (isId('action', record.action)) tool.action = record.action;
 			if (record.known === true) tool.known = true;
 			if (Array.isArray(record.opened)) tool.opened = record.opened.filter((day): day is string => typeof day === 'string').slice(-60);
 			return [tool];
@@ -149,8 +158,75 @@ export function emptyChart(): ChartData {
 		version: CHART_VERSION,
 		goal: '',
 		pillars: Array.from({ length: 8 }, () => ''),
-		actions: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => ''))
+		actions: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => '')),
+		actionIds: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => newId('action')))
 	};
+}
+
+export function isActionId(ref: string): ref is ActionId {
+	return isId('action', ref);
+}
+
+export function idAt(data: ChartData, pillarIndex: number, slot: number): ActionId {
+	return data.actionIds[pillarIndex]![slot]!;
+}
+
+export function slotOf(data: ChartData, id: ActionId): { pillarIndex: number; slot: number } | null {
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const slot = data.actionIds[pillarIndex]?.indexOf(id) ?? -1;
+		if (slot >= 0) return { pillarIndex, slot };
+	}
+	return null;
+}
+
+/** The cell an action sits in, as `a{k}_{j}`, or null once it is cleared. */
+export function keyOf(data: ChartData, id: ActionId): string | null {
+	const at = slotOf(data, id);
+	return at ? actionKey(at.pillarIndex, at.slot) : null;
+}
+
+/** The pillar an action is under, or was under before it was cleared. */
+export function pillarOfAction(data: ChartData, id: ActionId): number | null {
+	return slotOf(data, id)?.pillarIndex ?? data.cleared?.[id]?.pillar ?? null;
+}
+
+/** An action's words, or the words it had when it was cleared. */
+export function wordsOf(data: ChartData, id: ActionId): string {
+	const at = slotOf(data, id);
+	return at ? (data.actions[at.pillarIndex]?.[at.slot] ?? '').trim() : (data.cleared?.[id]?.text ?? '');
+}
+
+/** The id of the action in a cell, given as `a{k}_{j}`. */
+export function idOfKey(data: ChartData, key: string): ActionId | null {
+	const match = key.match(/^a([0-7])_([0-7])$/);
+	return match ? idAt(data, Number(match[1]), Number(match[2])) : null;
+}
+
+function pointedAt(data: ChartData, id: ActionId): boolean {
+	if (data.meta?.[id]) return true;
+	if (Object.values(data.tools ?? {}).some((list) => list.some((tool) => tool.action === id))) return true;
+	return Object.values(data.days ?? {}).some(
+		(log) => log.focus.includes(id) || log.checked.includes(id) || log.dropped?.includes(id) || log.declined?.includes(id)
+	);
+}
+
+function clearLine(data: ChartData, pillarIndex: number, slot: number, words: string): void {
+	const id = idAt(data, pillarIndex, slot);
+	if (pointedAt(data, id)) data.cleared = { ...data.cleared, [id]: { text: words.trim(), pillar: pillarIndex, slot } };
+	data.actionIds[pillarIndex]![slot] = newId('action');
+}
+
+/** Words that come back to the place they were cleared from, as an undo does, bring their action back. */
+function bringBack(data: ChartData, pillarIndex: number, slot: number, words: string): void {
+	const found = Object.entries(data.cleared ?? {}).find(
+		([, line]) => line.pillar === pillarIndex && line.slot === slot && line.text === words.trim()
+	);
+	if (!found || pointedAt(data, idAt(data, pillarIndex, slot))) return;
+	const id = found[0] as ActionId;
+	data.actionIds[pillarIndex]![slot] = id;
+	const cleared = { ...data.cleared };
+	delete cleared[id];
+	data.cleared = Object.keys(cleared).length > 0 ? cleared : undefined;
 }
 
 export function idx(p: number): number {
@@ -197,14 +273,65 @@ export function blockOfKey(key: string): number {
 	return key === 'g' ? 4 : blockOfK(kOfKey(key));
 }
 
-export function getByKey(data: ChartData, key: string): string {
+/**
+ * A copy, with a new id for every action and everything that points at one moved over. A chart that arrives
+ * as a new one (a duplicate, an import, a share) gets its own ids, so no two charts hold the same action.
+ */
+export function withNewIds(data: ChartData): ChartData {
+	const ids = new Map<ActionId, ActionId>();
+	const swap = (id: ActionId): ActionId => {
+		let next = ids.get(id);
+		if (!next) {
+			next = newId('action');
+			ids.set(id, next);
+		}
+		return next;
+	};
+	const list = (values: ActionId[] | undefined) => values?.map(swap);
+	const keyed = <T>(record: Record<ActionId, T> | undefined) =>
+		record ? (Object.fromEntries(Object.entries(record).map(([id, value]) => [swap(id as ActionId), value])) as Record<ActionId, T>) : undefined;
+	const copy = parseChart(JSON.stringify(data)) ?? emptyChart();
+	return {
+		...copy,
+		actionIds: copy.actionIds.map((row) => row.map(swap)),
+		meta: keyed(copy.meta),
+		cleared: keyed(copy.cleared),
+		days: copy.days
+			? Object.fromEntries(
+					Object.entries(copy.days).map(([dateKey, log]) => [
+						dateKey,
+						{
+							...log,
+							focus: list(log.focus)!,
+							checked: list(log.checked)!,
+							dropped: list(log.dropped),
+							declined: list(log.declined),
+							at: keyed(log.at),
+							shown: log.shown?.map((signature) => signature.replace(/action_[0-9a-z]{26}/g, (id) => swap(id as ActionId)))
+						}
+					])
+				)
+			: undefined,
+		tools: copy.tools
+			? Object.fromEntries(Object.entries(copy.tools).map(([key, list]) => [key, list.map((tool) => (tool.action ? { ...tool, action: swap(tool.action) } : tool))]))
+			: undefined
+	};
+}
+
+/** `ref` is a cell (`g`, `p{k}`, `a{k}_{j}`) or an action's id. */
+export function getByKey(data: ChartData, ref: string): string {
+	const key = isActionId(ref) ? keyOf(data, ref) : ref;
+	if (!key) return '';
 	if (key === 'g') return data.goal;
 	if (key.charAt(0) === 'p') return data.pillars[Number(key.slice(1))] ?? '';
 	const [k, j] = key.slice(1).split('_').map(Number);
 	return data.actions[k]?.[j] ?? '';
 }
 
-export function setByKey(data: ChartData, key: string, value: string): void {
+/** Clearing an action's words clears the action: the line gets a new id, and what pointed at the old one stays with it. */
+export function setByKey(data: ChartData, ref: string, value: string): void {
+	const key = isActionId(ref) ? keyOf(data, ref) : ref;
+	if (!key) return;
 	const v = value.slice(0, TEXT_MAX);
 	if (key === 'g') {
 		data.goal = v;
@@ -215,11 +342,21 @@ export function setByKey(data: ChartData, key: string, value: string): void {
 		return;
 	}
 	const [k, j] = key.slice(1).split('_').map(Number);
-	const row = data.actions[k];
-	if (row && j !== undefined) row[j] = v;
+	const row = data.actions[k!];
+	if (!row || j === undefined) return;
+	const before = row[j] ?? '';
+	row[j] = v;
+	if (before.trim() && !v.trim()) clearLine(data, k!, j, before);
+	else if (v.trim() && data.cleared) bringBack(data, k!, j, v);
 }
 
-export function labelOfKey(data: ChartData, key: string): string {
+/** `ref` is a cell or an action's id. */
+export function labelOfKey(data: ChartData, ref: string): string {
+	if (isActionId(ref)) {
+		const pillarIndex = pillarOfAction(data, ref);
+		return pillarIndex === null ? 'A cleared line' : data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	}
+	const key = ref;
 	if (key === 'g') return 'Goal';
 	const k = kOfKey(key);
 	if (key.charAt(0) === 'p') return `Pillar ${k + 1}`;
@@ -337,21 +474,63 @@ export function parseChart(raw: string): ChartData | null {
 			return null;
 		}
 
+		const actionIds = parseActionIds(record.actionIds);
 		return {
 			version: CHART_VERSION,
 			goal: record.goal,
 			pillars: record.pillars as string[],
 			actions: record.actions as string[][],
-			meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
+			actionIds,
+			meta: parseMeta(record.meta),
 			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
 			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
 			brief: parseBrief(record.brief),
 			tools: parseTools(record.tools),
-			icons: parseIcons(record.icons)
+			icons: parseIcons(record.icons),
+			cleared: parseCleared(record.cleared, new Set(actionIds.flat()))
 		};
 	} catch {
 		return null;
 	}
+}
+
+/** A chat app's reply has no ids, so a place without a readable one gets a new one. */
+function parseActionIds(value: unknown): ActionId[][] {
+	const seen = new Set<string>();
+	const rows = Array.isArray(value) ? value : [];
+	return Array.from({ length: 8 }, (_, pillarIndex) => {
+		const row: unknown[] = Array.isArray(rows[pillarIndex]) ? rows[pillarIndex] : [];
+		return Array.from({ length: 8 }, (_, slot) => {
+			const id = row[slot];
+			if (!isId('action', id) || seen.has(id)) return newId('action');
+			seen.add(id);
+			return id;
+		});
+	});
+}
+
+function parseMeta(value: unknown): Record<ActionId, ActionMeta> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const entries = Object.entries(value as Record<string, unknown>).filter(
+		(entry): entry is [ActionId, ActionMeta] => isId('action', entry[0]) && !!entry[1] && typeof entry[1] === 'object'
+	);
+	return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function parseCleared(value: unknown, live: ReadonlySet<string>): Record<ActionId, ClearedAction> | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const out: Record<ActionId, ClearedAction> = {};
+	for (const [id, line] of Object.entries(value as Record<string, unknown>)) {
+		if (!isId('action', id) || live.has(id) || !line || typeof line !== 'object') continue;
+		const { text, pillar, slot } = line as Record<string, unknown>;
+		if (typeof text !== 'string' || !isPlace(pillar) || !isPlace(slot)) continue;
+		out[id] = { text: text.slice(0, TEXT_MAX), pillar, slot };
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function isPlace(value: unknown): value is number {
+	return Number.isInteger(value) && (value as number) >= 0 && (value as number) < 8;
 }
 
 export function parseText(raw: string): ChartData | null {
@@ -596,17 +775,17 @@ export function isOpenFocus(meta: ActionMeta | undefined): boolean {
 	return true;
 }
 
-export function getMeta(data: ChartData, key: string): ActionMeta | undefined {
-	return data.meta?.[key];
+export function getMeta(data: ChartData, id: ActionId): ActionMeta | undefined {
+	return data.meta?.[id];
 }
 
-export function setMeta(data: ChartData, key: string, patch: Partial<ActionMeta>): void {
+export function setMeta(data: ChartData, id: ActionId, patch: Partial<ActionMeta>): void {
 	if (!data.meta) data.meta = {};
-	const existing = data.meta[key];
+	const existing = data.meta[id];
 	if (existing) {
 		Object.assign(existing, patch);
 	} else {
-		data.meta[key] = patch as ActionMeta;
+		data.meta[id] = patch as ActionMeta;
 	}
 }
 
@@ -615,7 +794,7 @@ export function getDayLog(data: ChartData, dateKey: string): DayLog {
 }
 
 export function getWeekReflection(data: ChartData, weekKey: string): WeekReflection {
-	return data.weeks?.[weekKey] ?? { note: '', swapped: [] };
+	return data.weeks?.[weekKey] ?? { note: '' };
 }
 
 export function pillarActivityLast7(data: ChartData): number[] {
@@ -633,13 +812,9 @@ export function pillarActivityLast7(data: ChartData): number[] {
 		const log: DayLog | undefined = data.days[dateKey];
 		if (!log) continue;
 
-		const activeKeys: Set<string> = new Set([...log.focus, ...log.checked]);
-		for (const key of activeKeys) {
-			if (!key.startsWith('a')) continue;
-			const pillarIndex = Number(key.slice(1).split('_')[0]);
-			if (pillarIndex >= 0 && pillarIndex < 8) {
-				counts[pillarIndex]!++;
-			}
+		for (const id of new Set([...log.focus, ...log.checked])) {
+			const pillarIndex = pillarOfAction(data, id);
+			if (pillarIndex !== null) counts[pillarIndex]!++;
 		}
 	}
 	return counts;

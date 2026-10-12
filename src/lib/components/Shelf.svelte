@@ -3,8 +3,8 @@
 	import { clipboardPicture, pastedPicture, readIcon } from '$lib/chart/site-icon';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import { tick } from 'svelte';
-	import { fetchTitle, hostOf, iconOf, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, upNext } from '$lib/chart/tools';
-	import { isRoutine, type Tool } from '$lib/chart/model';
+	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, upNext } from '$lib/chart/tools';
+	import { idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
@@ -25,11 +25,13 @@
 	const known = $derived(tools.filter((tool) => tool.known));
 	const next = $derived(upNext(chart.data, pillarIndex));
 	const routines = $derived(
-		(chart.data.actions[pillarIndex] ?? []).flatMap((text, index) => (text.trim() && isRoutine(chart.data.meta?.[`a${pillarIndex}_${index}`]) ? [index] : []))
+		(chart.data.actions[pillarIndex] ?? []).flatMap((text, index) => (text.trim() && isRoutine(chart.data.meta?.[idAt(chart.data, pillarIndex, index)]) ? [index] : []))
 	);
 	const uses = $derived([
 		{ value: 'any', label: routines.length ? 'Any routine here' : 'Any routine here (none yet)' },
-		...(chart.data.actions[pillarIndex] ?? []).flatMap((text, index) => (text.trim() ? [{ value: String(index), label: `${index + 1} · ${text.trim()}` }] : []))
+		...(chart.data.actions[pillarIndex] ?? []).flatMap((text, index) =>
+			text.trim() ? [{ value: idAt(chart.data, pillarIndex, index), label: `${index + 1} · ${text.trim()}` }] : []
+		)
 	]);
 	const kinds = [
 		{ value: 'repeat', label: 'Repeat', title: 'Comes round until you press Know this' },
@@ -52,8 +54,15 @@
 		showKnown = false;
 	});
 
+	/** The place of the action a tool is kept for, while that action is on the chart. */
+	function keptAt(tool: Tool): number | null {
+		const kept = keptFor(chart.data, tool);
+		return kept ? (slotOf(chart.data, kept)?.slot ?? null) : null;
+	}
+
 	function who(tool: Tool): string {
-		if (tool.action !== undefined) return `for action ${tool.action + 1}`;
+		const slot = keptAt(tool);
+		if (slot !== null) return `for action ${slot + 1}`;
 		return routines.length ? 'any routine' : 'no routine yet';
 	}
 
@@ -214,8 +223,8 @@
 						label="Which action hands out {tool.title}"
 						labelledBy="tool-{tool.id}-by"
 						options={uses}
-						value={tool.action === undefined ? 'any' : String(tool.action)}
-						onchange={(value) => chart.updateTool(pillarIndex, tool.id, { action: value === 'any' ? undefined : Number(value) })}
+						value={keptFor(chart.data, tool) ?? 'any'}
+						onchange={(value) => chart.updateTool(pillarIndex, tool.id, { action: isActionId(value) ? value : undefined })}
 					/>
 					<span class="text-[0.8rem] font-[560] text-muted" aria-hidden="true">Comes round</span>
 					<SegmentedControl
@@ -230,8 +239,9 @@
 					<Button size="sm" variant="soft" icon={tool.known ? 'undo' : 'check'} onclick={() => setKnown(tool, !tool.known)}>
 						{tool.known ? 'Back in rotation' : 'Know this'}
 					</Button>
-					{#if tool.action !== undefined}
-						<Button size="sm" variant="ghost" icon="arrow-left" onclick={() => chart.jumpToKey(`a${pillarIndex}_${tool.action}`)}>See action {tool.action + 1}</Button>
+					{#if keptAt(tool) !== null}
+						{@const slot = keptAt(tool)!}
+						<Button size="sm" variant="ghost" icon="arrow-left" onclick={() => chart.jumpToKey(`a${pillarIndex}_${slot}`)}>See action {slot + 1}</Button>
 					{/if}
 					{#if iconable}
 						{@const icon = iconOf(chart.data, tool.url)}
@@ -309,7 +319,7 @@
 	</div>
 	<input bind:this={picker} type="file" accept="image/*,.svg,.ico" class="hidden" tabindex="-1" aria-hidden="true" onchange={onpick} />
 
-	{#if routines.length === 0 && rotation.some((tool) => tool.action === undefined)}
+	{#if routines.length === 0 && rotation.some((tool) => keptFor(chart.data, tool) === undefined)}
 		<p class="m-0 flex items-start gap-1.5 text-[0.82rem] leading-snug text-pretty text-muted">
 			<Icon name="info" size={14} class="mt-0.5 shrink-0" />
 			Nothing hands these out yet. Make an action here a routine, or open a link's settings and pick one.

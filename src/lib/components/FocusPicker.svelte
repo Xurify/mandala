@@ -1,8 +1,8 @@
 <script lang="ts" module>
-	import type { ActionMeta } from '$lib/chart/model';
+	import type { ActionId, ActionMeta } from '$lib/chart/model';
 
 	export type FocusAction = {
-		key: string;
+		id: ActionId;
 		text: string;
 		meta: ActionMeta | undefined;
 		pillarIndex: number;
@@ -22,7 +22,7 @@
 
 	type Props = {
 		actions: FocusAction[];
-		selected?: string[];
+		selected?: ActionId[];
 		max?: number;
 		inset?: boolean;
 		head?: Snippet;
@@ -68,7 +68,7 @@
 
 	const decks = $derived(
 		groups.map((group) => {
-			const deck = group.actions.filter((entry) => !selected.includes(entry.key));
+			const deck = group.actions.filter((entry) => !selected.includes(entry.id));
 			const at = deck.length > 0 ? (((cursor[group.pillarIndex] ?? 0) % deck.length) + deck.length) % deck.length : 0;
 			return { ...group, deck, at, top: deck[at] };
 		})
@@ -76,7 +76,7 @@
 
 	const picked = $derived(
 		selected
-			.map((key) => actions.find((entry) => entry.key === key))
+			.map((key) => actions.find((entry) => entry.id === key))
 			.filter((entry): entry is FocusAction => entry !== undefined)
 	);
 
@@ -117,7 +117,7 @@
 		return list;
 	});
 
-	function toggle(key: string): void {
+	function toggle(key: ActionId): void {
 		if (swallowClick) return;
 		if (selected.includes(key)) {
 			selected = selected.filter((existing) => existing !== key);
@@ -134,10 +134,10 @@
 		closeSpreadIfEmpty();
 	}
 
-	function place(key: string, target: number | 'day'): boolean {
+	function place(key: ActionId, target: number | 'day'): boolean {
 		const occupant = typeof target === 'number' ? picked[target] : undefined;
 		if (occupant) {
-			selected = selected.map((existing) => (existing === occupant.key ? key : existing));
+			selected = selected.map((existing) => (existing === occupant.id ? key : existing));
 			limited = false;
 			closeSpreadIfEmpty();
 			return true;
@@ -162,7 +162,7 @@
 	function finishDrag(target: DropTarget): void {
 		const current = drag;
 		if (!current) return;
-		if (target !== null && place(current.entry.key, target)) {
+		if (target !== null && place(current.entry.id, target)) {
 			drag = null;
 			return;
 		}
@@ -283,7 +283,7 @@
 
 	function closeSpreadIfEmpty(): void {
 		if (spreadPillar === null) return;
-		const left = groups[spreadPillar]?.actions.filter((entry) => !selected.includes(entry.key)).length ?? 0;
+		const left = groups[spreadPillar]?.actions.filter((entry) => !selected.includes(entry.id)).length ?? 0;
 		if (left === 0) spreadPillar = null;
 	}
 
@@ -317,17 +317,17 @@
 		const next = [...selected];
 		for (const group of order) {
 			if (next.length >= max) break;
-			if (next.some((key) => group.actions.some((entry) => entry.key === key))) continue;
+			if (next.some((key) => group.actions.some((entry) => entry.id === key))) continue;
 			const choice =
 				(group.top && !group.top.meta?.done ? group.top : undefined) ??
 				group.deck.find((entry) => !entry.meta?.done) ??
 				group.top;
-			if (choice) next.push(choice.key);
+			if (choice) next.push(choice.id);
 		}
 		for (const group of order) {
 			if (next.length >= max) break;
-			const choice = group.deck.find((entry) => !next.includes(entry.key));
-			if (choice) next.push(choice.key);
+			const choice = group.deck.find((entry) => !next.includes(entry.id));
+			if (choice) next.push(choice.id);
 		}
 		selected = next;
 		limited = false;
@@ -376,7 +376,7 @@
 
 		{#if top}
 			<div class="relative">
-				{#key top.key}
+				{#key top.id}
 					<button
 						type="button"
 						class={cn(
@@ -384,11 +384,11 @@
 							group.deck.length > 1 ? 'pb-14' : 'pb-4',
 							flipDirection === 1 ? 'motion-safe:animate-card-in' : 'motion-safe:animate-pop-in',
 							full && 'opacity-80',
-							drag?.entry.key === top.key && 'invisible',
+							drag?.entry.id === top.id && 'invisible',
 							grab,
 							focusRing
 						)}
-						onclick={() => toggle(top.key)}
+						onclick={() => toggle(top.id)}
 						onkeydown={(event) => onCardKey(event, group.pillarIndex)}
 						aria-label={group.deck.length > 1
 							? `Add ${top.text}, ${group.at + 1} of ${group.deck.length}`
@@ -446,14 +446,14 @@
 			class={cn(
 				'pillar-action relative flex min-h-[108px] w-full cursor-grab flex-col justify-center gap-2 rounded-[22px] border-0 p-4 text-left text-text shadow-card rotate-[var(--tilt)] motion-safe:animate-spread motion-safe:transition-[rotate,translate,box-shadow,scale] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:z-10 can-hover:hover:-translate-y-1 can-hover:hover:shadow-float can-hover:hover:[--tilt:0deg] focus-visible:z-10 active:scale-[0.97]',
 				full && 'opacity-80',
-				drag?.entry.key === entry.key && 'invisible',
+				drag?.entry.id === entry.id && 'invisible',
 				grab,
 				focusRing
 			)}
 			style:--h={HUES[entry.pillarIndex]}
 			style:--tilt="{FAN_TILT[index % FAN_TILT.length] ?? 0}deg"
 			style:animation-delay="{Math.min(index, 7) * 32}ms"
-			onclick={() => toggle(entry.key)}
+			onclick={() => toggle(entry.id)}
 			onkeydown={(event) => {
 				if (spreadPillar !== null) onSpreadKey(event, spreadPillar);
 			}}
@@ -487,7 +487,7 @@
 				{@const over = dragging && drag?.over === slot}
 				<li class="relative min-w-0" data-drop data-slot={slot}>
 					{#if entry}
-						{#key entry.key}
+						{#key entry.id}
 							<button
 								type="button"
 								class={cn(
@@ -498,7 +498,7 @@
 								)}
 								style:--h={HUES[entry.pillarIndex]}
 								style:--tilt="{SLOT_TILT[slot] ?? 0}deg"
-								onclick={() => toggle(entry.key)}
+								onclick={() => toggle(entry.id)}
 								aria-label="Remove {entry.text}"
 							>
 								<span class="flex items-center justify-between gap-2">
@@ -631,7 +631,7 @@
 								)}
 								aria-label="{spreadGroup.pillarName} deck"
 							>
-								{#each dealtOrder(spreadGroup) as entry, index (entry.key)}
+								{#each dealtOrder(spreadGroup) as entry, index (entry.id)}
 									{@render dealtCard(entry, index, spreadGroup.deck.length)}
 								{/each}
 							</ul>

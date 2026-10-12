@@ -28,10 +28,18 @@ import {
 	yearActivity,
 	yearStats,
 	completedBy,
+	idAt,
+	getByKey,
+	keyOf,
+	slotOf,
 	wholeness,
+	wordsOf,
+	withNewIds,
 	type ChartData
 } from './model.ts';
+import { isId } from './id.ts';
 import { buildChart, getPreset } from './presets/index.ts';
+import { A, slotted } from './fixtures.ts';
 
 describe('cellKey', () => {
 	it('maps the 9x9 layout to goal, pillars, and actions', () => {
@@ -61,7 +69,7 @@ describe('parseChart', () => {
 	});
 
 	it('round-trips a valid chart', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		data.goal = 'Ship it';
 		data.pillars[0] = 'Focus';
 		data.actions[0]![0] = 'Write tests';
@@ -70,16 +78,16 @@ describe('parseChart', () => {
 	});
 
 	it('preserves metadata, days, and reflections across round-trips', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		data.goal = 'Learn Russian';
 		data.meta = {
-			a0_0: { kind: 'routine', pinned: true, note: 'https://readline.app' }
+			[A.a0_0]: { kind: 'routine', pinned: true, note: 'https://readline.app' }
 		};
 		data.days = {
-			'2026-09-30': { focus: ['a0_0'], checked: ['a0_0'] }
+			'2026-09-30': { focus: [A.a0_0], checked: [A.a0_0] }
 		};
 		data.weeks = {
-			'2026-09-28': { note: 'Great week', swapped: [] }
+			'2026-09-28': { note: 'Great week' }
 		};
 		const parsed = parseChart(JSON.stringify(data));
 		expect(parsed?.meta).toEqual(data.meta);
@@ -90,7 +98,7 @@ describe('parseChart', () => {
 
 describe('search and fill', () => {
 	it('counts filled cells', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		expect(filledCount(data)).toBe(0);
 		data.goal = 'Run';
 		data.pillars[0] = 'Training';
@@ -98,7 +106,7 @@ describe('search and fill', () => {
 	});
 
 	it('searches text', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		data.goal = 'Run a marathon';
 		expect(searchHits(data, 'run')).toEqual(['g']);
 	});
@@ -203,7 +211,7 @@ Pillar 2: Real pillar
 
 describe('setByKey', () => {
 	it('caps text at 120 characters', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		setByKey(data, 'g', 'x'.repeat(200));
 		expect(data.goal.length).toBe(120);
 	});
@@ -218,7 +226,7 @@ describe('exportJson and exportFilename', () => {
 	});
 
 	it('generates a clean slugified filename based on the goal', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		expect(exportFilename(data)).toBe('mandala-chart.json');
 
 		data.goal = 'Run a half marathon in under 2:00!';
@@ -228,7 +236,7 @@ describe('exportJson and exportFilename', () => {
 
 describe('progressMilestones', () => {
 	it('calculates milestones for empty chart', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		const milestones = progressMilestones(data);
 		expect(milestones.goalSet).toBe(false);
 		expect(milestones.pillarsCount).toBe(0);
@@ -238,7 +246,7 @@ describe('progressMilestones', () => {
 	});
 
 	it('calculates milestones for partial and complete chart', () => {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		data.goal = 'Reach peak performance';
 		data.pillars[0] = 'Nutrition';
 		data.actions[0] = [
@@ -279,14 +287,14 @@ describe('companion helpers', () => {
 	});
 
 	it('manages action metadata correctly', () => {
-		const chartData = emptyChart();
-		expect(getMeta(chartData, 'a0_0')).toBeUndefined();
+		const chartData = slotted(emptyChart());
+		expect(getMeta(chartData, A.a0_0)).toBeUndefined();
 
-		setMeta(chartData, 'a0_0', { kind: 'routine', pinned: true });
-		expect(getMeta(chartData, 'a0_0')).toEqual({ kind: 'routine', pinned: true });
+		setMeta(chartData, A.a0_0, { kind: 'routine', pinned: true });
+		expect(getMeta(chartData, A.a0_0)).toEqual({ kind: 'routine', pinned: true });
 
-		setMeta(chartData, 'a0_0', { note: 'https://youtube.com' });
-		expect(getMeta(chartData, 'a0_0')).toEqual({
+		setMeta(chartData, A.a0_0, { note: 'https://youtube.com' });
+		expect(getMeta(chartData, A.a0_0)).toEqual({
 			kind: 'routine',
 			pinned: true,
 			note: 'https://youtube.com'
@@ -303,18 +311,18 @@ describe('companion helpers', () => {
 	});
 
 	it('retrieves default day logs and week reflections safely', () => {
-		const chartData = emptyChart();
+		const chartData = slotted(emptyChart());
 		expect(getDayLog(chartData, '2026-09-30')).toEqual({ focus: [], checked: [] });
-		expect(getWeekReflection(chartData, '2026-09-28')).toEqual({ note: '', swapped: [] });
+		expect(getWeekReflection(chartData, '2026-09-28')).toEqual({ note: '' });
 	});
 
 	it('computes pillar activity over the last 7 days', () => {
-		const chartData = emptyChart();
+		const chartData = slotted(emptyChart());
 		const today = todayKey();
 		chartData.days = {
 			[today]: {
-				focus: ['a0_0', 'a2_1'],
-				checked: ['a0_0']
+				focus: [A.a0_0, A.a2_1],
+				checked: [A.a0_0]
 			}
 		};
 		const activity = pillarActivityLast7(chartData);
@@ -337,10 +345,10 @@ describe('companion helpers', () => {
 	});
 
 	it('summarizes year activity per day', () => {
-		const chartData = emptyChart();
+		const chartData = slotted(emptyChart());
 		chartData.days = {
-			'2026-01-02': { focus: ['a0_0'], checked: ['a0_0', 'a1_0'] },
-			'2025-12-31': { focus: ['a2_0'], checked: [] }
+			'2026-01-02': { focus: [A.a0_0], checked: [A.a0_0, A.a1_0] },
+			'2025-12-31': { focus: [A.a2_0], checked: [] }
 		};
 		const activity = yearActivity(chartData, 2026);
 		expect(activity.size).toBe(1);
@@ -352,11 +360,11 @@ describe('companion helpers', () => {
 	});
 
 	it('computes year stats including best streak', () => {
-		const chartData = emptyChart();
+		const chartData = slotted(emptyChart());
 		chartData.days = {
-			'2026-03-01': { focus: ['a0_0'], checked: ['a0_0'] },
-			'2026-03-02': { focus: ['a0_0'], checked: [] },
-			'2026-03-04': { focus: [], checked: ['a1_0'] }
+			'2026-03-01': { focus: [A.a0_0], checked: [A.a0_0] },
+			'2026-03-02': { focus: [A.a0_0], checked: [] },
+			'2026-03-04': { focus: [], checked: [A.a1_0] }
 		};
 		const stats = yearStats(chartData, 2026);
 		expect(stats.daysWithFocus).toBe(2);
@@ -372,7 +380,7 @@ describe('companion helpers', () => {
 
 describe('completedBy', () => {
 	function full(): ChartData {
-		const data = emptyChart();
+		const data = slotted(emptyChart());
 		data.goal = 'Run a half marathon';
 		data.pillars = data.pillars.map((_, index) => `Pillar ${index + 1}`);
 		data.actions = data.actions.map((row, pillarIndex) => row.map((_, index) => `Action ${pillarIndex}.${index}`));
@@ -426,9 +434,106 @@ describe('reflectionWeekOf', () => {
 	});
 
 	it('knows whether a week had a tick', () => {
-		const data = emptyChart();
-		data.days = { '2026-10-07': { focus: ['a0_0'], checked: ['a0_0'] }, '2026-10-12': { focus: ['a0_0'], checked: [] } };
+		const data = slotted(emptyChart());
+		data.days = { '2026-10-07': { focus: [A.a0_0], checked: [A.a0_0] }, '2026-10-12': { focus: [A.a0_0], checked: [] } };
 		expect(weekHadTicks(data, '2026-10-05')).toBe(true);
 		expect(weekHadTicks(data, '2026-10-12')).toBe(false);
+	});
+});
+
+describe('action ids', () => {
+	it('gives every cell of a new chart its own id', () => {
+		const ids = emptyChart().actionIds.flat();
+		expect(ids).toHaveLength(64);
+		expect(new Set(ids).size).toBe(64);
+		expect(ids.every((id) => isId('action', id))).toBe(true);
+	});
+
+	it("gives ids to a chat app's reply, and replaces a missing or repeated one", () => {
+		const reply = { goal: 'Run', pillars: Array(8).fill(''), actions: Array.from({ length: 8 }, () => Array(8).fill('')) };
+		const parsed = parseChart(JSON.stringify(reply))!;
+		expect(new Set(parsed.actionIds.flat()).size).toBe(64);
+		const data = slotted(emptyChart());
+		data.actionIds[0]![1] = A.a0_0;
+		const repaired = parseChart(JSON.stringify(data))!;
+		expect(repaired.actionIds[0]![0]).toBe(A.a0_0);
+		expect(repaired.actionIds[0]![1]).not.toBe(A.a0_0);
+	});
+
+	it('keeps meta keyed by an action id, and nothing else', () => {
+		const data = slotted(emptyChart());
+		const parsed = parseChart(JSON.stringify({ ...data, meta: { [A.a0_0]: { kind: 'routine' }, a0_1: { kind: 'routine' } } }))!;
+		expect(parsed.meta).toEqual({ [A.a0_0]: { kind: 'routine' } });
+	});
+
+	it('finds an action by its id, and reads and writes it as a cell would', () => {
+		const data = slotted(emptyChart());
+		data.actions[3]![5] = 'Stretch';
+		expect(slotOf(data, A.a3_5)).toEqual({ pillarIndex: 3, slot: 5 });
+		expect(keyOf(data, A.a3_5)).toBe('a3_5');
+		expect(getByKey(data, A.a3_5)).toBe('Stretch');
+		setByKey(data, A.a3_5, 'Stretch for ten minutes');
+		expect(data.actions[3]![5]).toBe('Stretch for ten minutes');
+		expect(idAt(data, 3, 5)).toBe(A.a3_5);
+	});
+
+	it('keeps the id while the words change, and gives a cleared line a new one', () => {
+		const data = slotted(emptyChart());
+		setByKey(data, 'a0_0', 'Run 3 km');
+		setByKey(data, 'a0_0', 'Run 5 km');
+		expect(idAt(data, 0, 0)).toBe(A.a0_0);
+		setByKey(data, 'a0_0', '');
+		setByKey(data, 'a0_0', 'Learn chords');
+		expect(idAt(data, 0, 0)).not.toBe(A.a0_0);
+		expect(data.cleared).toBeUndefined();
+	});
+
+	it('remembers a cleared line that was ticked, and brings it back when its words return', () => {
+		const data = slotted(emptyChart());
+		data.actions[2]![4] = 'Book a race';
+		data.meta = { [A.a2_4]: { kind: 'milestone', done: true, doneAt: '2026-10-01' } };
+		data.days = { '2026-10-01': { focus: [], checked: [A.a2_4] } };
+		setByKey(data, 'a2_4', '');
+		expect(data.cleared).toEqual({ [A.a2_4]: { text: 'Book a race', pillar: 2, slot: 4 } });
+		expect(slotOf(data, A.a2_4)).toBeNull();
+		expect(wordsOf(data, A.a2_4)).toBe('Book a race');
+		expect(pillarActivityLast7(data)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+
+		setByKey(data, 'a2_4', 'Book a race');
+		expect(idAt(data, 2, 4)).toBe(A.a2_4);
+		expect(data.cleared).toBeUndefined();
+		expect(getMeta(data, A.a2_4)?.done).toBe(true);
+	});
+
+	it('does not bring a line back over one that has a life of its own', () => {
+		const data = slotted(emptyChart());
+		data.actions[1]![0] = 'Read a page';
+		data.days = { '2026-10-01': { focus: [], checked: [A.a1_0] } };
+		setByKey(data, 'a1_0', '');
+		setByKey(data, 'a1_0', 'Write a page');
+		const fresh = idAt(data, 1, 0);
+		data.meta = { [fresh]: { kind: 'routine' } };
+		setByKey(data, 'a1_0', 'Read a page');
+		expect(idAt(data, 1, 0)).toBe(fresh);
+	});
+
+	it('gives a copy new ids, and moves everything that points at one', () => {
+		const data = slotted(emptyChart());
+		data.actions[0]![0] = 'Run';
+		data.meta = { [A.a0_0]: { kind: 'routine' } };
+		data.days = { '2026-10-01': { focus: [A.a0_0], checked: [A.a0_0], at: { [A.a0_0]: '07:00' }, shown: [`stuck:${A.a0_0}`] } };
+		data.tools = { p0: [{ id: 'tool_1', url: 'https://example.com', title: 'Example', kind: 'repeat', action: A.a0_0 }] };
+		data.cleared = { [`action_${'0'.repeat(24)}99`]: { text: 'Old', pillar: 0, slot: 1 } } as ChartData['cleared'];
+		const copy = withNewIds(data);
+		const id = idAt(copy, 0, 0);
+		expect(id).not.toBe(A.a0_0);
+		expect(new Set(copy.actionIds.flat()).size).toBe(64);
+		expect(copy.actionIds.flat()).not.toContain(A.a1_1);
+		expect(copy.meta).toEqual({ [id]: { kind: 'routine' } });
+		expect(copy.days?.['2026-10-01']).toMatchObject({ focus: [id], checked: [id], at: { [id]: '07:00' }, shown: [`stuck:${id}`] });
+		expect(copy.tools?.p0?.[0]?.action).toBe(id);
+		expect(Object.keys(copy.cleared ?? {})).toHaveLength(1);
+		expect(JSON.stringify(copy)).not.toContain(A.a0_0);
+		expect(data.meta[A.a0_0]).toEqual({ kind: 'routine' });
 	});
 });
