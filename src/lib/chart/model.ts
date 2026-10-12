@@ -25,6 +25,8 @@ export type ActionMeta = {
 	done?: boolean;
 	doneAt?: string;
 	note?: string;
+	/** The card's notes on the board: longer than `note`, and kept off Today. */
+	details?: string;
 	lane?: 'todo' | 'doing';
 	rank?: number;
 };

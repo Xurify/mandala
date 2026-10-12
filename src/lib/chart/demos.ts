@@ -222,7 +222,7 @@ export const DEMOS: readonly Demo[] = [
 			'Drop one in Done: its check stamps, Today ticks it, and the calendar shows it today. "Talk to yourself for 5 minutes after dinner" is a routine, so Done turns it away.',
 			'Today\'s three sit in Doing, marked Today. Open Today and tick one: it is in Done when you come back. Untick it, or drag it out of Done, and it reopens everywhere.',
 			'With the keyboard: Tab to a card, Space picks it up, the arrows carry it, Space puts it down, Escape puts it back.',
-			'Click a card to move it from a sheet, or open it in the editor. Today deals what is in Doing first.'
+			'Click a card: it opens beside the board like a ticket. Write notes on it, move it, change its kind, read its activity. Click another card and the sheet follows; Escape closes it.'
 		]
 	},
 	{

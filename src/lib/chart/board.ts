@@ -213,6 +213,22 @@ export function moveCard(
 	return change;
 }
 
+export type Moment = { dateKey: string; what: 'finished' | 'ticked' | 'picked' | 'dropped'; at?: string };
+
+/** What the day logs say happened to an action, newest first: one moment a day. */
+export function historyOf(data: ChartData, key: string, limit = 8): Moment[] {
+	const routine = isRoutine(data.meta?.[key]);
+	const out: Moment[] = [];
+	for (const dateKey of Object.keys(data.days ?? {}).sort().reverse()) {
+		const log = data.days![dateKey]!;
+		if (log.checked.includes(key)) out.push({ dateKey, what: routine ? 'ticked' : 'finished', at: log.at?.[key] });
+		else if (log.dropped?.includes(key)) out.push({ dateKey, what: 'dropped' });
+		else if (log.focus.includes(key)) out.push({ dateKey, what: 'picked' });
+		if (out.length === limit) break;
+	}
+	return out;
+}
+
 export function dealFirst(a: ActionMeta | undefined, b: ActionMeta | undefined): number {
 	const weight = (meta: ActionMeta | undefined): number => {
 		if (meta?.pinned) return 0;

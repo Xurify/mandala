@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, laneOf, moveCard, placed, reopen, tomorrowOf, wholeIndex, type Change } from './board.ts';
+import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, historyOf, laneOf, moveCard, placed, reopen, tomorrowOf, wholeIndex, type Change } from './board.ts';
 import { doneOn } from './calendar.ts';
 import { cloneChart } from './library.ts';
 import { emptyChart, setMeta, type ActionMeta, type ChartData } from './model.ts';
@@ -274,5 +274,25 @@ describe('Today and the board', () => {
 		expect(data.days?.[tomorrow]?.focus).toEqual(['a2_2']);
 		expect(keys(data).todo).toEqual([]);
 		expect(boardOf(data, tomorrow).doing.map((card) => card.key)).toEqual(['a2_2']);
+	});
+});
+
+describe('historyOf', () => {
+	it('reads one moment a day from the logs, newest first', () => {
+		const data = chart();
+		data.meta = { a0_1: { kind: 'routine' } };
+		data.days = {
+			'2026-10-05': { focus: ['a0_0'], checked: [], dropped: ['a0_0'] },
+			'2026-10-07': { focus: ['a0_0'], checked: [] },
+			'2026-10-09': { focus: ['a0_0'], checked: ['a0_0', 'a0_1'], at: { a0_0: '18:30' } },
+			'2026-10-10': { focus: [], checked: ['a0_1'] }
+		};
+		expect(historyOf(data, 'a0_0')).toEqual([
+			{ dateKey: '2026-10-09', what: 'finished', at: '18:30' },
+			{ dateKey: '2026-10-07', what: 'picked' },
+			{ dateKey: '2026-10-05', what: 'dropped' }
+		]);
+		expect(historyOf(data, 'a0_1', 1)).toEqual([{ dateKey: '2026-10-10', what: 'ticked', at: undefined }]);
+		expect(historyOf(data, 'a7_7')).toEqual([]);
 	});
 });

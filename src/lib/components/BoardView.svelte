@@ -19,6 +19,7 @@
 	import { HUES, actionKey, dateKeyOffset, weekStartKey } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
+	import CardSheet from './CardSheet.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
@@ -478,10 +479,9 @@
 		void focusCard(key);
 	});
 
-	function moveFromSheet(value: string): void {
+	function moveFromSheet(to: Lane): void {
 		const found = sheet;
 		if (!found) return;
-		const to = value as Lane;
 		commit(found.card, found.lane, to, restOf(to, found.card.key).length);
 	}
 
@@ -546,6 +546,10 @@
 	{@const mark = markOf(card, inLane)}
 	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4 text-muted">
 		<span class="pillar-ink min-w-0 flex-1 truncate font-medium" style:--h={HUES[card.pillarIndex]}>{pillarName(card.pillarIndex)}</span>
+		{#if chart.metaOf(card.key)?.details}
+			<Icon name="file-text" size={12} class="shrink-0" />
+			<span class="sr-only">Has notes</span>
+		{/if}
 		{#if mark}
 			<span class="flex shrink-0 items-center gap-1">
 				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.key && 'motion-safe:animate-stamp')} />
@@ -729,39 +733,9 @@
 	{/if}
 </div>
 
-<Dialog bind:open={sheetOpen} title={sheet?.card.text ?? ''} description={sheet ? pillarName(sheet.card.pillarIndex) : undefined} size="sm">
-	{#if sheet}
-		{@const card = sheet.card}
-		<div class="flex flex-col gap-4">
-			<div class="flex flex-wrap items-center justify-between gap-3">
-				<span class="text-[0.9rem] text-muted">List</span>
-				<SegmentedControl
-					label="List"
-					options={LANES.filter((each) => canGo(card, each)).map((each) => ({ value: each, label: LANE_NAMES[each] }))}
-					value={sheet.lane}
-					onchange={moveFromSheet}
-				/>
-			</div>
-			{#if sheet.lane === 'done'}
-				<p class="m-0 text-[0.9rem] text-pretty text-muted">
-					Finished {card.doneAt === today ? 'today' : shortDay(card.doneAt) === 'Yesterday' ? 'yesterday' : `on ${new Date(`${card.doneAt}T12:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}. It is on the calendar.
-				</p>
-			{:else if card.routine}
-				<p class="m-0 text-[0.9rem] text-pretty text-muted">A routine never goes to Done. Tick it in Today, day by day.</p>
-			{/if}
-			{#if card.routine && todayTicks.has(card.key)}
-				<p class="m-0 text-[0.9rem] text-pretty text-muted">Ticked today.</p>
-			{:else if sheet.lane !== 'done' && todayFocus.has(card.key)}
-				<p class="m-0 text-[0.9rem] text-pretty text-muted">One of today's three.</p>
-			{:else if sheet.lane !== 'done' && tomorrowFocus.has(card.key)}
-				<p class="m-0 text-[0.9rem] text-pretty text-muted">Planned for tomorrow.</p>
-			{/if}
-		</div>
-	{/if}
-	{#snippet footer()}
-		<Button variant="soft" icon="edit" onclick={openInEditor}>Open in the editor</Button>
-	{/snippet}
-</Dialog>
+{#if sheetOpen && sheet}
+	<CardSheet card={sheet.card} lane={sheet.lane} onmove={moveFromSheet} onclose={() => (sheetOpen = false)} oneditor={openInEditor} />
+{/if}
 
 <Dialog bind:open={addOpen} title="New card" description="It is written into the chart as one of the pillar's actions." size="sm">
 	<form
