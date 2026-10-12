@@ -61,6 +61,10 @@ export function overlayLocalEdits(
 		merged.brief = edited.brief ? structuredClone(edited.brief) : undefined;
 	}
 
+	if (JSON.stringify(base.timer ?? null) !== JSON.stringify(edited.timer ?? null)) {
+		merged.timer = edited.timer ? { ...edited.timer } : undefined;
+	}
+
 	return merged;
 }
 

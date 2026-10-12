@@ -65,3 +65,62 @@ describe('chart shelves', () => {
 		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
 	});
 });
+
+describe('chart time', () => {
+	const MINUTE = 60_000;
+
+	beforeEach(() => {
+		chart.data = emptyChart();
+		chart.data.actions[0]![0] = 'Scales before work';
+		chart.data.actions[3]![2] = 'Run the set once';
+		chart.timerEnd = null;
+		chart.loggingTime = null;
+	});
+
+	it('logs the clock when it is stopped, and leaves the tick alone', () => {
+		chart.startTimer('a0_0');
+		chart.data.timer!.since -= 12 * MINUTE;
+		chart.stopTimer();
+		expect(chart.timer).toBeNull();
+		const day = Object.values(chart.data.days ?? {})[0];
+		expect(day?.sessions).toEqual([expect.objectContaining({ key: 'a0_0', minutes: 12 })]);
+		expect(day?.checked).toEqual([]);
+		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', key: 'a0_0', minutes: 12 });
+	});
+
+	it('logs the one running when another starts', () => {
+		chart.startTimer('a0_0');
+		chart.data.timer!.since -= 5 * MINUTE;
+		chart.startTimer('a3_2', 25);
+		expect(chart.timer).toMatchObject({ key: 'a3_2', length: 25 });
+		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([5]);
+	});
+
+	it('finishes a block at its length, and a break without logging', () => {
+		chart.startTimer('a3_2', 25);
+		expect(chart.finishTimer()).toBeNull();
+		chart.data.timer!.since -= 40 * MINUTE;
+		expect(chart.finishTimer()).toMatchObject({ kind: 'block', minutes: 25 });
+		chart.startBreak(5);
+		chart.data.timer!.since -= 6 * MINUTE;
+		expect(chart.finishTimer()).toMatchObject({ kind: 'break' });
+		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([25]);
+	});
+
+	it('asks how long instead of logging a clock left on for hours', () => {
+		chart.startTimer('a0_0');
+		chart.data.timer!.since -= 9 * 60 * MINUTE;
+		chart.stopTimer();
+		expect(chart.timer).not.toBeNull();
+		expect(chart.loggingTime?.forgotten).toBeDefined();
+		chart.logTime('a0_0', 40);
+		expect(chart.timer).toBeNull();
+		const sessions = Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []);
+		expect(sessions.map((session) => session.minutes)).toEqual([40]);
+	});
+
+	it('adds time spent away from the app', () => {
+		chart.logTime('a3_2', 45);
+		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ key: 'a3_2', minutes: 45 })]);
+	});
+});

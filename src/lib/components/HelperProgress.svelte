@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { HelperStore } from '$lib/chart/helper.svelte';
 	import { progressOf } from '$lib/chart/helper';
+	import { HUES } from '$lib/chart/model';
+	import { formatMinutes } from '$lib/chart/timer';
 	import Button from './ui/Button.svelte';
 	import WeekStrip from './WeekStrip.svelte';
 
@@ -9,6 +11,13 @@
 	const progress = $derived(progressOf(helper.data));
 	const named = $derived(helper.data.pillars.filter((pillar) => pillar.trim()).length);
 	const quiet = $derived(progress.quiet.map((index) => helper.data.pillars[index]?.trim()).filter(Boolean));
+	const timeTotal = $derived(progress.minutes.reduce((sum, minutes) => sum + minutes, 0));
+	const timed = $derived(
+		progress.minutes
+			.map((minutes, pillarIndex) => ({ minutes, pillarIndex, name: helper.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}` }))
+			.filter((row) => row.minutes > 0)
+			.sort((a, b) => b.minutes - a.minutes)
+	);
 
 	function listNames(names: readonly (string | undefined)[]): string {
 		if (names.length <= 1) return names[0] ?? '';
@@ -50,6 +59,27 @@
 				</dd>
 			</div>
 		</dl>
+
+		{#if timeTotal > 0}
+			{@const longest = timed[0]?.minutes ?? 1}
+			<section class="flex flex-col gap-2 rounded-[18px] bg-bg px-3 pt-2.5 pb-3" aria-labelledby="bindu-time">
+				<div class="flex items-baseline justify-between gap-3">
+					<h3 id="bindu-time" class="m-0 text-[0.76rem] font-normal text-muted">On the clock</h3>
+					<p class="m-0 text-[1.05rem] leading-tight font-[620] tabular-nums">{formatMinutes(timeTotal)}</p>
+				</div>
+				<ul class="m-0 flex list-none flex-col gap-1.5 p-0">
+					{#each timed as row (row.pillarIndex)}
+						<li class="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2.5 text-[0.84rem] leading-tight">
+							<span class="pillar-ink truncate font-[600]" style:--h={HUES[row.pillarIndex]}>{row.name}</span>
+							<span class="h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+								<span class="pip block h-full rounded-full" style:--pip-h={HUES[row.pillarIndex]} style:width="{Math.max(4, (row.minutes / longest) * 100)}%"></span>
+							</span>
+							<span class="text-muted tabular-nums">{formatMinutes(row.minutes)}</span>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 
 		{#if quiet.length > 0 || progress.insights.length > 0}
 			<ul class="m-0 flex list-none flex-col gap-2.5 p-0">

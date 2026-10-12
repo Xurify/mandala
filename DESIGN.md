@@ -215,6 +215,17 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
+### Time on an action
+
+How long something took, beside whether it got done. The tick stays the person's: time never ticks an action, and an action can be ticked with no time on it. Rules in `timer.ts`.
+
+- **Three ways in, one button.** A row in Today has a timer button, quiet until the row is pointed at (always there on touch). It opens a menu: **Start the clock** counts up until stopped; **Focus block** runs 25 minutes, then offers a 5-minute break; **Log time** writes in time spent away from the screen, 15 to 60 minutes or any length typed.
+- **The slip on the dock** (`TimerSlip.svelte`). A running timer is a paper slip riding on the dock, between it and the toast, so it follows every view. The ring (`TimerRing.svelte`) is the action's pillar hue: a block empties over its length, the clock goes round once an hour, and a break, which belongs to no pillar, draws in ink. The center dot is the goal's dot. The slip says what is being timed and the time, and its one control stops it; the rest of the slip goes to Today. On the row, a small ring stands in for the timer button, and stops it too. The tab title counts while it runs.
+- **Ending.** Stopping by hand logs the minutes and the slip says so, with Tick it, then leaves on its own after 6 seconds (pointing at it holds it). A block that runs out chimes, closes its ring on a check, logs its full length, and waits for an answer: Take 5, or Tick it. A break that runs out offers Another 25 on the same action. A block that ended while the page was shut logs quietly the next time the page is open. Starting a timer while another runs logs the first, with a slip.
+- **A clock left on.** Stopping a clock that ran over 3 hours logs nothing yet. It asks how long it really took, or not to log it.
+- **Where it reads back.** The row says how long today ("25 min today"). The calendar's day lists what was on the clock under what was finished, and the month line adds it up. Bindu's progress page shows time per pillar this week, longest first, and its first note can say where most of the week's time went.
+- **Storage.** Sessions live in the day log and travel with a shared chart, like ticks. The running timer stays on the device: it is left out of share links.
+
 ### The empty chart
 
 A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.
@@ -231,7 +242,7 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ## Trying it
 
-`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the weekly reflection, time on an action (the clock, a focus block and its break, time logged afterwards, a clock left on, a week of it), and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 

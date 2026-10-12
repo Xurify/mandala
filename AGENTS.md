@@ -42,6 +42,8 @@ src/
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
+    timer.ts                  time on an action: the running timer, sessions, minutes per pillar (pure, tested)
+    chime.ts                  the sound at the end of a block, readied by a tap
     calendar.ts               a month of days and what was finished on each (pure, tested)
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
@@ -54,6 +56,7 @@ src/
     Helper*.svelte            Bindu: launcher, panel, and one component per page
     EmptyChart, WeeklyReflection, WeekStrip, MiniChart, CalendarView
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
+    TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
   routes/dev/demo             one-click situations for trying every interaction
@@ -67,6 +70,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Anything arranged in a circle (ring, mark, icon) places pillar `k` at `PILLAR_ANGLES[k]`, so it matches the grid spatially.
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
+- Time is logged per day as sessions (`days[date].sessions`), never as a tick. One timer runs at a time (`data.timer`), as a start time, not a count.
 
 ## Conventions
 

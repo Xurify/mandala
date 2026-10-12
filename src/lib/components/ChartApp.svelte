@@ -38,6 +38,8 @@
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
+	import LogTimeDialog from './LogTimeDialog.svelte';
+	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
@@ -578,9 +580,15 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
-<!-- The Bindu launcher sits at the right of the row above the dock on a phone: 50px, plus a 16px gap. -->
+<!--
+	The Bindu launcher sits at the right of the row above the dock on a phone: 50px, plus a 16px gap. A timer
+	rides on the dock, and the page makes room for it: the slip is about 68px, plus the dock's 10px gap.
+-->
 <div
-	class="page-gutter mx-auto max-w-295 max-[600px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class={cn(
+		'page-gutter mx-auto max-w-295 max-[600px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0',
+		(chart.timer || chart.timerEnd) && 'pb-[calc(206px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(190px+env(safe-area-inset-bottom,0px))]'
+	)}
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
@@ -743,6 +751,7 @@
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
 		<ShelfSheet />
+		<LogTimeDialog />
 	</header>
 
 	<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
@@ -880,6 +889,9 @@
 	<Helper {helper} />
 
 	<Dock label="Layout view mode">
+		{#snippet above()}
+			<TimerSlip />
+		{/snippet}
 		<DockTab
 			icon="calendar"
 			selected={effectiveViewMode === 'today'}

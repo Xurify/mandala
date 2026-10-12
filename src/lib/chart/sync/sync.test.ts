@@ -94,6 +94,20 @@ describe('overlayLocalEdits', () => {
 		expect(overlayLocalEdits(base, structuredClone(base), server).brief).toEqual({ timeline: 'March' });
 	});
 
+	it('carries a clock this device started or stopped', () => {
+		const base = emptyChart();
+		const started = structuredClone(base);
+		started.timer = { key: 'a0_0', since: 1_000 };
+		const server = chartWith('Newer there');
+		expect(overlayLocalEdits(base, started, server).timer).toEqual({ key: 'a0_0', since: 1_000 });
+
+		const running = structuredClone(server);
+		running.timer = { key: 'a0_0', since: 1_000 };
+		const stopped = structuredClone(running);
+		delete stopped.timer;
+		expect(overlayLocalEdits(running, stopped, running).timer).toBeUndefined();
+	});
+
 	it('does not mutate the server copy it was given', () => {
 		const base = chartWith('Base', '');
 		const edited = chartWith('Device edit', '');

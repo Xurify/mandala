@@ -39,6 +39,15 @@ describe('share encoding', () => {
 		expect(decoded?.icons).toBeUndefined();
 	});
 
+	it('leaves a running clock out of the link, and keeps logged time', async () => {
+		const data = sampleChart();
+		data.days!['2026-09-30']!.sessions = [{ key: 'a0_0', at: '07:00', minutes: 30 }];
+		data.timer = { key: 'a0_0', since: Date.now() };
+		const decoded = await decodeChartShare(`#${await encodeChartShare(data)}`);
+		expect(decoded?.timer).toBeUndefined();
+		expect(decoded?.days?.['2026-09-30']?.sessions).toEqual([{ key: 'a0_0', at: '07:00', minutes: 30 }]);
+	});
+
 	it('round-trips a plain (uncompressed) payload', async () => {
 		const json = JSON.stringify(sampleChart());
 		let binary = '';

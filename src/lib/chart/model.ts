@@ -38,6 +38,24 @@ export type DayLog = {
 	declined?: string[];
 	/** As `id:key`. */
 	shown?: string[];
+	/** Time on an action, in the order it was logged. */
+	sessions?: Session[];
+};
+
+export type Session = {
+	key: string;
+	/** Local start, "HH:MM". */
+	at: string;
+	minutes: number;
+};
+
+/** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
+export type Timer = {
+	/** A break has none. */
+	key?: string;
+	since: number;
+	/** Minutes, for a block or a break. Without one the clock runs until it is stopped. */
+	length?: number;
 };
 
 export type WeekReflection = {
@@ -97,6 +115,7 @@ export type ChartData = {
 	/** Keyed `p0` to `p7`. */
 	tools?: Record<string, Tool[]>;
 	icons?: Record<string, string>;
+	timer?: Timer;
 };
 
 export const ICON_MAX = 96_000;
@@ -135,6 +154,16 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 		if (tools.length > 0) out[key] = tools;
 	}
 	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function parseTimer(value: unknown): Timer | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const record = value as Record<string, unknown>;
+	if (typeof record.since !== 'number' || !Number.isFinite(record.since)) return undefined;
+	const timer: Timer = { since: record.since };
+	if (typeof record.key === 'string' && /^a[0-7]_[0-7]$/.test(record.key)) timer.key = record.key;
+	if (typeof record.length === 'number' && record.length > 0 && record.length <= 24 * 60) timer.length = record.length;
+	return timer.key || timer.length ? timer : undefined;
 }
 
 export function emptyChart(): ChartData {
@@ -332,7 +361,8 @@ export function parseChart(raw: string): ChartData | null {
 			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
 			brief: parseBrief(record.brief),
 			tools: parseTools(record.tools),
-			icons: parseIcons(record.icons)
+			icons: parseIcons(record.icons),
+			timer: parseTimer(record.timer)
 		};
 	} catch {
 		return null;

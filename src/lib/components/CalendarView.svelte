@@ -3,6 +3,7 @@
 	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type MonthDay } from '$lib/chart/calendar';
 	import { HUES, todayKey } from '$lib/chart/model';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
+	import { formatMinutes, sessionsOn } from '$lib/chart/timer';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
@@ -37,6 +38,8 @@
 	const fallbackKey = $derived(thisMonth ? today : lastDoneDay(current));
 	const picked = $derived(selectedDay ?? days.find((day) => day.key === fallbackKey) ?? null);
 	const opened = $derived(picked ? openedOn(chart.data, picked.key) : []);
+	const sessions = $derived(picked ? sessionsOn(chart.data, picked.key) : []);
+	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
 
 	function go(by: 1 | -1): void {
 		direction = by;
@@ -67,7 +70,8 @@
 
 	function spoken(day: MonthDay): string {
 		const count = day.done.length;
-		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}`;
+		const time = day.minutes > 0 ? `, ${formatMinutes(day.minutes)} on the clock` : '';
+		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}${time}`;
 	}
 </script>
 
@@ -204,6 +208,36 @@
 							{/each}
 						</ul>
 					{/if}
+					{#if sessions.length > 0}
+						<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
+							<h4 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="clock" size={14} />On the clock</h4>
+							<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{formatMinutes(picked.minutes)}</span>
+						</div>
+						<ul class="m-0 flex list-none flex-col gap-px p-0">
+							{#each sessions as session, index (`${session.key}-${session.at}-${index}`)}
+								{@const pillarIndex = Number(session.key[1])}
+								<li class="motion-safe:animate-pop-in" style:animation-delay="{(picked.done.length + index) * 45}ms">
+									<button
+										type="button"
+										class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans text-text select-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+										onclick={() => chart.jumpToKey(session.key)}
+									>
+										<span class="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+											<span class="pip size-2 rounded-full" style:--pip-h={HUES[pillarIndex]}></span>
+										</span>
+										<span class="flex min-w-0 flex-1 flex-col gap-px">
+											<span class="text-[0.92rem] leading-snug text-pretty">{chart.textOf(session.key).trim() || 'A line since removed'}</span>
+											<span class="pillar-ink truncate text-[0.74rem] leading-tight font-[620]" style:--h={HUES[pillarIndex]}>{pillarName(pillarIndex)}</span>
+										</span>
+										<span class="flex shrink-0 flex-col items-end gap-px tabular-nums">
+											<span class="text-[0.86rem] font-[620] text-text">{formatMinutes(session.minutes)}</span>
+											<span class="text-[0.74rem] text-muted">from {clock(session.at)}</span>
+										</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 					{#if opened.length > 0}
 						<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
 							<h4 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="shelf" size={14} />Opened from the shelf</h4>
@@ -211,7 +245,7 @@
 						</div>
 						<ul class="m-0 flex list-none flex-col gap-px p-0">
 							{#each opened as entry, index (entry.tool.id)}
-								<li class="motion-safe:animate-pop-in" style:animation-delay="{(picked.done.length + index) * 45}ms">
+								<li class="motion-safe:animate-pop-in" style:animation-delay="{(picked.done.length + sessions.length + index) * 45}ms">
 									<a
 										href={entry.tool.url}
 										target="_blank"

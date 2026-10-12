@@ -43,6 +43,9 @@
 		| 'command'
 		| 'keyboard'
 		| 'clock'
+		| 'timer'
+		| 'hourglass'
+		| 'stop'
 		| 'plus'
 		| 'claude'
 		| 'openai'
@@ -257,5 +260,16 @@
 	{:else if name === 'clock'}
 		<circle cx="12" cy="12" r="9" />
 		<polyline points="12 7 12 12 15 14" />
+	{:else if name === 'timer'}
+		<line x1="10" y1="2" x2="14" y2="2" />
+		<line x1="12" y1="14" x2="15" y2="11" />
+		<circle cx="12" cy="14" r="8" />
+	{:else if name === 'hourglass'}
+		<path d="M6 2h12" />
+		<path d="M6 22h12" />
+		<path d="M7 2v2.5c0 2.5 5 4.5 5 7.5s-5 5-5 7.5V22" />
+		<path d="M17 2v2.5c0 2.5-5 4.5-5 7.5s5 5 5 7.5V22" />
+	{:else if name === 'stop'}
+		<rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
 	{/if}
 </svg>

@@ -1,6 +1,6 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
-import { dateKeyOf, type ChartData, type DayLog, type Tool } from './model.ts';
+import { dateKeyOf, type ChartData, type DayLog, type Session, type Tool } from './model.ts';
 
 /**
  * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
@@ -21,7 +21,12 @@ export type DemoId =
 	| 'bindu-fill'
 	| 'bindu-new'
 	| 'tools'
-	| 'select';
+	| 'select'
+	| 'time-clock'
+	| 'time-block'
+	| 'time-log'
+	| 'time-forgot'
+	| 'time-week';
 
 export type DemoSetup = {
 	/** Null opens a new, empty one. */
@@ -36,7 +41,7 @@ export type DemoSetup = {
 export type Demo = {
 	id: DemoId;
 	title: string;
-	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Tools' | 'Bindu';
+	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Time' | 'Tools' | 'Bindu';
 	steps: string[];
 	reply?: () => string;
 };
@@ -75,6 +80,29 @@ function livedIn(now: Date): ChartData {
 		a2_7: { kind: 'milestone' },
 		a0_0: { kind: 'routine' }
 	};
+	return data;
+}
+
+const MINUTE = 60_000;
+
+/** A week of time on the clock, most of it on Listening, on top of the ticks. */
+function clocked(data: ChartData, now: Date): ChartData {
+	const week: Record<number, [string, string, number][]> = {
+		0: [['a2_0', '07:40', 20]],
+		1: [['a1_0', '07:30', 15], ['a1_5', '18:10', 20], ['a0_0', '20:30', 10]],
+		2: [['a1_1', '13:05', 25], ['a5_1', '19:00', 45]],
+		3: [['a1_0', '07:35', 15], ['a3_0', '12:30', 25], ['a4_1', '21:00', 30]],
+		4: [['a1_5', '18:00', 60], ['a2_3', '20:15', 25]],
+		5: [['a1_2', '07:50', 25]]
+	};
+	data.days ??= {};
+	for (const [back, entries] of Object.entries(week)) {
+		const date = new Date(now);
+		date.setDate(now.getDate() - Number(back));
+		const key = dateKeyOf(date);
+		const sessions: Session[] = entries.map(([action, at, minutes]) => ({ key: action, at, minutes }));
+		data.days[key] = { ...(data.days[key] ?? { focus: [], checked: [] }), sessions };
+	}
 	return data;
 }
 
@@ -194,6 +222,57 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'time-clock',
+		title: 'The clock on an action',
+		group: 'Time',
+		steps: [
+			'Today opens with the clock already running on one action, 12 minutes in. It rides on the dock, so switch to the chart or the editor and it comes along. The tab title counts too.',
+			"Its ring goes round once an hour in the pillar's hue. On the row, a smaller ring stands in for the timer button.",
+			'Press the square to stop it. The minutes are logged on today, the row says so, and the slip offers Tick it, then leaves on its own. Point at it to keep it.',
+			"Start the clock on another row while one runs: the first is logged, and a slip says how long."
+		]
+	},
+	{
+		id: 'time-block',
+		title: 'A focus block, then a break',
+		group: 'Time',
+		steps: [
+			'A 25-minute block on one action, with 40 seconds left. Click anywhere on the page first, so the browser lets it chime.',
+			'When it runs out it chimes, the ring closes on a check, and 25 minutes are logged. It waits there until you answer it.',
+			'Take 5 starts the break, drawn in ink since it belongs to no pillar. When the break ends, Another 25 starts the next block on the same action.',
+			'Start a block from any row: its timer button, then Focus block. Close the tab during one and come back after it ends: it is logged at 25 minutes, without a sound.'
+		]
+	},
+	{
+		id: 'time-log',
+		title: 'Log time afterwards',
+		group: 'Time',
+		steps: [
+			"Most of the work happens away from the screen. On any row in Today, press the timer button, then Log time.",
+			'Pick 15 to 60 minutes, or type any length. The row shows the time logged today.',
+			'Open the calendar from the top of Today: the day lists it under On the clock, with when it started.'
+		]
+	},
+	{
+		id: 'time-forgot',
+		title: 'A clock left on',
+		group: 'Time',
+		steps: [
+			'The clock has been running on one action for over nine hours.',
+			'Stop it. Nothing is logged yet: a dialog asks how long it really took, or lets you not log it.'
+		]
+	},
+	{
+		id: 'time-week',
+		title: 'A week on the clock',
+		group: 'Time',
+		steps: [
+			'Seven days of time, on top of the ticks. The calendar opens on today; the month line adds the time up.',
+			'Tap a day: under what was finished, On the clock lists each stretch, how long, and from when.',
+			"Open Bindu: the first note says where most of the week's time went. How it is going shows time per pillar, longest first."
+		]
+	},
+	{
 		id: 'tools',
 		title: 'Videos on a shelf',
 		group: 'Tools',
@@ -284,6 +363,11 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.tools = shelves(now);
 		return { data, view: 'today' };
 	}
+	if (id === 'time-clock') return { data: { ...livedIn(now), timer: { key: 'a2_0', since: now.getTime() - 12 * MINUTE } }, view: 'today' };
+	if (id === 'time-block') return { data: { ...livedIn(now), timer: { key: 'a4_0', since: now.getTime() - 25 * MINUTE + 40_000, length: 25 } }, view: 'today' };
+	if (id === 'time-log') return { data: livedIn(now), view: 'today' };
+	if (id === 'time-forgot') return { data: { ...livedIn(now), timer: { key: 'a2_0', since: now.getTime() - 552 * MINUTE } }, view: 'today' };
+	if (id === 'time-week') return { data: clocked(livedIn(now), now), view: 'calendar' };
 	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };

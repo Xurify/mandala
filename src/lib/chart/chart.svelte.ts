@@ -31,6 +31,7 @@ import {
   type DayLog,
   type Milestones,
   type ReflectAt,
+  type Timer,
   type Tool,
   type ToolKind,
   type WeekReflection,
@@ -73,6 +74,24 @@ import {
   unpublishChart,
 } from "./sync/publish.ts";
 import { overlayLocalEdits } from "./sync/sync.ts";
+import {
+  addSession,
+  BREAK_MINUTES,
+  formatMinutes,
+  isForgotten,
+  isOver,
+  sessionEndingAt,
+  sessionOf,
+  timerLabel,
+} from "./timer.ts";
+
+/** The last word on a timer that ended: stopped by hand, or a block or a break that ran out. */
+export type TimerEnd = {
+  id: number;
+  kind: "stopped" | "block" | "break";
+  key?: string;
+  minutes: number;
+};
 
 export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
@@ -366,6 +385,8 @@ export class ChartStore {
     this.sel = 4;
     this.query = "";
     this.focusedKey = null;
+    this.timerEnd = null;
+    this.loggingTime = null;
   }
 
   #flush(): boolean {
@@ -773,6 +794,102 @@ export class ChartStore {
     if (existing.shown?.includes(signature)) return;
     this.data.days[dateKey] = { ...existing, shown: [...(existing.shown ?? []), signature] };
     this.data = { ...this.data };
+    this.save();
+  }
+
+  timer: Timer | null = $derived(this.data.timer ?? null);
+  /** Not saved, so a reload does not say it again. */
+  timerEnd = $state<TimerEnd | null>(null);
+  /** The Log time dialog. `forgotten` is a clock left on, which the dialog logs instead of its hours. */
+  loggingTime = $state<{ key: string; forgotten?: Timer } | null>(null);
+  #endSeq = 1;
+
+  /** Without a length the clock runs until it is stopped. One runs at a time, so the one before is logged. */
+  startTimer(key: string, length?: number): void {
+    const now = Date.now();
+    const previous = this.data.timer;
+    if (previous?.key) {
+      if (isForgotten(previous, now)) {
+        this.say(`The clock on ${timerLabel(this.data, previous)} ran for hours, so it was not logged.`);
+      } else {
+        const logged = this.#logTimer(previous, now);
+        if (logged) this.say(`Logged ${formatMinutes(logged.minutes)} on ${timerLabel(this.data, previous)}.`);
+      }
+    }
+    this.data.timer = length ? { key, since: now, length } : { key, since: now };
+    this.timerEnd = null;
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  startBreak(minutes = BREAK_MINUTES): void {
+    this.data.timer = { since: Date.now(), length: minutes };
+    this.timerEnd = null;
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  /** A clock left on for hours asks how long instead of logging them. */
+  stopTimer(): void {
+    const timer = this.data.timer;
+    if (!timer) return;
+    const now = Date.now();
+    if (timer.key && isForgotten(timer, now)) {
+      this.loggingTime = { key: timer.key, forgotten: timer };
+      return;
+    }
+    const logged = this.#logTimer(timer, now);
+    this.#clearTimer();
+    this.timerEnd = timer.key ? { id: this.#endSeq++, kind: "stopped", key: timer.key, minutes: logged?.minutes ?? 0 } : null;
+  }
+
+  /** For a block or a break that has run out. A block logs its whole length, however late this runs. */
+  finishTimer(): TimerEnd | null {
+    const timer = this.data.timer;
+    const now = Date.now();
+    if (!timer || !isOver(timer, now)) return null;
+    const logged = this.#logTimer(timer, now);
+    this.#clearTimer();
+    this.timerEnd = { id: this.#endSeq++, kind: timer.key ? "block" : "break", key: timer.key, minutes: logged?.minutes ?? timer.length ?? 0 };
+    return this.timerEnd;
+  }
+
+  dismissTimerEnd(): void {
+    this.timerEnd = null;
+  }
+
+  /** For a clock left on: it stops without logging anything. */
+  discardTimer(): void {
+    if (!this.data.timer) return;
+    this.loggingTime = null;
+    this.#clearTimer();
+  }
+
+  logTime(key: string, minutes: number): void {
+    const forgotten = this.loggingTime?.forgotten;
+    if (forgotten && this.data.timer?.since === forgotten.since) {
+      this.#logTimer(forgotten, Date.now(), minutes);
+      this.#clearTimer();
+    } else {
+      const { dateKey, session } = sessionEndingAt(key, minutes, new Date());
+      addSession(this.data, dateKey, session);
+      this.data = { ...this.data };
+      this.save();
+    }
+    this.loggingTime = null;
+    this.say(`Logged ${formatMinutes(minutes)} on ${timerLabel(this.data, { key, since: 0 })}.`);
+  }
+
+  #logTimer(timer: Timer, now: number, minutes?: number): { minutes: number } | null {
+    const logged = sessionOf(timer, now, minutes);
+    if (!logged) return null;
+    addSession(this.data, logged.dateKey, logged.session);
+    return logged.session;
+  }
+
+  #clearTimer(): void {
+    const { timer: _timer, ...rest } = this.data;
+    this.data = rest;
     this.save();
   }
 
