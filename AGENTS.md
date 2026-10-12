@@ -42,6 +42,7 @@ src/
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
     theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
+    contract.ts               where each saved field may travel (shared, yours, device), and every browser storage key
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
@@ -71,6 +72,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 - A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
+- Saved data has a place in the sync contract (`contract.ts`, `docs/sync.md`). A new field on a saved type fails `bun run check` until it is placed, and a new `localStorage` key fails `contract.test.ts` until `BROWSER_KEYS` lists it. Decide where it goes in the same change, and keep what is not `shared` out of `forSharing`.
 - Saved charts carry a `version` (`CHART_VERSION` in `model.ts`), stamped by `parseChart`, which every chart passes through on load, import, share, and sync. There are no users yet, so there is no upgrade or legacy code: change the shape of saved data freely, and don't add a fallback for an old shape. Write upgrades in `parseChart` once people have data to keep.
 - Done is one record across Today, the board, the editor, and the calendar: the action's `done`/`doneAt` and the day's tick are written together. Finish or reopen with `chart.finish` / `chart.reopen` (or `chart.moveCard`), never by writing one of them alone. Ask `finishedOn` in `board.ts` whether something was finished on a day.
 
