@@ -99,7 +99,6 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
-	/** Views with a stage of their own, where the chart's hero card and the method link stay out of the way. */
 	const offChart = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar' || effectiveViewMode === 'board');
 	const searching = $derived(chart.query.trim() !== '');
 
@@ -751,7 +750,6 @@
 		<ShelfSheet />
 	</header>
 
-	<!-- On the board, search narrows the cards instead. -->
 	{#if effectiveViewMode !== 'board'}
 		<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
 			{#if searching && !shownHits.length}
@@ -862,7 +860,6 @@
 			<CalendarView />
 		{/if}
 		{#if effectiveViewMode === 'board'}
-			<!-- The pillar filter and a held card belong to one chart. -->
 			{#key chart.activeId}
 				<BoardView narrow={isMobile} />
 			{/key}

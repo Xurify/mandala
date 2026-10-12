@@ -50,7 +50,6 @@ export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	return out;
 }
 
-/** The shelf's tools opened that day, in pillar order. Opening is logged per day, without a time. */
 export function openedOn(data: ChartData, dateKey: string): { pillarIndex: number; tool: Tool }[] {
 	const out: { pillarIndex: number; tool: Tool }[] = [];
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {

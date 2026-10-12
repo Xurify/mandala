@@ -26,9 +26,7 @@ export type ActionMeta = {
 	done?: boolean;
 	doneAt?: string;
 	note?: string;
-	/** The board list an open action sits in. Without one it is in Open; a done one is in Done. */
 	lane?: 'todo' | 'doing';
-	/** Order within its lane, lowest first. */
 	rank?: number;
 };
 

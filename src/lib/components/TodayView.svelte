@@ -471,7 +471,6 @@
 							<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
 						</p>
 					{/if}
-					<!-- The glyph's edge, not the button's, lines up with the pillar dots on the rows below. -->
 					{@render calendarDoor('-me-[13px]')}
 				</div>
 			</header>
@@ -500,7 +499,6 @@
 					{/if}
 				</div>
 
-				<!-- Pulled out by the difference between a small button's padding and a row's, so the icons sit on the rows' edges. -->
 				<div class="-mx-0.5 mt-2 flex items-center justify-between gap-2">
 					{#if pickable.length > 0}
 						<Button variant="ghost" size="sm" icon="refresh" onclick={adjust}>Adjust</Button>

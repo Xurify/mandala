@@ -55,16 +55,12 @@
 		y: number;
 		w: number;
 		h: number;
-		/** Where the card was taken hold of, so it shrinks toward the finger over a tab. */
 		ox: number;
 		oy: number;
 		dx: number;
 		dy: number;
-		/** The list under it, whether or not that list takes it. Null over no list. */
 		lane: Lane | null;
-		/** In the target list without the card. */
 		index: number;
-		/** Over a tab on a phone, so it goes to the end of that list. */
 		tab: boolean;
 		landing: boolean;
 	};
@@ -183,7 +179,6 @@
 	let spring = 0;
 	let springLane: Lane | null = null;
 
-	/** A held card resting on a phone's tab opens that list, so it can go to a place in it. */
 	function springTo(target: Lane | null): void {
 		if (target === springLane) return;
 		clearTimeout(spring);
@@ -207,7 +202,6 @@
 		current.index = target.tab ? restOf(target.lane, current.card.key).length : indexAt(target.lane, y, current.card.key);
 	}
 
-	/** Near the edge of a list, or of the window on a phone, the page keeps moving under a held card. */
 	function autoscroll(): void {
 		const current = drag;
 		if (!current || current.landing) return;
@@ -244,7 +238,6 @@
 		const moved = to !== current.from || ((to === 'todo' || to === 'doing') && index !== current.fromIndex);
 		current.lane = to;
 		current.index = index;
-		// A card dropped on a phone's tab for a list not on screen has no slot to fly into.
 		current.tab = narrow && to !== lane;
 		current.landing = true;
 		await tick();
@@ -532,7 +525,6 @@
 	const todayFocus = $derived(new Set(chart.todayLog.focus));
 	const todayTicks = $derived(new Set(chart.todayLog.checked));
 
-	/** One quiet mark per card, in this order: when it was done, then today's three, then routine. */
 	function markOf(card: Card, inLane: Lane): { icon: 'check' | 'calendar' | 'refresh'; label: string } | null {
 		if (inLane === 'done') return { icon: 'check', label: shortDay(card.doneAt) };
 		if (todayFocus.has(card.key)) return { icon: 'calendar', label: 'Today' };
@@ -639,7 +631,6 @@
 			</p>
 		</div>
 		{#if pillarOptions.length > 2}
-			<!-- Centred on the summary line beside it, not sat on its baseline. -->
 			<Select size="sm" label="Show a pillar" options={pillarOptions} bind:value={pillar} class="w-[220px] min-[901px]:-mb-1.5 max-[900px]:w-full" />
 		{/if}
 	</header>

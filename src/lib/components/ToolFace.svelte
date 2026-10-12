@@ -8,7 +8,6 @@
 	interface Props {
 		tool: Pick<Tool, 'url' | 'title' | 'kind' | 'known'>;
 		size?: 'sm' | 'md';
-		/** Replaces the kind and status after the site's name. */
 		detail?: string;
 		tag?: string;
 		class?: string;

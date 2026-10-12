@@ -85,7 +85,6 @@ export function nextTool(data: ChartData, key: string, now: Date = new Date(), s
 	return [...pool].sort((a, b) => last(a).localeCompare(last(b)) || jitter(`${today}:${key}:${a.id}`) - jitter(`${today}:${key}:${b.id}`))[0] ?? null;
 }
 
-/** Every written action in the order Today deals them: pinned routines, the other routines, then the rest. */
 export function dealKeys(data: ChartData): string[] {
 	const written: string[] = [];
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {

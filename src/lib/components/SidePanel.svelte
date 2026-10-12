@@ -99,7 +99,6 @@
 		{ value: 'actions', label: 'Actions' },
 		{ value: 'shelf', label: 'Shelf', detail: shelfCount ? String(shelfCount) : undefined }
 	]);
-	/** True when the face changed on the same pillar. Moving between pillars slides instead, and a reload does not swing. */
 	let swing = $state(false);
 	let seen = { face: chart.face, sel: chart.sel };
 	$effect.pre(() => {
@@ -129,7 +128,6 @@
 
 	const handedOut = $derived(activeActionKey ? toolsFor(chart.data, activeActionKey).filter((tool) => !tool.known).length : 0);
 
-	/** A link goes on the pillar's shelf, handed out by this action. */
 	function shelve(key: string, url: string, fromNote = false): void {
 		const match = key.match(/^a(\d)_(\d)$/);
 		if (!match) return;

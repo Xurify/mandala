@@ -217,7 +217,6 @@ export class ChartStore {
   themeTick = $state(0);
   hoveredColorIndex = $state<number | null>(null);
   focusedKey = $state<string | null>(null);
-  /** Which side of a pillar's block the editor shows. The shelf is its back. */
   face = $state<"actions" | "shelf">("actions");
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -727,7 +726,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** False when the card cannot go there: a routine is never done. */
   moveCard(key: string, lane: Lane, index: number): boolean {
     const patch = cardMove(this.data, key, lane, index);
     if (!patch) return false;
@@ -813,7 +811,6 @@ export class ChartStore {
     });
   }
 
-  /** Tools taken off a shelf while their slip can still undo it, by the slip's undo token. */
   #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
 
   removeTool(pillarIndex: number, id: string): void {

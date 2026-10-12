@@ -317,7 +317,6 @@
 		{:else}
 			<!-- One button each side, relabelled rather than replaced, so keyboard focus stays put as pages turn. -->
 			<div class="flex w-full items-center justify-between gap-2">
-				<!-- Pulled out by its own padding, so the label lines up with the page above it. -->
 				<Button variant="ghost" class="-ms-[18px]" onclick={index === 0 ? dismiss : back}>{index === 0 ? 'Not this week' : 'Back'}</Button>
 				<Button onclick={step === 'note' ? save : next}>{step === 'note' ? 'Save the week' : 'Next'}</Button>
 			</div>

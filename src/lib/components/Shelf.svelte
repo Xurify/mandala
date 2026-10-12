@@ -42,7 +42,6 @@
 	let section = $state<HTMLElement | null>(null);
 	let picker = $state<HTMLInputElement | null>(null);
 	let iconFor = '';
-	/** The one row whose settings are out. */
 	let editing = $state<string | null>(null);
 	let showKnown = $state(false);
 	let added = $state<string | null>(null);
