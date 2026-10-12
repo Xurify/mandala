@@ -1032,9 +1032,12 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
-* {
-	scrollbar-width: thin;
-	scrollbar-color: var(--scroll-thumb) transparent;
+/* Chrome and Safari drop every ::-webkit-scrollbar rule once these are set, and draw arrow buttons that poke out of rounded panels. */
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--scroll-thumb) transparent;
+	}
 }
 
 *::-webkit-scrollbar {
@@ -1045,6 +1048,11 @@ body {
 *::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
 	background: transparent;
+}
+
+/* Clears a 20px corner radius, so the thumb never runs into the curve. */
+*::-webkit-scrollbar-track {
+	margin-block: 10px;
 }
 
 *::-webkit-scrollbar-thumb {
