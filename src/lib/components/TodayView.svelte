@@ -294,7 +294,7 @@
 				<MenuItem icon="plus" onclick={() => (chart.loggingTime = { action: entry.id })}>Log time</MenuItem>
 				{#if spent > 0}
 					<MenuDivider />
-					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.id)}>Remove today's time</MenuItem>
+					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.id)}>Remove time entry</MenuItem>
 				{/if}
 			</Menu>
 		{/if}
