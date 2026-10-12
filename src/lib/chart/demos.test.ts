@@ -5,6 +5,7 @@ import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } f
 import { nearKnown, nextTool } from './tools.ts';
 import { completedBy, dateKeyOf, getByKey, wholeness } from './model.ts';
 import { boardOf, doneByWeek } from './board.ts';
+import { monthOf } from './calendar.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -70,5 +71,14 @@ describe('demos', () => {
 		]);
 		expect(doneByWeek(board.done, now).earlier.length).toBeGreaterThan(0);
 		expect(doneByWeek(board.done, now).week.length).toBeGreaterThan(0);
+	});
+
+	it('opens the calendar on three goals: two that moved this month and one gone quiet', () => {
+		const setup = demoSetup('calendar', now);
+		const goals = [...setup.others!, setup.data!].map((data, index) => ({ id: `g${index}`, title: data.goal, data }));
+		const month = monthOf(goals, now.getFullYear(), now.getMonth(), now);
+		expect(month.moved).toEqual(['g0', 'g2']);
+		expect(month.quiet).toEqual(['g1']);
+		expect(month.weeks.flat().some((day) => day.goals.length === 2)).toBe(true);
 	});
 });

@@ -32,6 +32,8 @@ export type DemoSetup = {
 	focus?: string;
 	query?: string;
 	copies?: number;
+	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
+	others?: ChartData[];
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
@@ -71,6 +73,18 @@ function livedIn(now: Date): ChartData {
 		4: { focus: ['a5_1', 'a2_3', 'a0_0'], checked: ['a2_3', 'a0_0'] },
 		5: { focus: ['a1_2', 'a4_2', 'a5_1'], checked: ['a1_2', 'a4_2'] },
 		9: { focus: ['a5_1'], checked: [] }
+	});
+	return data;
+}
+
+function inTraining(now: Date): ChartData {
+	const data = preset('fitness');
+	data.meta = { a1_0: { kind: 'routine' } };
+	history(data, now, {
+		0: { focus: ['a2_1', 'a3_0'], checked: ['a1_0'] },
+		2: { focus: ['a0_2', 'a6_1'], checked: ['a1_0', 'a0_2'] },
+		3: { focus: ['a3_0'], checked: ['a1_0'] },
+		6: { focus: ['a4_3', 'a5_0'], checked: ['a4_3', 'a5_0', 'a1_0'] }
 	});
 	return data;
 }
@@ -192,8 +206,9 @@ export const DEMOS: readonly Demo[] = [
 		title: 'The calendar',
 		group: 'Days and weeks',
 		steps: [
-			'A month of days with what got finished on each: a pip per tick, in the pillar\'s hue. Today has a ring.',
-			'Tap a day to read what was finished, and when. Arrow keys walk the days; the arrows at the top turn the month.',
+			'Every chart is on it. A day shows a dot for each goal that finished something; tap it to read what, under each goal, and when.',
+			'Under the month, Quiet this month names a goal with lines on it and nothing finished. The emergency fund is that goal here.',
+			'Pick one chart from the select: its days show a ring of its pillars instead. Arrow keys walk the days; the arrows at the top turn the month.',
 			'Reach it from Today, the command palette (Go to Calendar), or the C key.'
 		]
 	},
@@ -304,7 +319,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
 	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
 	if (id === 'today') return { data: livedIn(now), view: 'today' };
-	if (id === 'calendar') return { data: livedIn(now), view: 'calendar' };
+	if (id === 'calendar') return { data: livedIn(now), view: 'calendar', others: [inTraining(now), preset('money')] };
 	if (id === 'board') return { data: onTheBoard(now), view: 'board' };
 	if (id === 'tools') {
 		const data = livedIn(now);

@@ -42,7 +42,7 @@ src/
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
-    calendar.ts               a month of days and what was finished on each (pure, tested)
+    calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)

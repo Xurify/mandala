@@ -1,5 +1,6 @@
 import { morph } from "./morph";
 import { applyChange, finish as finishAction, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
+import type { Goal } from "./calendar.ts";
 import { newTool, opened } from "./tools";
 import {
   blockOfK,
@@ -270,6 +271,13 @@ export class ChartStore {
   );
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
+  /** Every chart in the order it was made, the open one as it stands now, for views that look across goals. */
+  goals: Goal[] = $derived(
+    this.#library.charts.map((record) => {
+      const data = record.id === this.#library.activeId ? this.data : record.data;
+      return { id: record.id, title: titleOf(data), data };
+    }),
+  );
 
   /** The local date. It rolls over at midnight and when the page wakes, so a tab left open ticks into the right day. */
   today = $state(todayKey());

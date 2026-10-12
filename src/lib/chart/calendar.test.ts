@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayTitle, doneOn, openedOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth } from './calendar.ts';
+import { dayTitle, doneOn, openedOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth, type Goal } from './calendar.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function chart(): ChartData {
@@ -15,6 +15,23 @@ function chart(): ChartData {
 		'2026-09-28': { focus: ['a0_0'], checked: ['a0_0'] }
 	};
 	data.meta = { a0_1: { kind: 'milestone', done: true, doneAt: '2026-10-09' } };
+	return data;
+}
+
+const mine = (): Goal[] => [{ id: 'slovak', title: 'Speak Slovak', data: chart() }];
+
+function running(): ChartData {
+	const data = emptyChart();
+	data.goal = 'Run a half marathon';
+	data.actions[1]![0] = 'Run 5 km';
+	data.days = { '2026-10-09': { focus: [], checked: ['a1_0'], at: { a1_0: '06:40' } } };
+	return data;
+}
+
+function saving(): ChartData {
+	const data = emptyChart();
+	data.goal = 'Save for a trip';
+	data.actions[3]![0] = 'Move 50 to savings';
 	return data;
 }
 
@@ -46,7 +63,7 @@ describe('monthOf', () => {
 	const now = new Date(2026, 9, 10, 12);
 
 	it('lays the month out Monday first, padded, and counts what was done in it', () => {
-		const month = monthOf(chart(), 2026, 9, now);
+		const month = monthOf(mine(), 2026, 9, now);
 		expect(month.title).toBe('October 2026');
 		expect(month.weeks).toHaveLength(5);
 		expect(month.weeks[0]!.map((day) => day.day)).toEqual([28, 29, 30, 1, 2, 3, 4]);
@@ -64,20 +81,20 @@ describe('monthOf', () => {
 	});
 
 	it('says the month in one line', () => {
-		expect(monthLine(monthOf(chart(), 2026, 9, now))).toBe('3 things finished on 1 day.');
-		expect(monthLine(monthOf(chart(), 2026, 7, now))).toBe('Nothing finished this month yet.');
+		expect(monthLine(monthOf(mine(), 2026, 9, now))).toBe('3 things finished on 1 day.');
+		expect(monthLine(monthOf(mine(), 2026, 7, now))).toBe('Nothing finished this month yet.');
 	});
 
 	it('names each pillar a day touched once, lowest first', () => {
-		const month = monthOf(chart(), 2026, 9, now);
+		const month = monthOf(mine(), 2026, 9, now);
 		expect(month.weeks[1]![4]!.pillars).toEqual([0, 2]);
 		expect(month.weeks[1]![5]!.pillars).toEqual([]);
 	});
 
 	it('opens a month on its latest day with something finished', () => {
-		expect(lastDoneDay(monthOf(chart(), 2026, 9, now))).toBe('2026-10-09');
-		expect(lastDoneDay(monthOf(chart(), 2026, 8, now))).toBe('2026-09-28');
-		expect(lastDoneDay(monthOf(chart(), 2026, 7, now))).toBeNull();
+		expect(lastDoneDay(monthOf(mine(), 2026, 9, now))).toBe('2026-10-09');
+		expect(lastDoneDay(monthOf(mine(), 2026, 8, now))).toBe('2026-09-28');
+		expect(lastDoneDay(monthOf(mine(), 2026, 7, now))).toBeNull();
 	});
 });
 
@@ -85,8 +102,39 @@ describe('moving between months', () => {
 	it('shifts across a year end, and knows the first month with anything done', () => {
 		expect(shiftMonth(2026, 0, -1)).toEqual({ year: 2025, month: 11 });
 		expect(shiftMonth(2026, 11, 1)).toEqual({ year: 2027, month: 0 });
-		expect(firstDoneMonth(chart())).toEqual({ year: 2026, month: 8 });
-		expect(firstDoneMonth(emptyChart())).toBeNull();
+		expect(firstDoneMonth(mine())).toEqual({ year: 2026, month: 8 });
+		expect(firstDoneMonth([{ id: 'blank', title: 'Untitled', data: emptyChart() }])).toBeNull();
 		expect(dayTitle('2026-10-10')).toBe('Saturday, October 10');
+	});
+});
+
+describe('across goals', () => {
+	const now = new Date(2026, 9, 10, 12);
+	const goals = (): Goal[] => [
+		{ id: 'slovak', title: 'Speak Slovak', data: chart() },
+		{ id: 'run', title: 'Run a half marathon', data: running() },
+		{ id: 'save', title: 'Save for a trip', data: saving() },
+		{ id: 'blank', title: 'Untitled', data: emptyChart() }
+	];
+
+	it('puts every goal on the same days, and says which goals moved', () => {
+		const month = monthOf(goals(), 2026, 9, now);
+		const ninth = month.weeks[1]![4]!;
+		expect(ninth.goals).toEqual(['slovak', 'run']);
+		expect(ninth.done.map((entry) => [entry.goal, entry.key, entry.at])).toEqual([
+			['slovak', 'a0_0', '07:30'],
+			['slovak', 'a0_1', '12:00'],
+			['slovak', 'a2_0', '19:10'],
+			['run', 'a1_0', '06:40']
+		]);
+		expect(month.moved).toEqual(['slovak', 'run']);
+		expect(month.quiet).toEqual(['save']);
+		expect(monthLine(month)).toBe('4 things finished across 2 goals.');
+	});
+
+	it('starts at the first month any goal finished something', () => {
+		const later = running();
+		later.days = { '2026-11-02': { focus: [], checked: ['a1_0'] } };
+		expect(firstDoneMonth([{ id: 'run', title: 'Run', data: later }, ...mine()])).toEqual({ year: 2026, month: 8 });
 	});
 });

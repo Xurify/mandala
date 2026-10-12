@@ -1,4 +1,4 @@
-import { dateKeyOf, getByKey, type ChartData, type Tool } from './model.ts';
+import { dateKeyOf, getByKey, hasContent, type ChartData, type Tool } from './model.ts';
 
 export type DayDone = {
 	key: string;
@@ -9,13 +9,20 @@ export type DayDone = {
 	milestone: boolean;
 };
 
+/** A chart, as the calendar reads it. Each one is a goal. */
+export type Goal = { id: string; title: string; data: ChartData };
+
+export type GoalDone = DayDone & { goal: string };
+
 export type MonthDay = {
 	key: string;
 	day: number;
 	inMonth: boolean;
 	today: boolean;
 	future: boolean;
-	done: DayDone[];
+	done: GoalDone[];
+	/** The goals that finished something that day, in the order they were given. */
+	goals: string[];
 	pillars: number[];
 };
 
@@ -27,6 +34,9 @@ export type Month = {
 	weeks: MonthDay[][];
 	finishedDays: number;
 	finishedCount: number;
+	moved: string[];
+	/** Goals with lines on them that finished nothing this month. */
+	quiet: string[];
 };
 
 function pillarOf(key: string): number {
@@ -58,7 +68,7 @@ export function openedOn(data: ChartData, dateKey: string): { pillarIndex: numbe
 	return out;
 }
 
-export function monthOf(data: ChartData, year: number, month: number, now: Date = new Date()): Month {
+export function monthOf(goals: Goal[], year: number, month: number, now: Date = new Date()): Month {
 	const first = new Date(year, month, 1, 12);
 	const start = new Date(first);
 	start.setDate(1 - ((first.getDay() + 6) % 7));
@@ -67,18 +77,21 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 	const cursor = new Date(start);
 	let finishedDays = 0;
 	let finishedCount = 0;
+	const moved = new Set<string>();
 	do {
 		const week: MonthDay[] = [];
 		for (let column = 0; column < 7; column++) {
 			const key = dateKeyOf(cursor);
 			const inMonth = cursor.getMonth() === month && cursor.getFullYear() === year;
-			const done = doneOn(data, key);
+			const done = goals.flatMap((goal) => doneOn(goal.data, key).map((entry) => ({ ...entry, goal: goal.id })));
+			const active = goals.filter((goal) => done.some((entry) => entry.goal === goal.id)).map((goal) => goal.id);
 			if (inMonth && done.length > 0) {
 				finishedDays += 1;
 				finishedCount += done.length;
+				for (const id of active) moved.add(id);
 			}
 			const pillars = [...new Set(done.map((entry) => entry.pillarIndex))].sort((left, right) => left - right);
-			week.push({ key, day: cursor.getDate(), inMonth, today: key === todayKey, future: key > todayKey, done, pillars });
+			week.push({ key, day: cursor.getDate(), inMonth, today: key === todayKey, future: key > todayKey, done, goals: active, pillars });
 			cursor.setDate(cursor.getDate() + 1);
 		}
 		weeks.push(week);
@@ -89,7 +102,9 @@ export function monthOf(data: ChartData, year: number, month: number, now: Date 
 		title: first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
 		weeks,
 		finishedDays,
-		finishedCount
+		finishedCount,
+		moved: goals.filter((goal) => moved.has(goal.id)).map((goal) => goal.id),
+		quiet: goals.filter((goal) => !moved.has(goal.id) && hasContent(goal.data)).map((goal) => goal.id)
 	};
 }
 
@@ -103,10 +118,12 @@ export function lastDoneDay(month: Month): string | null {
 	return days.at(-1)?.key ?? null;
 }
 
-export function firstDoneMonth(data: ChartData): { year: number; month: number } | null {
-	const keys = Object.entries(data.days ?? {})
-		.filter(([, log]) => log.checked.length > 0)
-		.map(([key]) => key);
+export function firstDoneMonth(goals: Goal[]): { year: number; month: number } | null {
+	const keys = goals.flatMap((goal) =>
+		Object.entries(goal.data.days ?? {})
+			.filter(([, log]) => log.checked.length > 0)
+			.map(([key]) => key)
+	);
 	if (keys.length === 0) return null;
 	const [year, month] = keys.sort()[0]!.split('-').map(Number);
 	return { year: year!, month: month! - 1 };
@@ -115,6 +132,7 @@ export function firstDoneMonth(data: ChartData): { year: number; month: number }
 export function monthLine(month: Month): string {
 	if (month.finishedCount === 0) return 'Nothing finished this month yet.';
 	const things = month.finishedCount === 1 ? '1 thing' : `${month.finishedCount} things`;
+	if (month.moved.length > 1) return `${things} finished across ${month.moved.length} goals.`;
 	const days = month.finishedDays === 1 ? '1 day' : `${month.finishedDays} days`;
 	return `${things} finished on ${days}.`;
 }

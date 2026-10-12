@@ -111,6 +111,7 @@
 		const setup = demoSetup(id);
 		const demo = DEMOS.find((entry) => entry.id === id);
 		replaceState(location.pathname, page.state);
+		for (const other of setup.others ?? []) chart.applyDraft(other, true);
 		if (setup.data) chart.importChart(setup.data, `Demo ready: ${demo?.title ?? id}.`);
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
