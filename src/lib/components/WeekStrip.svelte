@@ -6,10 +6,8 @@
 	let { data, class: className }: { data: ChartData; class?: string } = $props();
 
 	const strip = $derived(weekStrip(data));
-	/** Pips a day column shows before it says how many more. */
 	const STACK = 7;
 	const summary = $derived(strip.map((day) => day.ticks.length).join(', '));
-	/** The strip is as tall as the busiest day, so a quiet week is not a tall empty box. */
 	const tallest = $derived(Math.max(3, Math.min(STACK, Math.max(0, ...strip.map((day) => day.ticks.length)))));
 </script>
 

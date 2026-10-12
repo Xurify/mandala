@@ -3,10 +3,6 @@ import type { ViewMode } from './chart.svelte.ts';
 import { applyChange, finish } from './board.ts';
 import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type ChartData, type Tool } from './model.ts';
 
-/**
- * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
- * (or fills the current one when it is empty), so nothing saved is touched.
- */
 export type DemoId =
 	| 'complete'
 	| 'pillar'
@@ -45,7 +41,6 @@ function preset(id: PresetId): ChartData {
 	return buildChart(getPreset(id)!);
 }
 
-/** The demos name actions by their cell, `a{k}_{j}`, which reads better here than an id. */
 function idIn(data: ChartData, key: string): ActionId {
 	return idOfKey(data, key)!;
 }

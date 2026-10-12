@@ -24,8 +24,6 @@
 
 	let {
 		mode = 'split',
-		// A read-only grid can be driven by plain data (shared chart page) instead
-		// of the singleton store.
 		source = null,
 		onSelect,
 		onEdit
@@ -112,9 +110,7 @@
 				type === 'pillar' &&
 				'before:text-[0.88em] before:font-medium before:opacity-50 before:content-[attr(data-placeholder)]',
 			hasText ? 'filled' : 'empty',
-			// Below 480px a cell is too small for its words, so it shows a dot. In view a pillar keeps its name
-			// so the chart can still be found; read-only grids keep every word. The dot is a whole number of
-			// pixels, or snapping draws it a pixel narrower in some columns than others.
+			// A whole number of pixels, or snapping draws the dot a pixel narrower in some columns.
 			hasText &&
 				!source &&
 				!(view && type === 'pillar') &&
@@ -184,11 +180,6 @@
 	const NAME_MAX_PX = 9.5;
 	const NAME_MIN_PX = 7;
 
-	/**
-	 * The pillar names on a phone's grid share one size, the largest every name fits at,
-	 * so they read as a set. A name too long for its cell even at the floor is cut with an ellipsis
-	 * rather than pulling every name down with it.
-	 */
 	const fitNames: Attachment<HTMLElement> = (grid) => {
 		const lines = document.createRange();
 		const roomOf = (name: HTMLElement): number => {
@@ -305,7 +296,6 @@
 				return;
 			}
 
-			// Still too long at the floor: ellipsize on a whole line, never through a letter.
 			element.style.overflowWrap = 'anywhere';
 			element.style.display = '-webkit-box';
 			element.style.webkitBoxOrient = 'vertical';

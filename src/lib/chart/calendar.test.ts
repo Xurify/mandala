@@ -76,7 +76,6 @@ describe('monthOf', () => {
 		expect(ninth.done).toHaveLength(3);
 		expect(month.weeks[1]![5]).toMatchObject({ key: '2026-10-10', today: true });
 		expect(month.weeks[1]![6]).toMatchObject({ key: '2026-10-11', future: true });
-		// September's tick is not October's.
 		expect(month.finishedDays).toBe(1);
 		expect(month.finishedCount).toBe(3);
 	});

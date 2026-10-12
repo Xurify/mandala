@@ -74,7 +74,6 @@ export function saveGoalFitForNextVisit(part: GoalFitPart, px: number): void {
 	try {
 		localStorage.setItem(GOAL_FIT_KEY, JSON.stringify(next));
 	} catch {
-		// private mode / blocked storage
 	}
 }
 

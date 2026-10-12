@@ -100,7 +100,6 @@ import {
 
 export type { AppTheme } from "./theme.ts";
 export type ViewMode = "view" | "edit" | "split" | "today" | "calendar" | "board";
-/** The ways of looking at the chart itself, under the Chart tab. */
 export type ChartLayout = "view" | "edit" | "split";
 
 function isLayout(mode: ViewMode): mode is ChartLayout {
@@ -207,7 +206,6 @@ export class ChartStore {
   theme: AppTheme = $state(loadInitialTheme());
   accent: AccentId = $state(loadInitialAccent());
   viewMode: ViewMode = $state(loadInitialViewMode());
-  /** The chart's layout last open, so the Chart tab goes back to it. */
   chartLayout: ChartLayout = $state(isLayout(this.viewMode) ? this.viewMode : "view");
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
@@ -283,9 +281,7 @@ export class ChartStore {
   );
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
-  /** `all`, or the id of the one chart the calendar shows. */
   calendarScope = $state("all");
-  /** Every chart in the order it was made, the open one as it stands now, for views that look across goals. */
   goals: Goal[] = $derived(
     this.#library.charts.map((record) => {
       const data = record.id === this.#library.activeId ? this.data : record.data;
@@ -295,7 +291,6 @@ export class ChartStore {
 
   /** The local date. It rolls over at midnight and when the page wakes, so a tab left open ticks into the right day. */
   today = $state(todayKey());
-  /** The other charts with something left today, so a goal out of view is not forgotten. */
   elsewhere: { id: string; title: string; left: number }[] = $derived(
     this.goals.flatMap((goal) => {
       if (goal.id === this.#library.activeId) return [];
@@ -316,7 +311,6 @@ export class ChartStore {
 
   /** Now, as of the last time anything asked. A page left open overnight still sees the new offer. */
   #clockTick = $state(Date.now());
-  /** The person's own, so it holds across charts. */
   reflectAt: ReflectAt = $state(loadInitialReflectAt());
   reflectionWeek: string = $derived(reflectionWeekOf(this.reflectAt, new Date(this.#clockTick)));
   weekReflectionDue: boolean = $derived.by(() => {
@@ -562,7 +556,6 @@ export class ChartStore {
     });
   }
 
-  /** Another tab chose it, and saved it already. */
   #followTheme(theme: AppTheme): void {
     if (theme === this.theme) return;
     this.theme = theme;
@@ -715,7 +708,6 @@ export class ChartStore {
     this.sel = blockIndex;
   }
 
-  /** `animate` false switches at once, for setup code that changes more right after. */
   setViewMode(mode: ViewMode, animate = true): void {
     const apply = (): void => {
       this.viewMode = mode;
@@ -892,7 +884,6 @@ export class ChartStore {
   updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
     this.#patchTool(pillarIndex, id, (tool) => {
       const next = { ...tool, ...patch };
-      // Clearing a field removes it, so the saved chart stays small.
       for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
       return next;
     });
@@ -1009,7 +1000,6 @@ export class ChartStore {
       this.#syncBaseAt = parsed.updatedAt;
       if (parsed.chart) this.#syncChart = parsed.chart;
     } catch {
-      // corrupt or blocked state; the next pull rebuilds it
     }
   }
 
@@ -1026,7 +1016,6 @@ export class ChartStore {
         }),
       );
     } catch {
-      // storage blocked; sync still works, just without the stale guard
     }
   }
 
@@ -1066,7 +1055,6 @@ export class ChartStore {
     }
   }
 
-  /** Pulls first so a stale tab can't clobber newer work. */
   async pushSync(): Promise<void> {
     if (!this.#syncing() || this.#syncBusy) return;
     this.#syncBusy = true;
@@ -1127,7 +1115,6 @@ export class ChartStore {
     try {
       localStorage.setItem(SYNC_ROOM_KEY, trimmed);
     } catch {
-      // storage blocked; sync still works for this session
     }
     this.syncEnabled = true;
     this.syncRoom = trimmed;
@@ -1339,7 +1326,6 @@ export class ChartStore {
     return this.#fillOrSpawn(importedData, message);
   }
 
-  /** `quiet` when the caller says it itself, as Bindu does with its own moment. */
   applyDraft(next: ChartData, quiet = false): boolean {
     return this.#fillOrSpawn(
       next,

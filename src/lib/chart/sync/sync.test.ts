@@ -34,10 +34,8 @@ describe('overlayLocalEdits', () => {
 		server.pillars[3] = 'New over there';
 
 		const merged = overlayLocalEdits(base, edited, server);
-		// The device's edit wins on cells it touched…
 		expect(merged.goal).toBe('Locally edited goal');
 		expect(merged.pillars[2]).toBe('New action');
-		// …and the server's newer work survives everywhere else.
 		expect(merged.pillars[3]).toBe('New over there');
 		expect(merged.pillars[1]).toBe('Untouched');
 	});

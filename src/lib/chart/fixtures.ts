@@ -12,7 +12,6 @@ export const A = Object.fromEntries(
 	})
 ) as Record<Cell, ActionId>;
 
-/** Gives every cell its `A` id. */
 export function slotted<T extends ChartData>(data: T): T {
 	data.actionIds = Array.from({ length: 8 }, (_, pillarIndex) => Array.from({ length: 8 }, (_, slot) => A[`a${pillarIndex}_${slot}` as Cell]));
 	return data;

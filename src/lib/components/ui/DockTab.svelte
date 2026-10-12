@@ -26,7 +26,6 @@
 		<Icon name={icon} size={16} />
 	{/if}
 	{#if children}
-		<!-- On a phone only the open tab shows its name, so the dock fits; the rest keep it for screen readers and the title. -->
 		<span class={cn(icon && !selected && 'max-[500px]:sr-only')}>{@render children()}</span>
 	{/if}
 </button>

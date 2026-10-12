@@ -7,7 +7,6 @@
 		label: string;
 		expanded: boolean;
 		onclick: () => void;
-		/** Something waits behind the menu: an ink dot on the chevron. */
 		dot?: boolean;
 	};
 
@@ -21,7 +20,6 @@
 	let width = $state(0);
 	let fonts = $state(0);
 	let probe = $state<HTMLSpanElement | null>(null);
-	/** Where a title too long for two lines is cut, so the chevron after it stays in view. */
 	let cut = $state<number | null>(null);
 
 	const shown = $derived(cut === null ? title : `${title.slice(0, cut).trimEnd()}…`);
@@ -53,7 +51,6 @@
 			if (fits(`${text.slice(0, mid).trimEnd()}…`)) low = mid;
 			else high = mid - 1;
 		}
-		// A cut between words reads better, when one is close.
 		const space = text.lastIndexOf(' ', low);
 		return space > 0 && space > low - 12 ? space : low;
 	}
@@ -97,6 +94,5 @@
 			>
 		</span>
 	</button>
-	<!-- Laid out off screen at the full width, word by word, to find where the title has to end. -->
 	<span bind:this={probe} class="pointer-events-none invisible absolute start-0 top-0 block w-full ps-0 pe-1 {type}" aria-hidden="true"></span>
 </h1>

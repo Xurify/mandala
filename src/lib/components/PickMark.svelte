@@ -1,5 +1,4 @@
 <script lang="ts">
-	/** `mixed`: some of a list is picked, for the box that picks it all. */
 	let { on, mixed = false }: { on: boolean; mixed?: boolean } = $props();
 </script>
 

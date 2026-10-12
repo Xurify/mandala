@@ -54,7 +54,6 @@
 		showKnown = false;
 	});
 
-	/** The place of the action a tool is kept for, while that action is on the chart. */
 	function keptAt(tool: Tool): number | null {
 		const kept = keptFor(chart.data, tool);
 		return kept ? (slotOf(chart.data, kept)?.slot ?? null) : null;
@@ -117,7 +116,6 @@
 	let rejected = $state(false);
 	let picture = $state(false);
 
-	/** A pasted link lands as a tool at once; its title arrives when the site answers. */
 	function add(text: string): void {
 		const url = linkIn(text);
 		if (!url) {

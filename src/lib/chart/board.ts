@@ -20,7 +20,6 @@ export type Board = Record<Lane, Card[]>;
 
 export type MetaPatch = Record<ActionId, Partial<ActionMeta>>;
 
-/** What a move writes: the actions' meta, and each day log it ticks, unticks, or takes a pick off. */
 export type Change = { meta: MetaPatch; days: Record<string, DayLog> };
 
 export function laneOf(meta: ActionMeta | undefined): Lane {
@@ -28,14 +27,12 @@ export function laneOf(meta: ActionMeta | undefined): Lane {
 	return meta?.lane === 'todo' || meta?.lane === 'doing' ? meta.lane : 'open';
 }
 
-/** Ticked in Today, dropped in Done, or marked done in the editor: the three are one record. */
 export function finishedOn(data: ChartData, id: ActionId, dateKey: string): boolean {
 	const meta = data.meta?.[id];
 	if (isRoutine(meta)) return data.days?.[dateKey]?.checked.includes(id) ?? false;
 	return meta?.done === true && meta.doneAt === dateKey;
 }
 
-/** What a chart's Today lists and is not finished yet: its routines, and the day's picks. It reaches zero when the day is done. */
 export function leftToday(data: ChartData, today: string = todayKey()): number {
 	let left = 0;
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
@@ -232,7 +229,6 @@ export function moveCard(
 
 export type Moment = { dateKey: string; what: 'finished' | 'ticked' | 'picked' | 'dropped'; at?: string };
 
-/** What the day logs say happened to an action, newest first: one moment a day. */
 export function historyOf(data: ChartData, id: ActionId, limit = 8): Moment[] {
 	const routine = isRoutine(data.meta?.[id]);
 	const out: Moment[] = [];

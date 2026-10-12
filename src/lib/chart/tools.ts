@@ -11,7 +11,6 @@ export function videoId(url: string): string | null {
 	return url.match(VIDEO)?.[1] ?? null;
 }
 
-/** No API needed: YouTube serves thumbnails by id. */
 export function thumbnailOf(url: string): string | null {
 	const id = videoId(url);
 	return id ? `https://i.ytimg.com/vi/${id}/mqdefault.jpg` : null;
@@ -33,7 +32,6 @@ export function svgIn(text: string): string | null {
 	return text.match(/<svg[\s>][\s\S]*<\/svg>/i)?.[0] ?? null;
 }
 
-/** The first link in some text, so a pasted share ("Watch this! https://…") still lands. */
 export function linkIn(text: string): string | null {
 	if (svgIn(text)) return null;
 	const match = text.match(/https?:\/\/[^\s<>"']+/);
@@ -54,7 +52,6 @@ export function toolCount(data: ChartData): number {
 	return Object.values(data.tools ?? {}).reduce((sum, list) => sum + list.length, 0);
 }
 
-/** The action a tool is kept for, while that action is on the chart. */
 export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
 	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
 }
@@ -104,7 +101,6 @@ export function dealOrder(data: ChartData): ActionId[] {
 	];
 }
 
-/** The tool each of a pillar's actions hands out next, as tool id to action index. Matches what Today shows. */
 export function upNext(data: ChartData, pillarIndex: number, now: Date = new Date()): Map<string, number> {
 	const out = new Map<string, number>();
 	for (const [id, tool] of dealTools(data, dealOrder(data), now)) {

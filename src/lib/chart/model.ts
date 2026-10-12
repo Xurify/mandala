@@ -93,7 +93,6 @@ export type Tool = {
 };
 
 export type ChartData = {
-	/** Raised when saved data changes shape, so a chart saved before the change can be told apart. */
 	version?: number;
 	goal: string;
 	pillars: string[];
@@ -179,24 +178,20 @@ export function slotOf(data: ChartData, id: ActionId): { pillarIndex: number; sl
 	return null;
 }
 
-/** The cell an action sits in, as `a{k}_{j}`, or null once it is cleared. */
 export function keyOf(data: ChartData, id: ActionId): string | null {
 	const at = slotOf(data, id);
 	return at ? actionKey(at.pillarIndex, at.slot) : null;
 }
 
-/** The pillar an action is under, or was under before it was cleared. */
 export function pillarOfAction(data: ChartData, id: ActionId): number | null {
 	return slotOf(data, id)?.pillarIndex ?? data.cleared?.[id]?.pillar ?? null;
 }
 
-/** An action's words, or the words it had when it was cleared. */
 export function wordsOf(data: ChartData, id: ActionId): string {
 	const at = slotOf(data, id);
 	return at ? (data.actions[at.pillarIndex]?.[at.slot] ?? '').trim() : (data.cleared?.[id]?.text ?? '');
 }
 
-/** The id of the action in a cell, given as `a{k}_{j}`. */
 export function idOfKey(data: ChartData, key: string): ActionId | null {
 	const match = key.match(/^a([0-7])_([0-7])$/);
 	return match ? idAt(data, Number(match[1]), Number(match[2])) : null;

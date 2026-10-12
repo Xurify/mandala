@@ -139,7 +139,6 @@
 		const params = new URL(location.href).searchParams;
 		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
-		// A link shared to the app (the manifest's share target) lands on a shelf.
 		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
 		// After the router is up, which replaceState needs.
 		if (shared) {
@@ -231,7 +230,6 @@
 	let sheetPillar = $state<number | null>(null);
 	let sheetFocus = $state<number | null>(null);
 
-	/** On a phone a cell is too small to write in, so a tap opens its pillar's block, ready to type where it landed. */
 	function openBlock(blockIndex: number, _key?: string, cellIndex?: number): void {
 		if (blockIndex !== 4) {
 			sheetFocus = cellIndex ?? null;
@@ -603,7 +601,6 @@
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
 			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
-			<!-- On a phone the command palette is the search: it finds lines in the chart as well, and the page keeps the room. -->
 			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:hidden">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
 					<Icon name="search" size={16} />
@@ -724,7 +721,6 @@
 				{/if}
 			</div>
 
-			<!-- On a blank chart in chart view, the empty ring below says what this card would. On a phone the ring rides the row of tabs instead. -->
 			{#if !offChart && !(effectiveViewMode === 'view' && !chart.dirty) && !isMobile}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card">
 				<ProgressRing size={76} />

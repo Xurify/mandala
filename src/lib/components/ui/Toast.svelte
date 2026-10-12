@@ -5,7 +5,6 @@
 	import ToastSlip from './ToastSlip.svelte';
 
 	let last: Slip | null = null;
-	// Holds the last slip while it fades out, so the words don't vanish first.
 	const shown = $derived.by(() => {
 		const front = chart.slips.at(-1) ?? null;
 		if (front) last = front;

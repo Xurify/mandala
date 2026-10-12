@@ -24,7 +24,6 @@
 
 	let faceElement: HTMLDivElement | null = $state(null);
 	let titleElement: HTMLHeadingElement | null = $state(null);
-	/** The block the editor showed last, so the next one can arrive from where it sits on the map. */
 	let shownSel = chart.sel;
 	$effect(() => {
 		const sel = chart.sel;
@@ -537,7 +536,6 @@
 											'line-through opacity-60 text-muted',
 										isPanelCellHighlighted(cellIndex) && 'highlight',
 										activePulseIndex === cellIndex && 'motion-safe:animate-target',
-										// The cell a search hit or a finding opened: a chip that names it travels here.
 										activePulseIndex === cellIndex && '[view-transition-name:travel]'
 									)}
 									style:--h={hue(cellIndex)}

@@ -24,7 +24,6 @@ import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartDat
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
-/** The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
 	data(): ChartData;
 	applyDraft(next: ChartData): boolean;
@@ -234,7 +233,6 @@ export class HelperStore {
 		try {
 			localStorage.setItem(CHAT_APP_KEY, app);
 		} catch {
-			// storage blocked
 		}
 	}
 
@@ -250,7 +248,6 @@ export class HelperStore {
 		const outcome = this.outcome;
 		if (outcome?.kind === 'chart') {
 			if (!this.#target.applyDraft(outcome.data)) return;
-			// A draft can open as a new chart. Bindu goes with it and stays on this moment.
 			const next = this.#target.chartId?.();
 			if (next) this.#chartId = next;
 			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
@@ -259,7 +256,6 @@ export class HelperStore {
 			const words = editWords(this.#target.data(), outcome.edits);
 			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
 			this.#target.setCells(outcome.edits);
-			// Filling the last gaps fills the chart. That is the bigger news, so the moment says it.
 			if (this.mode !== 'review' && wholeness(this.#target.data()).chart) {
 				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
 			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });

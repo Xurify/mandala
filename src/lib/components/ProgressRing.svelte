@@ -9,7 +9,6 @@
 	const VIEW = 100;
 	const CENTER = VIEW / 2;
 	const GEOMETRY = { radius: 42, stroke: 9, gap: 6 };
-	/** Seconds between arcs when the whole ring redraws for a full chart. */
 	const WAVE = 0.07;
 
 	const segments = $derived(

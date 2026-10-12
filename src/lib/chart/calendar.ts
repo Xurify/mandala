@@ -4,12 +4,10 @@ export type DayDone = {
 	id: ActionId;
 	text: string;
 	pillarIndex: number;
-	/** Local time of the tick, "HH:MM", when the log kept it. */
 	at?: string;
 	milestone: boolean;
 };
 
-/** A chart, as the calendar reads it. Each one is a goal. */
 export type Goal = { id: string; title: string; data: ChartData };
 
 export type GoalDone = DayDone & { goal: string };
@@ -21,7 +19,6 @@ export type MonthDay = {
 	today: boolean;
 	future: boolean;
 	done: GoalDone[];
-	/** The goals that finished something that day, in the order they were given. */
 	goals: string[];
 	pillars: number[];
 };
@@ -35,7 +32,6 @@ export type Month = {
 	finishedDays: number;
 	finishedCount: number;
 	moved: string[];
-	/** Goals with lines on them that finished nothing this month. */
 	quiet: string[];
 };
 

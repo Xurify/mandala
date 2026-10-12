@@ -402,7 +402,6 @@ export function greetingInsight(data: ChartData, now: Date = new Date()): Helper
 	const top = unseenInsights(data, now)[0];
 	return top && top.weight >= 30 ? top : null;
 }
-/** A filled cell is never replaced, so a reply that rewrote one costs nothing. */
 export function fillEdits(current: ChartData, reply: ChartData): CellEdit[] {
 	const edits: CellEdit[] = [];
 	current.pillars.forEach((pillar, pillarIndex) => {
@@ -463,10 +462,6 @@ export function groupEdits(data: ChartData, edits: readonly CellEdit[]): { key: 
 	return groups;
 }
 
-/**
- * A finished draft's button. `chart.applyDraft` fills an empty chart and opens the draft beside one that
- * has anything on it, so the button says which, and that the current chart stays.
- */
 export function draftButton(current: ChartData): string {
 	return hasContent(current) ? 'Open as a new chart' : 'Start this chart';
 }
@@ -552,7 +547,6 @@ function quote(text: string): string {
 	return `\u201c${text}\u201d`;
 }
 
-/** Short windows on purpose: today, yesterday, this week. */
 export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsight[] {
 	if (!filled(data.goal) || !data.days) return [];
 	const insights: HelperInsight[] = [];
@@ -680,7 +674,6 @@ function followThrough(data: ChartData, now: Date): HelperInsight[] {
 	];
 }
 
-/** A routine ticked most days for two weeks may have become a habit, and its cell could hold something new. */
 function readyToRetire(data: ChartData, now: Date): HelperInsight[] {
 	const out: HelperInsight[] = [];
 	for (const [action, meta] of Object.entries(data.meta ?? {}) as [ActionId, ActionMeta][]) {

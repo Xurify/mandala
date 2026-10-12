@@ -10,7 +10,6 @@
 		value?: string;
 		size?: 'md' | 'sm';
 		label: string;
-		/** The options switch what a panel shows, so they are tabs: `aria-selected`, and arrow keys move between them. */
 		tabs?: boolean;
 		class?: string;
 		onchange?: (value: string) => void;

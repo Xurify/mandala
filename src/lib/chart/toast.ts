@@ -9,7 +9,6 @@ export type SlipBurst = {
 	mixed: boolean;
 };
 
-/** Mixed bursts say how many charts, since one name would be wrong. */
 export function burstToast(kicker: string, subject: string, count: number, mixed = false): string {
 	if (mixed) return `${kicker} ${count} ${count === 1 ? 'chart' : 'charts'}.`;
 	const name = subject.trim() || UNTITLED;

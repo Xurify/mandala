@@ -77,7 +77,6 @@
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Tokens below stay the source of truth. @theme only exposes them as utilities. */
 @theme inline {
 	--color-bg: var(--bg);
 	--color-surface: var(--surface);
@@ -157,7 +156,6 @@
 	}
 }
 
-/* Preflight is off. This file already resets the app, and a second reset would restyle screens that still use the global classes. */
 
 @utility shadow-card {
 	box-shadow: var(--shadow-sm);
@@ -170,7 +168,6 @@
 		inset 0 1px 0 oklch(1 0 0 / 0.12),
 		0 1px 2px oklch(0 0 0 / 0.14);
 }
-/* The wordmark row is 42px, so the mark lands where the home toolbar does. */
 @utility page-gutter {
 	padding-top: max(24px, env(safe-area-inset-top, 24px));
 	padding-right: max(28px, env(safe-area-inset-right, 28px));
@@ -181,7 +178,6 @@
 		padding-left: max(14px, env(safe-area-inset-left, 14px));
 	}
 }
-/* Size, radius, and padding stay on the caller. */
 @utility field-ink {
 	border-width: 0;
 	background-color: var(--sunken);
@@ -257,7 +253,6 @@
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 	color: oklch(var(--dot-fg-l) 0.09 var(--h));
 }
-/* At least 4.5:1 on bg and surface in both themes. */
 @utility pillar-ink {
 	color: oklch(var(--pillar-ink-l) var(--pillar-ink-c) var(--h));
 }
@@ -572,7 +567,6 @@
 	}
 }
 
-/* No spin: the tilt it keeps is the card's own. */
 @keyframes deal-in {
 	from {
 		opacity: 0;
@@ -700,12 +694,10 @@
 ::view-transition-new(stage) {
 	animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both view-in;
 }
-/* The chrome around the stage swaps at once. A crossfade there only doubles the title. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
 	animation: none;
 }
-/* The block's old face leaves early, so the zoomed copy never lingers over the new one. */
 ::view-transition-old(travel),
 ::view-transition-old(focus-block) {
 	animation: 180ms cubic-bezier(0.4, 0, 1, 1) both view-out;
@@ -714,8 +706,6 @@
 ::view-transition-new(focus-block) {
 	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
 }
-/* Floating chrome has its own layer, so it stays on top and still while the stage changes under it.
-   The menu sits above the rest: it is what the person is using. */
 ::view-transition-group(dock),
 ::view-transition-group(bindu-launcher),
 ::view-transition-group(bindu-panel),
@@ -748,8 +738,6 @@
 :root:active-view-transition-type(theme)::view-transition-new(stage) {
 	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
 }
-/* Floating chrome over a page that is itself crossfading: two half-faded faces let the page show through,
-   so the old face stays solid and the new one fades in over it. */
 :root:active-view-transition-type(theme)::view-transition-old(dock),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-launcher),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-panel),
@@ -1029,9 +1017,7 @@
 	--on-accent: var(--swatch-field-on);
 }
 
-/* Registered so Fit and Large blend. max-width of mixed min() cannot.
-   data-scale is set from the head script before hydration, so a saved Large scale does not resize after paint.
-   data-chart-motion turns the blend on after first paint, so that first size does not ease in. */
+/* Registered, since max-width of a mixed min() cannot transition. */
 @property --chart-grow {
 	syntax: '<number>';
 	inherits: true;
@@ -1054,7 +1040,6 @@ html[data-scale='large']:is([data-view='view'], :not([data-view])) .chart-frame 
 	--chart-grow: 1;
 }
 
-/* On a phone the chart takes the width either way, so Fit and Large are not offered there. */
 @media (max-width: 900px) {
 	.chart-frame {
 		--chart-grow: 1;
@@ -1103,7 +1088,6 @@ body {
 	background: transparent;
 }
 
-/* Clears a 20px corner radius, so the thumb never runs into the curve. */
 *::-webkit-scrollbar-track {
 	margin-block: 10px;
 }
@@ -1140,8 +1124,7 @@ body {
 		accent-color: var(--accent);
 	}
 
-	/* Preflight is off, so a button would keep the gray browser face.
-	   scale: none jumps when a transition includes scale. */
+	/* scale: none jumps when a transition includes scale. */
 	button {
 		background-color: transparent;
 		scale: 1;
@@ -1159,7 +1142,6 @@ button {
 	-webkit-tap-highlight-color: transparent;
 }
 
-/* Saved fit from the deferred app bundle, so the first paint is already the measured size. */
 html[style*='--goal-cell-size'] .cell.goal > span {
 	font-size: var(--goal-cell-size);
 }

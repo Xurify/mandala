@@ -36,8 +36,6 @@
 		}
 	}
 
-	// One fetch when the page opens; no polling. Refresh re-runs the same
-	// fetch without replacing the chart with a loading flash.
 	$effect(() => {
 		void id;
 		void load();
@@ -55,7 +53,6 @@
 
 	const title = $derived(chartData?.goal.trim() || 'A shared chart');
 
-	// Filled cells open in a dialog so clamped text stays readable.
 	let expanded = $state<{ label: string; text: string } | null>(null);
 	let showExpanded = $state(false);
 

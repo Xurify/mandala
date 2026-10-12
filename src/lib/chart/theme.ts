@@ -13,7 +13,6 @@ export function accentOf(value: string | null): AccentId {
 	return value && isAccent(value) ? value : DEFAULT_ACCENT;
 }
 
-/** Paints a theme on the page: the attribute the tokens key on, and the browser's bar, which only knows the system's. */
 export function applyTheme(theme: AppTheme): void {
 	const root = document.documentElement;
 	if (theme === 'system') root.removeAttribute('data-theme');
@@ -33,7 +32,6 @@ export function saveTheme(theme: AppTheme): void {
 		if (theme === 'system') localStorage.removeItem('theme');
 		else localStorage.setItem('theme', theme);
 	} catch {
-		// Blocked storage: the choice holds for this visit.
 	}
 }
 
@@ -42,6 +40,5 @@ export function saveAccent(accent: AccentId): void {
 		if (accent === DEFAULT_ACCENT) localStorage.removeItem('accent');
 		else localStorage.setItem('accent', accent);
 	} catch {
-		// Blocked storage: the choice holds for this visit.
 	}
 }

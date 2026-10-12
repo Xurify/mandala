@@ -18,14 +18,12 @@
 	type Step = 'week' | 'closed' | 'quiet' | 'note' | 'done';
 
 	const weekKey = $derived(chart.reflectionWeek);
-	// Live, so a pillar rewritten on the quiet page shows its new line at once.
 	const review = $derived(weekInReview(chart.data, new Date(), weekKey));
 	const steps = $derived<Step[]>(['week', 'closed', ...(review.quiet.length > 0 ? (['quiet'] as const) : []), 'note']);
 	const named = $derived(chart.data.pillars.filter((pillar) => pillar.trim()).length);
 
 	const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const DAYS = [1, 2, 3, 4, 5, 6, 0].map((day) => ({ value: String(day), label: DAY_NAMES[day]! }));
-	/** A short list, so the picker fits inside the dialog: the hours a week gets looked back on. */
 	const HOURS = [
 		{ value: '0', label: 'Any time' },
 		{ value: '8', label: '8 am' },
@@ -93,7 +91,6 @@
 		open = false;
 	}
 
-	/** The field takes the line's own height, wrapping as the line did, so the row does not change size. */
 	function focusField(node: HTMLTextAreaElement): () => void {
 		const grow = (): void => {
 			node.style.height = '0';
@@ -111,7 +108,6 @@
 			event.preventDefault();
 			(event.currentTarget as HTMLTextAreaElement).blur();
 		} else if (event.key === 'Escape') {
-			// Leave the field, not the reflection.
 			event.stopPropagation();
 			event.preventDefault();
 			if (editingKey === key) editingKey = null;

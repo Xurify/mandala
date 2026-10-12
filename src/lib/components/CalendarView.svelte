@@ -47,7 +47,6 @@
 			: []
 	);
 	const quiet = $derived(across ? inScope.filter((goal) => current.quiet.includes(goal.id)).map((goal) => goal.title) : []);
-	/** What the charts out of scope finished this month, so one chart in view does not read as everything. */
 	const outside = $derived.by(() => {
 		const others = chart.goals.filter((goal) => !inScope.includes(goal));
 		return others.length > 0 ? monthOf(others, year, month).finishedCount : 0;

@@ -118,7 +118,6 @@ export function daysUntilPurge(deletedAt: number, now = Date.now()): number {
 	return Math.ceil(remaining / DAY_MS);
 }
 
-/** The dialog subtitle already states the 30-day rule. */
 export function formatDaysLeft(daysLeft: number): string {
 	if (daysLeft <= 1) return '1 day left';
 	return `${daysLeft} days left`;

@@ -74,7 +74,6 @@
 	let justCheckedKey = $state<ActionId | null>(null);
 	let celebrate = $state(false);
 
-	// Re-seed whenever today's focus changes outside this view (load, or Bindu picking three).
 	let seenFocus = '';
 	$effect(() => {
 		const log = chart.todayLog;
@@ -149,7 +148,6 @@
 	const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
-	/** The line as one string, for the seal's label. On the page the names wear their pillar's hue. */
 	const movedLine = $derived.by((): string => {
 		const names = movedPillars.map(pillarName);
 		if (names.length === 1) return `${names[0]} moved forward.`;
@@ -296,7 +294,6 @@
 	</div>
 {/snippet}
 
-<!-- Each goal has its own Today, so the ones out of view say what they still hold. -->
 {#snippet alsoToday(className = '')}
 	{#if chart.elsewhere.length > 0}
 		<section class={cn('mx-auto w-full max-w-[520px] rounded-[22px] bg-surface p-1.5 shadow-card', className)} aria-labelledby="also-today">

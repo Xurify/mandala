@@ -74,7 +74,6 @@
 	});
 </script>
 
-<!-- Not modal, like a ticket beside a board: clicking another card shows that one here. -->
 <div
 	bind:this={sheet}
 	tabindex="-1"

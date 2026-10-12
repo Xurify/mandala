@@ -76,10 +76,6 @@ export const BRIEF: Record<keyof ChartBrief, Reach> = {
 	constraint: 'yours'
 };
 
-/**
- * Every key this app keeps in the browser's storage, and what it holds. The library is the one that cloud sync
- * replaces; the rest belong to the device.
- */
 export const BROWSER_KEYS: Record<string, string> = {
 	'mandala-library-v1': 'Every chart, the open one, and the trash. Cloud sync carries the charts, not the open one',
 	'mandala-held': 'Charts this version could not read, set aside before the library was written back',

@@ -79,7 +79,6 @@
 				localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 			}
 		} catch {
-			// Storage access blocked or restricted
 		}
 		window.location.href = '/';
 	}

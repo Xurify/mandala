@@ -61,7 +61,6 @@ describe('the shelf', () => {
 		expect(nextTool(data, A.a1_0, now)?.id).toBe('c');
 		expect(nextTool(data, A.a1_0, now, new Set(['c']))?.id).toBe('b');
 		data.tools.p1 = data.tools.p1!.map((entry) => (entry.id === 'c' ? opened(entry, now) : entry));
-		// Opened today, c steps aside for the rest; once they are all opened today it comes round again.
 		expect(nextTool(data, A.a1_0, now)?.id).toBe('b');
 		data.tools.p1 = data.tools.p1!.map((entry) => (entry.known ? entry : opened(entry, now)));
 		expect(nextTool(data, A.a1_0, now)).not.toBeNull();
@@ -79,7 +78,6 @@ describe('the shelf', () => {
 		expect(again.get(A.a1_0)?.id).toBe(first);
 		expect(again.get(A.a1_1)?.id).not.toBe(dealt.get(A.a1_1)?.id);
 		expect(again.get(A.a1_1)?.id).not.toBe(first);
-		// Passing over everything starts the shelf round again instead of leaving the row empty.
 		const all = new Map([[A.a1_1, new Set(['a', 'b', 'c'])]]);
 		expect(dealTools(data, [A.a1_0, A.a1_1], now, all).get(A.a1_1)).not.toBeNull();
 	});

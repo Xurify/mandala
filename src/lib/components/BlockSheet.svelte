@@ -19,7 +19,6 @@
 	/** Held while the dialog closes, so its words do not change on the way out. */
 	let shown = $state(0);
 	let fields = $state<(HTMLTextAreaElement | null)[]>([]);
-	/** The cell last written in, so the editor opens there. */
 	let last = $state<string | null>(null);
 
 	$effect(() => {

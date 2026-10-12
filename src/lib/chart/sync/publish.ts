@@ -19,7 +19,6 @@ function writeSecrets(secrets: Record<string, string>): void {
 	try {
 		localStorage.setItem(SECRET_KEY, JSON.stringify(secrets));
 	} catch {
-		// storage blocked; secret won't persist and the share can't be updated
 	}
 }
 
