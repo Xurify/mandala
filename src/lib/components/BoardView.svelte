@@ -533,6 +533,7 @@
 	}
 
 	const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
+	const tray = 'rounded-[24px] bg-[color-mix(in_oklch,var(--sunken)_55%,var(--bg))]';
 </script>
 
 <svelte:window onkeydowncapture={onWindowKey} />
@@ -540,7 +541,7 @@
 {#snippet face(card: Card, inLane: Lane)}
 	{@const mark = markOf(card, inLane)}
 	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4 text-muted">
-		<span class="min-w-0 flex-1 truncate font-medium">{pillarName(card.pillarIndex)}</span>
+		<span class="pillar-ink min-w-0 flex-1 truncate font-medium" style:--h={HUES[card.pillarIndex]}>{pillarName(card.pillarIndex)}</span>
 		{#if mark}
 			<span class="flex shrink-0 items-center gap-1">
 				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.key && 'motion-safe:animate-stamp')} />
@@ -563,8 +564,8 @@
 		<button
 			type="button"
 			class={cn(
-				'pillar-action flex w-full cursor-grab flex-col gap-1.5 rounded-[16px] border-0 px-3.5 py-3 text-left shadow-card touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,box-shadow,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:shadow-float',
-				lifted && '-translate-y-1 rotate-[1.2deg] shadow-float can-hover:hover:-translate-y-1',
+				'pillar-card flex w-full cursor-grab flex-col gap-1.5 rounded-[16px] border-0 px-3.5 py-3 text-left touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,filter,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:drop-shadow-[0_8px_14px_oklch(0.3_0.05_60/0.12)]',
+				lifted && '-translate-y-1 rotate-[1.2deg] drop-shadow-[0_12px_20px_oklch(0.3_0.05_60/0.18)] can-hover:hover:-translate-y-1',
 				focusRing
 			)}
 			style:--h={HUES[card.pillarIndex]}
@@ -659,7 +660,7 @@
 		</div>
 		<!-- Every list stays mounted, so a card held while the tabs switch keeps its pointer. -->
 		{#each LANES as each (each)}
-			<section data-lane={each} class={cn('mt-1 rounded-[24px] bg-sunken', each !== lane && 'hidden')} aria-label={LANE_NAMES[each]}>
+			<section data-lane={each} class={cn(tray, 'mt-1', each !== lane && 'hidden')} aria-label={LANE_NAMES[each]}>
 				{@render list(each, false)}
 				{#if each !== 'done' && roomy.length > 0}
 					<div class="px-2 pb-2">
@@ -674,7 +675,7 @@
 				{@const over = drag !== null && !drag.landing && drag.lane === each && each !== drag.from && canGo(drag.card, each)}
 				<section
 					data-lane={each}
-					class={cn('flex min-w-0 flex-col rounded-[24px] bg-sunken', over && 'bg-sunken-hover')}
+					class={cn(tray, 'flex min-w-0 flex-col', over && 'bg-sunken')}
 					aria-labelledby="{uid}-{each}"
 				>
 					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-[22px] pe-2 pt-1.5">
@@ -707,7 +708,7 @@
 		>
 			<div
 				class={cn(
-					'pillar-action flex w-full flex-col gap-1.5 rounded-[16px] px-3.5 py-3 shadow-float motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
+					'pillar-card flex w-full flex-col gap-1.5 rounded-[16px] px-3.5 py-3 drop-shadow-[0_16px_24px_oklch(0.3_0.05_60/0.22)] motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.landing
 						? 'rotate-0'
 						: drag.tab

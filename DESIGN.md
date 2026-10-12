@@ -61,6 +61,7 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
+| `--card-l` / `--card-c` / `--card-edge-l` / `--card-edge-c` (`pillar-card`) | A board card: a light pillar tint edged by a hairline in its own hue, never a grey one |
 | `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
@@ -71,7 +72,7 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 
 ### Elevation and motion
 
-- `--shadow-sm`: resting cards. In dark it's a 1px light hairline, because shadows vanish on dark paper.
+- `--shadow-sm`: resting cards. A faint ring and a soft, diffuse drop, so a card sits on the paper instead of being outlined. In dark it's a 1px light hairline, because shadows vanish on dark paper.
 - `--shadow-md`: floating things (menus, dialogs, dock, toast).
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
@@ -196,7 +197,7 @@ Every day's finished things, on a month (`CalendarView.svelte`, rules in `calend
 
 ### The board
 
-What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are the chart's own action cells, tinted in their pillar's hue, with the pillar's name above the action in muted type and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are recessed trays on the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar, edged in its hue, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
 - **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
