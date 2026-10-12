@@ -9,7 +9,6 @@
 		saveGoalFitForNextVisit,
 		smallestEditorGoalFontSize
 	} from './goal-fit';
-	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Shelf from './Shelf.svelte';
 	import { fetchTitle, linkIn, shelfOf, toolsFor } from '$lib/chart/tools';
@@ -19,7 +18,6 @@
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
 	import Eyebrow from './ui/Eyebrow.svelte';
-	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 
 	let { alone = false }: { alone?: boolean } = $props();
@@ -54,30 +52,6 @@
 	const textareaElements: (HTMLTextAreaElement | null)[] = $state(Array(9).fill(null));
 	let activePulseIndex: number | null = $state(null);
 	let activeCellIndex: number | null = $state(null);
-	let haradaOpen = $state(false);
-
-	const showHaradaNotice = $derived.by((): boolean => {
-		if (chart.sel !== 4) return false;
-		if (!chart.data.goal.trim()) return false;
-		let filledPillars = 0;
-		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
-			if ((chart.data.pillars[pillarIndex] ?? '').trim() !== '') {
-				filledPillars++;
-			}
-		}
-		if (filledPillars >= 3) return false;
-		if (typeof window !== 'undefined') {
-			try {
-				if (sessionStorage.getItem('mandala-harada-completed') === 'true') {
-					return false;
-				}
-			} catch {
-				// storage blocked
-			}
-		}
-		return true;
-	});
-
 	const effectiveCellIndex = $derived.by((): number | null => {
 		if (chart.sel === 4) return null;
 		if (activeCellIndex !== null && activeCellIndex !== 4) return activeCellIndex;
@@ -526,21 +500,6 @@
 		{/if}
 	</div>
 
-	{#if showHaradaNotice}
-		<div class="mb-4">
-			<Notice>
-				{#snippet children()}
-					Suggest pillars for this goal?
-				{/snippet}
-				{#snippet action()}
-					<Button size="sm" variant="soft" onclick={() => (haradaOpen = true)}>
-						Explore
-					</Button>
-				{/snippet}
-			</Notice>
-		</div>
-	{/if}
-
 	<div
 		bind:this={faceElement}
 		class={cn('grid', faceSettled && 'motion-safe:transition-[height] motion-safe:duration-[420ms] motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)]', turning && 'overflow-clip [overflow-clip-margin:16px]')}
@@ -747,20 +706,9 @@
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>
-						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
-							<button
-								type="button"
-								class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
-								onclick={() => (haradaOpen = true)}
-							>
-								Suggest pillars
-							</button>
-						</li>
 					</ul>
 				{/if}
 			</div>
 		{/key}
 	</div>
-
-	<HaradaOnboarding bind:open={haradaOpen} />
 </div>
