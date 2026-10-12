@@ -87,9 +87,11 @@
 			'can-hover:hover:z-2 can-hover:hover:scale-[1.04] can-hover:hover:shadow-[0_6px_16px_-4px_oklch(0_0_0/0.2)]',
 			view ? 'rounded-[11px]' : 'rounded-[7px] text-[clamp(8px,1.55cqw,12px)]',
 			// 28% radius needs ~8% inset or the curve slices the first and last letters.
-			type === 'action' && (view ? 'p-[max(4px,5%)]' : 'p-[max(3px,4%)]'),
+			type === 'action' && (view ? 'p-[max(4px,5%)] @max-[480px]:p-[2px]' : 'p-[max(3px,4%)]'),
 			type === 'pillar' && 'p-[max(5px,10%)]',
 			type === 'goal' && 'p-[max(6px,10%)]',
+			// The 28% corner leaves no inset to spare in a phone's 32px cell, and a name needs every pixel of it.
+			view && type !== 'action' && '@max-[480px]:px-[2px]',
 			view && type === 'action' && 'text-[clamp(8.5px,1.3cqw,13px)]',
 			view && type === 'pillar' && 'text-[clamp(9px,1.45cqw,13.5px)]',
 			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.005em]',
@@ -110,11 +112,11 @@
 				type === 'pillar' &&
 				'before:text-[0.88em] before:font-medium before:opacity-50 before:content-[attr(data-placeholder)]',
 				hasText &&
-				// Compact mode swaps words for dots below 480px container width —
-				// only where a side panel shows the words. Read-only grids keep text.
-				(!source &&
-					"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden") ||
-				(source && 'filled'),
+				// Compact mode swaps words for dots below 480px container width, only in split, where the
+				// editor beside the grid shows the words. View and read-only grids keep their words.
+				(!source && !view
+					? "filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden"
+					: 'filled'),
 			hasText ? 'filled' : 'empty',
 			hit && 'hit shadow-[inset_0_0_0_2px_var(--ink)]',
 			query !== '' && !hit && 'dim opacity-[0.18]',
@@ -216,7 +218,9 @@
 			if (!Number.isFinite(max) || max <= 0) return;
 
 			const kind = kindOf(element);
-			const min = smallestFontSizeForSentence(max, kind);
+			// A phone's whole chart is for finding your way, its block sheet for reading: small words beat cut ones.
+			const compact = view && (cell.closest('.mandala')?.clientWidth ?? Infinity) < 480;
+			const min = compact ? Math.min(max, 5.5) : smallestFontSizeForSentence(max, kind);
 			element.style.display = 'block';
 			element.style.overflow = 'visible';
 			const fits = (size: number): boolean => {
@@ -338,7 +342,7 @@
 					<span
 						class={cn(
 							'block w-full min-w-0 text-balance hyphens-auto',
-							!source && '@max-[480px]:hidden'
+							!source && !view && '@max-[480px]:hidden'
 						)}
 						data-kind={cellInformation.type}
 						{@attach fitCellText}>{textOf(key)}</span

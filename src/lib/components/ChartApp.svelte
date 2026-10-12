@@ -8,6 +8,7 @@
 	import {
 		blockOfKey,
 		getByKey,
+		idx,
 		labelOfKey,
 		parseChart,
 		parseText,
@@ -23,7 +24,7 @@
 	import { titleOf } from '$lib/chart/library';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
-	import ChartCore from './ChartCore.svelte';
+	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import EmptyChart from './EmptyChart.svelte';
 	import Helper from './Helper.svelte';
@@ -225,6 +226,15 @@
 			selectBlock(blockOfKey(key), key);
 			chart.setViewMode('edit');
 		});
+	}
+
+	let sheetPillar = $state<number | null>(null);
+
+	/** On a phone a cell is too small to read, so a tap opens its pillar's block in words. */
+	function openBlock(blockIndex: number, _key?: string, cellIndex?: number): void {
+		if (blockIndex !== 4) sheetPillar = idx(blockIndex);
+		else if (cellIndex !== undefined && cellIndex !== 4) sheetPillar = idx(cellIndex);
+		else chart.jumpToKey('g');
 	}
 
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
@@ -580,15 +590,16 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
-<!-- The Bindu launcher sits at the right of the row above the dock on a phone: 50px, plus a 16px gap. -->
+<!-- Under 900px the Bindu launcher sits at the right of the dock's row: 50px, plus a 16px gap. -->
 <div
-	class="page-gutter mx-auto max-w-295 max-[600px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(148px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class="page-gutter mx-auto max-w-295 max-[900px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
 			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
-			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:order-3 max-[900px]:ms-0 max-[900px]:max-w-none max-[900px]:flex-auto">
+			<!-- On a phone the command palette is the search: it finds lines in the chart as well, and the page keeps the room. -->
+			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:hidden">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
 					<Icon name="search" size={16} />
 				</span>
@@ -618,8 +629,8 @@
 				</div>
 
 				<IconButton
-					icon="command"
-					label="Open commands"
+					icon="search"
+					label="Search your chart and commands"
 					class="hidden max-[900px]:flex"
 					aria-keyshortcuts="Control+K Meta+K"
 					onclick={() => (paletteOpen = true)}
@@ -675,7 +686,7 @@
 			</Menu>
 		</div>
 
-		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
+		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-5 max-[900px]:mb-4 max-[900px]:grid-cols-1">
 			<div class="min-w-0">
 				{#if effectiveViewMode === 'calendar'}
 					<CalendarScope />
@@ -692,6 +703,12 @@
 							value={effectiveViewMode}
 							onchange={(value) => chart.setViewMode(value as ChartLayout)}
 						/>
+						{#if isMobile && !(effectiveViewMode === 'view' && !chart.dirty)}
+							<div class="order-last ms-auto flex items-center gap-0.5">
+								<ProgressRing size={40} />
+								<IconButton icon="info" label="How the method works" class="-me-2 text-muted hover:text-text" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
+							</div>
+						{/if}
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
@@ -702,29 +719,29 @@
 				{/if}
 			</div>
 
-			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
-			{#if !offChart && !(effectiveViewMode === 'view' && !chart.dirty)}
-			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
-				<ProgressRing size={isMobile ? 56 : 76} />
-				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+			<!-- On a blank chart in chart view, the empty ring below says what this card would. On a phone the ring rides the row of tabs instead. -->
+			{#if !offChart && !(effectiveViewMode === 'view' && !chart.dirty) && !isMobile}
+			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card">
+				<ProgressRing size={76} />
+				<dl class="m-0 grid min-w-[132px] gap-[3px]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Goal</dt>
-						<dd class="m-0 font-[620] tabular-nums {chart.milestones.goalSet ? 'text-success' : ''} max-[900px]:text-base">{chart.milestones.goalSet ? 'Set' : 'Not yet'}</dd>
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.goalSet ? 'text-success' : ''}">{chart.milestones.goalSet ? 'Set' : 'Not yet'}</dd>
 					</div>
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Pillars</dt>
-						<dd class="m-0 font-[620] tabular-nums max-[900px]:text-base {chart.milestones.pillarsCount === 8 ? 'text-success' : ''}">
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.pillarsCount === 8 ? 'text-success' : ''}">
 							{chart.milestones.pillarsCount}<span class="font-medium {chart.milestones.pillarsCount === 8 ? 'text-success' : 'text-muted'}">/8</span>
 						</dd>
 					</div>
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Actions</dt>
-						<dd class="m-0 font-[620] tabular-nums max-[900px]:text-base {chart.milestones.actionsCount === 64 ? 'text-success' : ''}">
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.actionsCount === 64 ? 'text-success' : ''}">
 							{chart.milestones.actionsCount}<span class="font-medium {chart.milestones.actionsCount === 64 ? 'text-success' : 'text-muted'}">/64</span>
 						</dd>
 					</div>
 				</dl>
-				<IconButton icon="info" label="How the method works" class="-me-3.5 size-9 self-start text-muted hover:text-text max-[900px]:-me-2.5" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
+				<IconButton icon="info" label="How the method works" class="-me-3.5 size-9 self-start text-muted hover:text-text" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
 			</div>
 			{/if}
 		</div>
@@ -828,11 +845,8 @@
 						onwrite={() => chart.jumpToKey('g')}
 					/>
 				{:else if effectiveViewMode === 'view'}
-					<ChartCore class="min-[900px]:hidden print:hidden" />
-					<!-- Printed whole from a phone too. -->
-					<div class="contents max-[900px]:hidden print:!contents">
-						<MandalaGrid mode="view" onSelect={selectBlock} onEdit={handleEditBlock} />
-					</div>
+					<MandalaGrid mode="view" onSelect={isMobile ? openBlock : selectBlock} onEdit={handleEditBlock} />
+					<BlockSheet bind:pillar={sheetPillar} />
 				{:else}
 					<MandalaGrid mode={effectiveViewMode === 'split' ? 'split' : 'view'} onSelect={selectBlock} onEdit={handleEditBlock} />
 				{/if}
@@ -879,7 +893,7 @@
 	</main>
 
 	{#if updateReady}
-		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 max-[600px]:pr-[calc(1rem+var(--dock-aside,0px))] print:hidden">
+		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 max-[900px]:pr-[calc(1rem+var(--dock-aside,0px))] print:hidden">
 			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
 				<span>Mandala was updated.</span>
 				<button

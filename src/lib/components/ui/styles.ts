@@ -143,13 +143,13 @@ export const dialog = tv({
 
 export const dock = tv({
 	slots: {
-		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 [:root[data-morphing]_&]:[view-transition-name:dock] print:hidden',
+		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 max-[900px]:pe-[calc(1rem+var(--dock-aside,0px))] [:root[data-morphing]_&]:[view-transition-name:dock] print:hidden',
 		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150 [:root[data-morphing]_&]:bg-surface'
 	}
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] max-[600px]:gap-1.5 max-[600px]:px-3.5 max-[400px]:px-3 max-[400px]:text-[0.86rem] max-[370px]:px-2.5 max-[340px]:gap-1 max-[340px]:px-2 max-[420px]:aria-[selected=false]:px-3.5 ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] max-[600px]:gap-1.5 max-[600px]:px-3.5 max-[400px]:px-3 max-[400px]:text-[0.86rem] max-[370px]:px-2.5 max-[340px]:gap-1 max-[340px]:px-2 max-[500px]:aria-[selected=false]:px-3.5 ${focus}`
 });
 
 export const toast = tv({
