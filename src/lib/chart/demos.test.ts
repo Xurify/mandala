@@ -7,7 +7,7 @@ import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './m
 import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
 import { getPreset } from './presets/index.ts';
-import { actionsFor, blocksWritten, startPage } from './start.ts';
+import { countCompletedBlocks, resumeStep, presetActionsToLend } from './start.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -32,16 +32,16 @@ describe('demos', () => {
 
 	it('opens a borrowed start on the ring, with actions to lend', () => {
 		const setup = demoSetup('borrowed', now);
-		expect(setup.start).toEqual({ preset: 'fitness' });
-		expect(startPage(setup.data!)).toEqual({ page: 'pillars', pillar: null });
-		expect(actionsFor(setup.data!, getPreset('fitness'), 2)).toHaveLength(8);
+		expect(setup.startSheet).toEqual({ borrowedPreset: 'fitness' });
+		expect(resumeStep(setup.data!)).toEqual({ step: 'pillars', pillar: null });
+		expect(presetActionsToLend(setup.data!, getPreset('fitness'), 2)).toHaveLength(8);
 	});
 
 	it('leaves blocks to keep building, and a pillar to name', () => {
 		const data = demoSetup('building', now).data!;
-		expect(blocksWritten(data)).toBe(3);
+		expect(countCompletedBlocks(data)).toBe(3);
 		expect(data.pillars[6]).toBe('');
-		expect(startPage(data)).toEqual({ page: 'pick', pillar: null });
+		expect(resumeStep(data)).toEqual({ step: 'overview', pillar: null });
 	});
 
 	it('finishes a pillar without finishing the chart', () => {

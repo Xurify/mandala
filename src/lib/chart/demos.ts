@@ -26,8 +26,7 @@ export type DemoSetup = {
 	view: ViewMode;
 	focus?: string;
 	copies?: number;
-	/** Opens on the start sheet, borrowing from this preset. */
-	start?: { preset: PresetId | null };
+	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
@@ -319,7 +318,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'borrowed') {
 		const data = preset('fitness');
 		data.actions = data.actions.map((row) => row.map(() => ''));
-		return { data, view: 'view', start: { preset: 'fitness' } };
+		return { data, view: 'view', startSheet: { borrowedPreset: 'fitness' } };
 	}
 	if (id === 'building') {
 		const data = preset('career');

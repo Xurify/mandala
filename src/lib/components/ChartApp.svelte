@@ -45,7 +45,7 @@
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
-	import { blocksWritten, lenderOf } from '$lib/chart/start';
+	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -102,16 +102,10 @@
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
 	const offChart = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar' || effectiveViewMode === 'board');
-	/**
-	 * A chart being written from the center out: the start sheet takes the stage in chart view, and the page holds
-	 * only it. Search, the dock's tabs and Bindu wait until there is something to use them on.
-	 */
-	const starting = $derived(effectiveViewMode === 'view' && (!chart.dirty || chart.starting));
-	/** A chart with blocks still unwritten keeps a door back into the sheet, above the grid. */
-	const blocks = $derived(blocksWritten(chart.data));
-	const building = $derived(Boolean(chart.data.goal.trim()) && blocks < 8);
-	/** A first chart has nothing to switch to, so the sheet is the page's only heading. */
-	const bare = $derived(starting && chart.chartCount === 1);
+	const showStartSheet = $derived(effectiveViewMode === 'view' && (!chart.dirty || chart.inStartSheet));
+	const completedBlocks = $derived(countCompletedBlocks(chart.data));
+	const hasUnfinishedBlocks = $derived(Boolean(chart.data.goal.trim()) && completedBlocks < 8);
+	const hideHero = $derived(showStartSheet && chart.chartCount === 1);
 	const layouts = $derived([
 		{ value: 'view', label: 'View', title: 'The whole 9×9 chart (V)' },
 		{ value: 'edit', label: 'Edit', title: 'One block at a time (E)' },
@@ -133,7 +127,7 @@
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
 		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
-		if (setup.start) chart.beginStart(setup.start.preset);
+		if (setup.startSheet) chart.openStartSheet(setup.startSheet.borrowedPreset);
 		if (setup.focus) chart.jumpToKey(setup.focus);
 		const open = setup.open;
 		if (!open) return;
@@ -613,7 +607,7 @@
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
 			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
-			{#if !starting}
+			{#if !showStartSheet}
 			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:hidden">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
 					<Icon name="search" size={16} />
@@ -644,7 +638,7 @@
 				</div>
 			{/if}
 
-			{#if !starting}
+			{#if !showStartSheet}
 				<button
 					type="button"
 					data-bindu-launcher
@@ -665,7 +659,7 @@
 				/>
 			{/if}
 
-			<Menu label="More actions" class={starting ? 'ms-auto' : undefined}>
+			<Menu label="More actions" class={showStartSheet ? 'ms-auto' : undefined}>
 				<MenuItem icon="command" shortcut="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
 				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
@@ -715,7 +709,7 @@
 			</Menu>
 		</div>
 
-		{#if !bare}
+		{#if !hideHero}
 		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-5 max-[900px]:mb-4 max-[900px]:grid-cols-1">
 			<div class="min-w-0">
 				{#if effectiveViewMode === 'calendar'}
@@ -733,7 +727,7 @@
 							value={effectiveViewMode}
 							onchange={(value) => chart.setViewMode(value as ChartLayout)}
 						/>
-						{#if isMobile && !starting}
+						{#if isMobile && !showStartSheet}
 							<div class="order-last ms-auto flex items-center gap-0.5">
 								<ProgressRing size={40} />
 								<IconButton icon="info" label="How the method works" class="-me-2 text-muted hover:text-text" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
@@ -749,8 +743,7 @@
 				{/if}
 			</div>
 
-			<!-- While the start sheet shows, its rings say what this card would. -->
-			{#if !offChart && !starting && !isMobile}
+			{#if !offChart && !showStartSheet && !isMobile}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card">
 				<ProgressRing size={76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px]">
@@ -828,12 +821,12 @@
 		</div>
 	{/if}
 
-	{#if effectiveViewMode === 'view' && !starting && (building || !isMobile)}
+	{#if effectiveViewMode === 'view' && !showStartSheet && (hasUnfinishedBlocks || !isMobile)}
 		<div class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5">
-			{#if building}
+			{#if hasUnfinishedBlocks}
 				<div class="flex min-w-0 items-center gap-2.5">
-					<Button size="sm" variant="soft" onclick={() => morph(() => chart.beginStart(lenderOf(chart.data)))}>Keep building</Button>
-					<span class="text-[0.84rem] text-muted tabular-nums">{blocks} of 8 blocks written</span>
+					<Button size="sm" variant="soft" onclick={() => morph(() => chart.openStartSheet(presetWithMostMatchingPillars(chart.data)))}>Keep building</Button>
+					<span class="text-[0.84rem] text-muted tabular-nums">{completedBlocks} of 8 blocks written</span>
 				</div>
 			{:else}
 				<span class="text-[0.84rem] text-muted">Double-click a cell to edit its block</span>
@@ -877,13 +870,13 @@
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
 			>
-				{#if starting}
+				{#if showStartSheet}
 					{#key chart.activeId}
 						<CenterOut
-							guide={bare}
-							class={bare ? 'mt-8 max-[900px]:mt-5' : undefined}
-							onguide={() => (guideOpen = true)}
-							ondraft={() => helper.show('write', 'new')}
+							showGuideLink={hideHero}
+							class={hideHero ? 'mt-8 max-[900px]:mt-5' : undefined}
+							onopenguide={() => (guideOpen = true)}
+							ondraftinchat={() => helper.show('write', 'new')}
 						/>
 					{/key}
 				{:else if effectiveViewMode === 'view'}
@@ -957,9 +950,9 @@
 		</div>
 	{/if}
 
-	<Helper {helper} quiet={starting} />
+	<Helper {helper} hideLauncher={showStartSheet} />
 
-	<Dock label="Layout view mode" away={starting}>
+	<Dock label="Layout view mode" hideTabs={showStartSheet}>
 		<DockTab
 			icon="sun"
 			selected={effectiveViewMode === 'today'}

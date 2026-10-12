@@ -90,21 +90,21 @@ describe('chart shelves', () => {
 
 describe('starting from the center', () => {
 	it('follows the chart it began on, and ends when a whole chart arrives', () => {
-		chart.beginStart('fitness');
-		expect(chart.starting).toBe(true);
-		expect(chart.startPreset).toBe('fitness');
+		chart.openStartSheet('fitness');
+		expect(chart.inStartSheet).toBe(true);
+		expect(chart.borrowedPreset).toBe('fitness');
 		chart.setText('g', 'Run a half marathon');
 		chart.newChart();
-		expect(chart.starting).toBe(false);
-		expect(chart.startPreset).toBeNull();
-		chart.beginStart(null);
+		expect(chart.inStartSheet).toBe(false);
+		expect(chart.borrowedPreset).toBeNull();
+		chart.openStartSheet(null);
 		chart.importChart(buildChart(getPreset('music')!));
-		expect(chart.starting).toBe(false);
+		expect(chart.inStartSheet).toBe(false);
 	});
 
 	it('ends only for the chart that is starting', () => {
-		chart.beginStart(null);
-		chart.endStart();
-		expect(chart.starting).toBe(false);
+		chart.openStartSheet(null);
+		chart.closeStartSheet();
+		expect(chart.inStartSheet).toBe(false);
 	});
 });

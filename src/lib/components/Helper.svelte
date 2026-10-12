@@ -6,17 +6,16 @@
 
 	interface Props {
 		helper: HelperStore;
-		/** No launcher while the page offers Bindu's one job itself. An open panel still shows it, to close. */
-		quiet?: boolean;
+		hideLauncher?: boolean;
 	}
 
-	let { helper, quiet = false }: Props = $props();
+	let { helper, hideLauncher = false }: Props = $props();
 
 	let launcher: HTMLButtonElement | null = $state(null);
 
 	function close(): void {
 		helper.hide();
-		if (quiet) return;
+		if (hideLauncher) return;
 		const launchers = [launcher, document.querySelector<HTMLElement>('[data-bindu-launcher]')];
 		launchers.find((each) => each && each.getClientRects().length > 0)?.focus();
 	}
@@ -31,7 +30,7 @@
 	</div>
 {/if}
 
-{#if !quiet || helper.open}
+{#if !hideLauncher || helper.open}
 <button
 	bind:this={launcher}
 	type="button"

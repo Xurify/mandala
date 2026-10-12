@@ -147,13 +147,13 @@ export const dock = tv({
 		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150 motion-safe:transition-[opacity,translate,visibility] [:root[data-morphing]_&]:bg-surface'
 	},
 	variants: {
-		// The bar keeps its room while away, so a toast above it does not drop. It lands coming back and eases going.
-		away: {
+		// Invisible rather than removed, so the toast above the bar keeps its place.
+		hideTabs: {
 			true: { bar: 'invisible translate-y-3 opacity-0 duration-500 ease-[cubic-bezier(0.2,0,0,1)]' },
 			false: { bar: 'duration-[380ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]' }
 		}
 	},
-	defaultVariants: { away: false }
+	defaultVariants: { hideTabs: false }
 });
 
 export const dockTab = tv({

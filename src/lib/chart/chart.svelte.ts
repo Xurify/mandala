@@ -177,20 +177,20 @@ function loadInitialLibrary(): ChartLibrary {
 
 const bootLibrary = loadInitialLibrary();
 
-const START_KEY = "mandala_start";
+const START_SHEET_KEY = "mandala_start_sheet";
 
-/** The chart being written from the center out, and the preset it borrowed from, if any. */
-type StartRecord = { id: string; preset: PresetId | null };
+type StartSheetState = { chartId: string; borrowedPreset: PresetId | null };
 
-function loadInitialStart(): StartRecord | null {
+function loadStartSheetState(): StartSheetState | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(START_KEY);
+    const raw = localStorage.getItem(START_SHEET_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StartRecord>;
-    if (typeof parsed.id !== "string") return null;
-    const preset = typeof parsed.preset === "string" && getPreset(parsed.preset) ? (parsed.preset as PresetId) : null;
-    return { id: parsed.id, preset };
+    const parsed = JSON.parse(raw) as Partial<StartSheetState>;
+    if (typeof parsed.chartId !== "string") return null;
+    const presetId = parsed.borrowedPreset;
+    const borrowedPreset = typeof presetId === "string" && getPreset(presetId) ? (presetId as PresetId) : null;
+    return { chartId: parsed.chartId, borrowedPreset };
   } catch {
     return null;
   }
@@ -299,10 +299,9 @@ export class ChartStore {
     summarizeDeleted(this.#library.deleted),
   );
   activeId = $derived(this.#library.activeId);
-  #start: StartRecord | null = $state(loadInitialStart());
-  /** This chart is being written from the center out, so chart view shows the start sheet instead of the grid. */
-  starting = $derived(this.#start?.id === this.#library.activeId);
-  startPreset: PresetId | null = $derived(this.starting ? (this.#start?.preset ?? null) : null);
+  #startSheet: StartSheetState | null = $state(loadStartSheetState());
+  inStartSheet = $derived(this.#startSheet?.chartId === this.#library.activeId);
+  borrowedPreset: PresetId | null = $derived(this.inStartSheet ? (this.#startSheet?.borrowedPreset ?? null) : null);
   chartCount = $derived(this.#library.charts.length);
   calendarScope = $state("all");
   goals: Goal[] = $derived(
@@ -1307,19 +1306,18 @@ export class ChartStore {
     }, "theme");
   }
 
-  /** `preset` is the one whose goal was borrowed; its pillars and actions are offered ring by ring. */
-  beginStart(preset: PresetId | null = null): void {
-    this.#start = { id: this.#library.activeId, preset };
+  openStartSheet(borrowedPreset: PresetId | null = null): void {
+    this.#startSheet = { chartId: this.#library.activeId, borrowedPreset };
     try {
-      localStorage.setItem(START_KEY, JSON.stringify(this.#start));
+      localStorage.setItem(START_SHEET_KEY, JSON.stringify(this.#startSheet));
     } catch {}
   }
 
-  endStart(): void {
-    if (!this.starting) return;
-    this.#start = null;
+  closeStartSheet(): void {
+    if (!this.inStartSheet) return;
+    this.#startSheet = null;
     try {
-      localStorage.removeItem(START_KEY);
+      localStorage.removeItem(START_SHEET_KEY);
     } catch {}
   }
 
@@ -1501,8 +1499,7 @@ export class ChartStore {
 
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
-      // A whole chart arriving from elsewhere (a preset, a draft, an import) is past the start.
-      this.endStart();
+      this.closeStartSheet();
       this.data = withNewIds(next);
       this.#resetView();
       this.saveNow();
