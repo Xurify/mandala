@@ -12,7 +12,7 @@
 	type Demo = { id: number; kicker: string; subject: string; count: number; undo: boolean };
 
 	const NAME = 'More organized life';
-	const LONG = 'Run a half marathon in under 2:00 by October and keep running after';
+	const LONG = 'Run a half marathon in under 2 hours by October and keep running after';
 
 	const segments = HUES.map((hue, pillar) => {
 		const { start, end } = pillarArc(pillar, { radius: 34, stroke: 9, gap: 8 });

@@ -209,7 +209,7 @@
 		'field h-full min-h-0 w-full min-w-0 resize-none rounded-[22px] border-0 px-3 pt-[28px] pb-2.5 text-[15px] leading-[1.3] motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none max-[900px]:rounded-[16px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-1.5 max-[900px]:text-[13px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto';
 	const cellNumberClass = 'pointer-events-none absolute top-2.5 left-3 z-[4] text-[0.72rem] font-[650] tabular-nums max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:text-[0.66rem]';
 	const titleClass = 'm-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.5rem]';
-	const ledeClass = 'm-0 max-w-[50ch] text-[0.98rem] leading-snug text-pretty text-muted';
+	const ledeClass = 'm-0 text-[0.98rem] leading-snug text-pretty text-muted';
 	const roomForFocusRingsClass = '-mx-3 px-3 overflow-x-clip overflow-y-visible';
 </script>
 
@@ -367,7 +367,9 @@
 						</div>
 					</div>
 					<p class={ledeClass}>
-						One goal, something you could finish. A date helps. Then you build out from it: eight pillars, then eight actions under each. It usually takes one sitting, and you can stop anywhere.
+						Pick a goal that you really want to achieve, no matter how big or small. We'll go through the process and you'll figure out on your own how to get there.
+						<br />
+						<b>Don't worry you can make more multiple later.</b>
 					</p>
 					<input
 						id="start-goal"
