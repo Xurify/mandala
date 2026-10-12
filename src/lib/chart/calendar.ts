@@ -32,7 +32,8 @@ export type Month = {
 	finishedDays: number;
 	finishedCount: number;
 	moved: string[];
-	quiet: string[];
+	/** Every goal with lines on it, in the order given, and how many things it finished this month. */
+	byGoal: { goal: string; finished: number }[];
 };
 
 export function doneOn(data: ChartData, dateKey: string): DayDone[] {
@@ -68,7 +69,7 @@ export function monthOf(goals: Goal[], year: number, month: number, now: Date = 
 	const cursor = new Date(start);
 	let finishedDays = 0;
 	let finishedCount = 0;
-	const moved = new Set<string>();
+	const tally = new Map<string, number>();
 	do {
 		const week: MonthDay[] = [];
 		for (let column = 0; column < 7; column++) {
@@ -79,7 +80,7 @@ export function monthOf(goals: Goal[], year: number, month: number, now: Date = 
 			if (inMonth && done.length > 0) {
 				finishedDays += 1;
 				finishedCount += done.length;
-				for (const id of active) moved.add(id);
+				for (const entry of done) tally.set(entry.goal, (tally.get(entry.goal) ?? 0) + 1);
 			}
 			const pillars = [...new Set(done.map((entry) => entry.pillarIndex))].sort((left, right) => left - right);
 			week.push({ key, day: cursor.getDate(), inMonth, today: key === todayKey, future: key > todayKey, done, goals: active, pillars });
@@ -94,8 +95,10 @@ export function monthOf(goals: Goal[], year: number, month: number, now: Date = 
 		weeks,
 		finishedDays,
 		finishedCount,
-		moved: goals.filter((goal) => moved.has(goal.id)).map((goal) => goal.id),
-		quiet: goals.filter((goal) => !moved.has(goal.id) && hasContent(goal.data)).map((goal) => goal.id)
+		moved: goals.filter((goal) => tally.has(goal.id)).map((goal) => goal.id),
+		byGoal: goals
+			.filter((goal) => tally.has(goal.id) || hasContent(goal.data))
+			.map((goal) => ({ goal: goal.id, finished: tally.get(goal.id) ?? 0 }))
 	};
 }
 

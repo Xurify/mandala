@@ -75,12 +75,12 @@ describe('demos', () => {
 		expect(doneByWeek(board.done, now).week.length).toBeGreaterThan(0);
 	});
 
-	it('opens the calendar on three goals: two that moved this month and one gone quiet', () => {
+	it('opens the calendar on three goals: two that moved this month and one with nothing yet', () => {
 		const setup = demoSetup('calendar', now);
 		const goals = [...setup.others!, setup.data!].map((data, index) => ({ id: `g${index}`, title: data.goal, data }));
 		const month = monthOf(goals, now.getFullYear(), now.getMonth(), now);
 		expect(month.moved).toEqual(['g0', 'g2']);
-		expect(month.quiet).toEqual(['g1']);
+		expect(month.byGoal.map((row) => row.finished > 0)).toEqual([true, false, true]);
 		expect(month.weeks.flat().some((day) => day.goals.length === 2)).toBe(true);
 	});
 });

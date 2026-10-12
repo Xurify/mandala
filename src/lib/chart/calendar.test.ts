@@ -128,7 +128,11 @@ describe('across goals', () => {
 			['run', A.a1_0, '06:40']
 		]);
 		expect(month.moved).toEqual(['slovak', 'run']);
-		expect(month.quiet).toEqual(['save']);
+		expect(month.byGoal).toEqual([
+			{ goal: 'slovak', finished: 3 },
+			{ goal: 'run', finished: 1 },
+			{ goal: 'save', finished: 0 }
+		]);
 		expect(monthLine(month)).toBe('4 things finished across 2 goals.');
 	});
 

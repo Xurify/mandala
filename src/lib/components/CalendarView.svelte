@@ -7,6 +7,7 @@
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
 	import IconButton from './ui/IconButton.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
 	import Pages from './ui/Pages.svelte';
 	import { cn } from './ui/cn';
 
@@ -46,7 +47,14 @@
 					.filter((group) => group.done.length > 0 || group.opened.length > 0)
 			: []
 	);
-	const quiet = $derived(across ? inScope.filter((goal) => current.quiet.includes(goal.id)).map((goal) => goal.title) : []);
+	const tally = $derived(
+		across && current.finishedCount > 0
+			? current.byGoal.flatMap(({ goal, finished }) => {
+					const found = inScope.find((each) => each.id === goal);
+					return found ? [{ goal: found, finished }] : [];
+				})
+			: []
+	);
 	const outside = $derived.by(() => {
 		const others = chart.goals.filter((goal) => !inScope.includes(goal));
 		return others.length > 0 ? monthOf(others, year, month).finishedCount : 0;
@@ -107,9 +115,6 @@
 			<div class="min-w-0 flex-1">
 				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.01em] text-text">{current.title}</h2>
 				<p class="m-0 mt-0.5 text-[0.86rem] text-muted">{monthLine(current)}</p>
-				{#if quiet.length > 0}
-					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">Quiet this month: <span class="font-[620] text-text">{quiet.join(', ')}</span></p>
-				{/if}
 				{#if outside > 0}
 					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">
 						{outside} more in your other charts.
@@ -292,6 +297,28 @@
 					{/each}
 				</section>
 			{/key}
+		{/if}
+
+		{#if tally.length > 1}
+			<section class="mt-3 px-0.5 pb-0.5" aria-labelledby="calendar-goals">
+				<Eyebrow class="px-2.5 pb-1"><span id="calendar-goals">Goals this month</span></Eyebrow>
+				<ul class="m-0 flex list-none flex-col gap-px p-0">
+					{#each tally as row (row.goal.id)}
+						<li>
+							<button
+								type="button"
+								class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+								aria-label="{row.goal.title}: {row.finished > 0 ? `${row.finished} finished` : 'nothing finished yet'}. Show only this chart"
+								onclick={() => (chart.calendarScope = row.goal.id)}
+							>
+								<span class={cn('size-[7px] shrink-0 rounded-full', row.finished > 0 ? 'bg-ink' : 'shadow-[inset_0_0_0_1.5px_var(--muted)]')} aria-hidden="true"></span>
+								<span class={cn('min-w-0 flex-1 truncate text-[0.9rem]', row.finished > 0 ? 'font-[560] text-text' : 'text-muted')}>{row.goal.title}</span>
+								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{row.finished > 0 ? `${row.finished} finished` : 'Nothing yet'}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/if}
 	</section>
 </div>

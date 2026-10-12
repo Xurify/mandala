@@ -185,7 +185,7 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Days and weeks',
 		steps: [
 			'Every chart is on it. A day shows a dot for each goal that finished something; tap it to read what, under each goal, and when.',
-			'Under the month, Quiet this month names a goal with lines on it and nothing finished. The emergency fund is that goal here.',
+			'Under the days, Goals this month says what each goal finished. The emergency fund has nothing yet; tap a row to see only that goal.',
 			'Pick one chart from the title menu: its days show a ring of its pillars instead, and a line under the month says what the other charts finished, with Show all charts. Arrow keys walk the days; the arrows at the top turn the month.',
 			'Reach it from Calendar in the dock, the command palette (Go to Calendar), or the C key.'
 		]
