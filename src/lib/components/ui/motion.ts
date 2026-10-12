@@ -12,7 +12,6 @@ export function noteOut(_node: Element, { duration = 520 } = {}): TransitionConf
 	};
 }
 
-/** A slip being replaced fades and settles. It does not travel, so it never crosses the one arriving. */
 export function slipOut(_node: Element, { duration = 440 } = {}): TransitionConfig {
 	const reduce =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -38,7 +37,6 @@ export function pageIn(_node: Element, { direction = 1, duration = 380, delay = 
 	};
 }
 
-/** A page turning away. It fades where it is and drifts a few pixels the other way, never into the new one. */
 export function pageOut(_node: Element, { direction = 1, duration = 220 }: { direction?: number; duration?: number } = {}): TransitionConfig {
 	if (reduced()) return { duration: 120, css: (t) => `opacity: ${t}` };
 	return {

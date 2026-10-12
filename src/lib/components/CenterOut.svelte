@@ -17,7 +17,6 @@
 	import DaySeal from './DaySeal.svelte';
 	import { fitCellField } from './goal-fit';
 	import Icon from './Icon.svelte';
-	import MethodGuide from './MethodGuide.svelte';
 	import Button from './ui/Button.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Pages from './ui/Pages.svelte';
@@ -26,12 +25,13 @@
 
 	type Props = {
 		ondraft: () => void;
-		/** How it works, for a page with no heading of its own above the sheet. */
+		onguide: () => void;
+		/** The method's door, for a page with no heading of its own above the sheet. */
 		guide?: boolean;
 		class?: string;
 	};
 
-	let { ondraft, guide = false, class: className }: Props = $props();
+	let { ondraft, onguide, guide = false, class: className }: Props = $props();
 
 	type Step = StartPage | 'done';
 
@@ -328,7 +328,7 @@
 				{/each}
 			</ol>
 			{#if guide}
-				<MethodGuide />
+				<Button variant="ghost" icon="info" aria-haspopup="dialog" onclick={onguide}>How the method works</Button>
 			{/if}
 		</div>
 	{/if}

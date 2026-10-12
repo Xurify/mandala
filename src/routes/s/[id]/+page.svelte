@@ -36,8 +36,6 @@
 		}
 	}
 
-	// One fetch when the page opens; no polling. Refresh re-runs the same
-	// fetch without replacing the chart with a loading flash.
 	$effect(() => {
 		void id;
 		void load();
@@ -55,7 +53,6 @@
 
 	const title = $derived(chartData?.goal.trim() || 'A shared chart');
 
-	// Filled cells open in a dialog so clamped text stays readable.
 	let expanded = $state<{ label: string; text: string } | null>(null);
 	let showExpanded = $state(false);
 
@@ -99,7 +96,7 @@
 		<Notice>{error}</Notice>
 	{:else if chartData}
 		<div class="flex flex-col gap-2">
-			<h1 class="m-0 font-serif text-[clamp(1.6rem,4vw,2.2rem)] font-[480] tracking-tight text-balance">
+			<h1 class="m-0 font-serif text-[clamp(1.6rem,4vw,2.2rem)] font-[480] tracking-[-0.012em] text-balance">
 				{chartData.goal.trim() || 'Untitled chart'}
 			</h1>
 			<p class="m-0 text-[0.9rem] text-muted">

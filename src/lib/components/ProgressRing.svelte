@@ -9,7 +9,6 @@
 	const VIEW = 100;
 	const CENTER = VIEW / 2;
 	const GEOMETRY = { radius: 42, stroke: 9, gap: 6 };
-	/** Seconds between arcs when the whole ring redraws for a full chart. */
 	const WAVE = 0.07;
 
 	const segments = $derived(
@@ -82,6 +81,6 @@
 			landed?.chart && 'opacity-0 motion-safe:duration-200'
 		)}
 	>
-		<span class="font-serif text-[length:calc(var(--count-size))] leading-none font-[560] tracking-[-0.02em] tabular-nums" style:--count-size="{size * 0.3}px">{chart.filled}</span>
+		<span class="font-serif text-[length:calc(var(--count-size))] leading-none font-[560] tracking-[-0.01em] tabular-nums" style:--count-size="{size * 0.3}px">{chart.filled}</span>
 	</span>
 </div>

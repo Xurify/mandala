@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ACCENT_IDS, isAccent } from './accent.ts';
+import { ACCENT_IDS, DEFAULT_ACCENT, isAccent } from './accent.ts';
 import { oklchToRgb } from './ring.ts';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -11,12 +11,16 @@ const html = readFileSync(join(root, '../../app.html'), 'utf8');
 
 type Stop = [number, number, number];
 
-function declarations(selector: string): Map<string, Stop> {
+function block(selector: string): string {
 	const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const match = css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`));
-	if (!match?.[1]) throw new Error(`missing ${selector}`);
+	return css.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+}
+
+function declarations(selector: string): Map<string, Stop> {
+	const body = block(selector);
+	if (!body) throw new Error(`missing ${selector}`);
 	const found = new Map<string, Stop>();
-	for (const token of match[1].matchAll(
+	for (const token of body.matchAll(
 		/--([\w-]+):\s*oklch\(\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*\)/g
 	)) {
 		const name = token[1];
@@ -67,10 +71,13 @@ const darkPaper = {
 };
 
 const swatchIds = ACCENT_IDS.filter((id) => id !== 'ink');
+const chosenIds = ACCENT_IDS.filter((id) => id !== DEFAULT_ACCENT);
 
 describe('accent ramp', () => {
-	it('names ink and the four kept swatches', () => {
-		expect(ACCENT_IDS).toHaveLength(5);
+	it('names clay, ink and the four kept swatches', () => {
+		expect(ACCENT_IDS).toHaveLength(6);
+		expect(DEFAULT_ACCENT).toBe('clay');
+		expect(isAccent('clay')).toBe(true);
 		expect(isAccent('ink')).toBe(true);
 		expect(isAccent('leaf')).toBe(true);
 		expect(isAccent('field')).toBe(true);
@@ -81,13 +88,24 @@ describe('accent ramp', () => {
 		for (const id of swatchIds) expect(isAccent(id)).toBe(true);
 	});
 
-	it('paints each swatch before first paint and aliases it onto the accent tokens', () => {
-		for (const id of swatchIds) {
+	it('starts on clay in every theme, with no attribute to paint', () => {
+		for (const selector of [':root', ":root:not([data-theme='light'])", ":root[data-theme='dark']"]) {
+			const tokens = block(selector);
+			expect(tokens, selector).toContain('--accent: var(--swatch-clay);');
+			expect(tokens, selector).toContain('--accent-hover: var(--swatch-clay-hover);');
+			expect(tokens, selector).toContain('--on-accent: var(--swatch-clay-on);');
+		}
+		expect(html).not.toContain(`'${DEFAULT_ACCENT}'`);
+	});
+
+	it('paints each other choice before first paint and aliases it onto the accent tokens', () => {
+		for (const id of chosenIds) {
 			expect(html).toContain(`'${id}'`);
-			expect(css).toContain(`:root[data-accent='${id}']`);
-			expect(css).toContain(`--accent: var(--swatch-${id});`);
-			expect(css).toContain(`--accent-hover: var(--swatch-${id}-hover);`);
-			expect(css).toContain(`--on-accent: var(--swatch-${id}-on);`);
+			const tokens = block(`:root[data-accent='${id}']`);
+			const source = id === 'ink' ? ['ink', 'ink-hover', 'on-ink'] : [`swatch-${id}`, `swatch-${id}-hover`, `swatch-${id}-on`];
+			expect(tokens, id).toContain(`--accent: var(--${source[0]});`);
+			expect(tokens, id).toContain(`--accent-hover: var(--${source[1]});`);
+			expect(tokens, id).toContain(`--on-accent: var(--${source[2]});`);
 		}
 	});
 

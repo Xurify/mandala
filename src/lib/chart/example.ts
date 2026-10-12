@@ -2,7 +2,6 @@ import { emptyChart, type ChartData } from './model.ts';
 
 type Eight<T> = readonly [T, T, T, T, T, T, T, T];
 
-/** Read-only sample. Pillar order is grid order: TL, T, TR, L, R, BL, B, BR. */
 export const example = {
 	goal: 'More organized life',
 	pillars: [
@@ -111,7 +110,6 @@ export function exampleChart(): ChartData {
 	return data;
 }
 
-/** Plan text only. Ticks and notes do not make a chart a different example. */
 export function isExampleChart(data: ChartData): boolean {
 	if (data.goal.trim() !== example.goal) return false;
 	if (data.pillars.length !== example.pillars.length) return false;

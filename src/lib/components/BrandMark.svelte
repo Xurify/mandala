@@ -10,12 +10,12 @@
 
 	function enter(colorIndex: number, event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = colorIndex;
+		chart.hoverColor(colorIndex);
 	}
 
 	function leave(event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
+		chart.unhoverColor();
 	}
 </script>
 

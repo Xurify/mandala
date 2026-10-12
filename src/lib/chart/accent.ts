@@ -1,8 +1,11 @@
-export const ACCENT_IDS = ['ink', 'walnut', 'olive', 'field', 'leaf'] as const;
+export const ACCENT_IDS = ['clay', 'ink', 'walnut', 'olive', 'field', 'leaf'] as const;
 
 export type AccentId = (typeof ACCENT_IDS)[number];
 
+export const DEFAULT_ACCENT: AccentId = 'clay';
+
 export const ACCENTS: { id: AccentId; label: string; title: string }[] = [
+	{ id: 'clay', label: 'Clay', title: 'Fired clay' },
 	{ id: 'ink', label: 'Ink', title: 'Same as the ink' },
 	{ id: 'walnut', label: 'Walnut', title: 'Wood brown' },
 	{ id: 'olive', label: 'Olive', title: 'Green olive' },

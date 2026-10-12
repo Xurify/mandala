@@ -28,4 +28,10 @@ describe('shortcuts', () => {
 		expect(items.find((item) => item.label === 'Calendar')?.keys).toEqual(['C']);
 		expect(items.some((item) => item.keys.includes('Y'))).toBe(false);
 	});
+
+	it('lists the board and how to carry a card on it', () => {
+		const groups = visibleShortcuts('Ctrl', false);
+		expect(groups.flatMap((group) => group.items).find((item) => item.label === 'Board')?.keys).toEqual(['B']);
+		expect(groups.find((group) => group.title === 'On the board')?.items.map((item) => item.keys[0])).toEqual(['Space', '←', '↑', 'Esc']);
+	});
 });

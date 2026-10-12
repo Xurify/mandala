@@ -122,7 +122,7 @@ export const dialog = tv({
 		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-clip',
 		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px]',
 		title:
-			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
+			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.01em] text-balance text-text',
 		// No stacking context of its own, so a select's list (fixed, z-50) can rise over the head and the foot.
 		body: 'relative min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
@@ -144,12 +144,20 @@ export const dialog = tv({
 export const dock = tv({
 	slots: {
 		wrap: 'pointer-events-none fixed inset-x-0 bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 flex flex-col items-center gap-2.5 px-4 [:root[data-morphing]_&]:[view-transition-name:dock] print:hidden',
-		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150 [:root[data-morphing]_&]:bg-surface'
-	}
+		bar: 'pointer-events-auto flex gap-1 rounded-full bg-[color-mix(in_oklch,var(--surface)_84%,transparent)] p-[5px] shadow-float backdrop-blur-[18px] backdrop-saturate-150 motion-safe:transition-[opacity,translate,visibility] [:root[data-morphing]_&]:bg-surface'
+	},
+	variants: {
+		// The bar keeps its room while away, so a toast above it does not drop. It lands coming back and eases going.
+		away: {
+			true: { bar: 'invisible translate-y-3 opacity-0 duration-500 ease-[cubic-bezier(0.2,0,0,1)]' },
+			false: { bar: 'duration-[380ms] ease-[cubic-bezier(0.34,1.56,0.64,1)]' }
+		}
+	},
+	defaultVariants: { away: false }
 });
 
 export const dockTab = tv({
-	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] ${focus}`
+	base: `inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-0 px-5 font-sans text-[0.9rem] font-[560] text-muted transition-[color,scale] duration-[180ms] ease-ui hover:bg-sunken hover:text-text active:scale-[0.96] aria-selected:bg-accent aria-selected:text-on-accent max-[900px]:px-[22px] max-[600px]:gap-1.5 max-[600px]:px-3.5 max-[400px]:px-3 max-[400px]:text-[0.86rem] max-[370px]:px-2.5 max-[340px]:gap-1 max-[340px]:px-2 max-[500px]:aria-[selected=false]:px-3.5 ${focus}`
 });
 
 export const toast = tv({
@@ -166,7 +174,7 @@ export const toast = tv({
 	},
 	variants: {
 		named: {
-			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.015em]' },
+			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.008em]' },
 			false: { words: 'text-[0.94rem] leading-[1.35] font-medium' }
 		}
 	},

@@ -83,6 +83,7 @@
 		list: true,
 		eye: true,
 		columns: true,
+		board: true,
 		maximize: true,
 		minimize: true,
 		info: true,
@@ -282,11 +283,20 @@
 			dark: { accent: 'oklch(0.52 0.06 172)', hover: 'oklch(0.54 0.065 172)' }
 		},
 		{
+			id: 'clay',
+			name: 'Clay',
+			group: 'In the app',
+			note: 'The default. Hue 42, fired clay, warm on the sand.',
+			light: { accent: 'oklch(0.55 0.13 42)', hover: 'oklch(0.5 0.13 42)' },
+			dark: { accent: 'oklch(0.56 0.12 42)', hover: 'oklch(0.54 0.12 42)' },
+			applied: true
+		},
+		{
 			id: 'ink',
 			name: 'Ink',
 			group: 'In the app',
-			note: 'What main uses. The accent is the ink token.',
-			light: { accent: 'oklch(0.24 0.012 60)', hover: 'oklch(0.33 0.014 60)' },
+			note: 'A choice in the menu. The accent is the ink token.',
+			light: { accent: 'oklch(0.27 0.03 50)', hover: 'oklch(0.35 0.03 50)' },
 			dark: {
 				accent: 'oklch(0.95 0.008 85)',
 				hover: 'oklch(0.88 0.01 85)',
@@ -400,7 +410,7 @@
 	let keepUpdated = $state(true);
 	let preset = $state('health');
 	let sealPlay = $state(0);
-	let accentId = $state('sap');
+	let accentId = $state('clay');
 	let copiedId = $state('');
 	let copyTimer = 0;
 
@@ -471,7 +481,7 @@
 		<div class="flex max-w-[62ch] flex-col gap-3">
 			<div>
 				<Eyebrow>Design system</Eyebrow>
-				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">
+				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-[-0.012em] text-balance">
 					UI primitives
 				</h1>
 			</div>
@@ -491,10 +501,10 @@
 	<Card id="type" class="flex scroll-mt-6 flex-col gap-5">
 		<Eyebrow>Type</Eyebrow>
 		<div class="flex max-w-[62ch] flex-col gap-3">
-			<p class="m-0 font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.028em] text-balance">
+			<p class="m-0 font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.015em] text-balance">
 				Chart title
 			</p>
-			<h2 class="m-0 font-serif text-[1.6rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance">
+			<h2 class="m-0 font-serif text-[1.6rem] leading-[1.15] font-[480] tracking-[-0.01em] text-balance">
 				Dialog heading
 			</h2>
 			<p class="m-0 text-[0.95rem] text-pretty">
@@ -558,7 +568,7 @@
 	<Card id="accent" class="flex scroll-mt-6 flex-col gap-4">
 		<Eyebrow>Accent</Eyebrow>
 		<p class="m-0 max-w-[68ch] text-pretty text-muted">
-			Sap sat best of the last set. These are browns, olives, and teals in the gaps the pillars leave open. Pick one
+			Clay is the default; Ink and four of these are choices in the menu. These are browns, olives, and teals in the gaps the pillars leave open. Pick one
 			to preview it here. Copy the CSS into <span class="text-text">src/app.css</span>: light pair in
 			<span class="text-text">:root</span>, dark pair in both dark blocks. Every option clears 4.5:1 for the cream
 			label, including hover.
@@ -960,7 +970,7 @@
 		<div class="flex flex-wrap items-end gap-8">
 			<div class="flex items-center gap-2.5">
 				<BrandMark />
-				<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
+				<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.01em]">Mandala</span>
 			</div>
 			<ProgressRing size={56} />
 			<ProgressRing size={76} />

@@ -5,11 +5,13 @@
 
 	type Props = {
 		label: string;
+		/** The tabs step aside while the page has nothing for them yet; the toast above stays. */
+		away?: boolean;
 		children: Snippet;
 	};
 
-	let { label, children }: Props = $props();
-	const styles = dock();
+	let { label, away = false, children }: Props = $props();
+	const styles = $derived(dock({ away }));
 </script>
 
 <div class={styles.wrap()}>

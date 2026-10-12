@@ -1,5 +1,4 @@
-/* Class names mandala, block, cell, goal, pillar, action are the print selectors.
-   The sheet is one landscape page: a short mast plus a square that fits A4 and Letter. */
+/* Class names mandala, block, cell, goal, pillar, action are the print selectors. */
 
 @media print {
 	@page {
