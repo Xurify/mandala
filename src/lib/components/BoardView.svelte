@@ -533,7 +533,7 @@
 	}
 
 	const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
-	const tray = 'rounded-[24px] bg-tray';
+	const tray = 'rounded-[24px] bg-[color-mix(in_oklch,var(--sunken)_55%,var(--bg))]';
 </script>
 
 <svelte:window onkeydowncapture={onWindowKey} />
@@ -541,8 +541,7 @@
 {#snippet face(card: Card, inLane: Lane)}
 	{@const mark = markOf(card, inLane)}
 	<span class="flex min-w-0 items-center gap-2 text-[0.76rem] leading-4 text-muted">
-		<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[card.pillarIndex]} aria-hidden="true"></span>
-		<span class="min-w-0 flex-1 truncate font-medium">{pillarName(card.pillarIndex)}</span>
+		<span class="pillar-ink min-w-0 flex-1 truncate font-medium" style:--h={HUES[card.pillarIndex]}>{pillarName(card.pillarIndex)}</span>
 		{#if mark}
 			<span class="flex shrink-0 items-center gap-1">
 				<Icon name={mark.icon} size={12} class={cn(mark.icon === 'check' && stamped === card.key && 'motion-safe:animate-stamp')} />
@@ -565,10 +564,11 @@
 		<button
 			type="button"
 			class={cn(
-				'flex w-full cursor-grab flex-col gap-1.5 rounded-[16px] border-0 bg-card shadow-card px-3.5 py-3 text-left touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,filter,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:drop-shadow-[0_8px_14px_oklch(0.3_0.05_60/0.12)]',
+				'pillar-card flex w-full cursor-grab flex-col gap-1.5 rounded-[16px] border-0 px-3.5 py-3 text-left touch-manipulation select-none [-webkit-touch-callout:none] motion-safe:transition-[translate,rotate,filter,scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.98] can-hover:hover:-translate-y-0.5 can-hover:hover:drop-shadow-[0_8px_14px_oklch(0.3_0.05_60/0.12)]',
 				lifted && '-translate-y-1 rotate-[1.2deg] drop-shadow-[0_12px_20px_oklch(0.3_0.05_60/0.18)] can-hover:hover:-translate-y-1',
 				focusRing
 			)}
+			style:--h={HUES[card.pillarIndex]}
 			tabindex={entry.source ? -1 : undefined}
 			aria-describedby="{uid}-hint"
 			onclick={() => openSheet(card)}
@@ -675,7 +675,7 @@
 				{@const over = drag !== null && !drag.landing && drag.lane === each && each !== drag.from && canGo(drag.card, each)}
 				<section
 					data-lane={each}
-					class={cn(tray, 'flex min-w-0 flex-col', over && 'bg-tray-over')}
+					class={cn(tray, 'flex min-w-0 flex-col', over && 'bg-sunken')}
 					aria-labelledby="{uid}-{each}"
 				>
 					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-[22px] pe-2 pt-1.5">
@@ -703,11 +703,12 @@
 			style:top="{drag.y}px"
 			style:width="{drag.w}px"
 			style:translate="{drag.dx}px {drag.dy}px"
+			style:--h={HUES[drag.card.pillarIndex]}
 			aria-hidden="true"
 		>
 			<div
 				class={cn(
-					'flex w-full flex-col gap-1.5 rounded-[16px] bg-card px-3.5 py-3 shadow-card drop-shadow-[0_16px_24px_oklch(0.3_0.05_60/0.22)] motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
+					'pillar-card flex w-full flex-col gap-1.5 rounded-[16px] px-3.5 py-3 drop-shadow-[0_16px_24px_oklch(0.3_0.05_60/0.22)] motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.landing
 						? 'rotate-0'
 						: drag.tab
