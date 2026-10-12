@@ -1,6 +1,7 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
-import { dateKeyOf, type ChartData, type DayLog, type Tool } from './model.ts';
+import { applyChange, finish } from './board.ts';
+import { dateKeyOf, setMeta, type ActionMeta, type ChartData, type Tool } from './model.ts';
 
 /**
  * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
@@ -46,56 +47,48 @@ function preset(id: PresetId): ChartData {
 	return buildChart(getPreset(id)!);
 }
 
+/** Ticks go through `finish`, the same as in the app, so a one-time action ticked here is done that day. */
 function history(data: ChartData, now: Date, days: Record<number, { focus: string[]; checked: string[] }>): void {
 	data.days = {};
-	for (const [back, log] of Object.entries(days)) {
+	for (const back of Object.keys(days).map(Number).sort((a, b) => b - a)) {
 		const date = new Date(now);
-		date.setDate(now.getDate() - Number(back));
-		const entry: DayLog = { focus: log.focus, checked: log.checked, started: log.focus.length > 0 };
-		entry.at = Object.fromEntries(log.checked.map((key, index) => [key, `0${7 + (index % 3)}:${10 + index * 7}`]));
-		data.days[dateKeyOf(date)] = entry;
+		date.setDate(now.getDate() - back);
+		const dateKey = dateKeyOf(date);
+		const { focus, checked } = days[back]!;
+		data.days[dateKey] = { focus, checked: [], started: focus.length > 0 };
+		checked.forEach((key, index) => applyChange(data, finish(data, key, dateKey, `0${7 + (index % 3)}:${10 + index * 7}`, date.getTime() + index)));
 	}
 }
 
 function livedIn(now: Date): ChartData {
 	const data = preset('language');
+	data.meta = { a2_7: { kind: 'milestone' }, a0_0: { kind: 'routine' } };
 	history(data, now, {
-		0: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a0_1'] },
+		0: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a1_6', 'a0_1'] },
 		1: { focus: ['a0_0', 'a1_0', 'a3_2'], checked: ['a0_0', 'a1_0', 'a3_2'] },
-		2: { focus: ['a5_1', 'a1_3', 'a2_2'], checked: ['a5_1', 'a2_2'] },
+		2: { focus: ['a5_1', 'a1_3', 'a2_2'], checked: ['a5_1', 'a2_2', 'a3_5'] },
 		3: { focus: ['a0_2', 'a3_0', 'a4_1'], checked: ['a0_2', 'a3_0', 'a4_1', 'a1_1'] },
 		4: { focus: ['a5_1', 'a2_3', 'a0_0'], checked: ['a2_3', 'a0_0'] },
 		5: { focus: ['a1_2', 'a4_2', 'a5_1'], checked: ['a1_2', 'a4_2'] },
 		9: { focus: ['a5_1'], checked: [] }
 	});
-	const twoDaysAgo = new Date(now);
-	twoDaysAgo.setDate(now.getDate() - 2);
-	data.meta = {
-		a3_5: { kind: 'milestone', done: true, doneAt: dateKeyOf(twoDaysAgo) },
-		a1_6: { kind: 'milestone', done: true, doneAt: dateKeyOf(now) },
-		a2_7: { kind: 'milestone' },
-		a0_0: { kind: 'routine' }
-	};
 	return data;
 }
 
 function onTheBoard(now: Date): ChartData {
 	const data = livedIn(now);
-	const back = (days: number): string => {
-		const date = new Date(now);
-		date.setDate(now.getDate() - days);
-		return dateKeyOf(date);
-	};
-	data.meta = {
-		...data.meta,
+	const filed: Record<string, Partial<ActionMeta>> = {
 		a0_0: { kind: 'routine', lane: 'doing', rank: 0 },
 		a5_0: { kind: 'milestone', lane: 'doing', rank: 1 },
 		a2_1: { kind: 'milestone', lane: 'doing', rank: 2 },
 		a5_2: { kind: 'milestone', lane: 'todo', rank: 0 },
 		a4_0: { kind: 'milestone', lane: 'todo', rank: 1 },
-		a3_2: { kind: 'milestone', lane: 'todo', rank: 2 },
-		a1_4: { kind: 'milestone', done: true, doneAt: back(9) }
+		a3_1: { kind: 'milestone', lane: 'todo', rank: 2 }
 	};
+	for (const [key, meta] of Object.entries(filed)) setMeta(data, key, meta);
+	const nineDaysAgo = new Date(now);
+	nineDaysAgo.setDate(now.getDate() - 9);
+	applyChange(data, finish(data, 'a1_4', dateKeyOf(nineDaysAgo), '19:40', nineDaysAgo.getTime()));
 	return data;
 }
 

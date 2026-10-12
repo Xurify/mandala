@@ -63,8 +63,11 @@ describe('demos', () => {
 		const board = boardOf(demoSetup('board', now).data!, dateKeyOf(now));
 		expect(board.doing.map((card) => card.key)).toEqual(['a0_0', 'a5_0', 'a2_1', 'a2_0', 'a4_0']);
 		expect(board.doing[0]?.routine).toBe(true);
-		expect(board.todo.map((card) => card.key)).toEqual(['a5_2', 'a3_2']);
-		expect(board.done[0]).toMatchObject({ key: 'a0_1', doneAt: dateKeyOf(now) });
+		expect(board.todo.map((card) => card.key)).toEqual(['a5_2', 'a3_1']);
+		expect(board.done.slice(0, 2).map((card) => [card.key, card.doneAt])).toEqual([
+			['a0_1', dateKeyOf(now)],
+			['a1_6', dateKeyOf(now)]
+		]);
 		expect(doneByWeek(board.done, now).earlier.length).toBeGreaterThan(0);
 		expect(doneByWeek(board.done, now).week.length).toBeGreaterThan(0);
 	});

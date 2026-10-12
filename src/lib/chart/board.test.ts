@@ -207,17 +207,14 @@ describe('doneByWeek', () => {
 });
 
 describe('Today and the board', () => {
-	it("shows today's picks in Doing and today's ticks in Done, wherever they were filed", () => {
+	it("shows today's picks in Doing wherever they were filed, and leaves a finished one in Done", () => {
 		const data = chart();
 		data.meta = { a2_2: { kind: 'milestone', lane: 'todo', rank: 0 }, a0_1: { kind: 'routine' }, a7_7: { kind: 'milestone', done: true, doneAt: '2026-10-02' } };
-		data.days = { [TODAY]: { focus: ['a2_0', 'a2_2', 'a7_7'], checked: ['a0_0', 'a0_1'] } };
+		data.days = { [TODAY]: { focus: ['a2_0', 'a2_2', 'a7_7'], checked: ['a0_1'] } };
 		const board = boardOf(data, TODAY);
 		expect(board.doing.map((card) => card.key)).toEqual(['a2_0', 'a2_2']);
-		expect(board.done.map((card) => [card.key, card.doneAt])).toEqual([
-			['a0_0', TODAY],
-			['a7_7', '2026-10-02']
-		]);
-		expect(board.open.map((card) => card.key)).toEqual(['a0_1']);
+		expect(board.done.map((card) => [card.key, card.doneAt])).toEqual([['a7_7', '2026-10-02']]);
+		expect(board.open.map((card) => card.key)).toEqual(['a0_0', 'a0_1']);
 		expect(laneOf(data.meta.a2_2)).toBe('todo');
 	});
 

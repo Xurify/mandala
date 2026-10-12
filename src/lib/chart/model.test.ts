@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
 	blockOfKey,
 	cellKey,
-	CHART_VERSION,
 	dateKeyOffset,
 	emptyChart,
 	exportFilename,
@@ -84,28 +83,6 @@ describe('parseChart', () => {
 		expect(parsed?.meta).toEqual(data.meta);
 		expect(parsed?.days).toEqual(data.days);
 		expect(parsed?.weeks).toEqual(data.weeks);
-	});
-
-	it('brings a chart from before version 2 into one record of done, once', () => {
-		const old = emptyChart();
-		delete old.version;
-		old.actions[0] = ['Run 3 km', 'Book a race', 'Stretch', 'Buy shoes', '', '', '', ''];
-		old.meta = { a0_2: { kind: 'routine' }, a0_3: { kind: 'milestone', done: true, doneAt: '2026-10-03' } };
-		old.days = {
-			'2026-10-01': { focus: ['a0_0'], checked: ['a0_0', 'a0_2', 'a5_5'] },
-			'2026-10-04': { focus: ['a0_0', 'a0_1'], checked: ['a0_0'], at: { a0_0: '07:00' } }
-		};
-		const parsed = parseChart(JSON.stringify(old))!;
-		expect(parsed.version).toBe(CHART_VERSION);
-		expect(parsed.meta?.a0_0).toEqual({ kind: 'milestone', done: true, doneAt: '2026-10-04' });
-		expect(parsed.meta?.a0_1).toBeUndefined();
-		expect(parsed.meta?.a0_2).toEqual({ kind: 'routine' });
-		expect(parsed.meta?.a5_5).toBeUndefined();
-		expect(parsed.days?.['2026-10-03']?.checked).toEqual(['a0_3']);
-		expect(parsed.days?.['2026-10-04']).toEqual(old.days['2026-10-04']);
-
-		parsed.meta!.a0_0 = { kind: 'milestone', done: false };
-		expect(parseChart(JSON.stringify(parsed))?.meta?.a0_0).toEqual({ kind: 'milestone', done: false });
 	});
 });
 

@@ -14,7 +14,6 @@ import {
 	formatAgo,
 	formatDaysLeft,
 	formatUpdated,
-	migrateFromV1,
 	newRecord,
 	parseLibrary,
 	purgeDeleted,
@@ -104,22 +103,6 @@ describe('parseLibrary', () => {
 		});
 		const parsed = parseLibrary(raw);
 		expect(parsed?.activeId).toBe(library.charts[0]?.id);
-	});
-});
-
-describe('migrateFromV1', () => {
-	it('wraps a v1 chart JSON', () => {
-		const fitness = buildChart(getPreset('fitness')!);
-		const library = migrateFromV1(exportJson(fitness));
-		expect(library.charts).toHaveLength(1);
-		expect(library.charts[0]?.data.goal).toBe(fitness.goal);
-		expect(filledCount(library.charts[0]!.data)).toBe(73);
-		expect(library.activeId).toBe(library.charts[0]?.id);
-	});
-
-	it('uses an empty chart when v1 is missing or junk', () => {
-		expect(titleOf(migrateFromV1(null).charts[0]!.data)).toBe(UNTITLED);
-		expect(titleOf(migrateFromV1('nope').charts[0]!.data)).toBe(UNTITLED);
 	});
 });
 

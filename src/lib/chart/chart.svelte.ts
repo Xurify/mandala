@@ -1,5 +1,5 @@
 import { morph } from "./morph";
-import { finish as finishAction, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
+import { applyChange, finish as finishAction, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
 import { newTool, opened } from "./tools";
 import {
   blockOfK,
@@ -20,7 +20,6 @@ import {
   searchHits,
   setByKey,
   setMeta,
-  STORAGE_KEY,
   todayKey,
   weekHadTicks,
   weekStartKey,
@@ -45,7 +44,6 @@ import {
   emptyLibrary,
   flushActive,
   forgetManyFromLibrary,
-  migrateFromV1,
   newRecord,
   parseLibrary,
   purgeLibrary,
@@ -101,7 +99,6 @@ function loadInitialAccent(): AccentId {
   try {
     const storedAccent = localStorage.getItem("accent");
     if (storedAccent && isAccent(storedAccent)) return storedAccent;
-    if (storedAccent) localStorage.removeItem("accent");
     return DEFAULT_ACCENT;
   } catch {
     return DEFAULT_ACCENT;
@@ -125,8 +122,6 @@ function loadInitialViewMode(): ViewMode {
   if (typeof window === "undefined") return "view";
   try {
     const storedMode = localStorage.getItem("mandala_view_mode");
-    // The year view became the calendar.
-    if (storedMode === "year") return "calendar";
     if (
       storedMode === "view" ||
       storedMode === "edit" ||
@@ -166,7 +161,7 @@ function loadInitialLibrary(): ChartLibrary {
       const parsed = parseLibrary(rawLibrary);
       if (parsed) return purgeLibrary(parsed);
     }
-    return migrateFromV1(localStorage.getItem(STORAGE_KEY));
+    return emptyLibrary();
   } catch {
     return emptyLibrary();
   }
@@ -310,7 +305,7 @@ export class ChartStore {
           return;
         }
       }
-      this.#adopt(migrateFromV1(localStorage.getItem(STORAGE_KEY)));
+      this.#adopt(emptyLibrary());
       this.saveNow();
     } catch {}
   }
@@ -392,7 +387,6 @@ export class ChartStore {
       const raw = JSON.stringify(this.#library);
       localStorage.setItem(LIBRARY_KEY, raw);
       this.#seen = raw;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
     } catch {
       if (!this.saveWarned) {
         this.saveWarned = true;
@@ -761,10 +755,7 @@ export class ChartStore {
   }
 
   #apply(change: Change): void {
-    const days = Object.keys(change.days);
-    if (Object.keys(change.meta).length === 0 && days.length === 0) return;
-    for (const [actionKey, patch] of Object.entries(change.meta)) setMeta(this.data, actionKey, patch);
-    if (days.length > 0) this.data.days = { ...this.data.days, ...change.days };
+    if (!applyChange(this.data, change)) return;
     this.data = { ...this.data };
     this.save();
   }

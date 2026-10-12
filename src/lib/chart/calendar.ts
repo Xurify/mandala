@@ -45,10 +45,6 @@ export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), at: log?.at?.[key], milestone });
 	}
 	out.sort((a, b) => (a.at ?? '99').localeCompare(b.at ?? '99'));
-	for (const [key, meta] of Object.entries(data.meta ?? {})) {
-		if (meta.kind !== 'milestone' || !meta.done || meta.doneAt !== dateKey || seen.has(key)) continue;
-		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), milestone: true });
-	}
 	return out;
 }
 
@@ -111,9 +107,6 @@ export function firstDoneMonth(data: ChartData): { year: number; month: number }
 	const keys = Object.entries(data.days ?? {})
 		.filter(([, log]) => log.checked.length > 0)
 		.map(([key]) => key);
-	for (const meta of Object.values(data.meta ?? {})) {
-		if (meta.kind === 'milestone' && meta.done && meta.doneAt) keys.push(meta.doneAt);
-	}
 	if (keys.length === 0) return null;
 	const [year, month] = keys.sort()[0]!.split('-').map(Number);
 	return { year: year!, month: month! - 1 };

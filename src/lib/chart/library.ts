@@ -152,12 +152,6 @@ export function emptyLibrary(): ChartLibrary {
 	return { activeId: record.id, charts: [record], deleted: [] };
 }
 
-export function migrateFromV1(raw: string | null): ChartLibrary {
-	const data = raw ? (parseChart(raw) ?? emptyChart()) : emptyChart();
-	const record = newRecord(data);
-	return { activeId: record.id, charts: [record], deleted: [] };
-}
-
 function chartFromUnknown(value: unknown): ChartData | null {
 	if (!value || typeof value !== 'object') return null;
 	return parseChart(JSON.stringify(value));

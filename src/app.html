@@ -15,8 +15,6 @@
 				const accentIds = ['ink', 'leaf', 'field', 'walnut', 'olive'];
 				if (storedAccent && accentIds.includes(storedAccent)) {
 					root.setAttribute('data-accent', storedAccent);
-				} else if (storedAccent) {
-					localStorage.removeItem('accent');
 				}
 				const storedMode = localStorage.getItem('mandala_view_mode');
 				if (
@@ -24,7 +22,8 @@
 					storedMode === 'edit' ||
 					storedMode === 'split' ||
 					storedMode === 'today' ||
-					storedMode === 'year'
+					storedMode === 'calendar' ||
+					storedMode === 'board'
 				) {
 					root.dataset.view = storedMode;
 				}

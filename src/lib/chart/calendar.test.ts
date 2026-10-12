@@ -10,7 +10,7 @@ function chart(): ChartData {
 	data.actions[0] = ['Play audio at breakfast', 'Shadow a clip', '', '', '', '', '', ''];
 	data.actions[2] = ['Say one new sentence', '', '', '', '', '', '', ''];
 	data.days = {
-		'2026-10-09': { focus: ['a0_0', 'a2_0'], checked: ['a2_0', 'a0_0'], at: { a2_0: '19:10', a0_0: '07:30' } },
+		'2026-10-09': { focus: ['a0_0', 'a2_0'], checked: ['a2_0', 'a0_0', 'a0_1'], at: { a2_0: '19:10', a0_0: '07:30', a0_1: '12:00' } },
 		'2026-10-10': { focus: ['a0_1'], checked: [] },
 		'2026-09-28': { focus: ['a0_0'], checked: ['a0_0'] }
 	};
@@ -33,11 +33,11 @@ describe('openedOn', () => {
 });
 
 describe('doneOn', () => {
-	it('lists the ticks in the order they happened, then the milestones closed that day', () => {
+	it('lists what was finished in the order it happened, and says which closed a milestone', () => {
 		const done = doneOn(chart(), '2026-10-09');
-		expect(done.map((entry) => entry.key)).toEqual(['a0_0', 'a2_0', 'a0_1']);
+		expect(done.map((entry) => entry.key)).toEqual(['a0_0', 'a0_1', 'a2_0']);
 		expect(done[0]).toMatchObject({ text: 'Play audio at breakfast', pillarIndex: 0, at: '07:30', milestone: false });
-		expect(done[2]).toMatchObject({ text: 'Shadow a clip', milestone: true });
+		expect(done[1]).toMatchObject({ text: 'Shadow a clip', milestone: true });
 		expect(doneOn(chart(), '2026-10-10')).toEqual([]);
 	});
 });

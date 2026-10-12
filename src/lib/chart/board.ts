@@ -1,4 +1,4 @@
-import { actionKey, clockOf, dateKeyOffset, getByKey, isRoutine, todayKey, weekStartKey, type ActionMeta, type ChartData, type DayLog } from './model.ts';
+import { actionKey, clockOf, dateKeyOffset, getByKey, isRoutine, setMeta, todayKey, weekStartKey, type ActionMeta, type ChartData, type DayLog } from './model.ts';
 
 export type Lane = 'open' | 'todo' | 'doing' | 'done';
 
@@ -30,9 +30,9 @@ export function laneOf(meta: ActionMeta | undefined): Lane {
 
 /** Ticked in Today, dropped in Done, or marked done in the editor: the three are one record. */
 export function finishedOn(data: ChartData, key: string, dateKey: string): boolean {
-	if (data.days?.[dateKey]?.checked.includes(key)) return true;
 	const meta = data.meta?.[key];
-	return !isRoutine(meta) && meta?.done === true && meta.doneAt === dateKey;
+	if (isRoutine(meta)) return data.days?.[dateKey]?.checked.includes(key) ?? false;
+	return meta?.done === true && meta.doneAt === dateKey;
 }
 
 export function canGo(card: Card, lane: Lane): boolean {
@@ -57,7 +57,7 @@ export function tomorrowOf(today: string): string {
 	return dateKeyOffset(1, new Date(`${today}T12:00`));
 }
 
-/** Today's picks show in Doing, what was ticked today in Done, and tomorrow's plan in To do, whatever list they were filed in. */
+/** Today's picks show in Doing, and tomorrow's plan in To do, whatever list they were filed in. */
 export function boardOf(data: ChartData, today: string = todayKey()): Board {
 	const board: Board = { open: [], todo: [], doing: [], done: [] };
 	const day = data.days?.[today];
@@ -71,11 +71,9 @@ export function boardOf(data: ChartData, today: string = todayKey()): Board {
 			const card: Card = { key, text, pillarIndex, slot, routine: isRoutine(meta) };
 			const filed = laneOf(meta);
 			let lane = filed;
-			if (filed !== 'done' && !card.routine && day?.checked.includes(key)) lane = 'done';
-			else if ((filed === 'open' || filed === 'todo') && day?.focus.includes(key)) lane = 'doing';
+			if ((filed === 'open' || filed === 'todo') && day?.focus.includes(key)) lane = 'doing';
 			else if (filed === 'open' && planned?.includes(key)) lane = 'todo';
-			const doneAt = filed === 'done' ? meta?.doneAt : today;
-			if (lane === 'done' && doneAt) card.doneAt = doneAt;
+			if (lane === 'done' && meta?.doneAt) card.doneAt = meta.doneAt;
 			if (lane === filed && lane !== 'open' && meta?.rank !== undefined) card.rank = meta.rank;
 			board[lane].push(card);
 		}
@@ -169,12 +167,21 @@ export function finish(
 export function reopen(data: ChartData, key: string, today: string = todayKey()): Change {
 	const change = blank();
 	const meta = data.meta?.[key];
-	if (!isRoutine(meta) && meta?.done) {
+	if (isRoutine(meta)) {
+		editDay(change, data, today, untick(key));
+	} else if (meta?.done) {
 		patchMeta(change, key, { done: false, doneAt: undefined });
 		if (meta.doneAt) editDay(change, data, meta.doneAt, untick(key));
 	}
-	editDay(change, data, today, untick(key));
 	return change;
+}
+
+export function applyChange(data: ChartData, change: Change): boolean {
+	const days = Object.keys(change.days);
+	if (Object.keys(change.meta).length === 0 && days.length === 0) return false;
+	for (const [key, patch] of Object.entries(change.meta)) setMeta(data, key, patch);
+	if (days.length > 0) data.days = { ...data.days, ...change.days };
+	return true;
 }
 
 /** To do and Doing are renumbered from 0 on every move, so their order survives a sync merge. */
