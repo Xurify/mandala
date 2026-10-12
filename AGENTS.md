@@ -61,6 +61,7 @@ src/
     BoardView.svelte          the board: Open, To do, Doing, Done; drag, keyboard carry, card sheet
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
     ChartSwitcher, PresetPicker, MethodGuide, Icon
+    MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
   routes/dev/demo             one-click situations for trying every interaction
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo

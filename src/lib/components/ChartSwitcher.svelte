@@ -17,6 +17,7 @@
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
+	import MenuTitle from './MenuTitle.svelte';
 	import PickMark from './PickMark.svelte';
 	import SelectCharts from './SelectCharts.svelte';
 	import Button from './ui/Button.svelte';
@@ -29,11 +30,6 @@
 	import { fieldInk, textField } from './ui/styles';
 
 	const activeTitle = $derived(titleOf(chart.data));
-	/** The title in two parts, so the chevron can hold on to the last word and never wrap alone. */
-	const split = $derived.by(() => {
-		const cut = activeTitle.lastIndexOf(' ');
-		return cut < 0 ? { head: '', tail: activeTitle } : { head: activeTitle.slice(0, cut + 1), tail: activeTitle.slice(cut + 1) };
-	});
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
 	const leftOf = (id: string): number => chart.elsewhere.find((other) => other.id === id)?.left ?? 0;
 	const waiting = $derived(
@@ -385,35 +381,7 @@
 	onopenchange={onMenu}
 >
 	{#snippet trigger({ expanded, toggle })}
-		<h1 class="m-0 [font:inherit]">
-			<button
-				class="group inline-block max-w-full min-w-0 cursor-pointer rounded-[14px] border-0 bg-transparent py-0.5 ps-0 pe-1 -ms-1 text-start font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.015em] text-text focus-visible:outline-none max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]"
-				type="button"
-				aria-haspopup="menu"
-				aria-expanded={expanded}
-				aria-label="Switch chart: {activeTitle}{waiting}"
-				title={activeTitle}
-				onclick={toggle}
-			>
-				<span class="line-clamp-2">
-					{split.head}<span class="whitespace-nowrap"
-						>{split.tail}<span
-							class="relative ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
-						>
-							{#if waiting}
-								<span class="absolute -end-px -top-px size-2.5 rounded-full bg-ink ring-2 ring-bg motion-safe:animate-pop-in" aria-hidden="true"></span>
-							{/if}
-							<Icon
-								name="chevron-down"
-								size={16}
-								strokeWidth={2}
-								class="motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] group-aria-expanded:rotate-180"
-							/>
-						</span></span
-					>
-				</span>
-			</button>
-		</h1>
+		<MenuTitle title={activeTitle} label="Switch chart: {activeTitle}{waiting}" {expanded} onclick={toggle} dot={waiting !== ''} />
 	{/snippet}
 	{#if showFind}
 		<div data-menu-find-bar class="shrink-0 px-1 pt-0.5 pb-1.5">
