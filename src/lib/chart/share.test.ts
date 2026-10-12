@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { decodeChartShare, encodeChartShare, isShareHash } from './share.ts';
+import { decodeChartShare, encodeChartShare, forSharing, isShareHash } from './share.ts';
+import { A, slotted } from './fixtures.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function sampleChart(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Run a half marathon';
 	data.pillars[0] = 'Training';
 	data.actions[0]![0] = 'Print a 16-week plan';
-	data.meta = { a0_0: { kind: 'routine', pinned: true } };
-	data.days = { '2026-09-30': { focus: ['a0_0'], checked: ['a0_0'] } };
+	data.meta = { [A.a0_0]: { kind: 'routine', pinned: true } };
+	data.days = { '2026-09-30': { focus: [A.a0_0], checked: [A.a0_0] } };
 	return data;
 }
 
@@ -39,13 +40,26 @@ describe('share encoding', () => {
 		expect(decoded?.icons).toBeUndefined();
 	});
 
-	it('leaves a running clock out of the link, and keeps logged time', async () => {
-		const data = sampleChart();
-		data.days!['2026-09-30']!.sessions = [{ key: 'a0_0', at: '07:00', minutes: 30 }];
-		data.timer = { key: 'a0_0', since: Date.now() };
-		const decoded = await decodeChartShare(`#${await encodeChartShare(data)}`);
-		expect(decoded?.timer).toBeUndefined();
-		expect(decoded?.days?.['2026-09-30']?.sessions).toEqual([{ key: 'a0_0', at: '07:00', minutes: 30 }]);
+	it('gives another person the chart without the brief, the icons, or what was opened when', () => {
+		const data = emptyChart();
+		data.brief = { timeline: 'October' };
+		data.icons = { 'youtube.com': 'data:image/png;base64,AAAA' };
+		data.tools = { p0: [{ id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat', opened: ['2026-10-01'], known: true }] };
+		const shared = forSharing(data);
+		expect(shared.brief).toBeUndefined();
+		expect(shared.icons).toBeUndefined();
+		expect(shared.tools).toEqual({ p0: [{ id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat' }] });
+		expect(data.tools.p0![0]!.opened).toEqual(['2026-10-01']);
+	});
+
+	it('leaves a running timer out, and keeps logged time', () => {
+		const data = emptyChart();
+		const action = data.actionIds[0]![0]!;
+		data.days = { '2026-09-30': { focus: [], checked: [], sessions: [{ action, at: '07:00', minutes: 30 }] } };
+		data.timer = { action, since: Date.now() };
+		const shared = forSharing(data);
+		expect(shared.timer).toBeUndefined();
+		expect(shared.days?.['2026-09-30']?.sessions).toEqual([{ action, at: '07:00', minutes: 30 }]);
 	});
 
 	it('round-trips a plain (uncompressed) payload', async () => {

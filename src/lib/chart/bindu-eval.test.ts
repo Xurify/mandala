@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { lineSet } from './bindu-eval.ts';
 import { lineFault } from './helper.ts';
 
-// A floor, not a target. Raise it when the rules get better; a change that drops below fails.
 const CATCH_FLOOR = 0.9;
 
 describe('review eval set', () => {

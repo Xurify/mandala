@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { HUES } from '$lib/chart/model';
-	import { elapsedMs, formatMinutes, timerLabel } from '$lib/chart/timer';
+	import { HUES, pillarOfAction } from '$lib/chart/model';
+	import { actionLabel, elapsedMs, formatMinutes } from '$lib/chart/timer';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
@@ -15,11 +15,11 @@
 	let typed = $state('');
 
 	const asking = $derived(chart.loggingTime);
-	const key = $derived(asking?.key ?? '');
+	const action = $derived(asking?.action);
 	const forgotten = $derived(asking?.forgotten);
-	const pillarIndex = $derived(key ? Number(key[1]) : 0);
+	const pillarIndex = $derived((action && pillarOfAction(chart.data, action)) ?? 0);
 	const pillarName = $derived(chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`);
-	const text = $derived(key ? timerLabel(chart.data, { key, since: 0 }) : '');
+	const text = $derived(action ? actionLabel(chart.data, action) : '');
 	const chosen = $derived(typed.trim() ? Math.round(Number(typed)) : minutes);
 	const valid = $derived(Number.isFinite(chosen) && chosen >= 1 && chosen <= MAX_MINUTES);
 
@@ -39,8 +39,8 @@
 	}
 
 	function save(): void {
-		if (!valid || !key) return;
-		chart.logTime(key, chosen);
+		if (!valid || !action) return;
+		chart.logTime(action, chosen);
 	}
 </script>
 

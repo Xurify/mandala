@@ -6,9 +6,7 @@
 		data: ChartData;
 		/** Cells to mark, by key. A pillar key marks both places the pillar sits. */
 		flagged?: readonly string[];
-		/** `fill` writes the cells in pillar by pillar. `read` sweeps the grid in reading order, then marks. */
 		play?: 'fill' | 'read' | null;
-		/** One cell, in px. */
 		cell?: number;
 		label: string;
 		class?: string;
@@ -17,7 +15,6 @@
 	let { data, flagged = [], play = null, cell = 9, label, class: className }: Props = $props();
 
 	const marked = $derived(new Set(flagged));
-	/** When the sweep is done, in ms. Marks land after it. */
 	const READ_END = 9 * 42 + 9 * 7;
 
 	function delayOf(block: number, index: number, k: number | null): string | undefined {

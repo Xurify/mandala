@@ -106,7 +106,6 @@ export async function clearBackupHandle(): Promise<void> {
 	try {
 		await withStore('readwrite', (store) => store.delete(KEY));
 	} catch {
-		// nothing to clear
 	}
 }
 

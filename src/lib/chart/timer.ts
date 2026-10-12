@@ -1,4 +1,4 @@
-import { clockOf, dateKeyOf, getByKey, type ChartData, type Session, type Timer } from './model.ts';
+import { clockOf, dateKeyOf, pillarOfAction, wordsOf, type ActionId, type ChartData, type Session, type Timer } from './model.ts';
 
 export const BLOCK_MINUTES = 25;
 export const BREAK_MINUTES = 5;
@@ -33,16 +33,16 @@ export function isForgotten(timer: Timer, now: number): boolean {
 
 /** What stopping it now would log, on the day it started. Nothing for a break, or for under a minute. */
 export function sessionOf(timer: Timer, now: number, minutes = minutesRun(timer, now)): { dateKey: string; session: Session } | null {
-	if (!timer.key || minutes < 1) return null;
+	if (!timer.action || minutes < 1) return null;
 	const start = new Date(timer.since);
-	return { dateKey: dateKeyOf(start), session: { key: timer.key, at: clockOf(start), minutes } };
+	return { dateKey: dateKeyOf(start), session: { action: timer.action, at: clockOf(start), minutes } };
 }
 
 /** Time spent before it was logged, so it starts `minutes` before `now`. */
-export function sessionEndingAt(key: string, minutes: number, now: Date): { dateKey: string; session: Session } {
+export function sessionEndingAt(action: ActionId, minutes: number, now: Date): { dateKey: string; session: Session } {
 	const start = new Date(now.getTime() - minutes * MINUTE);
 	const sameDay = dateKeyOf(start) === dateKeyOf(now);
-	return { dateKey: dateKeyOf(now), session: { key, at: sameDay ? clockOf(start) : '00:00', minutes } };
+	return { dateKey: dateKeyOf(now), session: { action, at: sameDay ? clockOf(start) : '00:00', minutes } };
 }
 
 export function addSession(data: ChartData, dateKey: string, session: Session): void {
@@ -55,9 +55,9 @@ export function sessionsOn(data: ChartData, dateKey: string): Session[] {
 	return [...(data.days?.[dateKey]?.sessions ?? [])].sort((a, b) => a.at.localeCompare(b.at));
 }
 
-export function minutesOn(data: ChartData, dateKey: string, key?: string): number {
+export function minutesOn(data: ChartData, dateKey: string, action?: ActionId): number {
 	return sessionsOn(data, dateKey)
-		.filter((session) => key === undefined || session.key === key)
+		.filter((session) => action === undefined || session.action === action)
 		.reduce((sum, session) => sum + session.minutes, 0);
 }
 
@@ -68,8 +68,8 @@ export function minutesByPillar(data: ChartData, now: Date = new Date(), days = 
 		const date = new Date(now);
 		date.setDate(now.getDate() - back);
 		for (const session of sessionsOn(data, dateKeyOf(date))) {
-			const pillar = Number(session.key[1]);
-			if (pillar >= 0 && pillar < 8) out[pillar]! += session.minutes;
+			const pillar = pillarOfAction(data, session.action);
+			if (pillar !== null) out[pillar]! += session.minutes;
 		}
 	}
 	return out;
@@ -98,6 +98,7 @@ export function ringShare(timer: Timer, now: number): number {
 	return (elapsedMs(timer, now) % (60 * MINUTE)) / (60 * MINUTE);
 }
 
-export function timerLabel(data: ChartData, timer: Timer): string {
-	return timer.key ? getByKey(data, timer.key).trim() || 'An action since removed' : 'Break';
+/** What a timer or a session is on, in words. A break is on nothing. */
+export function actionLabel(data: ChartData, action: ActionId | undefined): string {
+	return action ? wordsOf(data, action) || 'An action since removed' : 'Break';
 }

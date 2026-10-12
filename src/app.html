@@ -4,19 +4,21 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<meta name="theme-color" content="#f8f5f0" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#15120f" media="(prefers-color-scheme: dark)" />
 		<script>
 			try {
 				const root = document.documentElement;
 				const storedTheme = localStorage.getItem('theme');
 				if (storedTheme === 'dark' || storedTheme === 'light') {
 					root.setAttribute('data-theme', storedTheme);
+					const color = storedTheme === 'dark' ? '#15120f' : '#f8f5f0';
+					for (const meta of document.querySelectorAll('meta[name="theme-color"]')) meta.setAttribute('content', color);
 				}
 				const storedAccent = localStorage.getItem('accent');
-				const accentIds = ['leaf', 'field', 'walnut', 'olive'];
+				const accentIds = ['ink', 'leaf', 'field', 'walnut', 'olive'];
 				if (storedAccent && accentIds.includes(storedAccent)) {
 					root.setAttribute('data-accent', storedAccent);
-				} else if (storedAccent) {
-					localStorage.removeItem('accent');
 				}
 				const storedMode = localStorage.getItem('mandala_view_mode');
 				if (
@@ -24,7 +26,8 @@
 					storedMode === 'edit' ||
 					storedMode === 'split' ||
 					storedMode === 'today' ||
-					storedMode === 'year'
+					storedMode === 'calendar' ||
+					storedMode === 'board'
 				) {
 					root.dataset.view = storedMode;
 				}

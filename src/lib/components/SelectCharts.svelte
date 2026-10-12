@@ -3,6 +3,7 @@
 	import { deletedClock, deletedDayLabel, formatAgo, TRASH_DAYS, type ChartSummary } from '$lib/chart/library';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
+	import PickAll from './PickAll.svelte';
 	import PickMark from './PickMark.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -79,17 +80,7 @@
 
 {#snippet footer()}
 	{@const count = pickedItems.length}
-	<div class="flex w-full flex-wrap items-center justify-end gap-x-2 gap-y-3">
-		<div class="me-auto flex items-center gap-1">
-			{#if rows.length > 1}
-				<Button variant="ghost" size="sm" class="-ms-3.5 coarse:min-h-11" onclick={toggleAll}>
-					{allShown ? 'Clear' : find.trim() ? 'Select these' : 'Select all'}
-				</Button>
-			{/if}
-			<p class="m-0 text-[0.84rem] text-muted tabular-nums" aria-live="polite">
-				{count === 0 ? 'None selected' : everything && count > 1 ? `All ${count} selected` : `${count} selected`}
-			</p>
-		</div>
+	<div class="flex w-full items-center justify-end">
 		<Button
 			variant="danger"
 			size="sm"
@@ -140,6 +131,14 @@
 		</div>
 	{/if}
 	<div id="select-chart-list" class="-mx-2.5">
+		{#if rows.length > 1}
+			<PickAll
+				total={rows.length}
+				picked={rows.filter((item) => picked.includes(item.id)).length}
+				label={find.trim() ? 'Select these' : 'Select all'}
+				onclick={toggleAll}
+			/>
+		{/if}
 		{#if rows.length === 0}
 			<p class="m-0 px-3 py-2.5 text-[0.9rem] text-pretty text-muted">No matching chart.</p>
 		{/if}

@@ -22,12 +22,13 @@ import {
 	weekInReview,
 	weekStrip
 } from './helper.ts';
-import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ChartData } from './model.ts';
+import { A, slotted, type Cell } from './fixtures.ts';
+import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ActionId, type ChartData } from './model.ts';
 import { exampleChart } from './example.ts';
 import { buildChart, PRESETS } from './presets/index.ts';
 
 function sample(): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = 'Finish a half marathon this October';
 	data.pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
 	data.actions = data.pillars.map((pillar) =>
@@ -85,7 +86,7 @@ describe('suggestWeek and suggestToday', () => {
 	it('spreads the week across pillars, quietest first', () => {
 		const data = sample();
 		const today = dateKeyOf(new Date());
-		data.days = { [today]: { focus: ['a0_0'], checked: ['a0_0'] } };
+		data.days = { [today]: { focus: [A.a0_0], checked: [A.a0_0] } };
 		const picks = suggestWeek(data, 6);
 		expect(picks).toHaveLength(6);
 		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(6);
@@ -94,22 +95,22 @@ describe('suggestWeek and suggestToday', () => {
 
 	it('skips routines and finished milestones', () => {
 		const data = sample();
-		data.meta = { a1_0: { kind: 'routine' }, a2_0: { kind: 'milestone', done: true } };
-		const keys = suggestWeek(data, 8).map((pick) => pick.key);
-		expect(keys).not.toContain('a1_0');
-		expect(keys).not.toContain('a2_0');
+		data.meta = { [A.a1_0]: { kind: 'routine' }, [A.a2_0]: { kind: 'milestone', done: true } };
+		const keys = suggestWeek(data, 8).map((pick) => pick.id);
+		expect(keys).not.toContain(A.a1_0);
+		expect(keys).not.toContain(A.a2_0);
 	});
 
 	it('puts pinned actions first today and avoids what is already checked', () => {
 		const data = sample();
 		const now = new Date();
-		data.meta = { a4_2: { kind: 'milestone', pinned: true } };
-		data.days = { [dateKeyOf(now)]: { focus: [], checked: ['a0_0'] } };
+		data.meta = { [A.a4_2]: { kind: 'milestone', pinned: true } };
+		data.days = { [dateKeyOf(now)]: { focus: [], checked: [A.a0_0] } };
 		const picks = suggestToday(data, now);
 		expect(picks).toHaveLength(3);
-		expect(picks[0]?.key).toBe('a4_2');
+		expect(picks[0]?.id).toBe(A.a4_2);
 		expect(picks[0]?.why).toBe('Pinned for this week.');
-		expect(picks.map((pick) => pick.key)).not.toContain('a0_0');
+		expect(picks.map((pick) => pick.id)).not.toContain(A.a0_0);
 		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(3);
 	});
 });
@@ -181,18 +182,18 @@ describe('picks', () => {
 
 	it('holds still within a day and changes across days on a fresh chart', () => {
 		const data = sample();
-		const keys = (date: Date) => suggestToday(data, date).map((pick) => pick.key).join();
+		const keys = (date: Date) => suggestToday(data, date).map((pick) => pick.id).join();
 		expect(keys(now)).toBe(keys(new Date(2026, 9, 5, 20)));
 		const days = new Set(Array.from({ length: 6 }, (_, offset) => keys(new Date(2026, 9, 5 + offset, 12))));
 		expect(days.size).toBeGreaterThan(1);
-		expect([...days].every((value) => value.startsWith('a0_0,a1_0,a2_0'))).toBe(false);
+		expect([...days].every((value) => value.startsWith(`${A.a0_0},${A.a1_0},${A.a2_0}`))).toBe(false);
 	});
 
 	it('does not count a pick without a tick as done', () => {
 		const data = sample();
 		data.days = {
-			[day(-1)]: { focus: ['a0_0'], checked: [] },
-			[day(-2)]: { focus: [], checked: Array.from({ length: 7 }, (_, index) => `a${index + 1}_0`) }
+			[day(-1)]: { focus: [A.a0_0], checked: [] },
+			[day(-2)]: { focus: [], checked: Array.from({ length: 7 }, (_, index) => A[`a${index + 1}_0` as Cell]) }
 		};
 		expect(pickHistory(data, now).pillarSinceTick[0]).toBeNull();
 		const picks = suggestToday(data, now);
@@ -202,34 +203,34 @@ describe('picks', () => {
 
 	it('keeps a recent action going and says why', () => {
 		const data = sample();
-		data.days = { [day(-1)]: { focus: ['a3_2'], checked: ['a3_2'] }, [day(-3)]: { focus: ['a3_2'], checked: ['a3_2'] } };
-		const pick = suggestToday(data, now).find((entry) => entry.key === 'a3_2');
+		data.days = { [day(-1)]: { focus: [A.a3_2], checked: [A.a3_2] }, [day(-3)]: { focus: [A.a3_2], checked: [A.a3_2] } };
+		const pick = suggestToday(data, now).find((entry) => entry.id === A.a3_2);
 		expect(pick?.why).toBe('Done 2 times this week. Keep it going.');
 	});
 
 	it('leaves out what was declined, dropped, or picked three times without a tick', () => {
 		const data = sample();
 		data.days = {
-			[day(0)]: { focus: [], checked: [], declined: ['a0_0', 'a1_0'], dropped: ['a2_0'] },
-			[day(-1)]: { focus: ['a3_0'], checked: [] },
-			[day(-2)]: { focus: ['a3_0'], checked: [] },
-			[day(-3)]: { focus: ['a3_0'], checked: [] }
+			[day(0)]: { focus: [], checked: [], declined: [A.a0_0, A.a1_0], dropped: [A.a2_0] },
+			[day(-1)]: { focus: [A.a3_0], checked: [] },
+			[day(-2)]: { focus: [A.a3_0], checked: [] },
+			[day(-3)]: { focus: [A.a3_0], checked: [] }
 		};
-		const keys = suggestWeek(data, 64, now).map((pick) => pick.key);
-		for (const key of ['a0_0', 'a1_0', 'a2_0', 'a3_0']) expect(keys).not.toContain(key);
-		expect(suggestToday(data, now, 3, new Set(['a4_0'])).map((pick) => pick.key)).not.toContain('a4_0');
+		const keys = suggestWeek(data, 64, now).map((pick) => pick.id);
+		for (const key of [A.a0_0, A.a1_0, A.a2_0, A.a3_0]) expect(keys).not.toContain(key);
+		expect(suggestToday(data, now, 3, new Set([A.a4_0])).map((pick) => pick.id)).not.toContain(A.a4_0);
 	});
 
 	it('keeps one per pillar after some are declined', () => {
 		const data = sample();
-		data.days = { [day(0)]: { focus: [], checked: [], declined: ['a0_0', 'a1_0', 'a2_0', 'a3_0', 'a4_0'] } };
+		data.days = { [day(0)]: { focus: [], checked: [], declined: [A.a0_0, A.a1_0, A.a2_0, A.a3_0, A.a4_0] } };
 		const picks = suggestToday(data, now);
 		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(3);
 	});
 
 	it('names the same quiet pillar in the greeting and the picks', () => {
 		const data = sample();
-		data.days = { [day(-1)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0', 'a1_0'] } };
+		data.days = { [day(-1)]: { focus: [A.a0_0, A.a1_0], checked: [A.a0_0, A.a1_0] } };
 		const quiet = insightsFor(data, now).find((insight) => insight.id === 'quiet')!;
 		const pick = suggestToday(data, now).find((entry) => entry.why.startsWith('Nothing ticked in'))!;
 		expect(quiet.text).toBe(pick.why);
@@ -237,8 +238,8 @@ describe('picks', () => {
 
 	it('still puts pins first', () => {
 		const data = sample();
-		data.meta = { a6_3: { kind: 'milestone', pinned: true } };
-		expect(suggestToday(data, now)[0]).toMatchObject({ key: 'a6_3', why: 'Pinned for this week.' });
+		data.meta = { [A.a6_3]: { kind: 'milestone', pinned: true } };
+		expect(suggestToday(data, now)[0]).toMatchObject({ id: A.a6_3, why: 'Pinned for this week.' });
 	});
 });
 
@@ -248,25 +249,25 @@ describe('insightsFor', () => {
 
 	it('says nothing before the first tick', () => {
 		const data = sample();
-		data.days = { [day(0)]: { focus: ['a0_0'], checked: [] } };
+		data.days = { [day(0)]: { focus: [A.a0_0], checked: [] } };
 		expect(insightsFor(data, now)).toEqual([]);
 	});
 
 	it('notices a stuck pick and names the action', () => {
 		const data = sample();
 		data.days = {
-			[day(-1)]: { focus: ['a3_0', 'a1_1'], checked: ['a1_1'] },
-			[day(-2)]: { focus: ['a3_0'], checked: [] },
-			[day(-4)]: { focus: ['a3_0'], checked: [] }
+			[day(-1)]: { focus: [A.a3_0, A.a1_1], checked: [A.a1_1] },
+			[day(-2)]: { focus: [A.a3_0], checked: [] },
+			[day(-4)]: { focus: [A.a3_0], checked: [] }
 		};
 		const stuck = insightsFor(data, now).find((insight) => insight.id === 'stuck');
-		expect(stuck?.key).toBe('a3_0');
+		expect(stuck?.key).toBe(A.a3_0);
 		expect(stuck?.text).toBe('You picked \u201cStrength step 1\u201d 3 times and haven\'t ticked it. A smaller version might go.');
 	});
 
 	it('greets a comeback and today\'s finished list', () => {
 		const data = sample();
-		data.days = { [day(-9)]: { focus: ['a0_0'], checked: ['a0_0'] }, [day(0)]: { focus: ['a1_0', 'a2_0'], checked: ['a1_0', 'a2_0'] } };
+		data.days = { [day(-9)]: { focus: [A.a0_0], checked: [A.a0_0] }, [day(0)]: { focus: [A.a1_0, A.a2_0], checked: [A.a1_0, A.a2_0] } };
 		const ids = insightsFor(data, now).map((insight) => insight.id);
 		expect(ids.slice(0, 2)).toEqual(['today', 'comeback']);
 		expect(insightsFor(data, now)[1]?.text).toBe('First tick in 9 days. Good to see you.');
@@ -275,37 +276,37 @@ describe('insightsFor', () => {
 	it('reads the time of day from tick times', () => {
 		const data = sample();
 		data.days = {
-			[day(-1)]: { focus: [], checked: ['a0_0', 'a1_0', 'a2_0'], at: { a0_0: '07:10', a1_0: '08:30', a2_0: '21:00' } },
-			[day(-2)]: { focus: [], checked: ['a3_0', 'a4_0'], at: { a3_0: '09:00', a4_0: '10:45' } }
+			[day(-1)]: { focus: [], checked: [A.a0_0, A.a1_0, A.a2_0], at: { [A.a0_0]: '07:10', [A.a1_0]: '08:30', [A.a2_0]: '21:00' } },
+			[day(-2)]: { focus: [], checked: [A.a3_0, A.a4_0], at: { [A.a3_0]: '09:00', [A.a4_0]: '10:45' } }
 		};
 		expect(insightsFor(data, now).some((insight) => insight.text === 'Most of your ticks land before noon.')).toBe(true);
 	});
 
 	it('says where most of the week\'s time went, once there is an hour of it', () => {
 		const data = sample();
-		const session = (key: string, minutes: number) => ({ key, at: '18:00', minutes });
+		const session = (action: ActionId, minutes: number) => ({ action, at: '18:00', minutes });
 		data.days = {
-			[day(-1)]: { focus: [], checked: ['a2_0'], sessions: [session('a2_0', 50), session('a4_1', 15)] },
-			[day(-3)]: { focus: [], checked: [], sessions: [session('a2_3', 40)] }
+			[day(-1)]: { focus: [], checked: [A.a2_0], sessions: [session(A.a2_0, 50), session(A.a4_1, 15)] },
+			[day(-3)]: { focus: [], checked: [], sessions: [session(A.a2_3, 40)] }
 		};
 		const time = insightsFor(data, now).find((insight) => insight.id === 'time');
 		expect(time).toMatchObject({ ref: 'p2', text: 'Most of your time this week went to Long run: 1 h 30 min.' });
-		data.days = { [day(-1)]: { focus: [], checked: ['a2_0'], sessions: [session('a2_0', 40)] } };
+		data.days = { [day(-1)]: { focus: [], checked: [A.a2_0], sessions: [session(A.a2_0, 40)] } };
 		expect(insightsFor(data, now).some((insight) => insight.id === 'time')).toBe(false);
 	});
 
 	it('notices an action taken off the list twice', () => {
 		const data = sample();
 		data.days = {
-			[day(-1)]: { focus: ['a1_0'], checked: ['a1_0'], dropped: ['a5_5'] },
-			[day(-3)]: { focus: [], checked: [], dropped: ['a5_5'] }
+			[day(-1)]: { focus: [A.a1_0], checked: [A.a1_0], dropped: [A.a5_5] },
+			[day(-3)]: { focus: [], checked: [], dropped: [A.a5_5] }
 		};
 		expect(insightsFor(data, now).find((insight) => insight.id === 'dropped')?.text).toBe('\u201cFood step 6\u201d came off the list twice this week.');
 	});
 
 	it('leads the note with a strong insight', () => {
 		const data = sample();
-		data.days = { [day(-9)]: { focus: ['a0_0'], checked: ['a0_0'] }, [day(0)]: { focus: ['a1_0'], checked: ['a1_0'] } };
+		data.days = { [day(-9)]: { focus: [A.a0_0], checked: [A.a0_0] }, [day(0)]: { focus: [A.a1_0], checked: [A.a1_0] } };
 		expect(noteFor(data, now).text).toBe("Today's pick is done.");
 		expect(noteFor(data, now, null).text).not.toBe("Today's pick is done.");
 	});
@@ -317,11 +318,11 @@ describe('more insights', () => {
 
 	it("says last week's note back once the new week starts", () => {
 		const data = sample();
-		data.days = { [day(-1)]: { focus: [], checked: ['a0_0'] } };
-		data.weeks = { [weekStartKey(new Date(2026, 8, 30))]: { note: 'Too tired after work.', swapped: [] } };
+		data.days = { [day(-1)]: { focus: [], checked: [A.a0_0] } };
+		data.weeks = { [weekStartKey(new Date(2026, 8, 30))]: { note: 'Too tired after work.' } };
 		const words = insightsFor(data, now).find((insight) => insight.id === 'words');
 		expect(words?.text).toBe('Last week you wrote: \u201cToo tired after work.\u201d Still true?');
-		data.weeks[weekStartKey(now)] = { note: 'Better.', swapped: [] };
+		data.weeks[weekStartKey(now)] = { note: 'Better.' };
 		expect(insightsFor(data, now).some((insight) => insight.id === 'words')).toBe(false);
 	});
 
@@ -329,7 +330,7 @@ describe('more insights', () => {
 		const data = sample();
 		data.days = {};
 		for (let offset = 1; offset <= 6; offset++) {
-			data.days[day(-offset)] = { focus: ['a0_0', 'a1_0'], checked: offset <= 5 ? ['a0_0'] : ['a0_0', 'a1_0'] };
+			data.days[day(-offset)] = { focus: [A.a0_0, A.a1_0], checked: offset <= 5 ? [A.a0_0] : [A.a0_0, A.a1_0] };
 		}
 		expect(insightsFor(data, now).find((insight) => insight.id === 'follow')?.text).toBe(
 			'You finish Easy runs picks 6 of 6 times. Speed, 1 of 6.'
@@ -338,23 +339,23 @@ describe('more insights', () => {
 
 	it('suggests retiring a routine that became a habit', () => {
 		const data = sample();
-		data.meta = { a4_0: { kind: 'routine' } };
+		data.meta = { [A.a4_0]: { kind: 'routine' } };
 		data.days = {};
-		for (let offset = 0; offset < 11; offset++) data.days[day(-offset)] = { focus: [], checked: ['a4_0'] };
+		for (let offset = 0; offset < 11; offset++) data.days[day(-offset)] = { focus: [], checked: [A.a4_0] };
 		const retire = insightsFor(data, now).find((insight) => insight.id === 'retire');
-		expect(retire?.key).toBe('a4_0');
+		expect(retire?.key).toBe(A.a4_0);
 		expect(retire?.text).toContain('is ticked on 11 of the last 14 days');
 	});
 
 	it('holds back an insight shown in the last three days', () => {
 		const data = sample();
 		data.days = {
-			[day(-1)]: { focus: ['a3_0'], checked: ['a1_1'] },
-			[day(-2)]: { focus: ['a3_0'], checked: [] },
-			[day(-3)]: { focus: ['a3_0'], checked: [] }
+			[day(-1)]: { focus: [A.a3_0], checked: [A.a1_1] },
+			[day(-2)]: { focus: [A.a3_0], checked: [] },
+			[day(-3)]: { focus: [A.a3_0], checked: [] }
 		};
 		expect(unseenInsights(data, now).some((insight) => insight.id === 'stuck')).toBe(true);
-		data.days[day(-2)]!.shown = ['stuck:a3_0'];
+		data.days[day(-2)]!.shown = [`stuck:${A.a3_0}`];
 		expect(unseenInsights(data, now).some((insight) => insight.id === 'stuck')).toBe(false);
 		expect(insightsFor(data, now).some((insight) => insight.id === 'stuck')).toBe(true);
 	});
@@ -484,7 +485,7 @@ describe('the home page', () => {
 		const data = sample();
 		expect(nextMove(data, now).page).toBe('today');
 		expect(doorsFor(data, now).map((door) => door.page)).toEqual(['week', 'progress', 'review', 'write']);
-		data.days = { [dateKeyOf(now)]: { focus: ['a0_0', 'a1_0'], checked: ['a0_0'] } };
+		data.days = { [dateKeyOf(now)]: { focus: [A.a0_0, A.a1_0], checked: [A.a0_0] } };
 		expect(nextMove(data, now).page).toBe('progress');
 		expect(noteFor(data, now, null).text).toBe('1 of 2 done today. One at a time.');
 		expect(doorsFor(data, now).find((door) => door.page === 'today')?.detail).toBe('1 of 2 done today');
@@ -506,7 +507,7 @@ describe('how it is going', () => {
 
 	it('lays the last 7 days out oldest first, a pillar per tick', () => {
 		const data = sample();
-		data.days = { [day(0)]: { focus: [], checked: ['a3_1', 'a0_2', 'g'] }, [day(-6)]: { focus: [], checked: ['a7_0'] }, [day(-7)]: { focus: [], checked: ['a1_1'] } };
+		data.days = { [day(0)]: { focus: [], checked: [A.a3_1, A.a0_2] }, [day(-6)]: { focus: [], checked: [A.a7_0] }, [day(-7)]: { focus: [], checked: [A.a1_1] } };
 		const strip = weekStrip(data, now);
 		expect(strip).toHaveLength(7);
 		expect(strip[6]).toMatchObject({ key: day(0), today: true, ticks: [0, 3] });
@@ -516,7 +517,7 @@ describe('how it is going', () => {
 
 	it('counts ticks, pillars and the streak from the log', () => {
 		const data = sample();
-		data.days = { [day(0)]: { focus: [], checked: ['a0_0', 'a1_0'] }, [day(-1)]: { focus: [], checked: ['a1_1'] }, [day(-2)]: { focus: [], checked: ['a2_0'] } };
+		data.days = { [day(0)]: { focus: [], checked: [A.a0_0, A.a1_0] }, [day(-1)]: { focus: [], checked: [A.a1_1] }, [day(-2)]: { focus: [], checked: [A.a2_0] } };
 		const progress = progressOf(data, now);
 		expect(progress).toMatchObject({ ticks: 4, pillars: [0, 1, 2], streak: 3, everTicked: true, written: 64 });
 		expect(progress.quiet).toEqual([3, 4, 5, 6, 7]);
@@ -525,10 +526,10 @@ describe('how it is going', () => {
 
 	it('sums time per pillar over the same 7 days, and keeps its insight for the first page', () => {
 		const data = sample();
-		const session = (key: string, minutes: number) => ({ key, at: '18:00', minutes });
+		const session = (action: ActionId, minutes: number) => ({ action, at: '18:00', minutes });
 		data.days = {
-			[day(0)]: { focus: [], checked: ['a1_0'], sessions: [session('a1_0', 70)] },
-			[day(-7)]: { focus: [], checked: [], sessions: [session('a3_0', 30)] }
+			[day(0)]: { focus: [], checked: [A.a1_0], sessions: [session(A.a1_0, 70)] },
+			[day(-7)]: { focus: [], checked: [], sessions: [session(A.a3_0, 30)] }
 		};
 		const progress = progressOf(data, now);
 		expect(progress.minutes).toEqual([0, 70, 0, 0, 0, 0, 0, 0]);
@@ -552,20 +553,20 @@ describe('weekInReview', () => {
 	it('lists milestones closed since Monday, and not the ones before', () => {
 		const data = sample();
 		data.meta = {
-			a1_2: { kind: 'milestone', done: true, doneAt: day(-2) },
-			a3_0: { kind: 'milestone', done: true, doneAt: day(-6) },
-			a4_4: { kind: 'milestone', done: false }
+			[A.a1_2]: { kind: 'milestone', done: true, doneAt: day(-2) },
+			[A.a3_0]: { kind: 'milestone', done: true, doneAt: day(-6) },
+			[A.a4_4]: { kind: 'milestone', done: false }
 		};
-		expect(weekInReview(data, now).closed).toEqual([{ key: 'a1_2', text: 'Speed step 3', pillarIndex: 1 }]);
+		expect(weekInReview(data, now).closed).toEqual([{ id: A.a1_2, text: 'Speed step 3', pillarIndex: 1 }]);
 	});
 
 	it('names the pillars that sat out, leading with an action not done yet', () => {
 		const data = sample();
-		data.days = { [day(0)]: { focus: [], checked: ['a0_0', 'a1_0', 'a2_0', 'a3_0', 'a4_0', 'a5_0'] } };
-		data.meta = { a6_0: { kind: 'milestone', done: true, doneAt: day(-20) } };
+		data.days = { [day(0)]: { focus: [], checked: [A.a0_0, A.a1_0, A.a2_0, A.a3_0, A.a4_0, A.a5_0] } };
+		data.meta = { [A.a6_0]: { kind: 'milestone', done: true, doneAt: day(-20) } };
 		const review = weekInReview(data, now);
 		expect(review.quiet.map((entry) => entry.pillarIndex)).toEqual([6, 7]);
-		expect(review.quiet[0]?.lead.key).toBe('a6_1');
+		expect(review.quiet[0]?.lead.id).toBe(A.a6_1);
 		expect(review.quiet[0]?.rest).toHaveLength(7);
 		expect(review.moved).toEqual([0, 1, 2, 3, 4, 5]);
 		expect(review.ticks).toBe(6);

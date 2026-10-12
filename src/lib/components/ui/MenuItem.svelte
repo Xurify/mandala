@@ -9,7 +9,6 @@
 		children: Snippet;
 		icon?: IconName;
 		badge?: string;
-		/** How many things are behind the item, as a pill so it does not read as a key. */
 		count?: number;
 		shortcut?: string;
 		tone?: 'default' | 'danger';

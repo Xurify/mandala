@@ -25,7 +25,6 @@
 	const appOptions = CHAT_APPS.map((app) => ({ value: app.id, label: app.label, icon: app.icon }));
 	const app = $derived(CHAT_APPS.find((entry) => entry.id === helper.app) ?? CHAT_APPS[0]!);
 	const outcome = $derived(helper.outcome);
-	/** The chart as it would be, so a pillar the reply names is called by that name. */
 	const preview = $derived.by(() => {
 		if (outcome?.kind !== 'cells') return helper.data;
 		const next = $state.snapshot(helper.data);
@@ -33,12 +32,10 @@
 		return next;
 	});
 	const copied = $derived(helper.copied === helper.mode);
-	/** The prompt went straight into a chat app by link, so pasting it there is done too. */
 	const opened = $derived(copied ? helper.sent : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
 
-	// A chart filled by hand while this page is open has no gaps left to ask for.
 	$effect(() => {
 		if (helper.mode === 'fill' && gaps === 0) helper.mode = 'ask';
 	});

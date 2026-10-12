@@ -14,7 +14,8 @@
 
 	function close(): void {
 		helper.hide();
-		launcher?.focus();
+		const launchers = [launcher, document.querySelector<HTMLElement>('[data-bindu-launcher]')];
+		launchers.find((each) => each && each.getClientRects().length > 0)?.focus();
 	}
 </script>
 
@@ -30,11 +31,11 @@
 <button
 	bind:this={launcher}
 	type="button"
-	class="group/launcher fixed end-[max(20px,env(safe-area-inset-right,20px))] [view-transition-name:bindu-launcher] bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 grid size-[56px] cursor-pointer place-items-center rounded-full border-0 bg-surface p-0 shadow-float motion-safe:transition-[translate,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink print:hidden max-[900px]:bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+66px)] max-[900px]:size-[50px] {helper.open ? 'max-[900px]:pointer-events-none max-[900px]:opacity-0' : ''}"
+	class="group/launcher fixed end-[max(20px,env(safe-area-inset-right,20px))] [view-transition-name:bindu-launcher] bottom-[max(18px,env(safe-area-inset-bottom,18px))] z-40 grid size-[56px] cursor-pointer place-items-center rounded-full border-0 bg-surface p-0 shadow-float motion-safe:transition-[translate,scale,opacity] motion-safe:duration-200 motion-safe:ease-ui can-hover:hover:-translate-y-0.5 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink print:hidden max-[900px]:hidden"
 	aria-label={helper.open ? 'Close Bindu' : 'Open Bindu'}
 	aria-expanded={helper.open}
 	title="Bindu"
 	onclick={() => (helper.open ? close() : helper.show())}
 >
-	<HelperFace mood={helper.mood} size={42} class="max-[900px]:size-[38px]" />
+	<HelperFace mood={helper.mood} size={42} />
 </button>

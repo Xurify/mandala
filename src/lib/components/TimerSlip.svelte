@@ -2,7 +2,8 @@
 	import { tick } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { chime, readyChime } from '$lib/chart/chime';
-	import { HUES, todayKey } from '$lib/chart/model';
+	import { HUES, pillarOfAction, type ActionId } from '$lib/chart/model';
+	import { finishedOn } from '$lib/chart/board';
 	import {
 		BLOCK_MINUTES,
 		BREAK_MINUTES,
@@ -12,7 +13,7 @@
 		isOver,
 		remainingMs,
 		ringShare,
-		timerLabel
+		actionLabel
 	} from '$lib/chart/timer';
 	import TimerRing from './TimerRing.svelte';
 	import Button from './ui/Button.svelte';
@@ -30,26 +31,29 @@
 	let held = $state(false);
 	let leaving = $state(false);
 	/** The action a break follows, so the end of the break can offer the next block. Forgotten on reload. */
-	let breakAfter = $state<string | null>(null);
+	let breakAfter = $state<ActionId | null>(null);
 	let slip = $state<HTMLElement | null>(null);
 
 	const timer = $derived(chart.timer);
 	const end = $derived(chart.timerEnd);
-	const hueOf = (key: string | undefined): number | undefined => (key ? HUES[Number(key[1])] : undefined);
+	const hueOf = (action: ActionId | undefined): number | undefined => {
+		const pillar = action ? pillarOfAction(chart.data, action) : null;
+		return pillar === null ? undefined : HUES[pillar];
+	};
 	const remaining = $derived(timer ? remainingMs(timer, now) : null);
 	const face = $derived(timer ? clockFace(remaining === null ? elapsedMs(timer, now) : Math.ceil(remaining / 1000) * 1000) : '');
 	const minutesIn = $derived(timer ? Math.floor(elapsedMs(timer, now) / 60_000) : 0);
-	const nextLabel = $derived(breakAfter ? timerLabel(chart.data, { key: breakAfter, since: 0 }) : '');
-	const label = $derived(!timer ? '' : timer.key ? timerLabel(chart.data, timer) : nextLabel ? `Then ${nextLabel}` : 'Away from the screen');
-	const kicker = $derived(!timer ? '' : !timer.key ? `Break · ${timer.length} min` : timer.length ? `Focus block · ${timer.length} min` : 'Stopwatch');
+	const nextLabel = $derived(breakAfter ? actionLabel(chart.data, breakAfter) : '');
+	const label = $derived(!timer ? '' : timer.action ? actionLabel(chart.data, timer.action) : nextLabel ? `Then ${nextLabel}` : 'Away from the screen');
+	const kicker = $derived(!timer ? '' : !timer.action ? `Break · ${timer.length} min` : timer.length ? `Focus block · ${timer.length} min` : 'Stopwatch');
 	const spoken = $derived.by(() => {
 		if (!timer) return '';
 		if (remaining === null) return `${minutesIn === 1 ? '1 minute' : `${minutesIn} minutes`} so far`;
 		const left = Math.ceil(remaining / 60_000);
 		return `${left === 1 ? '1 minute' : `${left} minutes`} left`;
 	});
-	const endLabel = $derived(end?.key ? timerLabel(chart.data, { key: end.key, since: 0 }) : '');
-	const ticked = $derived(end?.key ? chart.todayLog.checked.includes(end.key) : false);
+	const endLabel = $derived(end?.action ? actionLabel(chart.data, end.action) : '');
+	const ticked = $derived(end?.action ? finishedOn(chart.data, end.action, chart.today) : false);
 
 	$effect(() => {
 		if (!timer) return;
@@ -86,7 +90,7 @@
 			return;
 		}
 		baseTitle ||= document.title;
-		document.title = `${face} · ${timer.key ? label : "Break"}`;
+		document.title = `${face} · ${timer.action ? label : "Break"}`;
 	});
 
 	// Only the word after a stop leaves on its own. The end of a block waits, since the person may be away.
@@ -109,12 +113,12 @@
 	}
 
 	function tickIt(): void {
-		if (end?.key && !ticked) chart.toggleChecked(todayKey(), end.key);
+		if (end?.action && !ticked) chart.finish(end.action);
 	}
 
 	function takeBreak(): void {
 		readyChime();
-		breakAfter = end?.key ?? null;
+		breakAfter = end?.action ?? null;
 		chart.startBreak(BREAK_MINUTES);
 	}
 
@@ -132,10 +136,9 @@
 </script>
 
 {#if timer || end}
-	<!-- On a phone it shares the row above the dock with the Bindu launcher, so it centers in the space beside it. -->
 	<div
 		bind:this={slip}
-		class="@container pointer-events-auto w-[min(25rem,calc(100vw-2rem))] max-[600px]:w-[calc(100vw-2rem-var(--dock-aside,0px))] max-[600px]:[translate:calc(var(--dock-aside,0px)/-2)_0] print:hidden"
+		class="@container pointer-events-auto w-[min(25rem,calc(100vw-2rem))] print:hidden"
 		role="group"
 		aria-label="Timer"
 		out:slipOut={{ duration: 600 }}
@@ -158,7 +161,7 @@
 					aria-label="{label}, {spoken}. Open today"
 					onclick={() => chart.setViewMode('today')}
 				>
-					<TimerRing share={ringShare(timer, now)} hue={hueOf(timer.key)} class="size-10" />
+					<TimerRing share={ringShare(timer, now)} hue={hueOf(timer.action)} class="size-10" />
 					<!-- A phone's slip is too narrow for the name beside the time, so the time goes on top of the name. -->
 					<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 						<Eyebrow class="@max-[21rem]:hidden">{kicker}</Eyebrow>
@@ -169,7 +172,7 @@
 				</button>
 				<IconButton
 					icon="stop"
-					label={!timer.key ? 'End the break' : timer.length ? 'Stop the block' : 'Stop the stopwatch'}
+					label={!timer.action ? 'End the break' : timer.length ? 'Stop the block' : 'Stop the stopwatch'}
 					class="shrink-0"
 					onclick={stop}
 				/>
@@ -182,7 +185,7 @@
 							: 'Under a minute, so nothing was logged.'}
 				{#key end.id}
 					<div class="flex min-w-0 flex-1 items-center gap-2.5 py-1 ps-1 pe-1" role="status">
-						<TimerRing share={1} hue={hueOf(end.kind === 'break' ? undefined : end.key)} done play class="size-10" />
+						<TimerRing share={1} hue={hueOf(end.kind === 'break' ? undefined : end.action)} done play class="size-10" />
 						<span class="flex min-w-0 flex-1 flex-col gap-0.5 motion-safe:animate-done-in motion-safe:[animation-delay:0.5s]">
 							<Eyebrow>{end.kind === 'block' ? 'Block done' : end.kind === 'break' ? "Break's over" : end.minutes > 0 ? 'Logged' : 'Stopped'}</Eyebrow>
 							<span class="line-clamp-2 text-[0.94rem] leading-tight font-medium text-pretty">{sentence}</span>

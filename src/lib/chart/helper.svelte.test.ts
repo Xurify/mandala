@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { HelperStore, type HelperTarget } from './helper.svelte.ts';
-import { dateKeyOf, emptyChart, setByKey, setMeta, type ChartData } from './model.ts';
+import { A, slotted } from './fixtures.ts';
+import { dateKeyOf, emptyChart, setByKey, setMeta, type ActionId, type ChartData } from './model.ts';
 
 function chartData(goal: string): ChartData {
-	const data = emptyChart();
+	const data = slotted(emptyChart());
 	data.goal = goal;
 	data.pillars = ['Easy runs', 'Speed', 'Long run', 'Strength', 'Sleep', 'Food', 'Shoes', 'Calendar'];
 	data.actions = data.pillars.map((pillar) => Array.from({ length: 8 }, (_, index) => `${pillar} step ${index + 1}`));
@@ -12,7 +13,7 @@ function chartData(goal: string): ChartData {
 
 function sandbox() {
 	const charts: Record<string, ChartData> = { one: chartData('Run a half marathon'), two: chartData('Learn Spanish') };
-	const calls = { declined: [] as string[][], shown: [] as string[], today: [] as string[][] };
+	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][] };
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
@@ -61,12 +62,11 @@ describe('HelperStore pages', () => {
 		const { helper, charts, calls } = sandbox();
 		const today = dateKeyOf(new Date());
 		const yesterday = dateKeyOf(new Date(Date.now() - 86_400_000));
-		charts.one!.days = { [yesterday]: { focus: ['a0_0'], checked: ['a0_0'] }, [today]: { focus: ['a1_0'], checked: ['a1_0'] } };
+		charts.one!.days = { [yesterday]: { focus: [A.a0_0], checked: [A.a0_0] }, [today]: { focus: [A.a1_0], checked: [A.a1_0] } };
 		helper.show();
 		expect(helper.page).toBe('home');
 		expect(helper.lead?.id).toBe('today');
 		expect(calls.shown).toHaveLength(1);
-		// Marking it seen does not swap it out while the panel is open.
 		expect(helper.lead?.id).toBe('today');
 	});
 
@@ -117,7 +117,7 @@ describe('HelperStore picks', () => {
 		expect(new Set(picks.map((pick) => pick.pillarIndex)).size).toBe(3);
 		expect(helper.mood).toBe('offering');
 		helper.commit();
-		expect(calls.today).toEqual([picks.map((pick) => pick.key)]);
+		expect(calls.today).toEqual([picks.map((pick) => pick.id)]);
 		expect(helper.moment?.title).toBe('Today is set');
 		expect(helper.moment?.pillars).toEqual(picks.map((pick) => pick.pillarIndex));
 		expect(helper.mood).toBe('happy');
@@ -131,19 +131,19 @@ describe('HelperStore picks', () => {
 		const { helper, calls } = sandbox();
 		helper.show('today');
 		const [first, ...rest] = helper.picks!.picks;
-		helper.swap(first!.key);
+		helper.swap(first!.id);
 		const now = helper.picks!.picks;
 		expect(now).toHaveLength(3);
-		expect(now.map((pick) => pick.key)).not.toContain(first!.key);
+		expect(now.map((pick) => pick.id)).not.toContain(first!.id);
 		expect(now.slice(1)).toEqual(rest);
 		expect(new Set(now.map((pick) => pick.pillarIndex)).size).toBe(3);
-		expect(calls.declined).toEqual([[first!.key]]);
+		expect(calls.declined).toEqual([[first!.id]]);
 	});
 
 	it('turns down all of today with Not now, and goes home', () => {
 		const { helper, calls } = sandbox();
 		helper.show('today');
-		const keys = helper.picks!.picks.map((pick) => pick.key);
+		const keys = helper.picks!.picks.map((pick) => pick.id);
 		helper.decline();
 		expect(calls.declined).toEqual([keys]);
 		expect(helper.page).toBe('home');
@@ -152,7 +152,7 @@ describe('HelperStore picks', () => {
 	it('pins the week', () => {
 		const { helper, charts } = sandbox();
 		helper.show('week');
-		const keys = helper.picks!.picks.map((pick) => pick.key);
+		const keys = helper.picks!.picks.map((pick) => pick.id);
 		expect(keys.length).toBeGreaterThanOrEqual(5);
 		helper.commit();
 		expect(keys.every((key) => charts.one!.meta?.[key]?.pinned)).toBe(true);
@@ -200,7 +200,6 @@ describe('HelperStore hands writing to a chat app', () => {
 		helper.applyReply();
 		expect(charts.one!.actions[2]![5]).toBe('New 2.5');
 		expect(charts.one!.actions[0]![0]).toBe('Easy runs step 1');
-		// Those were the last two gaps, so the bigger news is a full chart.
 		expect(helper.moment?.title).toBe('Every line is written');
 		expect(helper.moment?.pillars).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
 		expect(helper.reply).toBe('');

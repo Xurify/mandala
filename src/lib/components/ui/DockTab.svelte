@@ -26,6 +26,6 @@
 		<Icon name={icon} size={16} />
 	{/if}
 	{#if children}
-		{@render children()}
+		<span class={cn(icon && !selected && 'max-[500px]:sr-only')}>{@render children()}</span>
 	{/if}
 </button>

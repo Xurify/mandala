@@ -4,7 +4,9 @@ import { parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } from './timer.ts';
-import { completedBy, getByKey, wholeness } from './model.ts';
+import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
+import { boardOf, doneByWeek, type Card } from './board.ts';
+import { monthOf } from './calendar.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -54,9 +56,33 @@ describe('demos', () => {
 
 	it('puts real links on shelves, one near known, and a routine to hand them out', () => {
 		const data = demoSetup('tools', now).data!;
-		expect(nextTool(data, 'a1_0', now)).not.toBeNull();
+		expect(nextTool(data, idOfKey(data, 'a1_0')!, now)).not.toBeNull();
 		expect(nearKnown(data, now).map((entry) => entry.tool.id)).toEqual(['t-words']);
 		expect(suggestToday(data, now).some((pick) => pick.tool)).toBe(true);
+	});
+
+	it("sets the board with work in every list, a routine in Doing, and today's picks and tick in step", () => {
+		const data = demoSetup('board', now).data!;
+		const board = boardOf(data, dateKeyOf(now));
+		const cell = (card: Card) => keyOf(data, card.id);
+		expect(board.doing.map(cell)).toEqual(['a0_0', 'a5_0', 'a2_1', 'a2_0', 'a4_0']);
+		expect(board.doing[0]?.routine).toBe(true);
+		expect(board.todo.map(cell)).toEqual(['a5_2', 'a3_1']);
+		expect(board.done.slice(0, 2).map((card) => [cell(card), card.doneAt])).toEqual([
+			['a0_1', dateKeyOf(now)],
+			['a1_6', dateKeyOf(now)]
+		]);
+		expect(doneByWeek(board.done, now).earlier.length).toBeGreaterThan(0);
+		expect(doneByWeek(board.done, now).week.length).toBeGreaterThan(0);
+	});
+
+	it('opens the calendar on three goals: two that moved this month and one with nothing yet', () => {
+		const setup = demoSetup('calendar', now);
+		const goals = [...setup.others!, setup.data!].map((data, index) => ({ id: `g${index}`, title: data.goal, data }));
+		const month = monthOf(goals, now.getFullYear(), now.getMonth(), now);
+		expect(month.moved).toEqual(['g0', 'g2']);
+		expect(month.byGoal.map((row) => row.finished > 0)).toEqual([true, false, true]);
+		expect(month.weeks.flat().some((day) => day.goals.length === 2)).toBe(true);
 	});
 
 	it('starts each timer where its card says, and gives the week a pillar that leads', () => {

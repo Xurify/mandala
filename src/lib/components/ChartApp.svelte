@@ -8,23 +8,27 @@
 	import {
 		blockOfKey,
 		getByKey,
+		idx,
 		labelOfKey,
 		parseChart,
 		parseText,
 		searchHits,
 		type ChartData
 	} from '$lib/chart/model';
-	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
+	import type { AppTheme, ChartLayout, ViewScale } from '$lib/chart/chart.svelte';
 	import { ACCENTS } from '$lib/chart/accent';
+	import { applyAccent, applyTheme } from '$lib/chart/theme';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
+	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import EmptyChart from './EmptyChart.svelte';
 	import Helper from './Helper.svelte';
+	import HelperFace from './HelperFace.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import ImportDialog from './ImportDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
@@ -33,7 +37,9 @@
 	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import TodayView from './TodayView.svelte';
+	import CalendarScope from './CalendarScope.svelte';
 	import CalendarView from './CalendarView.svelte';
+	import BoardView from './BoardView.svelte';
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
@@ -44,7 +50,7 @@
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
-	import { fieldInk } from './ui/styles';
+	import { fieldInk, iconButton } from './ui/styles';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import IconButton from './ui/IconButton.svelte';
@@ -64,7 +70,7 @@
 		{ value: 'dark', label: 'Dark', icon: 'moon' as const }
 	];
 
-	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Ink');
+	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Clay');
 
 	const scales = [
 		{ value: 'fit', label: 'Fit', icon: 'minimize' as const, title: 'Fit entire chart on screen without scrolling' },
@@ -78,11 +84,7 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
-	let startsGone = $state(chart.dirty || chart.viewMode === 'view');
-	$effect(() => {
-		if (!chart.dirty && effectiveViewMode !== 'view') startsGone = false;
-		if (effectiveViewMode === 'view' && !chart.dirty) startsGone = true;
-	});
+	let guideOpen = $state(false);
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
 	let shareOpen = $state(false);
@@ -100,7 +102,12 @@
 	const effectiveViewMode = $derived(
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
-	const dayView = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar');
+	const offChart = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar' || effectiveViewMode === 'board');
+	const layouts = $derived([
+		{ value: 'view', label: 'View', title: 'The whole 9×9 chart (V)' },
+		{ value: 'edit', label: 'Edit', title: 'One block at a time (E)' },
+		...(isMobile ? [] : [{ value: 'split', label: 'Split', title: 'Chart and editor side by side (S)' }])
+	]);
 	const searching = $derived(chart.query.trim() !== '');
 
 	$effect(() => {
@@ -112,12 +119,12 @@
 		const setup = demoSetup(id);
 		const demo = DEMOS.find((entry) => entry.id === id);
 		replaceState(location.pathname, page.state);
+		for (const other of setup.others ?? []) chart.applyDraft(other, true);
 		if (setup.data) chart.importChart(setup.data, `Demo ready: ${demo?.title ?? id}.`);
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
 		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
 		if (setup.focus) chart.jumpToKey(setup.focus);
-		if (setup.query) chart.setQuery(setup.query);
 		const open = setup.open;
 		if (!open) return;
 		// After the chart switch has settled, so Bindu does not start over on the new chart's first page.
@@ -135,7 +142,6 @@
 		const params = new URL(location.href).searchParams;
 		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
-		// A link shared to the app (the manifest's share target) lands on a shelf.
 		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
 		// After the router is up, which replaceState needs.
 		if (shared) {
@@ -145,16 +151,8 @@
 			});
 		}
 		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
-		if (chart.theme === 'light' || chart.theme === 'dark') {
-			document.documentElement.setAttribute('data-theme', chart.theme);
-		} else {
-			document.documentElement.removeAttribute('data-theme');
-		}
-		if (chart.accent === 'ink') {
-			document.documentElement.removeAttribute('data-accent');
-		} else {
-			document.documentElement.setAttribute('data-accent', chart.accent);
-		}
+		applyTheme(chart.theme);
+		applyAccent(chart.accent);
 		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleThemeChange = (): void => chart.bumpTheme();
 		themeMediaQuery.addEventListener('change', handleThemeChange);
@@ -230,6 +228,19 @@
 			selectBlock(blockOfKey(key), key);
 			chart.setViewMode('edit');
 		});
+	}
+
+	let sheetPillar = $state<number | null>(null);
+	let sheetFocus = $state<number | null>(null);
+
+	function openBlock(blockIndex: number, _key?: string, cellIndex?: number): void {
+		if (blockIndex !== 4) {
+			sheetFocus = cellIndex ?? null;
+			sheetPillar = idx(blockIndex);
+		} else if (cellIndex !== undefined && cellIndex !== 4) {
+			sheetFocus = null;
+			sheetPillar = idx(cellIndex);
+		} else chart.jumpToKey('g');
 	}
 
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
@@ -346,6 +357,9 @@
 		} else if (plain && (event.key === 'c' || event.key === 'C')) {
 			event.preventDefault();
 			chart.setViewMode('calendar');
+		} else if (plain && (event.key === 'b' || event.key === 'B')) {
+			event.preventDefault();
+			chart.setViewMode('board');
 		}
 	}
 
@@ -456,7 +470,8 @@
 
 	const paletteCommands = $derived.by((): CommandItem[] => {
 		const items: CommandItem[] = [
-			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('today') },
+			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'sun', run: () => chart.setViewMode('today') },
+			{ id: 'board', label: 'Go to Board', section: 'Actions', icon: 'board', run: () => chart.setViewMode('board') },
 			{ id: 'calendar', label: 'Go to Calendar', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('calendar') },
 			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
@@ -469,6 +484,7 @@
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
+			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
 			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
@@ -580,21 +596,18 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
-<!--
-	The Bindu launcher sits at the right of the row above the dock on a phone: 50px, plus a 16px gap. A timer
-	rides on the dock, and the page makes room for it: the slip is about 68px, plus the dock's 10px gap.
--->
+<!-- A timer rides on the dock, and the page makes room for it: the slip is about 68px, plus the dock's 10px gap. -->
 <div
 	class={cn(
-		'page-gutter mx-auto max-w-295 max-[600px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(112px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0',
-		(chart.timer || chart.timerEnd) && 'pb-[calc(206px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(190px+env(safe-area-inset-bottom,0px))]'
+		'page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0',
+		(chart.timer || chart.timerEnd) && 'pb-[calc(206px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(170px+env(safe-area-inset-bottom,0px))]'
 	)}
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
 			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
-			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:order-3 max-[900px]:ms-0 max-[900px]:max-w-none max-[900px]:flex-auto">
+			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:hidden">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
 					<Icon name="search" size={16} />
 				</span>
@@ -623,9 +636,20 @@
 					{/if}
 				</div>
 
+				<button
+					type="button"
+					data-bindu-launcher
+					class={cn(iconButton(), 'hidden max-[900px]:inline-flex')}
+					aria-label={helper.open ? 'Close Bindu' : 'Open Bindu'}
+					aria-expanded={helper.open}
+					title="Bindu"
+					onclick={() => (helper.open ? helper.hide() : helper.show())}
+				>
+					<HelperFace mood={helper.mood} size={32} />
+				</button>
 				<IconButton
-					icon="command"
-					label="Open commands"
+					icon="search"
+					label="Search your chart and commands"
 					class="hidden max-[900px]:flex"
 					aria-keyshortcuts="Control+K Meta+K"
 					onclick={() => (paletteOpen = true)}
@@ -637,6 +661,7 @@
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+				<MenuItem icon="info" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -661,7 +686,7 @@
 				</div>
 				<div class="flex flex-col gap-2 px-3 py-1.5 text-[0.9rem]">
 					<span class="text-muted">Accent <span class="text-text">{accentName}</span></span>
-					<div class="grid w-max grid-cols-5 gap-1.5" role="group" aria-label="Accent color">
+					<div class="grid w-max grid-cols-6 gap-1.5 max-[420px]:grid-cols-3" role="group" aria-label="Accent color">
 						{#each ACCENTS as item (item.id)}
 							<button
 								type="button"
@@ -680,51 +705,67 @@
 			</Menu>
 		</div>
 
-		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
+		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-5 max-[900px]:mb-4 max-[900px]:grid-cols-1">
 			<div class="min-w-0">
-				<Eyebrow class="mb-2">Your chart</Eyebrow>
-				<ChartSwitcher />
-				{#if !dayView}
+				{#if effectiveViewMode === 'calendar'}
+					<CalendarScope />
+				{:else}
+					<Eyebrow class="mb-2">Your chart</Eyebrow>
+					<ChartSwitcher />
+				{/if}
+				{#if !offChart}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
+						<SegmentedControl
+							tabs
+							label="Look at the chart"
+							options={layouts}
+							value={effectiveViewMode}
+							onchange={(value) => chart.setViewMode(value as ChartLayout)}
+						/>
+						{#if isMobile && !(effectiveViewMode === 'view' && !chart.dirty)}
+							<div class="order-last ms-auto flex items-center gap-0.5">
+								<ProgressRing size={40} />
+								<IconButton icon="info" label="How the method works" class="-me-2 text-muted hover:text-text" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
+							</div>
+						{/if}
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
-							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
+							<div class="flex flex-wrap items-center gap-2" out:slipOut>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
 								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
 							</div>
 						{/if}
-						<!-- Alone, the ghost button's label lines up with the title instead of its padding. -->
-						<MethodGuide class={startsGone ? '-ms-[18px]' : undefined} />
 					</div>
 				{/if}
 			</div>
 
-			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
-			{#if !dayView && !(effectiveViewMode === 'view' && !chart.dirty)}
-			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
-				<ProgressRing size={isMobile ? 56 : 76} />
-				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+			{#if !offChart && !(effectiveViewMode === 'view' && !chart.dirty) && !isMobile}
+			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card">
+				<ProgressRing size={76} />
+				<dl class="m-0 grid min-w-[132px] gap-[3px]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Goal</dt>
-						<dd class="m-0 font-[620] tabular-nums {chart.milestones.goalSet ? 'text-success' : ''} max-[900px]:text-base">{chart.milestones.goalSet ? 'Set' : 'Not yet'}</dd>
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.goalSet ? 'text-success' : ''}">{chart.milestones.goalSet ? 'Set' : 'Not yet'}</dd>
 					</div>
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Pillars</dt>
-						<dd class="m-0 font-[620] tabular-nums max-[900px]:text-base {chart.milestones.pillarsCount === 8 ? 'text-success' : ''}">
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.pillarsCount === 8 ? 'text-success' : ''}">
 							{chart.milestones.pillarsCount}<span class="font-medium {chart.milestones.pillarsCount === 8 ? 'text-success' : 'text-muted'}">/8</span>
 						</dd>
 					</div>
-					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem] max-[900px]:flex-col max-[900px]:items-start max-[900px]:gap-0 max-[900px]:text-[0.82rem]">
+					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
 						<dt class="text-muted">Actions</dt>
-						<dd class="m-0 font-[620] tabular-nums max-[900px]:text-base {chart.milestones.actionsCount === 64 ? 'text-success' : ''}">
+						<dd class="m-0 font-[620] tabular-nums {chart.milestones.actionsCount === 64 ? 'text-success' : ''}">
 							{chart.milestones.actionsCount}<span class="font-medium {chart.milestones.actionsCount === 64 ? 'text-success' : 'text-muted'}">/64</span>
 						</dd>
 					</div>
 				</dl>
+				<IconButton icon="info" label="How the method works" class="-me-3.5 size-9 self-start text-muted hover:text-text" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
 			</div>
 			{/if}
 		</div>
 
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
+		<MethodGuide bind:open={guideOpen} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
@@ -754,30 +795,30 @@
 		<LogTimeDialog />
 	</header>
 
-	<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
-		{#if searching && !shownHits.length}
-			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
-		{/if}
-		{#each shownHits as key (key)}
-			<button
-				type="button"
-				class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
-				onclick={(event) => openHit(event.currentTarget, key)}
-			>
-				<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
-				{getByKey(chart.data, key).trim()}
-			</button>
-		{/each}
-		{#if extraHits}
-			<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">+{extraHits} more</div>
-		{/if}
-	</div>
+	{#if effectiveViewMode !== 'board'}
+		<div class={cn('flex max-w-[900px] flex-wrap gap-1.5 print:hidden', searching && 'mb-5')} aria-live="polite">
+			{#if searching && !shownHits.length}
+				<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">No matches.</div>
+			{/if}
+			{#each shownHits as key (key)}
+				<button
+					type="button"
+					class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+					onclick={(event) => openHit(event.currentTarget, key)}
+				>
+					<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
+					{getByKey(chart.data, key).trim()}
+				</button>
+			{/each}
+			{#if extraHits}
+				<div class="px-0.5 py-1.5 text-[0.86rem] text-muted">+{extraHits} more</div>
+			{/if}
+		</div>
+	{/if}
 
-	{#if effectiveViewMode === 'view' && chart.dirty}
-		<div
-			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
-		>
-			<span class="text-[0.84rem] text-muted max-[900px]:hidden">Double-click a cell to edit its block</span>
+	{#if effectiveViewMode === 'view' && chart.dirty && !isMobile}
+		<div class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden">
+			<span class="text-[0.84rem] text-muted">Double-click a cell to edit its block</span>
 			<SegmentedControl
 				label="Chart scale"
 				size="sm"
@@ -794,7 +835,7 @@
 		bind:this={stage}
 		class={cn(
 			'flex w-full flex-wrap items-start gap-7 [view-transition-name:stage] print:!m-0 print:!block print:!gap-0 max-[900px]:block',
-			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'flex-col items-center'
+			(effectiveViewMode === 'view' || effectiveViewMode === 'edit' || offChart) && 'flex-col items-center'
 		)}
 	>
 		<div class="print-sheet contents">
@@ -810,23 +851,23 @@
 			<div
 				class={cn(
 					'chart min-w-0 @container',
-					(effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar') && 'hidden',
+					(effectiveViewMode === 'edit' || offChart) && 'hidden',
 					effectiveViewMode === 'view' && 'chart-frame mx-auto w-full flex-none',
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
 			>
 				{#if effectiveViewMode === 'view' && !chart.dirty}
 					<EmptyChart
+						onguide={() => (guideOpen = true)}
 						onpreset={handleOpenPresets}
 						onchat={() => helper.show('write', 'new')}
 						onwrite={() => chart.jumpToKey('g')}
 					/>
+				{:else if effectiveViewMode === 'view'}
+					<MandalaGrid mode="view" onSelect={isMobile ? openBlock : selectBlock} onEdit={handleEditBlock} />
+					<BlockSheet bind:pillar={sheetPillar} focus={sheetFocus} />
 				{:else}
-					<MandalaGrid
-						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar' ? 'view' : effectiveViewMode}
-						onSelect={selectBlock}
-						onEdit={handleEditBlock}
-					/>
+					<MandalaGrid mode={effectiveViewMode === 'split' ? 'split' : 'view'} onSelect={selectBlock} onEdit={handleEditBlock} />
 				{/if}
 			</div>
 		</div>
@@ -853,18 +894,25 @@
 			</div>
 		{/if}
 		{#if effectiveViewMode === 'today'}
-			<!-- Picks live in the view until "Start my day". Remount per chart so they don't follow the switch. -->
-			{#key chart.activeId}
+			<!-- Picks live in the view until "Start my day". Remount per chart, and per day, so they don't follow the switch. -->
+			{#key `${chart.activeId}:${chart.today}`}
 				<TodayView />
 			{/key}
 		{/if}
 		{#if effectiveViewMode === 'calendar'}
-			<CalendarView />
+			{#key chart.today}
+				<CalendarView />
+			{/key}
+		{/if}
+		{#if effectiveViewMode === 'board'}
+			{#key `${chart.activeId}:${chart.today}`}
+				<BoardView narrow={isMobile} />
+			{/key}
 		{/if}
 	</main>
 
 	{#if updateReady}
-		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 max-[600px]:pr-[calc(1rem+var(--dock-aside,0px))] print:hidden">
+		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 print:hidden">
 			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
 				<span>Mandala was updated.</span>
 				<button
@@ -893,7 +941,7 @@
 			<TimerSlip />
 		{/snippet}
 		<DockTab
-			icon="calendar"
+			icon="sun"
 			selected={effectiveViewMode === 'today'}
 			title="Today's focus (T)"
 			onclick={() => chart.setViewMode('today')}
@@ -901,34 +949,32 @@
 			Today
 		</DockTab>
 		<DockTab
+			icon="board"
+			selected={effectiveViewMode === 'board'}
+			title="Open, to do, doing, done (B)"
+			onclick={() => chart.setViewMode('board')}
+		>
+			Board
+		</DockTab>
+		<DockTab
+			icon="calendar"
+			selected={effectiveViewMode === 'calendar'}
+			title="What was finished, day by day (C)"
+			onclick={() => chart.setViewMode('calendar')}
+		>
+			Calendar
+		</DockTab>
+		<DockTab
 			icon="grid"
-			selected={effectiveViewMode === 'view'}
-			title="Full 9×9 chart (V)"
+			selected={!offChart}
+			title="Your chart: view, edit, or split (V, E, S)"
 			onclick={() => {
-				chart.setViewMode('view');
-				if (isMobile) window.scrollTo({ top: 0, behavior: 'smooth' });
+				chart.setViewMode(chart.chartLayout);
+				if (isMobile && chart.chartLayout === 'view') window.scrollTo({ top: 0, behavior: 'smooth' });
 			}}
 		>
 			Chart
 		</DockTab>
-		<DockTab
-			icon="edit"
-			selected={effectiveViewMode === 'edit'}
-			title="Focused block editor (E)"
-			onclick={() => chart.setViewMode('edit')}
-		>
-			Edit
-		</DockTab>
-		{#if !isMobile}
-			<DockTab
-				icon="columns"
-				selected={effectiveViewMode === 'split'}
-				title="Chart and editor side by side (S)"
-				onclick={() => chart.setViewMode('split')}
-			>
-				Split
-			</DockTab>
-		{/if}
 	</Dock>
 
 	{#if isDraggingFile}

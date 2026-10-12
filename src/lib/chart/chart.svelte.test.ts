@@ -1,37 +1,41 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { chart } from './chart.svelte.ts';
+import { A, slotted } from './fixtures.ts';
 import { emptyChart, todayKey } from './model.ts';
 
 beforeEach(() => {
-	chart.data = emptyChart();
+	chart.data = slotted(emptyChart());
 });
 
 describe('chart day log', () => {
 	it('logs picks taken off by hand, not ones Bindu replaced', () => {
-		chart.setFocus('2026-10-05', ['a0_0', 'a1_0', 'a2_0']);
-		chart.setFocus('2026-10-05', ['a0_0', 'a1_0']);
-		expect(chart.data.days?.['2026-10-05']?.dropped).toEqual(['a2_0']);
-		chart.setFocus('2026-10-05', ['a0_0', 'a1_0', 'a2_0']);
+		chart.setFocus('2026-10-05', [A.a0_0, A.a1_0, A.a2_0]);
+		chart.setFocus('2026-10-05', [A.a0_0, A.a1_0]);
+		expect(chart.data.days?.['2026-10-05']?.dropped).toEqual([A.a2_0]);
+		chart.setFocus('2026-10-05', [A.a0_0, A.a1_0, A.a2_0]);
 		expect(chart.data.days?.['2026-10-05']?.dropped).toBeUndefined();
-		chart.setFocus('2026-10-05', ['a3_0', 'a4_0', 'a5_0'], true);
+		chart.setFocus('2026-10-05', [A.a3_0, A.a4_0, A.a5_0], true);
 		expect(chart.data.days?.['2026-10-05']?.dropped).toBeUndefined();
 	});
 
-	it('keeps the time of a tick and clears it on untick', () => {
-		chart.toggleChecked('2026-10-05', 'a0_0');
-		expect(chart.data.days?.['2026-10-05']?.at?.a0_0).toMatch(/^\d\d:\d\d$/);
-		chart.toggleChecked('2026-10-05', 'a0_0');
-		expect(chart.data.days?.['2026-10-05']?.at).toBeUndefined();
+	it('keeps the time of a tick and clears it when the action reopens', () => {
+		chart.data.actions[0]![0] = 'Book a race';
+		chart.finish(A.a0_0);
+		expect(chart.todayLog.at?.[A.a0_0]).toMatch(/^\d\d:\d\d$/);
+		expect(chart.data.meta?.[A.a0_0]).toMatchObject({ done: true, doneAt: todayKey() });
+		chart.reopen(A.a0_0);
+		expect(chart.todayLog.at).toBeUndefined();
+		expect(chart.data.meta?.[A.a0_0]?.done).toBe(false);
 	});
 
 	it('records declined suggestions and shown insights once each', () => {
-		chart.declineToday(['a0_0', 'a1_0']);
-		chart.declineToday(['a0_0']);
-		chart.noteShown('stuck:a3_0');
-		chart.noteShown('stuck:a3_0');
+		chart.declineToday([A.a0_0, A.a1_0]);
+		chart.declineToday([A.a0_0]);
+		chart.noteShown(`stuck:${A.a3_0}`);
+		chart.noteShown(`stuck:${A.a3_0}`);
 		const log = chart.data.days?.[todayKey()];
-		expect(log?.declined).toEqual(['a0_0', 'a1_0']);
-		expect(log?.shown).toEqual(['stuck:a3_0']);
+		expect(log?.declined).toEqual([A.a0_0, A.a1_0]);
+		expect(log?.shown).toEqual([`stuck:${A.a3_0}`]);
 	});
 
 	it('drops an empty brief', () => {
@@ -42,6 +46,23 @@ describe('chart day log', () => {
 	});
 });
 
+describe('chart board', () => {
+	it('moves a card through the lists and refuses Done for a routine', () => {
+		chart.data.actions[0]![0] = 'Book a race';
+		chart.data.actions[0]![1] = 'Run 3 km';
+		chart.setActionMeta(A.a0_1, { kind: 'routine' });
+		expect(chart.moveCard(A.a0_0, 'doing', 0)).toBe(true);
+		expect(chart.data.meta?.[A.a0_0]).toMatchObject({ lane: 'doing', rank: 0 });
+		expect(chart.moveCard(A.a0_0, 'done', 0)).toBe(true);
+		expect(chart.data.meta?.[A.a0_0]).toMatchObject({ kind: 'milestone', done: true, doneAt: todayKey() });
+		expect(chart.todayLog.checked).toEqual([A.a0_0]);
+		chart.toggleDone(A.a0_0);
+		expect(chart.todayLog.checked).toEqual([]);
+		expect(chart.moveCard(A.a0_1, 'done', 0)).toBe(false);
+		expect(chart.data.meta?.[A.a0_1]?.done).toBeUndefined();
+	});
+});
+
 describe('chart shelves', () => {
 	it('turns a pillar to its shelf, and back to its actions when a door names a cell', () => {
 		chart.viewMode = 'split';
@@ -49,7 +70,7 @@ describe('chart shelves', () => {
 		expect(chart.face).toBe('shelf');
 		chart.selectPillar(5);
 		expect(chart.face).toBe('shelf');
-		chart.jumpToKey('a5_1');
+		chart.jumpToKey(A.a5_1);
 		expect(chart.face).toBe('actions');
 		expect(chart.focusedKey).toBe('a5_1');
 		chart.clearFocusedKey();
@@ -69,6 +90,8 @@ describe('chart shelves', () => {
 describe('chart time', () => {
 	const MINUTE = 60_000;
 
+	const ids = () => ({ a0_0: chart.data.actionIds[0]![0]!, a3_2: chart.data.actionIds[3]![2]! });
+
 	beforeEach(() => {
 		chart.data = emptyChart();
 		chart.data.actions[0]![0] = 'Scales before work';
@@ -78,26 +101,26 @@ describe('chart time', () => {
 	});
 
 	it('logs the stopwatch when it is stopped, and leaves the tick alone', () => {
-		chart.startTimer('a0_0');
+		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 12 * MINUTE;
 		chart.stopTimer();
 		expect(chart.timer).toBeNull();
 		const day = Object.values(chart.data.days ?? {})[0];
-		expect(day?.sessions).toEqual([expect.objectContaining({ key: 'a0_0', minutes: 12 })]);
+		expect(day?.sessions).toEqual([expect.objectContaining({ action: ids().a0_0, minutes: 12 })]);
 		expect(day?.checked).toEqual([]);
-		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', key: 'a0_0', minutes: 12 });
+		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', action: ids().a0_0, minutes: 12 });
 	});
 
 	it('logs the one running when another starts', () => {
-		chart.startTimer('a0_0');
+		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 5 * MINUTE;
-		chart.startTimer('a3_2', 25);
-		expect(chart.timer).toMatchObject({ key: 'a3_2', length: 25 });
+		chart.startTimer(ids().a3_2, 25);
+		expect(chart.timer).toMatchObject({ action: ids().a3_2, length: 25 });
 		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([5]);
 	});
 
 	it('finishes a block at its length, and a break without logging', () => {
-		chart.startTimer('a3_2', 25);
+		chart.startTimer(ids().a3_2, 25);
 		expect(chart.finishTimer()).toBeNull();
 		chart.data.timer!.since -= 40 * MINUTE;
 		expect(chart.finishTimer()).toMatchObject({ kind: 'block', minutes: 25 });
@@ -108,19 +131,19 @@ describe('chart time', () => {
 	});
 
 	it('asks how long instead of logging a stopwatch left on for hours', () => {
-		chart.startTimer('a0_0');
+		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 9 * 60 * MINUTE;
 		chart.stopTimer();
 		expect(chart.timer).not.toBeNull();
 		expect(chart.loggingTime?.forgotten).toBeDefined();
-		chart.logTime('a0_0', 40);
+		chart.logTime(ids().a0_0, 40);
 		expect(chart.timer).toBeNull();
 		const sessions = Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []);
 		expect(sessions.map((session) => session.minutes)).toEqual([40]);
 	});
 
 	it('logs nothing for under a minute', () => {
-		chart.startTimer('a0_0');
+		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 50_000;
 		chart.stopTimer();
 		expect(chart.data.days?.[todayKey()]?.sessions).toBeUndefined();
@@ -128,24 +151,24 @@ describe('chart time', () => {
 	});
 
 	it('takes logged time off, one session or a whole day, and puts it back on undo', () => {
-		chart.logTime('a3_2', 45);
-		chart.logTime('a3_2', 20);
-		chart.logTime('a0_0', 15);
+		chart.logTime(ids().a3_2, 45);
+		chart.logTime(ids().a3_2, 20);
+		chart.logTime(ids().a0_0, 15);
 		const day = todayKey();
 		const twenty = chart.data.days![day]!.sessions!.find((session) => session.minutes === 20)!;
-		chart.removeTime(day, 'a3_2', twenty);
+		chart.removeTime(day, ids().a3_2, twenty);
 		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes)).toEqual([45, 15]);
 		expect(chart.slips.at(-1)?.kicker).toBe('Removed');
 		chart.undoSlip();
 		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes).sort()).toEqual([15, 20, 45]);
-		chart.removeTime(day, 'a3_2');
-		expect(chart.data.days![day]!.sessions!.map((session) => session.key)).toEqual(['a0_0']);
-		chart.removeTime(day, 'a0_0');
+		chart.removeTime(day, ids().a3_2);
+		expect(chart.data.days![day]!.sessions!.map((session) => session.action)).toEqual([ids().a0_0]);
+		chart.removeTime(day, ids().a0_0);
 		expect(chart.data.days![day]!.sessions).toBeUndefined();
 	});
 
 	it('adds time spent away from the app', () => {
-		chart.logTime('a3_2', 45);
-		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ key: 'a3_2', minutes: 45 })]);
+		chart.logTime(ids().a3_2, 45);
+		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45 })]);
 	});
 });

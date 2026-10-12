@@ -12,7 +12,6 @@
 		count?: number;
 		/** Milliseconds on the clock. 0 keeps the ring full and skips the leave. */
 		life?: number;
-		/** Absolute time the slip is removed. The fade starts one beat before this. */
 		until?: number;
 		/** While held, the fade reverses and the clock waits. */
 		held?: boolean;
@@ -38,7 +37,6 @@
 
 	let leaving = $state(false);
 
-	// The slip starts leaving before it is removed, so the end is not a cut.
 	$effect(() => {
 		const reduce =
 			typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { HUES, getByKey, isOpenFocus, isRoutine, isUrl, todayKey, dateKeyOffset } from '$lib/chart/model';
-	import type { ActionMeta } from '$lib/chart/model';
+	import { HUES, idAt, isOpenFocus, isRoutine, isUrl, dateKeyOffset } from '$lib/chart/model';
+	import type { ActionId, ActionMeta } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
-	import { dealKeys, dealTools, toolsFor } from '$lib/chart/tools';
+	import { dealOrder, dealTools, toolsFor } from '$lib/chart/tools';
+	import { dealFirst, finishedOn } from '$lib/chart/board';
 	import { readyChime } from '$lib/chart/chime';
 	import { BLOCK_MINUTES, elapsedMs, formatMinutes, minutesOn, ringShare } from '$lib/chart/timer';
 	import TimerRing from './TimerRing.svelte';
@@ -20,12 +21,12 @@
 	import Notice from './ui/Notice.svelte';
 	import { cn } from './ui/cn';
 
-	const dateKey = todayKey();
+	const dateKey = chart.today;
 	/** Tools passed over with "Another" this visit, per action. Forgotten on reload, so nothing is lost. */
-	let passed = $state<Map<string, Set<string>>>(new Map());
+	let passed = $state<Map<ActionId, Set<string>>>(new Map());
 
 	type ActionEntry = {
-		key: string;
+		id: ActionId;
 		text: string;
 		meta: ActionMeta | undefined;
 		pillarIndex: number;
@@ -37,10 +38,10 @@
 		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 			const pillarName = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
 			for (let actionIndex = 0; actionIndex < 8; actionIndex++) {
-				const key = `a${pillarIndex}_${actionIndex}`;
-				const text = getByKey(chart.data, key).trim();
+				const text = (chart.data.actions[pillarIndex]?.[actionIndex] ?? '').trim();
 				if (!text) continue;
-				entries.push({ key, text, meta: chart.metaOf(key), pillarIndex, pillarName });
+				const id = idAt(chart.data, pillarIndex, actionIndex);
+				entries.push({ id, text, meta: chart.metaOf(id), pillarIndex, pillarName });
 			}
 		}
 		return entries;
@@ -55,7 +56,7 @@
 
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
 	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
-	const dealt = $derived(dealTools(chart.data, dealKeys(chart.data), new Date(), passed));
+	const dealt = $derived(dealTools(chart.data, dealOrder(chart.data), new Date(), passed));
 
 	/** The ring on a timed row moves once a minute; the slip on the dock carries the seconds. */
 	let minuteNow = $state(Date.now());
@@ -66,35 +67,33 @@
 		return () => clearInterval(interval);
 	});
 
-	function startTimer(key: string, length?: number): void {
+	function startTimer(action: ActionId, length?: number): void {
 		readyChime();
-		chart.startTimer(key, length);
+		chart.startTimer(action, length);
 	}
 
-	function passOver(key: string, id: string): void {
+	function passOver(key: ActionId, id: string): void {
 		const next = new Map(passed);
 		next.set(key, new Set([...(passed.get(key) ?? []), id]));
 		passed = next;
 	}
 
-	function openKeys(keys: string[]): string[] {
+	function openKeys(keys: ActionId[]): ActionId[] {
 		return keys.filter((key) => {
-			const entry = allActions.find((action) => action.key === key);
+			const entry = allActions.find((action) => action.id === key);
 			return entry ? isOpenFocus(entry.meta) : false;
 		});
 	}
 
-	const pickerActions = $derived([
-		...pickable.filter((entry) => entry.meta?.pinned),
-		...pickable.filter((entry) => !entry.meta?.pinned)
-	]);
+	const pickerActions = $derived([...pickable].sort((a, b) => dealFirst(a.meta, b.meta)));
 
-	let selectedKeys = $state<string[]>([]);
+	const ticked = (key: ActionId): boolean => finishedOn(chart.data, key, dateKey);
+
+	let selectedKeys = $state<ActionId[]>([]);
 	let confirmed = $state(chart.todayLog.started === true || chart.todayLog.focus.length > 0);
-	let justCheckedKey = $state<string | null>(null);
+	let justCheckedKey = $state<ActionId | null>(null);
 	let celebrate = $state(false);
 
-	// Re-seed whenever today's focus changes outside this view (load, or Bindu picking three).
 	let seenFocus = '';
 	$effect(() => {
 		const log = chart.todayLog;
@@ -108,7 +107,7 @@
 	});
 
 	function confirm(): void {
-		const keys = openKeys(selectedKeys);
+		const keys = [...new Set([...chart.todayLog.focus.filter(ticked), ...openKeys(selectedKeys)])];
 		if (keys.length === 0 && habits.length === 0) return;
 		chart.setFocus(dateKey, keys);
 		confirmed = true;
@@ -123,30 +122,31 @@
 
 	const focusEntries = $derived.by((): ActionEntry[] => {
 		return chart.todayLog.focus
-			.map((focusKey) => allActions.find((actionEntry) => actionEntry.key === focusKey))
-			.filter((entry): entry is ActionEntry => entry !== undefined && isOpenFocus(entry.meta));
+			.map((focusKey) => allActions.find((actionEntry) => actionEntry.id === focusKey))
+			.filter((entry): entry is ActionEntry => entry !== undefined && (isOpenFocus(entry.meta) || ticked(entry.id)));
 	});
 
-	const trackedKeys = $derived.by((): string[] => {
-		const keys = habits.map((entry) => entry.key);
+	const trackedKeys = $derived.by((): ActionId[] => {
+		const keys = habits.map((entry) => entry.id);
 		if (confirmed) {
-			for (const entry of focusEntries) keys.push(entry.key);
+			for (const entry of focusEntries) keys.push(entry.id);
 		}
 		return keys;
 	});
 
-	const checkedCount = $derived(trackedKeys.filter((key) => chart.todayLog.checked.includes(key)).length);
+	const checkedCount = $derived(trackedKeys.filter(ticked).length);
 
 	const allDone = $derived(
 		trackedKeys.length > 0 &&
 			(confirmed || pickable.length === 0) &&
-			trackedKeys.every((key) => chart.todayLog.checked.includes(key))
+			trackedKeys.every(ticked)
 	);
 
-	function toggleChecked(key: string): void {
-		const wasChecked = chart.todayLog.checked.includes(key);
+	function toggleChecked(key: ActionId): void {
+		const wasChecked = ticked(key);
 		const wasDone = allDone;
-		chart.toggleChecked(dateKey, key);
+		if (wasChecked) chart.reopen(key);
+		else chart.finish(key);
 		justCheckedKey = wasChecked ? null : key;
 		celebrate = !wasChecked && !wasDone && allDone;
 	}
@@ -168,7 +168,6 @@
 	const COUNT_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
-	/** The line as one string, for the seal's label. On the page the names wear their pillar's hue. */
 	const movedLine = $derived.by((): string => {
 		const names = movedPillars.map(pillarName);
 		if (names.length === 1) return `${names[0]} moved forward.`;
@@ -197,7 +196,7 @@
 	});
 
 	let planningOpen = $state(false);
-	let tomorrowSelected = $state<string[]>([]);
+	let tomorrowSelected = $state<ActionId[]>([]);
 	const tomorrowPlannedCount = $derived(openKeys(chart.data.days?.[tomorrowKey]?.focus ?? []).length);
 
 	function openPlanning(): void {
@@ -218,17 +217,17 @@
 </script>
 
 {#snippet checkRow(entry: ActionEntry)}
-	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
-	{@const justChecked = justCheckedKey === entry.key}
-	{@const tool = dealt.get(entry.key) ?? null}
-	{@const timed = chart.timer?.key === entry.key ? chart.timer : null}
-	{@const spent = minutesOn(chart.data, dateKey, entry.key)}
+	{@const isChecked = ticked(entry.id)}
+	{@const justChecked = justCheckedKey === entry.id}
+	{@const tool = dealt.get(entry.id) ?? null}
+	{@const timed = chart.timer?.action === entry.id ? chart.timer : null}
+	{@const spent = minutesOn(chart.data, dateKey, entry.id)}
 	<div class="group/row flex flex-col">
 		<div class="flex items-center gap-0.5">
 		<button
 			type="button"
 			class={cn(rowClass, 'min-w-0 flex-1')}
-			onclick={() => toggleChecked(entry.key)}
+			onclick={() => toggleChecked(entry.id)}
 			aria-pressed={isChecked}
 		>
 			<span
@@ -289,13 +288,13 @@
 						onclick={toggle}
 					/>
 				{/snippet}
-				<MenuItem icon="timer" badge="until you stop" onclick={() => startTimer(entry.key)}>Stopwatch</MenuItem>
-				<MenuItem icon="hourglass" badge="{BLOCK_MINUTES} min, then a break" onclick={() => startTimer(entry.key, BLOCK_MINUTES)}>Focus block</MenuItem>
+				<MenuItem icon="timer" badge="until you stop" onclick={() => startTimer(entry.id)}>Stopwatch</MenuItem>
+				<MenuItem icon="hourglass" badge="{BLOCK_MINUTES} min, then a break" onclick={() => startTimer(entry.id, BLOCK_MINUTES)}>Focus block</MenuItem>
 				<MenuDivider />
-				<MenuItem icon="plus" onclick={() => (chart.loggingTime = { key: entry.key })}>Log time</MenuItem>
+				<MenuItem icon="plus" onclick={() => (chart.loggingTime = { action: entry.id })}>Log time</MenuItem>
 				{#if spent > 0}
 					<MenuDivider />
-					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.key)}>Remove today's time</MenuItem>
+					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.id)}>Remove today's time</MenuItem>
 				{/if}
 			</Menu>
 		{/if}
@@ -319,12 +318,12 @@
 						>
 							<ToolFace {tool} class="min-w-0 flex-1" />
 						</a>
-						{#if toolsFor(chart.data, entry.key).filter((other) => !other.known).length > 1}
+						{#if toolsFor(chart.data, entry.id).filter((other) => !other.known).length > 1}
 							<IconButton
 								icon="refresh"
 								label="Another tool for {entry.text}"
 								class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
-								onclick={() => passOver(entry.key, tool.id)}
+								onclick={() => passOver(entry.id, tool.id)}
 							/>
 						{/if}
 						<IconButton
@@ -357,8 +356,25 @@
 	</div>
 {/snippet}
 
-{#snippet calendarDoor()}
-	<IconButton icon="calendar" label="Calendar" class="size-10 shrink-0 text-muted hover:text-text" onclick={() => chart.setViewMode('calendar')} />
+{#snippet alsoToday(className = '')}
+	{#if chart.elsewhere.length > 0}
+		<section class={cn('mx-auto w-full max-w-[520px] rounded-[22px] bg-surface p-1.5 shadow-card', className)} aria-labelledby="also-today">
+			<h3 id="also-today" class="m-0 px-3 pt-2 pb-1 text-[0.78rem] font-normal text-muted">Also today</h3>
+			{#each chart.elsewhere as other (other.id)}
+				<button
+					type="button"
+					class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-transparent px-3 py-2 text-left text-text hover:bg-sunken active:scale-[0.98] motion-safe:transition-[scale] motion-safe:duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+					aria-label="Open {other.title}: {other.left} left today"
+					onclick={() => chart.switchChart(other.id)}
+				>
+					<span class="size-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true"></span>
+					<span class="min-w-0 flex-1 truncate text-[0.95rem]">{other.title}</span>
+					<span class="shrink-0 text-[0.84rem] text-muted tabular-nums">{other.left} left</span>
+					<Icon name="chevron-right" size={16} class="shrink-0 text-muted" />
+				</button>
+			{/each}
+		</section>
+	{/if}
 {/snippet}
 
 <div
@@ -406,7 +422,7 @@
 			<h2
 				id="day-closed-title"
 				class={cn(
-					'm-0 font-serif text-[2.6rem] font-[480] leading-[1.05] tracking-[-0.03em] text-balance text-text max-[900px]:text-[2.1rem]',
+					'm-0 font-serif text-[2.6rem] font-[480] leading-[1.05] tracking-[-0.015em] text-balance text-text max-[900px]:text-[2.1rem]',
 					title.class
 				)}
 				style:animation-delay={title.delay}
@@ -436,7 +452,7 @@
 				<span>Today</span>
 				<span class="tabular-nums">{closedEntries.length} of {closedEntries.length}</span>
 			</p>
-			{#each closedEntries as entry (entry.key)}
+			{#each closedEntries as entry (entry.id)}
 				{@render checkRow(entry)}
 			{/each}
 			{#if chart.data.goal.trim()}
@@ -448,6 +464,8 @@
 				</div>
 			{/if}
 		</div>
+
+		{@render alsoToday(cn('mt-4 max-w-[440px]', receipt.class))}
 
 		<div
 			class={cn('mt-7 flex flex-col items-center gap-2', next.class)}
@@ -472,12 +490,12 @@
 	{:else if picking}
 		<FocusPicker actions={pickerActions} bind:selected={selectedKeys}>
 			{#snippet head()}
-				<header class="flex items-start justify-between gap-4 px-1 pt-1">
+				<header class="flex items-start justify-between gap-4 pt-1">
 					<div class="min-w-0">
 						<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
 						<h2
 							id="today-title"
-							class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.025em] text-balance text-text max-[900px]:text-[1.6rem]"
+							class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.012em] text-balance text-text max-[900px]:text-[1.6rem]"
 						>
 							{heading}
 						</h2>
@@ -485,7 +503,6 @@
 							Three actions from your chart, small enough to finish today.
 						</p>
 					</div>
-					{@render calendarDoor()}
 				</header>
 			{/snippet}
 			{#snippet extra()}
@@ -496,8 +513,8 @@
 							<span class="text-[0.8rem] text-muted">Already in your day</span>
 						</div>
 						<ul class="m-0 mt-2.5 grid list-none gap-x-6 gap-y-2 p-0 @min-[540px]:grid-cols-2">
-							{#each habits as entry (entry.key)}
-								{@const done = chart.todayLog.checked.includes(entry.key)}
+							{#each habits as entry (entry.id)}
+								{@const done = ticked(entry.id)}
 								<li class="flex min-w-0 items-center gap-2.5 text-[0.9rem] leading-snug">
 									<span class={cn('pip size-2 shrink-0 rounded-full', done && 'opacity-40')} style:--pip-h={HUES[entry.pillarIndex]} aria-hidden="true"></span>
 									<span class={cn('min-w-0 truncate', done && 'text-muted line-through')}>{entry.text}</span>
@@ -519,28 +536,27 @@
 			class="mx-auto mt-2 w-full max-w-[520px] rounded-[28px] bg-surface p-2 shadow-card max-[900px]:mt-0 max-[900px]:rounded-3xl"
 			aria-labelledby="today-title"
 		>
-			<header class="flex items-center justify-between gap-4 px-4 pt-4 pb-3">
+			<header class="flex items-end justify-between gap-4 px-3 pt-4 pb-3">
 				<div class="min-w-0">
 					<Eyebrow class="mb-1.5">{dayLabel}</Eyebrow>
 					<h2
 						id="today-title"
-						class="m-0 font-serif text-[1.6rem] leading-[1.1] font-[480] tracking-[-0.02em] text-balance text-text max-[900px]:text-[1.4rem]"
+						class="m-0 font-serif text-[1.6rem] leading-[1.1] font-[480] tracking-[-0.01em] text-balance text-text max-[900px]:text-[1.4rem]"
 					>
 						{heading}
 					</h2>
 				</div>
 				<div class="flex shrink-0 items-center gap-1">
 					{#if trackedKeys.length > 0}
-						<p class="m-0 pe-1 text-[0.84rem] text-muted tabular-nums">
+						<p class="m-0 text-[0.84rem] text-muted tabular-nums">
 							<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
 						</p>
 					{/if}
-					{@render calendarDoor()}
 				</div>
 			</header>
 
 			{#if allActions.length === 0}
-				<div class="flex flex-col items-start gap-4 px-4 pt-1 pb-4">
+				<div class="flex flex-col items-start gap-4 px-3 pt-1 pb-4">
 					<p class="m-0 text-[0.92rem] text-pretty text-muted">Add actions on the chart first.</p>
 					<Button onclick={() => chart.setViewMode('view')}>Open the chart</Button>
 				</div>
@@ -549,13 +565,13 @@
 					{#if habits.length > 0 && focusEntries.length > 0}
 						<Eyebrow class="mt-1 mb-1 px-3">Habits</Eyebrow>
 					{/if}
-					{#each habits as entry (entry.key)}
+					{#each habits as entry (entry.id)}
 						{@render checkRow(entry)}
 					{/each}
 					{#if habits.length > 0 && focusEntries.length > 0}
 						<Eyebrow class="mt-3 mb-1 px-3">One-time</Eyebrow>
 					{/if}
-					{#each focusEntries as entry (entry.key)}
+					{#each focusEntries as entry (entry.id)}
 						{@render checkRow(entry)}
 					{/each}
 					{#if habits.length === 0 && focusEntries.length === 0}
@@ -563,7 +579,7 @@
 					{/if}
 				</div>
 
-				<div class="mt-2 flex items-center justify-between gap-2">
+				<div class="-mx-0.5 mt-2 flex items-center justify-between gap-2">
 					{#if pickable.length > 0}
 						<Button variant="ghost" size="sm" icon="refresh" onclick={adjust}>Adjust</Button>
 					{:else}
@@ -578,6 +594,7 @@
 				</div>
 			{/if}
 		</section>
+		{@render alsoToday('mt-4')}
 	{/if}
 
 </div>

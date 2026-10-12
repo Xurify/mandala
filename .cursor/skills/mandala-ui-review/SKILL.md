@@ -20,7 +20,7 @@ Run through every item; fix before reporting.
 - [ ] Pillar hues used only for pillars. Chrome is paper and ink. Accent is only the primary button and the selected dock tab
 - [ ] Separation by tone/shadow, not borders
 - [ ] Pill radius on every pressable control
-- [ ] `font-serif` only for titles, the goal, headings, and the wordmark. It is still Source Sans 3 (`--serif` aliases `--font`)
+- [ ] `font-serif` (Source Serif 4) only for titles, the goal, headings, and the wordmark, with light negative tracking. Everything else, controls included, is Source Sans 3
 
 **The chart**
 - [ ] Copy says goal, pillar, action. It does not rename them sub-goals, themes, or tasks in the same screen

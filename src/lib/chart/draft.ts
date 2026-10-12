@@ -9,7 +9,6 @@ function clip(value: unknown, max: number): string {
 	return value.replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-/** What the prompt says before the person's part: what a chart is, in plain words, since no chat app knows the method by name. */
 const PROMPT_INTRO = [
 	'I am making a Mandala chart: one goal in the center, eight pillars around it, and eight actions under each pillar. 73 cells. I tick the actions off day by day.',
 	'',
@@ -143,7 +142,6 @@ export function chatLink(app: ChatApp, prompt: string): string {
 	return `${CHAT_APPS.find((entry) => entry.id === app)!.url}${encodeURIComponent(prompt)}`;
 }
 
-/** The reply is the whole chart again, so the lines that changed can be shown and kept. */
 export function reviewPrompt(data: ChartData): string {
 	const sofar = JSON.stringify({ goal: data.goal.trim(), pillars: data.pillars.map((pillar) => pillar.trim()), actions: data.actions.map((row) => row.map((action) => action.trim())) });
 	return [

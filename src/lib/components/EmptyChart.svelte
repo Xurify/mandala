@@ -5,12 +5,13 @@
 	import Eyebrow from './ui/Eyebrow.svelte';
 
 	interface Props {
+		onguide: () => void;
 		onpreset: () => void;
 		onchat: () => void;
 		onwrite: () => void;
 	}
 
-	let { onpreset, onchat, onwrite }: Props = $props();
+	let { onguide, onpreset, onchat, onwrite }: Props = $props();
 
 	const GEOMETRY = { radius: 40, stroke: 8, gap: 8 };
 	const arcs = HUES.map((hue, pillarIndex) => {
@@ -38,7 +39,7 @@
 		<div class="motion-safe:animate-done-in" style:animation-delay="{DOT + 0.15}s"><Eyebrow class="m-0">A new chart</Eyebrow></div>
 		<h2
 			id="empty-chart-title"
-			class="m-0 font-serif text-[2rem] leading-[1.1] font-[480] tracking-[-0.02em] text-balance motion-safe:animate-done-in max-[900px]:text-[1.6rem]"
+			class="m-0 font-serif text-[2rem] leading-[1.1] font-[480] tracking-[-0.01em] text-balance motion-safe:animate-done-in max-[900px]:text-[1.6rem]"
 			style:animation-delay="{DOT + 0.2}s"
 		>
 			One goal in the center
@@ -52,4 +53,13 @@
 		<Button variant="soft" icon="sparkles" onclick={onchat}>Fill chart using a prompt</Button>
 		<Button variant="ghost" icon="edit" onclick={onwrite}>Write it myself</Button>
 	</div>
+	<button
+		type="button"
+		class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.86rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink motion-safe:animate-done-in"
+		style:animation-delay="{DOT + 0.46}s"
+		aria-haspopup="dialog"
+		onclick={onguide}
+	>
+		How the method works
+	</button>
 </section>

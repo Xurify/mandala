@@ -1,4 +1,4 @@
-import { allKeys, getByKey, setByKey, type ChartData } from '../model.ts';
+import type { ChartData } from '../model.ts';
 import { cloneChart } from '../library.ts';
 
 /**
@@ -13,17 +13,30 @@ export function overlayLocalEdits(
 ): ChartData {
 	const merged = cloneChart(target);
 
-	for (const key of allKeys()) {
-		const was = getByKey(base, key);
-		const now = getByKey(edited, key);
-		if (was !== now) setByKey(merged, key, now);
+	if (base.goal !== edited.goal) merged.goal = edited.goal;
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		if (base.pillars[pillarIndex] !== edited.pillars[pillarIndex]) merged.pillars[pillarIndex] = edited.pillars[pillarIndex]!;
+		for (let slot = 0; slot < 8; slot++) {
+			const text = edited.actions[pillarIndex]![slot]!;
+			const id = edited.actionIds[pillarIndex]![slot]!;
+			if (base.actions[pillarIndex]![slot] === text && base.actionIds[pillarIndex]![slot] === id) continue;
+			merged.actions[pillarIndex]![slot] = text;
+			merged.actionIds[pillarIndex]![slot] = id;
+		}
 	}
 
-	overlayGroup(base.meta, edited.meta, (key, value) => {
-		if (value === null) delete merged.meta?.[key];
+	overlayGroup(base.meta, edited.meta, (id, value) => {
+		if (value === null) delete merged.meta?.[id];
 		else {
 			merged.meta ??= {};
-			merged.meta[key] = value;
+			merged.meta[id] = value;
+		}
+	});
+	overlayGroup(base.cleared, edited.cleared, (id, value) => {
+		if (value === null) delete merged.cleared?.[id];
+		else {
+			merged.cleared ??= {};
+			merged.cleared[id] = value;
 		}
 	});
 	overlayGroup(base.days, edited.days, (key, value) => {
@@ -68,12 +81,12 @@ export function overlayLocalEdits(
 	return merged;
 }
 
-function overlayGroup<T>(
-	base: Record<string, T> | undefined,
-	edited: Record<string, T> | undefined,
-	apply: (key: string, value: T | null) => void
+function overlayGroup<K extends string, T>(
+	base: Record<K, T> | undefined,
+	edited: Record<K, T> | undefined,
+	apply: (key: K, value: T | null) => void
 ): void {
-	const keys = new Set([...Object.keys(base ?? {}), ...Object.keys(edited ?? {})]);
+	const keys = new Set([...Object.keys(base ?? {}), ...Object.keys(edited ?? {})] as K[]);
 	for (const key of keys) {
 		const was = JSON.stringify(base?.[key] ?? null);
 		const now = JSON.stringify(edited?.[key] ?? null);
