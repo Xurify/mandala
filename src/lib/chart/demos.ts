@@ -168,8 +168,9 @@ export const DEMOS: readonly Demo[] = [
 		title: "Today's three",
 		group: 'Days and weeks',
 		steps: [
-			'Today view, with ten days of ticks in the log: the calendar (top right of the sheet) shows them day by day, and Bindu counts them in How it is going.',
-			'Today\'s three are picked and one is done. Tick the rest and the habit to see the day sealed. Adjust deals three again; Plan tomorrow picks the next day\'s.'
+			'Today view, with ten days of ticks in the log: Calendar in the dock shows them day by day, and Bindu counts them in How it is going.',
+			'Today\'s three are picked and one is done. Tick the rest and the habit to see the day sealed. Adjust deals three again; Plan tomorrow picks the next day\'s.',
+			'A second chart, the half marathon, has two picks left today. Also today, under the list, names it and opens it; the dot on the chart title says the same from every view, and its row in the menu counts what is left.'
 		]
 	},
 	{
@@ -179,8 +180,8 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'Every chart is on it. A day shows a dot for each goal that finished something; tap it to read what, under each goal, and when.',
 			'Under the month, Quiet this month names a goal with lines on it and nothing finished. The emergency fund is that goal here.',
-			'Pick one chart from the select: its days show a ring of its pillars instead. Arrow keys walk the days; the arrows at the top turn the month.',
-			'Reach it from Today, the command palette (Go to Calendar), or the C key.'
+			'Pick one chart from the title menu: its days show a ring of its pillars instead, and a line under the month says what the other charts finished, with Show all charts. Arrow keys walk the days; the arrows at the top turn the month.',
+			'Reach it from Calendar in the dock, the command palette (Go to Calendar), or the C key.'
 		]
 	},
 	{
@@ -285,7 +286,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		for (let index = 4; index < 8; index++) data.actions[6]![index] = '';
 		return { data, view: 'split', focus: 'a2_5' };
 	}
-	if (id === 'today') return { data: livedIn(now), view: 'today' };
+	if (id === 'today') return { data: livedIn(now), view: 'today', others: [inTraining(now)] };
 	if (id === 'calendar') return { data: livedIn(now), view: 'calendar', others: [inTraining(now), preset('money')] };
 	if (id === 'board') return { data: onTheBoard(now), view: 'board' };
 	if (id === 'tools') {

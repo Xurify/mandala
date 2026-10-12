@@ -1,5 +1,5 @@
 import { morph } from "./morph";
-import { applyChange, finish as finishAction, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
+import { applyChange, finish as finishAction, leftToday, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
 import type { Goal } from "./calendar.ts";
 import { newTool, opened } from "./tools";
 import {
@@ -286,6 +286,14 @@ export class ChartStore {
 
   /** The local date. It rolls over at midnight and when the page wakes, so a tab left open ticks into the right day. */
   today = $state(todayKey());
+  /** The other charts with something left today, so a goal out of view is not forgotten. */
+  elsewhere: { id: string; title: string; left: number }[] = $derived(
+    this.goals.flatMap((goal) => {
+      if (goal.id === this.#library.activeId) return [];
+      const left = leftToday(goal.data, this.today);
+      return left > 0 ? [{ id: goal.id, title: goal.title, left }] : [];
+    }),
+  );
   todayLog: DayLog = $derived(getDayLog(this.data, this.today));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
   reflecting = $state(false);

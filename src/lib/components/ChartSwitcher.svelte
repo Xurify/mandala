@@ -35,6 +35,12 @@
 		return cut < 0 ? { head: '', tail: activeTitle } : { head: activeTitle.slice(0, cut + 1), tail: activeTitle.slice(cut + 1) };
 	});
 	const activeUpdated = $derived(chart.charts.find((item) => item.active)?.updatedAt);
+	const leftOf = (id: string): number => chart.elsewhere.find((other) => other.id === id)?.left ?? 0;
+	const waiting = $derived(
+		chart.elsewhere.length === 0
+			? ''
+			: `. ${chart.elsewhere.length === 1 ? 'Another chart has' : `${chart.elsewhere.length} other charts have`} something left today`
+	);
 	const updatedLabel = $derived(activeUpdated === undefined ? '' : formatUpdated(activeUpdated));
 
 	let find = $state('');
@@ -385,15 +391,18 @@
 				type="button"
 				aria-haspopup="menu"
 				aria-expanded={expanded}
-				aria-label="Switch chart: {activeTitle}"
+				aria-label="Switch chart: {activeTitle}{waiting}"
 				title={activeTitle}
 				onclick={toggle}
 			>
 				<span class="line-clamp-2">
 					{split.head}<span class="whitespace-nowrap"
 						>{split.tail}<span
-							class="ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
+							class="relative ms-[0.35em] inline-flex size-[34px] translate-y-[-0.06em] items-center justify-center rounded-full align-middle text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover max-[900px]:size-[30px]"
 						>
+							{#if waiting}
+								<span class="absolute -end-px -top-px size-2.5 rounded-full bg-ink ring-2 ring-bg motion-safe:animate-pop-in" aria-hidden="true"></span>
+							{/if}
 							<Icon
 								name="chevron-down"
 								size={16}
@@ -461,10 +470,17 @@
 					>
 						<FillRing filled={item.filled} />
 						<span class="min-w-0 flex-1 truncate" title={item.title}>{item.title}</span>
-						<span class="sr-only">, {item.filled} of 73, updated {deletedClock(item.updatedAt)}</span>
-						<span class="shrink-0 text-[0.8rem] font-normal tabular-nums text-muted" aria-hidden="true">
-							{formatAgo(item.updatedAt, now)}
-						</span>
+						{@const left = leftOf(item.id)}
+						<span class="sr-only">, {item.filled} of 73, {left ? `${left} left today` : `updated ${deletedClock(item.updatedAt)}`}</span>
+						{#if left}
+							<span class="flex shrink-0 items-center gap-1.5 text-[0.8rem] font-[560] tabular-nums text-text" aria-hidden="true">
+								<span class="size-1.5 rounded-full bg-ink"></span>{left} left today
+							</span>
+						{:else}
+							<span class="shrink-0 text-[0.8rem] font-normal tabular-nums text-muted" aria-hidden="true">
+								{formatAgo(item.updatedAt, now)}
+							</span>
+						{/if}
 						<span class="flex w-4 shrink-0 justify-end text-text" aria-hidden="true">
 							{#if item.active}
 								<Icon name="check" size={16} strokeWidth={2.2} />

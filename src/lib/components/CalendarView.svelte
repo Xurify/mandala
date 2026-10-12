@@ -47,6 +47,11 @@
 			: []
 	);
 	const quiet = $derived(across ? inScope.filter((goal) => current.quiet.includes(goal.id)).map((goal) => goal.title) : []);
+	/** What the charts out of scope finished this month, so one chart in view does not read as everything. */
+	const outside = $derived.by(() => {
+		const others = chart.goals.filter((goal) => !inScope.includes(goal));
+		return others.length > 0 ? monthOf(others, year, month).finishedCount : 0;
+	});
 
 	function pillarName(goal: Goal, pillarIndex: number): string {
 		return goal.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
@@ -105,6 +110,18 @@
 				<p class="m-0 mt-0.5 text-[0.86rem] text-muted">{monthLine(current)}</p>
 				{#if quiet.length > 0}
 					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">Quiet this month: <span class="font-[620] text-text">{quiet.join(', ')}</span></p>
+				{/if}
+				{#if outside > 0}
+					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">
+						{outside} more in your other charts.
+						<button
+							type="button"
+							class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.86rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+							onclick={() => (chart.calendarScope = 'all')}
+						>
+							Show all charts
+						</button>
+					</p>
 				{/if}
 			</div>
 			{#if turnable}

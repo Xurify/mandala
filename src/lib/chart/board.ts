@@ -1,4 +1,4 @@
-import { clockOf, dateKeyOffset, idAt, isRoutine, setMeta, todayKey, weekStartKey, type ActionId, type ActionMeta, type ChartData, type DayLog } from './model.ts';
+import { clockOf, dateKeyOffset, idAt, isOpenFocus, isRoutine, setMeta, slotOf, todayKey, weekStartKey, type ActionId, type ActionMeta, type ChartData, type DayLog } from './model.ts';
 
 export type Lane = 'open' | 'todo' | 'doing' | 'done';
 
@@ -33,6 +33,23 @@ export function finishedOn(data: ChartData, id: ActionId, dateKey: string): bool
 	const meta = data.meta?.[id];
 	if (isRoutine(meta)) return data.days?.[dateKey]?.checked.includes(id) ?? false;
 	return meta?.done === true && meta.doneAt === dateKey;
+}
+
+/** What a chart's Today lists and is not finished yet: its routines, and the day's picks. It reaches zero when the day is done. */
+export function leftToday(data: ChartData, today: string = todayKey()): number {
+	let left = 0;
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		for (let slot = 0; slot < 8; slot++) {
+			const id = idAt(data, pillarIndex, slot);
+			if ((data.actions[pillarIndex]?.[slot] ?? '').trim() && isRoutine(data.meta?.[id]) && !finishedOn(data, id, today)) left += 1;
+		}
+	}
+	for (const id of new Set(data.days?.[today]?.focus ?? [])) {
+		const at = slotOf(data, id);
+		if (!at || !(data.actions[at.pillarIndex]?.[at.slot] ?? '').trim()) continue;
+		if (isOpenFocus(data.meta?.[id]) && !finishedOn(data, id, today)) left += 1;
+	}
+	return left;
 }
 
 export function canGo(card: Card, lane: Lane): boolean {

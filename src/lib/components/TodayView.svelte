@@ -296,8 +296,26 @@
 	</div>
 {/snippet}
 
-{#snippet calendarDoor(className = '')}
-	<IconButton icon="calendar" label="Calendar" class={cn('size-10 shrink-0 text-muted hover:text-text', className)} onclick={() => chart.setViewMode('calendar')} />
+<!-- Each goal has its own Today, so the ones out of view say what they still hold. -->
+{#snippet alsoToday(className = '')}
+	{#if chart.elsewhere.length > 0}
+		<section class={cn('mx-auto w-full max-w-[520px] rounded-[22px] bg-surface p-1.5 shadow-card', className)} aria-labelledby="also-today">
+			<h3 id="also-today" class="m-0 px-3 pt-2 pb-1 text-[0.78rem] font-normal text-muted">Also today</h3>
+			{#each chart.elsewhere as other (other.id)}
+				<button
+					type="button"
+					class="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-full border-0 bg-transparent px-3 py-2 text-left text-text hover:bg-sunken active:scale-[0.98] motion-safe:transition-[scale] motion-safe:duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+					aria-label="Open {other.title}: {other.left} left today"
+					onclick={() => chart.switchChart(other.id)}
+				>
+					<span class="size-1.5 shrink-0 rounded-full bg-ink" aria-hidden="true"></span>
+					<span class="min-w-0 flex-1 truncate text-[0.95rem]">{other.title}</span>
+					<span class="shrink-0 text-[0.84rem] text-muted tabular-nums">{other.left} left</span>
+					<Icon name="chevron-right" size={16} class="shrink-0 text-muted" />
+				</button>
+			{/each}
+		</section>
+	{/if}
 {/snippet}
 
 <div
@@ -388,6 +406,8 @@
 			{/if}
 		</div>
 
+		{@render alsoToday(cn('mt-4 max-w-[440px]', receipt.class))}
+
 		<div
 			class={cn('mt-7 flex flex-col items-center gap-2', next.class)}
 			style:animation-delay={next.delay}
@@ -424,7 +444,6 @@
 							Three actions from your chart, small enough to finish today.
 						</p>
 					</div>
-					{@render calendarDoor('-me-[13px]')}
 				</header>
 			{/snippet}
 			{#snippet extra()}
@@ -470,11 +489,10 @@
 				</div>
 				<div class="flex shrink-0 items-center gap-1">
 					{#if trackedKeys.length > 0}
-						<p class="m-0 pe-1 text-[0.84rem] text-muted tabular-nums">
+						<p class="m-0 text-[0.84rem] text-muted tabular-nums">
 							<span class="font-semibold text-text">{checkedCount}</span> of {trackedKeys.length}
 						</p>
 					{/if}
-					{@render calendarDoor('-me-[13px]')}
 				</div>
 			</header>
 
@@ -517,6 +535,7 @@
 				</div>
 			{/if}
 		</section>
+		{@render alsoToday('mt-4')}
 	{/if}
 
 </div>

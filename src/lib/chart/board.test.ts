@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, historyOf, laneOf, moveCard, placed, reopen, tomorrowOf, wholeIndex, type Change } from './board.ts';
+import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, historyOf, laneOf, leftToday, moveCard, placed, reopen, tomorrowOf, wholeIndex, type Change } from './board.ts';
 import { doneOn } from './calendar.ts';
 import { cloneChart } from './library.ts';
 import { A, slotted } from './fixtures.ts';
@@ -297,3 +297,20 @@ describe('historyOf', () => {
 		expect(historyOf(data, A.a7_7)).toEqual([]);
 	});
 });
+
+describe('leftToday', () => {
+	it("counts a chart's routines and open picks, and reaches zero when they are done", () => {
+		const data = chart();
+		expect(leftToday(data, TODAY)).toBe(0);
+		data.meta = { [A.a0_1]: { kind: 'routine' }, [A.a7_7]: { kind: 'milestone', done: true, doneAt: '2026-10-01' } };
+		data.days = { [TODAY]: { focus: [A.a0_0, A.a2_0, A.a7_7, A.a5_5], checked: [] } };
+		expect(leftToday(data, TODAY)).toBe(3);
+		apply(data, finish(data, A.a0_0, TODAY));
+		apply(data, finish(data, A.a0_1, TODAY));
+		expect(leftToday(data, TODAY)).toBe(1);
+		apply(data, finish(data, A.a2_0, TODAY));
+		expect(leftToday(data, TODAY)).toBe(0);
+		expect(leftToday(data, tomorrowOf(TODAY))).toBe(1);
+	});
+});
+
