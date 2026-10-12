@@ -79,7 +79,7 @@
 		title={title}
 		{onclick}
 	>
-		<span class="line-clamp-2">
+		<span>
 			{head}<span class="whitespace-nowrap"
 				>{tail}<span
 					class="relative inline-flex items-center justify-center rounded-full text-text bg-sunken group-hover:bg-sunken-hover group-focus-visible:bg-ink group-focus-visible:text-on-ink group-aria-expanded:bg-sunken-hover {knob}"
