@@ -65,7 +65,7 @@
 		if (isSharing) return;
 		isSharing = true;
 		try {
-			const url = await shareUrl(chart.data);
+			const url = await shareUrl(chart.data, chart.shareNotes);
 			await navigator.clipboard.writeText(url);
 			chart.say('Share link copied.');
 			open = false;
@@ -170,6 +170,21 @@
 			</span>
 		</button>
 
+		<label class="flex cursor-pointer items-center justify-between gap-3 px-3.5 pt-2 text-[0.84rem]">
+			<span>
+				Include notes
+				<span class="block text-[0.78rem] leading-[1.35] text-pretty text-muted">
+					Each action's note and its board notes. Your days, time, and what you finished never go with a share.
+				</span>
+			</span>
+			<input
+				type="checkbox"
+				class="size-4 shrink-0 cursor-pointer"
+				checked={chart.shareNotes}
+				onchange={(event) => chart.setShareNotes(event.currentTarget.checked)}
+			/>
+		</label>
+
 		<button
 			type="button"
 			class="group flex w-full cursor-pointer items-center justify-between gap-3.5 rounded-[20px] border-0 p-3.5 text-start font-sans text-text bg-sunken motion-safe:transition-[scale] motion-safe:duration-150 hover:bg-sunken-hover active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
@@ -183,7 +198,7 @@
 			<div class="flex min-w-0 flex-col gap-0.5">
 				<span class="text-[0.92rem] font-[620]">Share link</span>
 				<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
-					The whole chart carried in the link. No account needed.
+					The chart carried in the link. No account needed.
 				</span>
 			</div>
 			</div>

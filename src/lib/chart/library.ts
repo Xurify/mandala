@@ -1,4 +1,5 @@
 import { newId } from './id.ts';
+import { CHART_PART, META_PART, narrowed, only, TOOL_PART } from './contract.ts';
 import {
 	emptyChart,
 	filledCount,
@@ -131,6 +132,15 @@ export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibr
 	const deleted = purgeDeleted(library.deleted, now);
 	if (deleted.length === library.deleted.length) return library;
 	return { ...library, deleted };
+}
+
+/** The chart and how it is set up, without what happened while it was worked: what `contract.ts` marks `plan`. */
+export function withoutHistory(data: ChartData): ChartData {
+	const plan = (part: string): boolean => part === 'plan';
+	return {
+		...only(data, CHART_PART, plan),
+		...narrowed(data, (field) => plan(META_PART[field]), (field) => plan(TOOL_PART[field]))
+	};
 }
 
 export function newRecord(data: ChartData, at = Date.now()): ChartRecord {

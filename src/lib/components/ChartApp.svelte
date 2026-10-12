@@ -483,6 +483,7 @@
 		items.push(
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
+			{ id: 'duplicate-fresh', label: 'Copy without history', section: 'Actions', icon: 'sparkles', run: () => chart.duplicateChart(true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
 			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
 			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },

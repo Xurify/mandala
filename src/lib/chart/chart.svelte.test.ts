@@ -172,3 +172,21 @@ describe('chart time', () => {
 		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45 })]);
 	});
 });
+
+describe('chart copies', () => {
+	it('copies a chart fresh: the words and setup come, the history stays behind', () => {
+		chart.data = emptyChart();
+		chart.data.goal = 'Read more';
+		chart.data.actions[0]![0] = 'Read 10 pages at lunch';
+		const action = chart.data.actionIds[0]![0]!;
+		chart.setActionMeta(action, { kind: 'routine', note: 'Page 40' });
+		chart.logTime(action, 20);
+		chart.duplicateChart(true);
+		const copy = chart.data.actionIds[0]![0]!;
+		expect(copy).not.toBe(action);
+		expect(chart.data.actions[0]![0]).toBe('Read 10 pages at lunch');
+		expect(chart.data.meta?.[copy]).toEqual({ kind: 'routine', note: 'Page 40' });
+		expect(chart.data.days).toBeUndefined();
+		expect(chart.slips.at(-1)?.kicker).toBe('Copied fresh');
+	});
+});

@@ -1,3 +1,4 @@
+import { ACTION_META, CHART, narrowed, only, TOOL, type Reach } from './contract.ts';
 import { exportJson, parseChart, type ChartData } from './model.ts';
 
 /**
@@ -63,18 +64,19 @@ export function isShareHash(hash: string): boolean {
 }
 
 /**
- * What another person gets, by link or published share. The shelves travel; what was opened when stays here, and
- * so do the brief, the site icons, which would outgrow a link, and a timer running here.
+ * What another person gets, by link or published share: what `contract.ts` marks `shared`, and the notes only
+ * when `notes` asks for them. Your days, the board, what was opened when, and a running timer stay with you.
  */
-export function forSharing(data: ChartData): ChartData {
-	const tools = data.tools
-		? Object.fromEntries(Object.entries(data.tools).map(([key, list]) => [key, list.map(({ opened: _opened, known: _known, ...tool }) => tool)]))
-		: undefined;
-	return { ...data, brief: undefined, tools, icons: undefined, timer: undefined };
+export function forSharing(data: ChartData, { notes = false }: { notes?: boolean } = {}): ChartData {
+	const open = (reach: Reach): boolean => reach === 'shared' || (notes && reach === 'asked');
+	return {
+		...only(data, CHART, open),
+		...narrowed(data, (field) => open(ACTION_META[field]), (field) => open(TOOL[field]))
+	};
 }
 
-export async function encodeChartShare(data: ChartData): Promise<string> {
-	const raw = new TextEncoder().encode(exportJson(forSharing(data)));
+export async function encodeChartShare(data: ChartData, notes = false): Promise<string> {
+	const raw = new TextEncoder().encode(exportJson(forSharing(data, { notes })));
 	const compressed = await gzipBytes(raw);
 	if (compressed && compressed.length < raw.length) {
 		return `${SHARE_PREFIX}${COMPRESSED_PREFIX}${bytesToBase64Url(compressed)}`;
@@ -82,8 +84,8 @@ export async function encodeChartShare(data: ChartData): Promise<string> {
 	return SHARE_PREFIX + bytesToBase64Url(raw);
 }
 
-export function shareUrl(data: ChartData): Promise<string> {
-	return encodeChartShare(data).then((payload) => `${location.origin}${location.pathname}#${payload}`);
+export function shareUrl(data: ChartData, notes = false): Promise<string> {
+	return encodeChartShare(data, notes).then((payload) => `${location.origin}${location.pathname}#${payload}`);
 }
 
 export async function decodeChartShare(hash: string): Promise<ChartData | null> {

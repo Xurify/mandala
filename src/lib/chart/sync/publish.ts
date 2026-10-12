@@ -54,7 +54,8 @@ async function request(
 
 export async function publishChart(
 	data: ChartData,
-	existingId: string | null
+	existingId: string | null,
+	notes = false
 ): Promise<PublishedShare> {
 	const id = existingId ?? newId('share');
 	const secret = existingId ? secretFor(id) : null;
@@ -62,7 +63,7 @@ export async function publishChart(
 		throw new Error('The update secret for this share is missing on this device.');
 	}
 	const useSecret = secret ?? newSecret();
-	const response = await request('PUT', id, useSecret, { chart: forSharing(data) });
+	const response = await request('PUT', id, useSecret, { chart: forSharing(data, { notes }) });
 	if (!response.ok) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
 		throw new Error(detail ?? `Publish failed (${response.status}).`);
