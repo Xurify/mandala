@@ -169,8 +169,8 @@ export const DEMOS: readonly Demo[] = [
 		title: 'The chart on a phone',
 		group: 'Writing the chart',
 		steps: [
-			'Open it on a phone, or narrow the window under 900px. The whole chart shows, every cell in small words, and the page fits without scrolling.',
-			'Tap any cell. Its pillar\'s block opens with every action at reading size; the arrows walk round the pillars, and a tap on a line opens it in the editor.',
+			'Open it on a phone, or narrow the window under 900px. The whole chart shows, with the pillars named, and the page fits without scrolling.',
+			'Tap any cell. Its pillar\'s block opens ready to write in, starting where you tapped; Enter moves on, the arrows walk round the pillars, and Open in the editor has the rest.',
 			'The search button in the top bar opens the command palette, which finds lines in the chart.'
 		]
 	},

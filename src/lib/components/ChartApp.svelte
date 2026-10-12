@@ -229,12 +229,17 @@
 	}
 
 	let sheetPillar = $state<number | null>(null);
+	let sheetFocus = $state<number | null>(null);
 
-	/** On a phone a cell is too small to read, so a tap opens its pillar's block in words. */
+	/** On a phone a cell is too small to write in, so a tap opens its pillar's block, ready to type where it landed. */
 	function openBlock(blockIndex: number, _key?: string, cellIndex?: number): void {
-		if (blockIndex !== 4) sheetPillar = idx(blockIndex);
-		else if (cellIndex !== undefined && cellIndex !== 4) sheetPillar = idx(cellIndex);
-		else chart.jumpToKey('g');
+		if (blockIndex !== 4) {
+			sheetFocus = cellIndex ?? null;
+			sheetPillar = idx(blockIndex);
+		} else if (cellIndex !== undefined && cellIndex !== 4) {
+			sheetFocus = null;
+			sheetPillar = idx(cellIndex);
+		} else chart.jumpToKey('g');
 	}
 
 	function handleEditBlock(blockIndex: number, targetKey?: string): void {
@@ -846,7 +851,7 @@
 					/>
 				{:else if effectiveViewMode === 'view'}
 					<MandalaGrid mode="view" onSelect={isMobile ? openBlock : selectBlock} onEdit={handleEditBlock} />
-					<BlockSheet bind:pillar={sheetPillar} />
+					<BlockSheet bind:pillar={sheetPillar} focus={sheetFocus} />
 				{:else}
 					<MandalaGrid mode={effectiveViewMode === 'split' ? 'split' : 'view'} onSelect={selectBlock} onEdit={handleEditBlock} />
 				{/if}
