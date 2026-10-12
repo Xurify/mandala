@@ -89,6 +89,8 @@ export type Tool = {
 };
 
 export type ChartData = {
+	/** Raised when saved data changes shape; `parseChart` brings older charts up to it. */
+	version?: number;
 	goal: string;
 	pillars: string[];
 	actions: string[][];
@@ -139,8 +141,11 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 	return Object.keys(out).length > 0 ? out : undefined;
 }
 
+export const CHART_VERSION = 2;
+
 export function emptyChart(): ChartData {
 	return {
+		version: CHART_VERSION,
 		goal: '',
 		pillars: Array.from({ length: 8 }, () => ''),
 		actions: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => ''))
@@ -329,20 +334,48 @@ export function parseChart(raw: string): ChartData | null {
 			return null;
 		}
 
-		return {
-			goal: record.goal,
-			pillars: record.pillars as string[],
-			actions: record.actions as string[][],
-			meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
-			days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
-			weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
-			brief: parseBrief(record.brief),
-			tools: parseTools(record.tools),
-			icons: parseIcons(record.icons)
-		};
+		return upgraded(
+			{
+				goal: record.goal,
+				pillars: record.pillars as string[],
+				actions: record.actions as string[][],
+				meta: (record.meta && typeof record.meta === 'object' ? record.meta : undefined) as Record<string, ActionMeta> | undefined,
+				days: (record.days && typeof record.days === 'object' ? record.days : undefined) as Record<string, DayLog> | undefined,
+				weeks: (record.weeks && typeof record.weeks === 'object' ? record.weeks : undefined) as Record<string, WeekReflection> | undefined,
+				brief: parseBrief(record.brief),
+				tools: parseTools(record.tools),
+				icons: parseIcons(record.icons)
+			},
+			typeof record.version === 'number' ? record.version : 1
+		);
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Version 2 made a tick and a done one record. Before it, a one-time action ticked in Today stayed open,
+ * and one marked done on the board left no tick. Each gets the other half, dated to its last tick.
+ */
+function upgraded(data: ChartData, from: number): ChartData {
+	if (from < 2) {
+		const lastTick = new Map<string, string>();
+		for (const dateKey of Object.keys(data.days ?? {}).sort()) {
+			for (const key of data.days![dateKey]!.checked ?? []) if (key.startsWith('a')) lastTick.set(key, dateKey);
+		}
+		for (const [key, dateKey] of lastTick) {
+			const meta = data.meta?.[key];
+			if (isRoutine(meta) || meta?.done || !getByKey(data, key).trim()) continue;
+			setMeta(data, key, { kind: meta?.kind ?? 'milestone', done: true, doneAt: dateKey });
+		}
+		for (const [key, meta] of Object.entries(data.meta ?? {})) {
+			if (isRoutine(meta) || !meta.done || !meta.doneAt) continue;
+			const log = data.days?.[meta.doneAt] ?? { focus: [], checked: [] };
+			if (log.checked.includes(key)) continue;
+			data.days = { ...data.days, [meta.doneAt]: { ...log, checked: [...log.checked, key] } };
+		}
+	}
+	return { version: CHART_VERSION, ...data };
 }
 
 export function parseText(raw: string): ChartData | null {

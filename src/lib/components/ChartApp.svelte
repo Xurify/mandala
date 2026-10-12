@@ -851,16 +851,18 @@
 			</div>
 		{/if}
 		{#if effectiveViewMode === 'today'}
-			<!-- Picks live in the view until "Start my day". Remount per chart so they don't follow the switch. -->
-			{#key chart.activeId}
+			<!-- Picks live in the view until "Start my day". Remount per chart, and per day, so they don't follow the switch. -->
+			{#key `${chart.activeId}:${chart.today}`}
 				<TodayView />
 			{/key}
 		{/if}
 		{#if effectiveViewMode === 'calendar'}
-			<CalendarView />
+			{#key chart.today}
+				<CalendarView />
+			{/key}
 		{/if}
 		{#if effectiveViewMode === 'board'}
-			{#key chart.activeId}
+			{#key `${chart.activeId}:${chart.today}`}
 				<BoardView narrow={isMobile} />
 			{/key}
 		{/if}

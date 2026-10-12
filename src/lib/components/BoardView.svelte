@@ -11,11 +11,12 @@
 		doneByWeek,
 		findCard,
 		placed,
+		tomorrowOf,
 		wholeIndex,
 		type Card,
 		type Lane
 	} from '$lib/chart/board';
-	import { HUES, actionKey, dateKeyOffset, todayKey, weekStartKey } from '$lib/chart/model';
+	import { HUES, actionKey, dateKeyOffset, weekStartKey } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -28,9 +29,9 @@
 
 	let { narrow = false }: { narrow?: boolean } = $props();
 
-	const today = todayKey();
+	const today = chart.today;
 	const monday = weekStartKey();
-	const board = $derived(boardOf(chart.data));
+	const board = $derived(boardOf(chart.data, today));
 
 	const pillarName = (pillarIndex: number): string => chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
 
@@ -524,11 +525,13 @@
 
 	const todayFocus = $derived(new Set(chart.todayLog.focus));
 	const todayTicks = $derived(new Set(chart.todayLog.checked));
+	const tomorrowFocus = $derived(new Set(chart.data.days?.[tomorrowOf(today)]?.focus ?? []));
 
 	function markOf(card: Card, inLane: Lane): { icon: 'check' | 'calendar' | 'refresh'; label: string } | null {
 		if (inLane === 'done') return { icon: 'check', label: shortDay(card.doneAt) };
 		if (card.routine && todayTicks.has(card.key)) return { icon: 'check', label: 'Today' };
 		if (todayFocus.has(card.key)) return { icon: 'calendar', label: 'Today' };
+		if (tomorrowFocus.has(card.key)) return { icon: 'calendar', label: 'Tomorrow' };
 		if (card.routine) return { icon: 'refresh', label: 'Routine' };
 		return null;
 	}
@@ -750,6 +753,8 @@
 				<p class="m-0 text-[0.9rem] text-pretty text-muted">Ticked today.</p>
 			{:else if sheet.lane !== 'done' && todayFocus.has(card.key)}
 				<p class="m-0 text-[0.9rem] text-pretty text-muted">One of today's three.</p>
+			{:else if sheet.lane !== 'done' && tomorrowFocus.has(card.key)}
+				<p class="m-0 text-[0.9rem] text-pretty text-muted">Planned for tomorrow.</p>
 			{/if}
 		</div>
 	{/if}

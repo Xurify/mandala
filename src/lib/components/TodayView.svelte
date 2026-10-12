@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { HUES, getByKey, isOpenFocus, isRoutine, isUrl, todayKey, dateKeyOffset } from '$lib/chart/model';
+	import { HUES, getByKey, isOpenFocus, isRoutine, isUrl, dateKeyOffset } from '$lib/chart/model';
 	import type { ActionMeta } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import FocusPicker from './FocusPicker.svelte';
@@ -15,7 +15,7 @@
 	import Notice from './ui/Notice.svelte';
 	import { cn } from './ui/cn';
 
-	const dateKey = todayKey();
+	const dateKey = chart.today;
 	/** Tools passed over with "Another" this visit, per action. Forgotten on reload, so nothing is lost. */
 	let passed = $state<Map<string, Set<string>>>(new Map());
 

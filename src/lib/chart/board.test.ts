@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, laneOf, moveCard, placed, reopen, wholeIndex, type Change } from './board.ts';
+import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, laneOf, moveCard, placed, reopen, tomorrowOf, wholeIndex, type Change } from './board.ts';
 import { doneOn } from './calendar.ts';
 import { cloneChart } from './library.ts';
 import { emptyChart, setMeta, type ActionMeta, type ChartData } from './model.ts';
@@ -264,5 +264,18 @@ describe('Today and the board', () => {
 		apply(data, moveCard(data, 'a2_2', 'doing', 1, TODAY));
 		expect(data.meta?.a7_7).toMatchObject({ lane: 'doing', rank: 0 });
 		expect(boardOf(data, '2026-10-12').doing.map((card) => card.key)).toEqual(['a7_7', 'a2_2']);
+	});
+
+	it("shows tomorrow's plan in To do, and takes a card off it when it goes back to Open", () => {
+		const data = chart();
+		const tomorrow = tomorrowOf(TODAY);
+		expect(tomorrow).toBe('2026-10-12');
+		data.meta = { a2_2: { kind: 'milestone', lane: 'doing', rank: 0 } };
+		data.days = { [tomorrow]: { focus: ['a0_0', 'a2_2'], checked: [] } };
+		expect(keys(data)).toMatchObject({ todo: ['a0_0'], doing: ['a2_2'] });
+		apply(data, moveCard(data, 'a0_0', 'open', 0, TODAY));
+		expect(data.days?.[tomorrow]?.focus).toEqual(['a2_2']);
+		expect(keys(data).todo).toEqual([]);
+		expect(boardOf(data, tomorrow).doing.map((card) => card.key)).toEqual(['a2_2']);
 	});
 });

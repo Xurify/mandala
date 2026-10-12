@@ -260,7 +260,9 @@ export class ChartStore {
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
 
-  todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
+  /** The local date. It rolls over at midnight and when the page wakes, so a tab left open ticks into the right day. */
+  today = $state(todayKey());
+  todayLog: DayLog = $derived(getDayLog(this.data, this.today));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
   reflecting = $state(false);
   selecting = $state(false);
@@ -294,6 +296,7 @@ export class ChartStore {
 
   load(): void {
     this.#watchStorage();
+    this.#watchDay();
     try {
       const rawLibrary = localStorage.getItem(LIBRARY_KEY);
       if (rawLibrary) {
@@ -462,6 +465,32 @@ export class ChartStore {
     } else if (!editing && JSON.stringify(record.data) !== JSON.stringify(this.data)) {
       this.data = cloneChart(record.data);
     }
+  }
+
+  #watchingDay = false;
+
+  #watchDay(): void {
+    if (this.#watchingDay || typeof window === "undefined") return;
+    this.#watchingDay = true;
+    const roll = (): void => {
+      this.#clockTick = Date.now();
+      const now = todayKey();
+      if (now !== this.today) this.today = now;
+    };
+    const atMidnight = (): void => {
+      const next = new Date();
+      next.setHours(24, 0, 1, 0);
+      setTimeout(() => {
+        roll();
+        atMidnight();
+      }, next.getTime() - Date.now());
+    };
+    atMidnight();
+    // Timers stall while a laptop sleeps or a phone tab is frozen; waking is the other way the day turns over.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") roll();
+    });
+    window.addEventListener("focus", roll);
   }
 
   #watchStorage(): void {
@@ -717,15 +746,15 @@ export class ChartStore {
   }
 
   finish(key: string): void {
-    this.#apply(finishAction(this.data, key));
+    this.#apply(finishAction(this.data, key, this.today));
   }
 
   reopen(key: string): void {
-    this.#apply(reopenAction(this.data, key));
+    this.#apply(reopenAction(this.data, key, this.today));
   }
 
   moveCard(key: string, lane: Lane, index: number): boolean {
-    const change = cardMove(this.data, key, lane, index);
+    const change = cardMove(this.data, key, lane, index, this.today);
     if (!change) return false;
     this.#apply(change);
     return true;
@@ -755,7 +784,7 @@ export class ChartStore {
   declineToday(keys: string[]): void {
     if (keys.length === 0) return;
     if (!this.data.days) this.data.days = {};
-    const dateKey = todayKey();
+    const dateKey = this.today;
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...keys])] };
     this.data = { ...this.data };
@@ -764,7 +793,7 @@ export class ChartStore {
 
   noteShown(signature: string): void {
     if (!this.data.days) this.data.days = {};
-    const dateKey = todayKey();
+    const dateKey = this.today;
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     if (existing.shown?.includes(signature)) return;
     this.data.days[dateKey] = { ...existing, shown: [...(existing.shown ?? []), signature] };

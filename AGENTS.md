@@ -70,6 +70,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 - A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
+- Saved charts carry a `version` (`CHART_VERSION` in `model.ts`). A change to the shape of saved data raises it and brings older charts up in `parseChart`, which every chart passes through on load, import, share, and sync.
 - Done is one record across Today, the board, the editor, and the calendar: the action's `done`/`doneAt` and the day's tick are written together. Finish or reopen with `chart.finish` / `chart.reopen` (or `chart.moveCard`), never by writing one of them alone. Ask `finishedOn` in `board.ts` whether something was finished on a day.
 
 ## Conventions

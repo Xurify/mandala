@@ -215,7 +215,8 @@ What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Ever
 - **Narrowing.** A pillar select, and the header search: on the board, search narrows the cards instead of listing hits. Counts follow what is shown.
 - **New card.** The plus on a list writes a new action into the first empty cell of the pillar you pick, then files it in that list. Hidden once every pillar has eight.
 - **Today deals from it.** The Today picker puts pinned first, then Doing, then To do, each in board order. A card in today's three says Today; a routine says Routine, and once ticked today it says Today with a check.
-- **Today's three are in Doing.** Whatever list a pick was filed in, it shows in Doing for its day, and a pick finished today stays on Today's list, ticked. Moving a pick on the board files it in Doing for good; moving it back to To do or Open takes it off today's list, logged as dropped like one taken off in Today. A pick left alone goes back to its own list when the day ends.
+- **Today's three are in Doing.** Whatever list a pick was filed in, it shows in Doing for its day, and a pick finished today stays on Today's list, ticked. Moving a pick on the board files it in Doing for good; moving it back to To do or Open takes it off today's list, logged as dropped like one taken off in Today. A pick left alone goes back to its own list when the day ends. Tomorrow's plan shows in To do, marked Tomorrow, and moving a planned card to Open takes it off the plan.
+- **The day turns over on its own.** The store's `chart.today` rolls at midnight and when the page wakes, and Today, the board, and the calendar start the new day without a reload.
 
 ### When the week is offered
 

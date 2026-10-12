@@ -1,4 +1,4 @@
-import { actionKey, clockOf, getByKey, isRoutine, todayKey, weekStartKey, type ActionMeta, type ChartData, type DayLog } from './model.ts';
+import { actionKey, clockOf, dateKeyOffset, getByKey, isRoutine, todayKey, weekStartKey, type ActionMeta, type ChartData, type DayLog } from './model.ts';
 
 export type Lane = 'open' | 'todo' | 'doing' | 'done';
 
@@ -53,10 +53,15 @@ function doneOrder(a: Card, b: Card): number {
 	return (b.doneAt ?? '').localeCompare(a.doneAt ?? '') || byRank(b.rank, a.rank, Number.NEGATIVE_INFINITY) || chartOrder(a, b);
 }
 
-/** Today's picks show in Doing, and what was ticked today in Done, whatever list they were filed in. */
+export function tomorrowOf(today: string): string {
+	return dateKeyOffset(1, new Date(`${today}T12:00`));
+}
+
+/** Today's picks show in Doing, what was ticked today in Done, and tomorrow's plan in To do, whatever list they were filed in. */
 export function boardOf(data: ChartData, today: string = todayKey()): Board {
 	const board: Board = { open: [], todo: [], doing: [], done: [] };
 	const day = data.days?.[today];
+	const planned = data.days?.[tomorrowOf(today)]?.focus;
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 		for (let slot = 0; slot < 8; slot++) {
 			const key = actionKey(pillarIndex, slot);
@@ -68,6 +73,7 @@ export function boardOf(data: ChartData, today: string = todayKey()): Board {
 			let lane = filed;
 			if (filed !== 'done' && !card.routine && day?.checked.includes(key)) lane = 'done';
 			else if ((filed === 'open' || filed === 'todo') && day?.focus.includes(key)) lane = 'doing';
+			else if (filed === 'open' && planned?.includes(key)) lane = 'todo';
 			const doneAt = filed === 'done' ? meta?.doneAt : today;
 			if (lane === 'done' && doneAt) card.doneAt = doneAt;
 			if (lane === filed && lane !== 'open' && meta?.rank !== undefined) card.rank = meta.rank;
@@ -188,6 +194,7 @@ export function moveCard(
 	if (lane === 'open' && found.lane === 'open') return blank();
 	const change = found.lane === 'done' ? reopen(data, key, today) : blank();
 	if (lane !== 'doing') editDay(change, data, today, unpick(key));
+	if (lane === 'open') editDay(change, data, tomorrowOf(today), unpick(key));
 	if (lane === 'open') {
 		patchMeta(change, key, { lane: undefined, rank: undefined });
 		return change;
