@@ -6,10 +6,8 @@
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
-	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import Pages from './ui/Pages.svelte';
-	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
 
 	const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -27,14 +25,11 @@
 	let month = $state(now.getMonth());
 	let direction = $state(1);
 	let selected = $state<string>(today);
-	let scope = $state('all');
-
 	const inScope = $derived.by((): Goal[] => {
-		const chosen = chart.goals.filter((goal) => goal.id === scope);
+		const chosen = chart.goals.filter((goal) => goal.id === chart.calendarScope);
 		return chosen.length > 0 ? chosen : chart.goals;
 	});
 	const across = $derived(inScope.length > 1);
-	const scopeOptions = $derived([{ value: 'all', label: 'All charts' }, ...chart.goals.map((goal) => ({ value: goal.id, label: goal.title }))]);
 	const current = $derived(monthOf(inScope, year, month));
 	const days = $derived(current.weeks.flat());
 	const thisMonth = $derived(year === now.getFullYear() && month === now.getMonth());
@@ -55,6 +50,12 @@
 
 	function pillarName(goal: Goal, pillarIndex: number): string {
 		return goal.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	}
+
+	function openToday(): void {
+		const only = inScope.length === 1 ? inScope[0]! : null;
+		if (only && only.id !== chart.activeId) chart.switchChart(only.id);
+		chart.setViewMode('today');
 	}
 
 	function openEntry(entry: GoalDone): void {
@@ -100,14 +101,10 @@
 	<section class="rounded-[28px] bg-surface p-2 shadow-card select-none max-[900px]:rounded-3xl" aria-labelledby="calendar-month">
 		<header class="flex items-center gap-2 pt-2 pb-1 ps-4 pe-0.5">
 			<div class="min-w-0 flex-1">
-				<Eyebrow class="mb-1">Calendar</Eyebrow>
 				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.01em] text-text">{current.title}</h2>
 				<p class="m-0 mt-0.5 text-[0.86rem] text-muted">{monthLine(current)}</p>
 				{#if quiet.length > 0}
 					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">Quiet this month: <span class="font-[620] text-text">{quiet.join(', ')}</span></p>
-				{/if}
-				{#if chart.goals.length > 1}
-					<Select size="sm" label="Charts on the calendar" options={scopeOptions} bind:value={scope} class="mt-2.5 w-fit max-w-full" />
 				{/if}
 			</div>
 			{#if turnable}
@@ -211,7 +208,7 @@
 						<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-2.5 pb-2">
 							<p class="m-0 text-[0.9rem] leading-snug text-pretty text-muted">{picked.today ? 'Nothing finished yet today.' : 'Nothing finished this day.'}</p>
 							{#if picked.today}
-								<Button size="sm" variant="soft" icon="calendar" onclick={() => chart.setViewMode('today')}>Open today</Button>
+								<Button size="sm" variant="soft" icon="calendar" onclick={openToday}>Open today</Button>
 							{/if}
 						</div>
 					{/if}

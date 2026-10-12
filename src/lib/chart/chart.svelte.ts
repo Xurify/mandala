@@ -271,6 +271,8 @@ export class ChartStore {
   );
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
+  /** `all`, or the id of the one chart the calendar shows. */
+  calendarScope = $state("all");
   /** Every chart in the order it was made, the open one as it stands now, for views that look across goals. */
   goals: Goal[] = $derived(
     this.#library.charts.map((record) => {

@@ -33,6 +33,7 @@
 	import ProgressRing from './ProgressRing.svelte';
 	import SidePanel from './SidePanel.svelte';
 	import TodayView from './TodayView.svelte';
+	import CalendarScope from './CalendarScope.svelte';
 	import CalendarView from './CalendarView.svelte';
 	import BoardView from './BoardView.svelte';
 	import CommandPalette, { type CommandItem } from './CommandPalette.svelte';
@@ -680,8 +681,12 @@
 
 		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
 			<div class="min-w-0">
-				<Eyebrow class="mb-2">Your chart</Eyebrow>
-				<ChartSwitcher />
+				{#if effectiveViewMode === 'calendar'}
+					<CalendarScope />
+				{:else}
+					<Eyebrow class="mb-2">Your chart</Eyebrow>
+					<ChartSwitcher />
+				{/if}
 				{#if !offChart}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
