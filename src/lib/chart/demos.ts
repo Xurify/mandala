@@ -11,6 +11,7 @@ export type DemoId =
 	| 'pillar'
 	| 'empty'
 	| 'borrowed'
+	| 'building'
 	| 'spatial'
 	| 'search'
 	| 'views'
@@ -139,17 +140,27 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'A new, empty chart in chart view. The sheet asks for the goal while the ring draws itself and the center dot lands. Search, Today and Split are not in the way yet.',
 			'Type a goal, or borrow one. Next turns to the ring of pillars around it. A borrowed goal brings its preset’s pillars, dealt in one by one.',
-			'Pick a pillar and write its eight actions. Done for now draws a ring for the pillars you named, and See the chart opens the grid, with Today and Split joining the dock.'
+			'Next opens the outer ring. Start writing goes to the first block; Next pillar walks the rest in order. The last one turns Finish into Chart complete, with all eight arcs, and See the chart opens the grid.'
 		]
 	},
 	{
 		id: 'borrowed',
-		title: 'A borrowed goal, one pillar at a time',
+		title: 'A borrowed goal, block by block',
 		group: 'Writing the chart',
 		steps: [
 			'The Fitness goal and its eight pillars are in, with no actions yet. The sheet opens on the ring.',
-			'Next, then pick Long runs. The preset’s eight actions deal in under it. Change any of them.',
-			'Go Back without changing anything and the lent actions go back too, so another pillar can be tried. Rename a pillar and it starts empty.'
+			'Next, then pick Long runs. The preset’s eight actions deal in under it. Change any of them, then Next pillar.',
+			'All pillars, without changing anything, puts the lent actions back, so the outer ring counts only what was kept.'
+		]
+	},
+	{
+		id: 'building',
+		title: 'Keep building',
+		group: 'Writing the chart',
+		steps: [
+			'Three of the eight blocks are written, and one pillar has no name. Above the grid, Keep building says so.',
+			'Press it. The sheet opens on the outer ring: a check on each whole block, a count on the rest, and a plus where a pillar has no name.',
+			'Tap the plus to name it on the ring. Done for now goes back to the grid with every line kept.'
 		]
 	},
 	{
@@ -291,6 +302,12 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		const data = preset('fitness');
 		data.actions = data.actions.map((row) => row.map(() => ''));
 		return { data, view: 'view', start: { preset: 'fitness' } };
+	}
+	if (id === 'building') {
+		const data = preset('career');
+		data.actions = data.actions.map((row, k) => (k < 3 ? row : row.map(() => '')));
+		data.pillars[6] = '';
+		return { data, view: 'view' };
 	}
 	if (id === 'views') return { data: preset('fitness'), view: 'view' };
 	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };

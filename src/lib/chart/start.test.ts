@@ -1,21 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { emptyChart } from './model.ts';
 import { getPreset } from './presets/index.ts';
-import { actionsFor, actionsUntouched, ringFor, startPage } from './start.ts';
+import { actionsFor, actionsUntouched, blocksWritten, lenderOf, nextPillar, ringFor, startPage } from './start.ts';
 
 const fitness = getPreset('fitness')!;
 const music = getPreset('music')!;
 
 describe('starting from the center', () => {
-	it('carries on at the goal, then the ring, then the pillar with actions', () => {
+	it('carries on at the goal, the ring, a half-written block, then the outer ring', () => {
 		const data = emptyChart();
 		expect(startPage(data)).toEqual({ page: 'goal', pillar: null });
 		data.goal = 'Run a half marathon';
 		expect(startPage(data)).toEqual({ page: 'pillars', pillar: null });
 		data.pillars[2] = 'Long runs';
+		data.pillars[5] = 'Recovery';
 		expect(startPage(data)).toEqual({ page: 'pillars', pillar: null });
-		data.actions[2]![0] = 'Run 16 km on Sunday';
-		expect(startPage(data)).toEqual({ page: 'actions', pillar: 2 });
+		data.actions[5]![0] = 'Sleep by 10:30';
+		expect(startPage(data)).toEqual({ page: 'actions', pillar: 5 });
+		data.actions[5] = data.actions[5]!.map((_, i) => `Line ${i}`);
+		expect(startPage(data)).toEqual({ page: 'pick', pillar: null });
 	});
 
 	it('ignores actions under a pillar with no name', () => {
@@ -24,6 +27,29 @@ describe('starting from the center', () => {
 		data.pillars[1] = 'Easy miles';
 		data.actions[0]![0] = 'Left over';
 		expect(startPage(data)).toEqual({ page: 'pillars', pillar: null });
+	});
+
+	it('goes round to the next block with an empty line, and counts whole ones', () => {
+		const data = emptyChart();
+		data.pillars = [...fitness.pillars];
+		data.actions[0] = [...fitness.actions[0]!];
+		data.actions[3] = [...fitness.actions[3]!];
+		data.pillars[6] = '';
+		expect(blocksWritten(data)).toBe(2);
+		expect(nextPillar(data, -1)).toBe(1);
+		expect(nextPillar(data, 5)).toBe(7);
+		expect(nextPillar(data, 7)).toBe(1);
+		for (const k of [1, 2, 4, 5, 7]) data.actions[k] = [...fitness.actions[k]!];
+		expect(blocksWritten(data)).toBe(7);
+		expect(nextPillar(data, 7)).toBeNull();
+	});
+
+	it('finds the preset a chart borrowed from, even after a few renames', () => {
+		const data = emptyChart();
+		expect(lenderOf(data)).toBeNull();
+		data.pillars = [...music.pillars];
+		data.pillars[0] = 'My own';
+		expect(lenderOf(data)).toBe('music');
 	});
 
 	it('lends the borrowed preset its ring, and follows a change of mind', () => {

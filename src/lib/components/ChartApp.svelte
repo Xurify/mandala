@@ -39,6 +39,7 @@
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
+	import { blocksWritten, lenderOf } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -103,6 +104,9 @@
 	const fresh = $derived(!chart.dirty || chart.starting);
 	/** The start sheet takes the stage in chart view, in place of the grid. */
 	const starting = $derived(effectiveViewMode === 'view' && fresh);
+	/** A chart with blocks still unwritten keeps a door back into the sheet, above the grid. */
+	const blocks = $derived(blocksWritten(chart.data));
+	const building = $derived(Boolean(chart.data.goal.trim()) && blocks < 8);
 	/** A first chart has nothing to switch to, so the sheet is the page's only heading. */
 	const bare = $derived(starting && chart.chartCount === 1);
 	/** Today and Split land in the dock when a chart is started, not on a page that opens with them. */
@@ -785,9 +789,19 @@
 
 	{#if effectiveViewMode === 'view' && !starting}
 		<div
-			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
+			class={cn(
+				'chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5',
+				!building && 'max-[900px]:justify-end'
+			)}
 		>
-			<span class="text-[0.84rem] text-muted max-[900px]:hidden">Double-click a cell to edit its block</span>
+			{#if building}
+				<div class="flex min-w-0 items-center gap-2.5">
+					<Button size="sm" variant="soft" onclick={() => morph(() => chart.beginStart(lenderOf(chart.data)))}>Keep building</Button>
+					<span class="text-[0.84rem] text-muted tabular-nums max-[420px]:hidden">{blocks} of 8 blocks written</span>
+				</div>
+			{:else}
+				<span class="text-[0.84rem] text-muted max-[900px]:hidden">Double-click a cell to edit its block</span>
+			{/if}
 			<SegmentedControl
 				label="Chart scale"
 				size="sm"

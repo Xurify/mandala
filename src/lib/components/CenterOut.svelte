@@ -5,12 +5,21 @@
 	import { morph } from '$lib/chart/morph';
 	import { getPreset, listPresets, type PresetId } from '$lib/chart/presets';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
-	import { actionsFor, actionsUntouched, ringFor, startPage, type StartPage } from '$lib/chart/start';
+	import {
+		actionsFor,
+		actionsUntouched,
+		blocksWritten,
+		nextPillar,
+		ringFor,
+		startPage,
+		type StartPage
+	} from '$lib/chart/start';
 	import DaySeal from './DaySeal.svelte';
 	import { fitCellField } from './goal-fit';
+	import Icon from './Icon.svelte';
+	import MethodGuide from './MethodGuide.svelte';
 	import Button from './ui/Button.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
-	import MethodGuide from './MethodGuide.svelte';
 	import Pages from './ui/Pages.svelte';
 	import { cn } from './ui/cn';
 	import { textField } from './ui/styles';
@@ -42,16 +51,22 @@
 	const preset = $derived(chart.startPreset ? getPreset(chart.startPreset) : undefined);
 	const goal = $derived(chart.data.goal.trim());
 	const named = $derived(chart.data.pillars.flatMap((name, k) => (name.trim() ? [k] : [])));
-	const pillarName = $derived(chart.data.pillars[pillar]?.trim() ?? '');
-	const written = $derived(chart.milestones.pillarActionCounts[pillar] ?? 0);
+	const counts = $derived(chart.milestones.pillarActionCounts);
+	const blocks = $derived(blocksWritten(chart.data));
+	const whole = $derived(Boolean(goal) && blocks === 8);
+	const upNext = $derived(nextPillar(chart.data, step === 'actions' ? pillar : -1));
+	const begun = $derived(named.some((k) => (counts[k] ?? 0) > 0));
+	const sealed = $derived(named.filter((k) => counts[k] === 8));
 	const ring = $derived(step === 'goal' ? 0 : step === 'pillars' ? 1 : 2);
+	/** Each block is its own page, so moving to the next pillar turns one. */
+	const view = $derived(step === 'actions' ? `actions-${pillar}` : step);
 
 	const heading: Record<Step, string> = {
 		goal: 'The goal',
 		pillars: 'The pillars',
-		pick: 'The first pillar',
-		actions: 'Its actions',
-		done: 'Chart started'
+		pick: 'The outer ring',
+		actions: 'A pillar’s actions',
+		done: 'The chart'
 	};
 
 	const GEOMETRY = { radius: 40, stroke: 8, gap: 8 };
@@ -61,17 +76,22 @@
 	});
 	const DOT = 0.25 + 8 * 0.06 + 0.1;
 
+	function nameOf(k: number): string {
+		return chart.data.pillars[k]?.trim() ?? '';
+	}
+
 	/** A ring cleared from elsewhere (Clear chart, another tab) sends the sheet back to the first empty one. */
 	$effect(() => {
 		if (step === 'goal' || step === 'done') return;
 		if (!goal) step = 'goal';
 		else if (step !== 'pillars' && named.length === 0) step = 'pillars';
-		else if (step === 'actions' && !pillarName) step = 'pick';
+		else if (step === 'actions' && !nameOf(pillar)) step = 'pick';
 	});
 
-	function write(key: string, value: string, quiet = false): void {
+	/** Quiet, so the last line of the chart does not toast: the sheet's own ending says it. */
+	function write(key: string, value: string): void {
 		if (!chart.starting) chart.beginStart(chart.startPreset);
-		chart.setText(key, value, quiet);
+		chart.setText(key, value, true);
 	}
 
 	function writeGoal(value: string): void {
@@ -91,7 +111,7 @@
 		field?.setSelectionRange(field.value.length, field.value.length);
 	}
 
-	async function turn(to: Step, way: 1 | -1, deal = false): Promise<void> {
+	async function turn(to: Step, way: 1 | -1, deal = false, focusKey?: string): Promise<void> {
 		const inside = sheet?.contains(document.activeElement) ?? false;
 		dealing = deal;
 		direction = way;
@@ -100,9 +120,10 @@
 		if (!inside) return;
 		await tick();
 		// The arriving page is the last one in its grid cell; the leaving one is still fading above it.
-		const arriving = sheet?.querySelector<HTMLElement>(`[data-view="${to}"]`);
+		const arriving = sheet?.querySelector<HTMLElement>(`[data-view="${view}"]`);
 		const fine = window.matchMedia('(pointer: fine)').matches;
 		const target =
+			(focusKey ? arriving?.querySelector<HTMLElement>(`[data-key="${focusKey}"]`) : null) ??
 			(fine ? arriving?.querySelector<HTMLElement>('[data-empty="true"], [data-first]') : null) ??
 			sheet?.querySelector<HTMLElement>('[data-next]');
 		target?.focus({ preventScroll: true });
@@ -111,7 +132,7 @@
 	function open(k: number): void {
 		pillar = k;
 		const lines = actionsFor(chart.data, preset, k);
-		lines?.forEach((line, i) => write(`a${k}_${i}`, line, true));
+		lines?.forEach((line, i) => write(`a${k}_${i}`, line));
 		lent = lines ? k : null;
 		void turn('actions', 1, Boolean(lines));
 	}
@@ -120,9 +141,9 @@
 		if (step === 'pillars') void turn('goal', -1);
 		else if (step === 'pick') void turn('pillars', -1);
 		else if (step === 'actions') {
-			// Lines the preset lent and nobody touched go back with it, so another pillar can be tried.
+			// Lines the preset lent and nobody touched go back with it, so the outer ring counts only what was kept.
 			if (lent === pillar && actionsUntouched(chart.data, preset, pillar)) {
-				for (let i = 0; i < 8; i++) write(`a${pillar}_${i}`, '', true);
+				for (let i = 0; i < 8; i++) write(`a${pillar}_${i}`, '');
 			}
 			lent = null;
 			void turn('pick', -1);
@@ -132,10 +153,19 @@
 	function next(): void {
 		if (step === 'goal' && goal) {
 			const lines = ringFor(chart.data, preset);
-			lines?.forEach((name, k) => write(`p${k}`, name, true));
+			lines?.forEach((name, k) => write(`p${k}`, name));
 			void turn('pillars', 1, Boolean(lines?.some((name) => name)));
 		} else if (step === 'pillars' && named.length > 0) void turn('pick', 1);
-		else if (step === 'pick' || step === 'actions') void turn('done', 1);
+		else if (step === 'pick' || step === 'actions') {
+			if (upNext !== null) open(upNext);
+			else void turn('done', 1);
+		}
+	}
+
+	/** Stopping keeps every line. A whole chart still gets its ending; anything else goes back to the grid. */
+	function pause(): void {
+		if (whole) void turn('done', 1);
+		else morph(() => chart.endStart());
 	}
 
 	function finish(): void {
@@ -152,20 +182,31 @@
 	}
 
 	const pillarKeys = Array.from({ length: 8 }, (_, k) => `p${k}`);
-	const actionKeys = $derived(Array.from({ length: 8 }, (_, i) => `a${pillar}_${i}`));
 
-	const doneLine = $derived.by(() => {
-		const pillars = named.length === 1 ? '1 pillar' : `${named.length} pillars`;
-		if (written === 0) return `${pillars} around your goal. Their actions can wait in the chart until you know them.`;
-		const actions = written === 1 ? '1 action' : `${written} actions`;
-		return `${pillars} around your goal, and ${actions} for ${pillarName}. The empty cells are the rest of the plan.`;
+	function actionKeys(k: number): string[] {
+		return Array.from({ length: 8 }, (_, i) => `a${k}_${i}`);
+	}
+
+	const primaryLabel = $derived.by(() => {
+		if (step === 'goal' || step === 'pillars') return 'Next';
+		if (upNext === null) return 'Finish';
+		return step === 'pick' && !begun ? 'Start writing' : 'Next pillar';
 	});
-	const sealStep = $derived(Math.min(0.16, 0.6 / Math.max(1, named.length)));
-	const sealAfter = $derived(0.35 + named.length * sealStep + 0.35);
+
+	const doneTitle = $derived(whole ? 'Chart complete' : 'Chart drawn');
+	const doneLine = $derived.by(() => {
+		if (whole) return 'One goal, 8 pillars, 64 actions. Don’t take them all on at once: Today asks for three a day, and the chart stays the map.';
+		const holes = 8 - blocks;
+		return `${blocks} of 8 blocks written. ${holes === 1 ? 'The empty one is a hole' : 'The empty ones are holes'} in the plan. Keep building, above the chart, fills them when you know what goes there.`;
+	});
+	const sealStep = $derived(Math.min(0.16, 0.6 / Math.max(1, sealed.length)));
+	const sealAfter = $derived(0.35 + sealed.length * sealStep + 0.35);
 
 	const cellField =
 		'field h-full min-h-0 w-full min-w-0 resize-none rounded-[22px] border-0 px-3 pt-[28px] pb-2.5 text-[15px] leading-[1.3] motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none max-[900px]:rounded-[16px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-1.5 max-[900px]:text-[13px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto';
 	const cellNumber = 'pointer-events-none absolute top-2.5 left-3 z-[4] text-[0.72rem] font-[650] tabular-nums max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:text-[0.66rem]';
+	const title = 'm-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.5rem]';
+	const lede = 'm-0 max-w-[50ch] text-[0.98rem] leading-snug text-pretty text-muted';
 </script>
 
 {#snippet center(text: string, hue?: number)}
@@ -181,19 +222,14 @@
 	</div>
 {/snippet}
 
-{#snippet lines(keys: string[], hue: number, kind: 'pillar' | 'action')}
+{#snippet lines(keys: string[], centerText: string, hue: number | undefined, kind: 'pillar' | 'action')}
 	<div class="mx-auto grid w-full max-w-[400px] grid-cols-3 gap-2 max-[900px]:gap-1.5">
 		{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as slot (slot)}
 			{#if slot === 4}
-				{#if kind === 'pillar'}
-					{@render center(goal)}
-				{:else}
-					{@render center(pillarName, hue)}
-				{/if}
+				{@render center(centerText, hue)}
 			{:else}
 				{@const at = idx(slot)}
 				{@const key = keys[at] ?? ''}
-				{@const cellHue = kind === 'pillar' ? HUES[at] : hue}
 				{@const text = chart.textOf(key)}
 				<div
 					class={cn('relative aspect-square min-w-0', dealing && text && 'motion-safe:animate-deal-in')}
@@ -207,11 +243,11 @@
 								? 'pillar-cell font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot'
 								: 'pillar-action text-text placeholder:text-muted placeholder:opacity-75 can-hover:hover:action-hot'
 						)}
-						style:--h={cellHue}
+						style:--h={kind === 'pillar' ? HUES[at] : hue}
 						maxlength={TEXT_MAX}
 						spellcheck="false"
 						autocapitalize="sentences"
-						aria-label={kind === 'pillar' ? `Pillar ${at + 1}` : `${pillarName} action ${at + 1}`}
+						aria-label={kind === 'pillar' ? `Pillar ${at + 1}` : `${centerText} action ${at + 1}`}
 						placeholder={kind === 'pillar' ? `Pillar ${at + 1}` : `Action ${at + 1}`}
 						value={text}
 						data-fit={text}
@@ -220,7 +256,6 @@
 						{@attach fitCellField}
 						onkeydown={(event) => onFieldKeydown(event, keys, key)}
 						oninput={(event) => write(key, event.currentTarget.value)}
-						onblur={() => chart.settle()}
 					></textarea>
 				</div>
 			{/if}
@@ -228,30 +263,44 @@
 	</div>
 {/snippet}
 
-{#snippet pick()}
+{#snippet outerRing()}
 	<div class="mx-auto grid w-full max-w-[400px] grid-cols-3 gap-2 max-[900px]:gap-1.5" role="group" aria-label="Pillars">
 		{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as slot (slot)}
 			{#if slot === 4}
 				{@render center(goal)}
 			{:else}
 				{@const at = idx(slot)}
-				{@const name = chart.data.pillars[at]?.trim() ?? ''}
+				{@const name = nameOf(at)}
+				{@const count = counts[at] ?? 0}
 				{#if name}
 					<button
 						type="button"
 						class="@container relative flex aspect-square min-w-0 cursor-pointer appearance-none items-center justify-center overflow-hidden rounded-[22px] border-0 p-[9%] text-center font-sans font-[650] text-on-p pillar-cell shadow-card motion-safe:transition-[scale,translate,box-shadow] motion-safe:duration-150 motion-safe:ease-ui can-hover:hover:pillar-hot can-hover:hover:-translate-y-1 can-hover:hover:shadow-float active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[900px]:rounded-[16px]"
 						style:--h={HUES[at]}
-						data-first={at === named[0] ? '' : undefined}
-						aria-label="Start with {name}"
+						data-first={at === upNext ? '' : undefined}
+						aria-label="{name}, {count} of 8 actions"
 						onclick={() => open(at)}
 					>
 						<span class="line-clamp-4 text-[clamp(11px,11cqi,15px)] leading-[1.2] text-balance wrap-anywhere">{name}</span>
-						{#if chart.milestones.pillarActionCounts[at]}
-							<span class="absolute top-2 right-2.5 text-[0.7rem] font-[650] tabular-nums opacity-70">{chart.milestones.pillarActionCounts[at]}</span>
-						{/if}
+						<span class="absolute top-2 right-2.5 inline-flex items-center gap-0.5 text-[0.7rem] font-[650] tabular-nums max-[900px]:top-1.5 max-[900px]:right-2" aria-hidden="true">
+							{#if count === 8}
+								<span class="flex size-4 items-center justify-center rounded-full bg-ink text-on-ink"><Icon name="check" size={10} strokeWidth={2.6} /></span>
+							{:else}
+								<span class="opacity-70">{count}/8</span>
+							{/if}
+						</span>
 					</button>
 				{:else}
-					<div class="aspect-square min-w-0 rounded-[22px] pillar-dot max-[900px]:rounded-[16px]" style:--h={HUES[at]} aria-hidden="true"></div>
+					<button
+						type="button"
+						class="flex aspect-square min-w-0 cursor-pointer appearance-none items-center justify-center rounded-[22px] border-0 p-0 dot-fill motion-safe:transition-[scale,translate] motion-safe:duration-150 motion-safe:ease-ui can-hover:hover:-translate-y-1 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink max-[900px]:rounded-[16px]"
+						style:--h={HUES[at]}
+						aria-label="Name pillar {at + 1}"
+						title="Name pillar {at + 1}"
+						onclick={() => void turn('pillars', -1, false, `p${at}`)}
+					>
+						<Icon name="plus" size={18} />
+					</button>
 				{/if}
 			{/if}
 		{/each}
@@ -285,9 +334,9 @@
 	{/if}
 
 	<!-- Room on both sides, so a cell's focus ring and a lifted pillar are not cut at the page's edge. -->
-	<Pages view={step} {direction} label={heading[step]} class="-mx-3 px-3 overflow-x-clip overflow-y-visible">
+	<Pages {view} {direction} label={heading[step]} class="-mx-3 px-3 overflow-x-clip overflow-y-visible">
 		{#snippet page(current)}
-			{@const at = current as Step}
+			{@const at = (current.startsWith('actions-') ? 'actions' : current) as Step}
 			{#if at === 'goal'}
 				<div class="flex flex-col gap-5 max-[900px]:gap-4">
 					<div class="flex items-center gap-4">
@@ -311,13 +360,11 @@
 						</svg>
 						<div class="flex min-w-0 flex-col gap-1">
 							<Eyebrow class="m-0">Start in the center</Eyebrow>
-							<h2 class="m-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance max-[900px]:text-[1.5rem]">
-								What do you want to get done?
-							</h2>
+							<h2 class={title}>What do you want to get done?</h2>
 						</div>
 					</div>
-					<p class="m-0 max-w-[48ch] text-[0.98rem] leading-snug text-pretty text-muted">
-						One goal for this chart, something you could finish. A date helps. Pillars and actions come next, one ring at a time.
+					<p class={lede}>
+						One goal, something you could finish. A date helps. Then you build out from it: eight pillars, then eight actions under each. It usually takes one sitting, and you can stop anywhere.
 					</p>
 					<input
 						id="start-goal"
@@ -362,56 +409,52 @@
 				<div class="flex flex-col gap-5 max-[900px]:gap-4">
 					<div class="flex flex-col gap-2">
 						<Eyebrow class="m-0">The first ring</Eyebrow>
-						<h2 class="m-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance max-[900px]:text-[1.5rem]">
-							What would make it happen?
-						</h2>
-						<p class="m-0 max-w-[50ch] text-[0.98rem] leading-snug text-pretty text-muted">
+						<h2 class={title}>What would make it happen?</h2>
+						<p class={lede}>
 							{preset
-								? `These are the ${preset.title} preset’s. Keep, rename, or clear any of them.`
-								: 'Name the areas that would get you there: a skill, a habit, people, your health.'}
-							Eight fill the ring. A few is a fine start.
+								? `The ${preset.title} preset’s eight. Keep, rename, or swap any for your own.`
+								: 'Eight things that have to be true for this goal: a skill, a habit, your health, the people around you. Leave one empty only if you don’t know it yet.'}
 						</p>
 					</div>
-					{@render lines(pillarKeys, 0, 'pillar')}
+					{@render lines(pillarKeys, goal, undefined, 'pillar')}
 					<p class="m-0 text-center text-[0.84rem] text-muted tabular-nums" aria-live="polite">{named.length} of 8 named</p>
 				</div>
 			{:else if at === 'pick'}
 				<div class="flex flex-col gap-5 max-[900px]:gap-4">
 					<div class="flex flex-col gap-2">
 						<Eyebrow class="m-0">The outer ring</Eyebrow>
-						<h2 class="m-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance max-[900px]:text-[1.5rem]">
-							Which pillar comes first?
-						</h2>
-						<p class="m-0 max-w-[50ch] text-[0.98rem] leading-snug text-pretty text-muted">
-							Each pillar gets eight actions you can tick off. Write one pillar’s now. The others wait in the chart.
+						<h2 class={title}>Eight actions under each pillar</h2>
+						<p class={lede}>
+							One block at a time, in any order. Each action is something you can mark done, and that is yours to do.
 						</p>
 					</div>
-					{@render pick()}
+					{@render outerRing()}
+					<p class="m-0 text-center text-[0.84rem] text-muted tabular-nums" aria-live="polite">{blocks} of 8 blocks written</p>
 				</div>
 			{:else if at === 'actions'}
+				{@const k = Number(current.slice('actions-'.length))}
+				{@const name = nameOf(k)}
 				<div class="flex flex-col gap-5 max-[900px]:gap-4">
 					<div class="flex flex-col gap-2">
-						<Eyebrow class="m-0" pip={pillar}>Pillar {pillar + 1}</Eyebrow>
-						<h2 class="m-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.5rem]">
-							Eight actions for {pillarName}
-						</h2>
-						<p class="m-0 max-w-[50ch] text-[0.98rem] leading-snug text-pretty text-muted">
-							{lent === pillar
-								? 'The preset’s, to start from. Each one passes two tests: you can mark it done, and it is yours to do.'
-								: 'Things you can mark done, and that are yours to do. Start each with a verb.'}
+						<Eyebrow class="m-0" pip={k}>Block {named.indexOf(k) + 1} of {named.length}</Eyebrow>
+						<h2 class={title}>Eight actions for {name}</h2>
+						<p class={lede}>
+							{lent === k && preset
+								? `The ${preset.title} preset’s, to start from. Keep, rewrite, or replace any.`
+								: 'Things you can mark done, and that are yours to do. Start each with a verb. Leave a cell empty rather than write filler.'}
 						</p>
 					</div>
-					{@render lines(actionKeys, HUES[pillar] ?? 0, 'action')}
-					<p class="m-0 text-center text-[0.84rem] text-muted tabular-nums" aria-live="polite">{written} of 8 written</p>
+					{@render lines(actionKeys(k), name, HUES[k], 'action')}
+					<p class="m-0 text-center text-[0.84rem] text-muted tabular-nums" aria-live="polite">{counts[k] ?? 0} of 8 written</p>
 				</div>
 			{:else}
 				<div class="flex flex-col items-center gap-4 pt-2 pb-1 text-center">
-					<DaySeal moved={named} play step={sealStep} label="Chart started" class="size-[116px]" />
+					<DaySeal moved={sealed} play step={sealStep} label={doneTitle} class="size-[116px]" />
 					<div class="flex flex-col gap-1.5">
 						<h2 class="m-0 text-[1.3rem] leading-tight font-[620] text-balance motion-safe:animate-done-in" style:animation-delay="{sealAfter}s">
-							Chart started
+							{doneTitle}
 						</h2>
-						<p class="m-0 max-w-[38ch] text-[0.94rem] leading-snug text-pretty text-muted motion-safe:animate-done-in" style:animation-delay="{sealAfter + 0.08}s">
+						<p class="m-0 max-w-[40ch] text-[0.94rem] leading-snug text-pretty text-muted motion-safe:animate-done-in" style:animation-delay="{sealAfter + 0.08}s">
 							{doneLine}
 						</p>
 					</div>
@@ -420,8 +463,8 @@
 		{/snippet}
 	</Pages>
 
-	<!-- One button each side, relabelled rather than replaced, so keyboard focus stays put as pages turn. -->
-	<div class="mt-6 flex items-center justify-between gap-2 max-[900px]:mt-5">
+	<!-- The buttons are relabelled rather than replaced, so keyboard focus stays put as pages turn. -->
+	<div class="mt-6 flex items-center gap-1.5 max-[900px]:mt-5">
 		{#if step === 'done'}
 			<Button class="mx-auto min-w-[10rem] motion-safe:animate-done-in" style="animation-delay: {sealAfter + 0.16}s" data-next onclick={finish}>
 				See the chart
@@ -430,16 +473,22 @@
 			{#if step === 'goal'}
 				<Button variant="ghost" icon="sparkles" class="-ms-2" onclick={ondraft}>Have a chat app draft it</Button>
 			{:else}
-				<Button variant="ghost" icon="arrow-left" class="-ms-2" onclick={back}>Back</Button>
+				<Button variant="ghost" icon="arrow-left" class="-ms-2 max-[900px]:px-3" onclick={back}>
+					<span class="max-[900px]:sr-only">{step === 'actions' ? 'All pillars' : 'Back'}</span>
+				</Button>
 			{/if}
-			<Button
-				variant={step === 'pick' ? 'soft' : 'primary'}
-				data-next
-				disabled={(step === 'goal' && !goal) || (step === 'pillars' && named.length === 0)}
-				onclick={next}
-			>
-				{step === 'pick' ? 'Skip for now' : step === 'actions' ? 'Done for now' : 'Next'}
-			</Button>
+			<div class="ms-auto flex items-center gap-1.5">
+				{#if step !== 'goal'}
+					<Button variant="ghost" onclick={pause}>Done for now</Button>
+				{/if}
+				<Button
+					data-next
+					disabled={(step === 'goal' && !goal) || (step === 'pillars' && named.length === 0)}
+					onclick={next}
+				>
+					{primaryLabel}
+				</Button>
+			</div>
 		{/if}
 	</div>
 </section>

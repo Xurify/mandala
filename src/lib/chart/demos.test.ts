@@ -5,7 +5,7 @@ import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } f
 import { nearKnown, nextTool } from './tools.ts';
 import { completedBy, getByKey, wholeness } from './model.ts';
 import { getPreset } from './presets/index.ts';
-import { actionsFor, startPage } from './start.ts';
+import { actionsFor, blocksWritten, startPage } from './start.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -33,6 +33,13 @@ describe('demos', () => {
 		expect(setup.start).toEqual({ preset: 'fitness' });
 		expect(startPage(setup.data!)).toEqual({ page: 'pillars', pillar: null });
 		expect(actionsFor(setup.data!, getPreset('fitness'), 2)).toHaveLength(8);
+	});
+
+	it('leaves blocks to keep building, and a pillar to name', () => {
+		const data = demoSetup('building', now).data!;
+		expect(blocksWritten(data)).toBe(3);
+		expect(data.pillars[6]).toBe('');
+		expect(startPage(data)).toEqual({ page: 'pick', pillar: null });
 	});
 
 	it('finishes a pillar without finishing the chart', () => {

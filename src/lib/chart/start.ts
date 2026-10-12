@@ -1,17 +1,55 @@
 import type { ChartData } from './model.ts';
-import { PRESETS, type Preset } from './presets/index.ts';
+import { PRESETS, type Preset, type PresetId } from './presets/index.ts';
 
-/** A chart started from the center out: the goal, the ring of pillars, a pillar to begin with, its actions. */
+/** A chart written from the center out: the goal, the ring of pillars, the outer ring, one pillar's block. */
 export type StartPage = 'goal' | 'pillars' | 'pick' | 'actions';
 
+function named(data: ChartData, k: number): boolean {
+	return Boolean(data.pillars[k]?.trim());
+}
+
+function written(data: ChartData, k: number): number {
+	return data.actions[k]?.filter((action) => action.trim()).length ?? 0;
+}
+
 /**
- * Where a reload carries on: the goal until there is one, then the ring, which shows what is named and leads to
- * the pick, then the pillar that has actions under it.
+ * Where a reload, or Keep building, carries on: the goal until there is one, then the ring, then a block left
+ * half written, then the outer ring to pick the next one from.
  */
 export function startPage(data: ChartData): { page: StartPage; pillar: number | null } {
 	if (!data.goal.trim()) return { page: 'goal', pillar: null };
-	const pillar = data.actions.findIndex((row, k) => Boolean(data.pillars[k]?.trim()) && row.some((action) => action.trim()));
-	return pillar < 0 ? { page: 'pillars', pillar: null } : { page: 'actions', pillar };
+	const counts = data.pillars.map((_, k) => (named(data, k) ? written(data, k) : 0));
+	const half = counts.findIndex((count) => count > 0 && count < 8);
+	if (half >= 0) return { page: 'actions', pillar: half };
+	return counts.some((count) => count > 0) ? { page: 'pick', pillar: null } : { page: 'pillars', pillar: null };
+}
+
+/** A pillar's block is written when the pillar has a name and all eight actions. */
+export function blocksWritten(data: ChartData): number {
+	return data.pillars.filter((_, k) => named(data, k) && written(data, k) === 8).length;
+}
+
+/** The next named pillar after `from`, going round, whose block still has an empty line. -1 starts at the first. */
+export function nextPillar(data: ChartData, from: number): number | null {
+	for (let step = 1; step <= 8; step++) {
+		const k = (from + step + 8) % 8;
+		if (k !== from && named(data, k) && written(data, k) < 8) return k;
+	}
+	return null;
+}
+
+/** The preset whose pillar names the chart still carries most of, so carrying on can still lend its actions. */
+export function lenderOf(data: ChartData): PresetId | null {
+	let lender: PresetId | null = null;
+	let most = 0;
+	for (const preset of PRESETS) {
+		const same = preset.pillars.filter((name, k) => data.pillars[k]?.trim() === name).length;
+		if (same > most) {
+			lender = preset.id;
+			most = same;
+		}
+	}
+	return lender;
 }
 
 /** Nothing in the ring is the person's own yet: it is empty, or holds a preset's eight pillars as they came. */
