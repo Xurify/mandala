@@ -62,6 +62,7 @@ import {
   summarize,
   summarizeDeleted,
   titleOf,
+  withoutHistory,
   TRASH_MS,
   type ChartLibrary,
   type ChartSummary,
@@ -285,6 +286,8 @@ export class ChartStore {
   shareId = $state("");
   shareUpdatedAt = $state<number | null>(null);
   autoShare = $state(false);
+  /** Whether this chart's shares carry its notes. Off until asked. */
+  shareNotes = $state(false);
   shareBusy = $state(false);
   #shareTimer: ReturnType<typeof setTimeout> | null = null;
   #shareChartId = "";
@@ -393,17 +396,19 @@ export class ChartStore {
       const all = raw
         ? (JSON.parse(raw) as Record<
             string,
-            { id: string; updatedAt: number | null; auto: boolean }
+            { id: string; updatedAt: number | null; auto: boolean; notes?: boolean }
           >)
         : {};
       const entry = all[chartId];
       this.shareId = entry?.id ?? "";
       this.shareUpdatedAt = entry?.updatedAt ?? null;
       this.autoShare = entry?.auto ?? false;
+      this.shareNotes = entry?.notes === true;
     } catch {
       this.shareId = "";
       this.shareUpdatedAt = null;
       this.autoShare = false;
+      this.shareNotes = false;
     }
   }
 
@@ -415,6 +420,7 @@ export class ChartStore {
         id: this.shareId,
         updatedAt: this.shareUpdatedAt,
         auto: this.autoShare,
+        notes: this.shareNotes,
       };
       localStorage.setItem(SHARE_STATE_KEY, JSON.stringify(all));
     } catch {}
@@ -1301,7 +1307,7 @@ export class ChartStore {
     if (this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId || null);
+      const result = await publishChart(this.data, this.shareId || null, this.shareNotes);
       this.shareId = result.id;
       this.shareUpdatedAt = result.updatedAt;
       this.#persistShareState();
@@ -1318,6 +1324,13 @@ export class ChartStore {
     this.autoShare = false;
     this.#persistShareState();
     await unpublishChart(id);
+  }
+
+  /** A live page updates to match, the same way an edit does. */
+  setShareNotes(on: boolean): void {
+    this.shareNotes = on;
+    this.#persistShareState();
+    if (this.shareId && this.autoShare) this.#scheduleAutoPublish();
   }
 
   setAutoShare(on: boolean): void {
@@ -1350,7 +1363,7 @@ export class ChartStore {
     if (!this.autoShare || !this.shareId || this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId);
+      const result = await publishChart(this.data, this.shareId, this.shareNotes);
       this.shareUpdatedAt = result.updatedAt;
       this.#persistShareState();
     } catch {
@@ -1501,9 +1514,10 @@ export class ChartStore {
     return true;
   }
 
-  duplicateChart(): boolean {
+  /** `fresh` leaves the history behind: days, time, the board, done marks, and reflections. */
+  duplicateChart(fresh = false): boolean {
     this.#flush();
-    const record = newRecord(this.data);
+    const record = newRecord(fresh ? withoutHistory(this.data) : this.data);
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
     this.data = cloneChart(record.data);
@@ -1511,7 +1525,7 @@ export class ChartStore {
     const title = titleOf(this.data);
     const held = this.#copySlips();
     this.saveNow();
-    this.#applyNote(held, "Duplicated", title, 1, false);
+    this.#applyNote(held, fresh ? "Copied fresh" : "Duplicated", title, 1, false);
     return true;
   }
 

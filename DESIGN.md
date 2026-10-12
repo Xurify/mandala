@@ -209,7 +209,7 @@ Every day's finished things, on a month, across every chart (`CalendarView.svelt
 
 What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar on a soft lift, no outline, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
-- **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
+- **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so sync and another tab carry the board as they carry the chart. A share does not: where a card sits is your history.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
 - **One record of done.** Ticking an action in Today, dropping its card in Done, and Mark done in the editor are the same act (`finish` in `board.ts`): the action is done that day (a plain action becomes a milestone, so it leaves the picks) and the day's log gets the tick and its time. Today shows it ticked, the board files it in Done, and the calendar lists it once on that day. Unticking it, dragging it out of Done, or Completed in the editor reopens it everywhere and takes it off that day (`reopen`). Its check stamps as it lands. A routine never goes to Done: it is ticked in Today, day by day. Done dims while a routine is held over it and the card goes home.
 - **Moving.** Drag with a pointer; on touch, hold a moment first so a swipe still scrolls. The held card tilts like a drawn card, a recessed slot opens where it will land, and on release it flies into that slot. Near a list's edge the list scrolls under it. With the keyboard, Space picks a card up, the arrows carry it (left and right between lists, up and down in To do and Doing), Space or Enter puts it down, Escape puts it back; a live region says where it is. A click or Enter opens the card itself, as a ticket beside the board (`CardSheet.svelte`).
@@ -242,6 +242,10 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
+### What a copy or a share carries
+
+A chart has a plan (goal, pillars, actions, how each is set up, the shelves' links) and a history (days, ticks, time logged, done marks, the board's lanes, reflections). **Duplicate chart** copies both. **Copy without history**, under it in the chart menu and in the command palette, copies the plan only, and its slip says Copied fresh. A share, by link or by page, carries the plan and never the history. Notes are the person's own: a share leaves out each action's note and its board notes unless **Include notes**, in Export, is on for that chart. The rules live in `contract.ts`.
+
 ### Time on an action
 
 How long something took, beside whether it got done. The tick stays the person's: time never ticks an action, and an action can be ticked with no time on it. Rules in `timer.ts`.
@@ -253,7 +257,7 @@ How long something took, beside whether it got done. The tick stays the person's
 - **A stopwatch left on.** Stopping a stopwatch that ran over 3 hours logs nothing yet. It asks how long it really took, or not to log it.
 - **Taking it off.** The row's timer button has Remove today's time, in the danger tone, once there is some. The calendar's day has a cross beside each stretch. Either leaves a slip with Undo.
 - **Where it reads back.** The row says how long today ("25 min today"). The calendar's day lists the time logged under what was finished, and the month line adds it up. Bindu's progress page shows time per pillar this week, longest first, and its first note can say where most of the week's time went.
-- **Storage.** Sessions live in the day log and travel with a shared chart, like ticks. Sessions point at an action by its id. The running timer goes to your own devices, never to another person (`timer: 'yours'` in `contract.ts`).
+- **Storage.** Sessions live in the day log and point at an action by its id. Like ticks, they and the running timer reach your own devices and never another person.
 
 ### The chart on a phone
 

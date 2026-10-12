@@ -21,7 +21,7 @@ describe('share encoding', () => {
 		expect(decoded?.goal).toBe('Run a half marathon');
 		expect(decoded?.pillars[0]).toBe('Training');
 		expect(decoded?.meta).toEqual(sampleChart().meta);
-		expect(decoded?.days).toEqual(sampleChart().days);
+		expect(decoded?.days).toBeUndefined();
 	});
 
 	it('leaves the draft brief out of the link', async () => {
@@ -52,14 +52,15 @@ describe('share encoding', () => {
 		expect(data.tools.p0![0]!.opened).toEqual(['2026-10-01']);
 	});
 
-	it('leaves a running timer out, and keeps logged time', () => {
+	it('leaves the days out: ticks, logged time, and a running timer stay here', () => {
 		const data = emptyChart();
 		const action = data.actionIds[0]![0]!;
 		data.days = { '2026-09-30': { focus: [], checked: [], sessions: [{ action, at: '07:00', minutes: 30 }] } };
 		data.timer = { action, since: Date.now() };
 		const shared = forSharing(data);
 		expect(shared.timer).toBeUndefined();
-		expect(shared.days?.['2026-09-30']?.sessions).toEqual([{ action, at: '07:00', minutes: 30 }]);
+		expect(shared.days).toBeUndefined();
+		expect(data.days['2026-09-30']?.sessions).toHaveLength(1);
 	});
 
 	it('round-trips a plain (uncompressed) payload', async () => {
