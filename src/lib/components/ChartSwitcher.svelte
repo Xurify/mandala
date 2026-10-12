@@ -18,6 +18,7 @@
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
 	import MenuTitle from './MenuTitle.svelte';
+	import PickAll from './PickAll.svelte';
 	import PickMark from './PickMark.svelte';
 	import SelectCharts from './SelectCharts.svelte';
 	import Button from './ui/Button.svelte';
@@ -528,16 +529,6 @@
 				{count > 1 ? `Delete ${count}` : 'Delete'}
 			</Button>
 		{:else}
-			<div class="me-auto flex items-center gap-1">
-				{#if chart.deletedCharts.length > 1}
-					<Button variant="ghost" size="sm" class="-ms-3.5 coarse:min-h-11" onclick={toggleAllDeleted}>
-						{allPicked ? 'Clear' : 'Select all'}
-					</Button>
-				{/if}
-				<p class="m-0 text-[0.84rem] text-muted tabular-nums">
-					{count === 0 ? 'None selected' : `${count} selected`}
-				</p>
-			</div>
 			<Button
 				id="deleted-remove"
 				variant="danger"
@@ -582,6 +573,9 @@
 		<EmptyDeleted days={TRASH_DAYS} />
 	{:else}
 		<div class="-mx-2.5">
+			{#if chart.deletedCharts.length > 1}
+				<PickAll total={chart.deletedCharts.length} picked={pickedItems.length} disabled={confirming} onclick={toggleAllDeleted} />
+			{/if}
 			{#each deletedGroups as group, groupIndex (group.label)}
 				<section class={groupIndex === 0 ? '' : 'mt-3'} aria-label={group.label}>
 					<Eyebrow class="px-3 pb-1">{group.label}</Eyebrow>
