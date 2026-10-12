@@ -23,6 +23,7 @@
 	import { titleOf } from '$lib/chart/library';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
+	import ChartCore from './ChartCore.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import EmptyChart from './EmptyChart.svelte';
 	import Helper from './Helper.svelte';
@@ -826,12 +827,14 @@
 						onchat={() => helper.show('write', 'new')}
 						onwrite={() => chart.jumpToKey('g')}
 					/>
+				{:else if effectiveViewMode === 'view'}
+					<ChartCore class="min-[900px]:hidden print:hidden" />
+					<!-- Printed whole from a phone too. -->
+					<div class="contents max-[900px]:hidden print:!contents">
+						<MandalaGrid mode="view" onSelect={selectBlock} onEdit={handleEditBlock} />
+					</div>
 				{:else}
-					<MandalaGrid
-						mode={effectiveViewMode === 'split' ? 'split' : 'view'}
-						onSelect={selectBlock}
-						onEdit={handleEditBlock}
-					/>
+					<MandalaGrid mode={effectiveViewMode === 'split' ? 'split' : 'view'} onSelect={selectBlock} onEdit={handleEditBlock} />
 				{/if}
 			</div>
 		</div>

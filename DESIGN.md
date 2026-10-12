@@ -242,6 +242,10 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
+### The chart on a phone
+
+Under 900px, 81 cells cannot hold their words, and dots that stand for words say nothing. So View shows the chart from its center (`ChartCore.svelte`): the goal in the middle, and each pillar where the grid has it, in its hue, with its name and how many of its eight actions are written. A pillar opens its block in a dialog (`BlockSheet.svelte`): the block as the chart lays it out, every action in words, a done one struck through, arrows that walk round the pillars, and Edit. A tap on a line opens it in the editor. Names shrink to keep whole words (`fitWords`) rather than break inside one. The full grid stays in the page for print.
+
 ### The empty chart
 
 A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.

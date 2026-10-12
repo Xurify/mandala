@@ -10,6 +10,7 @@ import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type
 export type DemoId =
 	| 'complete'
 	| 'pillar'
+	| 'phone'
 	| 'today'
 	| 'calendar'
 	| 'board'
@@ -164,6 +165,15 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'phone',
+		title: 'The chart on a phone',
+		group: 'Writing the chart',
+		steps: [
+			'Open it on a phone, or narrow the window under 900px. 81 cells cannot hold their words there, so the chart shows its center: the goal, and each pillar with how many of its eight actions are written.',
+			'Tap a pillar. Its block opens with every action in words; the arrows walk round the pillars, and a tap on a line opens it in the editor.'
+		]
+	},
+	{
 		id: 'today',
 		title: "Today's three",
 		group: 'Days and weeks',
@@ -286,6 +296,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		for (let index = 4; index < 8; index++) data.actions[6]![index] = '';
 		return { data, view: 'split', focus: 'a2_5' };
 	}
+	if (id === 'phone') return { data: livedIn(now), view: 'view' };
 	if (id === 'today') return { data: livedIn(now), view: 'today', others: [inTraining(now)] };
 	if (id === 'calendar') return { data: livedIn(now), view: 'calendar', others: [inTraining(now), preset('money')] };
 	if (id === 'board') return { data: onTheBoard(now), view: 'board' };

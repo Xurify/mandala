@@ -53,6 +53,7 @@ src/
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
     MandalaGrid.svelte        the 9×9 grid
+    ChartCore, BlockSheet     the chart on a phone: its center, and a pillar's block in words
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
