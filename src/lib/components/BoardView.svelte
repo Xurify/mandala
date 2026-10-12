@@ -23,7 +23,6 @@
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
-	import SegmentedControl from './ui/SegmentedControl.svelte';
 	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
 	import { textField } from './ui/styles';
@@ -63,7 +62,6 @@
 		dy: number;
 		lane: Lane | null;
 		index: number;
-		tab: boolean;
 		landing: boolean;
 	};
 
@@ -79,9 +77,6 @@
 	let frame = 0;
 
 	const view = $derived(lift ? placed(board, lift.id, lift.lane, lift.index, today) : board);
-
-	const firstLane = (): Lane => (board.doing.length > 0 ? 'doing' : board.todo.length > 0 ? 'todo' : 'open');
-	let lane = $state<Lane>(firstLane());
 
 	const counts = $derived(
 		Object.fromEntries(LANES.map((each) => [each, view[each].filter(shown).length])) as Record<Lane, number>
@@ -154,13 +149,10 @@
 		return board[inLane].filter((card) => card.id !== key);
 	}
 
-	function laneAt(x: number, y: number): { lane: Lane; tab: boolean } | null {
+	function laneAt(x: number, y: number): Lane | null {
 		const hit = document.elementFromPoint(x, y);
 		if (!hit || !root?.contains(hit)) return null;
-		const tab = hit.closest<HTMLElement>('[data-lane-tabs] [data-value]');
-		if (tab) return { lane: tab.dataset.value as Lane, tab: true };
-		const tray = hit.closest<HTMLElement>('[data-lane]');
-		return tray ? { lane: tray.dataset.lane as Lane, tab: false } : null;
+		return (hit.closest<HTMLElement>('[data-lane]')?.dataset.lane as Lane | undefined) ?? null;
 	}
 
 	function indexAt(inLane: Lane, y: number, key: ActionId): number {
@@ -178,31 +170,16 @@
 		return wholeIndex(restOf(inLane, key), shown, at);
 	}
 
-	let spring = 0;
-	let springLane: Lane | null = null;
-
-	function springTo(target: Lane | null): void {
-		if (target === springLane) return;
-		clearTimeout(spring);
-		springLane = target;
-		if (target === null) return;
-		spring = window.setTimeout(() => {
-			springLane = null;
-			lane = target;
-			retarget(pointer.x, pointer.y);
-		}, 380);
-	}
-
 	function retarget(x: number, y: number): void {
 		const current = drag;
 		if (!current || current.landing) return;
 		const target = laneAt(x, y);
-		springTo(target?.tab && target.lane !== lane ? target.lane : null);
-		current.lane = target?.lane ?? null;
-		current.tab = target?.tab ?? false;
-		if (!target || !canGo(current.card, target.lane)) return;
-		current.index = target.tab ? restOf(target.lane, current.card.id).length : indexAt(target.lane, y, current.card.id);
+		current.lane = target;
+		if (!target || !canGo(current.card, target)) return;
+		current.index = indexAt(target, y, current.card.id);
 	}
+
+	let edgeSince = 0;
 
 	function autoscroll(): void {
 		const current = drag;
@@ -219,11 +196,22 @@
 				moved = true;
 			}
 		}
-		// The dock covers the bottom of the window.
-		const push = y < 72 ? y - 72 : y > innerHeight - 132 ? y - innerHeight + 132 : 0;
-		if (push !== 0 && narrow) {
-			scrollBy(0, push * 0.3);
-			moved = true;
+		const columns = narrow ? root?.querySelector<HTMLElement>('[data-columns]') : null;
+		if (columns) {
+			const rect = columns.getBoundingClientRect();
+			const side = x < rect.left + 36 ? -1 : x > rect.right - 36 ? 1 : 0;
+			const now = performance.now();
+			if (side === 0) edgeSince = 0;
+			else {
+				moved = true;
+				if (edgeSince === 0) edgeSince = now;
+				else if (now - edgeSince > 450) {
+					const step = (columns.querySelector<HTMLElement>('[data-lane]')?.offsetWidth ?? 0) + parseFloat(getComputedStyle(columns).columnGap);
+					columns.scrollBy({ left: side * step, behavior: 'smooth' });
+					// Counts from the end of this step's own glide, so a held card turns one list at a time.
+					edgeSince = now + 300;
+				}
+			}
 		}
 		if (moved) retarget(x, y);
 		frame = requestAnimationFrame(autoscroll);
@@ -233,14 +221,13 @@
 		const current = drag;
 		if (!current || current.landing) return;
 		cancelAnimationFrame(frame);
-		springTo(null);
+		edgeSince = 0;
 		const dropping = drop && current.lane !== null && canGo(current.card, current.lane);
 		const to = dropping ? current.lane! : current.from;
 		const index = dropping ? current.index : current.fromIndex;
 		const moved = to !== current.from || ((to === 'todo' || to === 'doing') && index !== current.fromIndex);
 		current.lane = to;
 		current.index = index;
-		current.tab = narrow && to !== lane;
 		current.landing = true;
 		await tick();
 		const slot = root?.querySelector<HTMLElement>('[data-slot]');
@@ -251,10 +238,7 @@
 			current.dy = rect.top - current.y;
 			await new Promise((resolve) => setTimeout(resolve, 220));
 		}
-		if (moved && commit(current.card, current.from, to, index)) {
-			said = `Moved to ${where(current.card.id, to)}.`;
-			if (narrow && to !== lane) chart.say(`Moved to ${LANE_NAMES[to]}.`);
-		}
+		if (moved && commit(current.card, current.from, to, index)) said = `Moved to ${where(current.card.id, to)}.`;
 		if (drag === current) drag = null;
 	}
 
@@ -286,7 +270,6 @@
 					dy: 0,
 					lane: found.lane,
 					index: found.index,
-					tab: false,
 					landing: false
 				};
 				node.setPointerCapture(pointerId);
@@ -370,7 +353,6 @@
 	async function carry(card: Card, to: Lane, index: number): Promise<void> {
 		if (!lift) return;
 		lift = { ...lift, lane: to, index };
-		if (narrow) lane = to;
 		said = where(card.id, to);
 		await focusCard(card.id);
 	}
@@ -403,7 +385,6 @@
 		}
 		if (event.key === 'Escape') {
 			lift = null;
-			if (narrow) lane = held.from;
 			said = `Put back in ${LANE_NAMES[held.from]}.`;
 			await focusCard(card.id);
 			return;
@@ -431,7 +412,7 @@
 		const current = drag;
 		const cards = view[inLane].filter(shown);
 		let slotAt = -1;
-		if (current && current.lane === inLane && !current.tab && canGo(current.card, inLane)) {
+		if (current && current.lane === inLane && canGo(current.card, inLane)) {
 			slotAt = placed(board, current.card.id, inLane, current.index, today)[inLane]
 				.filter(shown)
 				.findIndex((card) => card.id === current.card.id);
@@ -473,8 +454,6 @@
 	$effect(() => {
 		if (sheetOpen || !sheetKey) return;
 		const key = sheetKey;
-		const found = findCard(board, key);
-		if (narrow && found && found.lane !== lane) lane = found.lane;
 		sheetKey = null;
 		void focusCard(key);
 	});
@@ -519,7 +498,6 @@
 		const key = idAt(chart.data, pillarIndex, slot);
 		if (addLane !== 'open') chart.moveCard(key, addLane, restOf(addLane, key).length);
 		addOpen = false;
-		if (narrow) lane = addLane;
 		void focusCard(key);
 	}
 
@@ -535,6 +513,26 @@
 		if (card.routine) return { icon: 'refresh', label: 'Routine' };
 		return null;
 	}
+
+	const fillScreen: Attachment<HTMLElement> = (node) => {
+		const fit = (): void => {
+			// Taller than the window first, so the page's height is its content and not the window's.
+			node.style.height = `${innerHeight * 2}px`;
+			const top = node.getBoundingClientRect().top + scrollY;
+			const below = document.documentElement.scrollHeight - top - node.offsetHeight;
+			node.style.height = `${Math.max(320, innerHeight - top - below)}px`;
+		};
+		fit();
+		const resize = new ResizeObserver(fit);
+		resize.observe(document.body);
+		addEventListener('resize', fit);
+		void document.fonts?.ready.then(fit);
+		return () => {
+			resize.disconnect();
+			removeEventListener('resize', fit);
+			node.style.height = '';
+		};
+	};
 
 	const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink';
 	const tray = 'rounded-[24px] bg-[color-mix(in_oklch,var(--sunken)_55%,var(--bg))]';
@@ -591,15 +589,31 @@
 	</li>
 {/snippet}
 
-{#snippet list(inLane: Lane, scrolls: boolean)}
+{#snippet column(each: Lane, className: string)}
+	{@const over = drag !== null && !drag.landing && drag.lane === each && each !== drag.from && canGo(drag.card, each)}
+	<section data-lane={each} class={cn(tray, 'flex flex-col', over && 'bg-sunken', className)} aria-labelledby="{uid}-{each}">
+		<header class="flex min-h-[52px] shrink-0 items-center justify-between gap-2 ps-[22px] pe-2 pt-1.5 max-[900px]:min-h-12 max-[900px]:ps-[18px]">
+			<h3 id="{uid}-{each}" class="m-0 flex items-baseline gap-2 text-[0.95rem] font-semibold text-text">
+				{LANE_NAMES[each]}
+				<span class="text-[0.82rem] font-medium text-muted tabular-nums">{counts[each]}</span>
+			</h3>
+			{#if each !== 'done' && roomy.length > 0}
+				<IconButton icon="plus" label="Add a card to {LANE_NAMES[each]}" class="text-muted hover:text-text" onclick={() => openAdd(each)} />
+			{/if}
+		</header>
+		{@render list(each)}
+	</section>
+{/snippet}
+
+{#snippet list(inLane: Lane)}
 	{@const entries = entriesOf(inLane)}
 	{@const refused = drag !== null && !drag.landing && drag.lane === inLane && !canGo(drag.card, inLane)}
 	<ol
 		data-list={inLane}
-		data-scroller={scrolls ? '' : undefined}
+		data-scroller
 		class={cn(
-			'relative m-0 flex list-none flex-col gap-2 p-2',
-			scrolls && 'max-h-[max(360px,calc(100dvh-300px))] min-h-[180px] flex-1 overflow-y-auto rounded-b-[24px]',
+			'relative m-0 flex min-h-[180px] flex-1 list-none flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-b-[24px] p-2',
+			narrow ? 'min-h-0' : 'max-h-[max(360px,calc(100dvh-300px))]',
 			refused && 'opacity-45 motion-safe:transition-opacity motion-safe:duration-150'
 		)}
 		aria-label={LANE_NAMES[inLane]}
@@ -627,20 +641,20 @@
 {/snippet}
 
 <div bind:this={root} class="mx-auto w-full pt-2 max-[900px]:pt-0">
-	<header class="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 max-[900px]:mb-3">
+	<header class="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 max-[900px]:mb-3 max-[900px]:flex-nowrap max-[900px]:items-center max-[900px]:gap-x-3">
 		<div class="min-w-0">
-			<Eyebrow class="mb-2">{weekLabel}</Eyebrow>
+			<Eyebrow class="mb-2 max-[900px]:mb-1">{weekLabel}</Eyebrow>
 			<h2
-				class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.012em] text-balance text-text max-[900px]:text-[1.6rem]"
+				class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.012em] text-balance text-text max-[900px]:sr-only"
 			>
 				Your board
 			</h2>
-			<p class="m-0 mt-1.5 max-w-[56ch] text-[0.95rem] text-pretty text-muted" aria-live="polite">
+			<p class="m-0 mt-1.5 max-w-[56ch] text-[0.95rem] text-pretty text-muted max-[900px]:mt-0 max-[900px]:text-[0.88rem] max-[900px]:leading-snug" aria-live="polite">
 				{status ?? summary}
 			</p>
 		</div>
 		{#if pillarOptions.length > 2}
-			<Select size="sm" label="Show a pillar" options={pillarOptions} bind:value={pillar} class="w-[220px] min-[901px]:-mb-1.5 max-[900px]:w-full" />
+			<Select size="sm" label="Show a pillar" options={pillarOptions} bind:value={pillar} class="w-[220px] min-[901px]:-mb-1.5 max-[900px]:w-[150px] max-[900px]:shrink-0" />
 		{/if}
 	</header>
 
@@ -656,47 +670,21 @@
 		</section>
 	{:else if narrow}
 		<div
-			data-lane-tabs
-			class="sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-[14px] flex justify-center bg-bg px-[14px] py-2.5"
+			data-columns
+			class={cn(
+				'-mx-[14px] flex snap-x snap-mandatory scroll-px-[14px] gap-2.5 overflow-x-auto overscroll-x-contain px-[14px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+				drag && 'snap-none'
+			)}
+			{@attach fillScreen}
 		>
-			<SegmentedControl
-				label="List"
-				options={LANES.map((each) => ({ value: each, label: `${LANE_NAMES[each]} ${counts[each]}` }))}
-				value={lane}
-				onchange={(value) => (lane = value as Lane)}
-			/>
+			{#each LANES as each (each)}
+				{@render column(each, 'h-full w-[min(84%,340px)] shrink-0 snap-start')}
+			{/each}
 		</div>
-		<!-- Every list stays mounted, so a card held while the tabs switch keeps its pointer. -->
-		{#each LANES as each (each)}
-			<section data-lane={each} class={cn(tray, 'mt-1', each !== lane && 'hidden')} aria-label={LANE_NAMES[each]}>
-				{@render list(each, false)}
-				{#if each !== 'done' && roomy.length > 0}
-					<div class="px-2 pb-2">
-						<Button variant="ghost" size="sm" icon="plus" class="w-full" onclick={() => openAdd(each)}>Add a card</Button>
-					</div>
-				{/if}
-			</section>
-		{/each}
 	{:else}
 		<div class="grid grid-cols-4 items-stretch gap-3">
 			{#each LANES as each (each)}
-				{@const over = drag !== null && !drag.landing && drag.lane === each && each !== drag.from && canGo(drag.card, each)}
-				<section
-					data-lane={each}
-					class={cn(tray, 'flex min-w-0 flex-col', over && 'bg-sunken')}
-					aria-labelledby="{uid}-{each}"
-				>
-					<header class="flex min-h-[52px] items-center justify-between gap-2 ps-[22px] pe-2 pt-1.5">
-						<h3 id="{uid}-{each}" class="m-0 flex items-baseline gap-2 text-[0.95rem] font-semibold text-text">
-							{LANE_NAMES[each]}
-							<span class="text-[0.82rem] font-medium text-muted tabular-nums">{counts[each]}</span>
-						</h3>
-						{#if each !== 'done' && roomy.length > 0}
-							<IconButton icon="plus" label="Add a card to {LANE_NAMES[each]}" class="text-muted hover:text-text" onclick={() => openAdd(each)} />
-						{/if}
-					</header>
-					{@render list(each, true)}
-				</section>
+				{@render column(each, 'min-w-0')}
 			{/each}
 		</div>
 	{/if}
@@ -719,11 +707,9 @@
 					'pillar-card flex w-full flex-col gap-1.5 rounded-[16px] px-3.5 py-3 drop-shadow-[0_16px_24px_oklch(0.3_0.05_60/0.22)] motion-safe:transition-[rotate,scale] motion-safe:duration-150 motion-safe:ease-ui',
 					drag.landing
 						? 'rotate-0'
-						: drag.tab
-							? 'scale-50 rotate-0'
-							: drag.lane !== null && !canGo(drag.card, drag.lane)
-								? 'scale-100 rotate-0'
-								: 'scale-[1.03] rotate-[2.5deg]'
+						: drag.lane !== null && !canGo(drag.card, drag.lane)
+							? 'scale-100 rotate-0'
+							: 'scale-[1.03] rotate-[2.5deg]'
 				)}
 				style:transform-origin="{drag.ox}px {drag.oy}px"
 			>
