@@ -8,7 +8,7 @@
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { dealKeys, dealTools, toolsFor } from '$lib/chart/tools';
-	import { dealFirst } from '$lib/chart/board';
+	import { dealFirst, finishedOn } from '$lib/chart/board';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
@@ -67,6 +67,8 @@
 
 	const pickerActions = $derived([...pickable].sort((a, b) => dealFirst(a.meta, b.meta)));
 
+	const ticked = (key: string): boolean => finishedOn(chart.data, key, dateKey);
+
 	let selectedKeys = $state<string[]>([]);
 	let confirmed = $state(chart.todayLog.started === true || chart.todayLog.focus.length > 0);
 	let justCheckedKey = $state<string | null>(null);
@@ -86,7 +88,7 @@
 	});
 
 	function confirm(): void {
-		const keys = openKeys(selectedKeys);
+		const keys = [...new Set([...chart.todayLog.focus.filter(ticked), ...openKeys(selectedKeys)])];
 		if (keys.length === 0 && habits.length === 0) return;
 		chart.setFocus(dateKey, keys);
 		confirmed = true;
@@ -102,7 +104,7 @@
 	const focusEntries = $derived.by((): ActionEntry[] => {
 		return chart.todayLog.focus
 			.map((focusKey) => allActions.find((actionEntry) => actionEntry.key === focusKey))
-			.filter((entry): entry is ActionEntry => entry !== undefined && isOpenFocus(entry.meta));
+			.filter((entry): entry is ActionEntry => entry !== undefined && (isOpenFocus(entry.meta) || ticked(entry.key)));
 	});
 
 	const trackedKeys = $derived.by((): string[] => {
@@ -113,18 +115,19 @@
 		return keys;
 	});
 
-	const checkedCount = $derived(trackedKeys.filter((key) => chart.todayLog.checked.includes(key)).length);
+	const checkedCount = $derived(trackedKeys.filter(ticked).length);
 
 	const allDone = $derived(
 		trackedKeys.length > 0 &&
 			(confirmed || pickable.length === 0) &&
-			trackedKeys.every((key) => chart.todayLog.checked.includes(key))
+			trackedKeys.every(ticked)
 	);
 
 	function toggleChecked(key: string): void {
-		const wasChecked = chart.todayLog.checked.includes(key);
+		const wasChecked = ticked(key);
 		const wasDone = allDone;
-		chart.toggleChecked(dateKey, key);
+		if (wasChecked) chart.reopen(key);
+		else chart.finish(key);
 		justCheckedKey = wasChecked ? null : key;
 		celebrate = !wasChecked && !wasDone && allDone;
 	}
@@ -196,7 +199,7 @@
 </script>
 
 {#snippet checkRow(entry: ActionEntry)}
-	{@const isChecked = chart.todayLog.checked.includes(entry.key)}
+	{@const isChecked = ticked(entry.key)}
 	{@const justChecked = justCheckedKey === entry.key}
 	{@const tool = dealt.get(entry.key) ?? null}
 	<div class="flex flex-col">
@@ -433,7 +436,7 @@
 						</div>
 						<ul class="m-0 mt-2.5 grid list-none gap-x-6 gap-y-2 p-0 @min-[540px]:grid-cols-2">
 							{#each habits as entry (entry.key)}
-								{@const done = chart.todayLog.checked.includes(entry.key)}
+								{@const done = ticked(entry.key)}
 								<li class="flex min-w-0 items-center gap-2.5 text-[0.9rem] leading-snug">
 									<span class={cn('pip size-2 shrink-0 rounded-full', done && 'opacity-40')} style:--pip-h={HUES[entry.pillarIndex]} aria-hidden="true"></span>
 									<span class={cn('min-w-0 truncate', done && 'text-muted line-through')}>{entry.text}</span>

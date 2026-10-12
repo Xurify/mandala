@@ -40,7 +40,9 @@ export function doneOn(data: ChartData, dateKey: string): DayDone[] {
 	for (const key of log?.checked ?? []) {
 		if (!key.startsWith('a') || seen.has(key)) continue;
 		seen.add(key);
-		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), at: log?.at?.[key], milestone: false });
+		const meta = data.meta?.[key];
+		const milestone = meta?.kind === 'milestone' && meta.done === true && meta.doneAt === dateKey;
+		out.push({ key, text: getByKey(data, key).trim() || 'A line since removed', pillarIndex: pillarOf(key), at: log?.at?.[key], milestone });
 	}
 	out.sort((a, b) => (a.at ?? '99').localeCompare(b.at ?? '99'));
 	for (const [key, meta] of Object.entries(data.meta ?? {})) {

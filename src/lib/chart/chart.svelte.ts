@@ -1,10 +1,9 @@
 import { morph } from "./morph";
-import { moveCard as cardMove, type Lane } from "./board.ts";
+import { finish as finishAction, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
 import { newTool, opened } from "./tools";
 import {
   blockOfK,
   blockOfKey,
-  clockOf,
   completedBy,
   emptyChart,
   exportText,
@@ -713,26 +712,32 @@ export class ChartStore {
   }
 
   toggleDone(key: string): void {
-    const current = getMeta(this.data, key);
-    const isDone = !current?.done;
-    const patch: Partial<ActionMeta> = {
-      kind: current?.kind ?? "milestone",
-      done: isDone,
-      doneAt: isDone ? todayKey() : undefined,
-    };
-    setMeta(this.data, key, patch);
-    this.data = { ...this.data };
-    this.save();
+    if (getMeta(this.data, key)?.done) this.reopen(key);
+    else this.finish(key);
+  }
+
+  finish(key: string): void {
+    this.#apply(finishAction(this.data, key));
+  }
+
+  reopen(key: string): void {
+    this.#apply(reopenAction(this.data, key));
   }
 
   moveCard(key: string, lane: Lane, index: number): boolean {
-    const patch = cardMove(this.data, key, lane, index);
-    if (!patch) return false;
-    if (Object.keys(patch).length === 0) return true;
-    for (const [actionKey, change] of Object.entries(patch)) setMeta(this.data, actionKey, change);
+    const change = cardMove(this.data, key, lane, index);
+    if (!change) return false;
+    this.#apply(change);
+    return true;
+  }
+
+  #apply(change: Change): void {
+    const days = Object.keys(change.days);
+    if (Object.keys(change.meta).length === 0 && days.length === 0) return;
+    for (const [actionKey, patch] of Object.entries(change.meta)) setMeta(this.data, actionKey, patch);
+    if (days.length > 0) this.data.days = { ...this.data.days, ...change.days };
     this.data = { ...this.data };
     this.save();
-    return true;
   }
 
   /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
@@ -742,25 +747,6 @@ export class ChartStore {
     const removed = replaced ? [] : existing.focus.filter((key) => !keys.includes(key));
     const dropped = [...(existing.dropped ?? []).filter((key) => !keys.includes(key)), ...removed];
     const log: DayLog = { ...existing, focus: keys, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
-    this.data.days[dateKey] = log;
-    this.data = { ...this.data };
-    this.save();
-  }
-
-  toggleChecked(dateKey: string, key: string): void {
-    if (!this.data.days) this.data.days = {};
-    const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    const isChecked = existing.checked.includes(key);
-    const at = { ...existing.at };
-    if (isChecked) delete at[key];
-    else at[key] = clockOf(new Date());
-    const log: DayLog = {
-      ...existing,
-      checked: isChecked
-        ? existing.checked.filter((checkedKey) => checkedKey !== key)
-        : [...existing.checked, key],
-      at: Object.keys(at).length > 0 ? at : undefined,
-    };
     this.data.days[dateKey] = log;
     this.data = { ...this.data };
     this.save();

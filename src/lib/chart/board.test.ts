@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { besideLane, boardOf, dealFirst, doneByWeek, findCard, laneOf, moveCard, placed, wholeIndex, type MetaPatch } from './board.ts';
+import { besideLane, boardOf, dealFirst, doneByWeek, findCard, finish, finishedOn, laneOf, moveCard, placed, reopen, wholeIndex, type Change } from './board.ts';
+import { doneOn } from './calendar.ts';
 import { cloneChart } from './library.ts';
 import { emptyChart, setMeta, type ActionMeta, type ChartData } from './model.ts';
 
@@ -13,14 +14,15 @@ function chart(): ChartData {
 	return data;
 }
 
-function apply(data: ChartData, patch: MetaPatch | null): ChartData {
-	expect(patch).not.toBeNull();
-	for (const [key, change] of Object.entries(patch!)) setMeta(data, key, change);
+function apply(data: ChartData, change: Change | null): ChartData {
+	expect(change).not.toBeNull();
+	for (const [key, patch] of Object.entries(change!.meta)) setMeta(data, key, patch);
+	data.days = { ...data.days, ...change!.days };
 	return data;
 }
 
 const keys = (data: ChartData) => {
-	const board = boardOf(data);
+	const board = boardOf(data, TODAY);
 	return { open: board.open.map((card) => card.key), todo: board.todo.map((card) => card.key), doing: board.doing.map((card) => card.key), done: board.done.map((card) => card.key) };
 };
 
@@ -69,19 +71,22 @@ describe('moveCard', () => {
 			a2_0: { kind: 'milestone', lane: 'doing', rank: 1 },
 			a7_7: { kind: 'milestone', lane: 'doing', rank: 2 }
 		};
-		const patch = moveCard(data, 'a7_7', 'doing', 1, TODAY);
-		expect(Object.keys(patch!).sort()).toEqual(['a2_0', 'a7_7']);
-		apply(data, patch);
+		const change = moveCard(data, 'a7_7', 'doing', 1, TODAY);
+		expect(Object.keys(change!.meta).sort()).toEqual(['a2_0', 'a7_7']);
+		expect(change!.days).toEqual({});
+		apply(data, change);
 		expect(keys(data).doing).toEqual(['a0_0', 'a7_7', 'a2_0']);
-		expect(moveCard(data, 'a0_0', 'doing', 0, TODAY)).toEqual({});
+		expect(moveCard(data, 'a0_0', 'doing', 0, TODAY)).toEqual({ meta: {}, days: {} });
 	});
 
-	it('marks a card done with today, and turns a plain action into a milestone so the calendar shows it', () => {
+	it('marks a card done with today and ticks today, so Today and the calendar show it', () => {
 		const data = chart();
 		apply(data, moveCard(data, 'a0_0', 'doing', 0, TODAY));
-		apply(data, moveCard(data, 'a0_0', 'done', 0, TODAY));
-		expect(data.meta?.a0_0).toMatchObject({ kind: 'milestone', done: true, doneAt: TODAY, lane: undefined });
+		apply(data, moveCard(data, 'a0_0', 'done', 0, TODAY, 1000, '09:30'));
+		expect(data.meta?.a0_0).toMatchObject({ kind: 'milestone', done: true, doneAt: TODAY });
 		expect(keys(data).done).toEqual(['a0_0']);
+		expect(data.days?.[TODAY]).toMatchObject({ checked: ['a0_0'], at: { a0_0: '09:30' } });
+		expect(doneOn(data, TODAY)).toEqual([{ key: 'a0_0', text: 'Run 3 km', pillarIndex: 0, at: '09:30', milestone: true }]);
 	});
 
 	it('puts the card moved last first among those done the same day', () => {
@@ -93,11 +98,14 @@ describe('moveCard', () => {
 		expect(placed(boardOf(data), 'a2_2', 'done', 3, TODAY).done.map((card) => card.key)).toEqual(['a2_2', 'a0_0', 'a7_7', 'a2_0', 'a0_1']);
 	});
 
-	it('reopens a done card when it leaves Done', () => {
+	it('reopens a done card when it leaves Done, and takes it off the day it was done', () => {
 		const data = chart();
 		data.meta = { a2_0: { kind: 'milestone', done: true, doneAt: '2026-10-01' } };
+		data.days = { '2026-10-01': { focus: [], checked: ['a2_0'], at: { a2_0: '18:00' } } };
 		apply(data, moveCard(data, 'a2_0', 'doing', 0, TODAY));
 		expect(data.meta.a2_0).toMatchObject({ done: false, doneAt: undefined, lane: 'doing', rank: 0 });
+		expect(data.days['2026-10-01']).toEqual({ focus: [], checked: [], at: undefined });
+		expect(doneOn(data, '2026-10-01')).toEqual([]);
 		apply(data, moveCard(data, 'a2_0', 'done', 0, TODAY));
 		apply(data, moveCard(data, 'a2_0', 'open', 0, TODAY));
 		expect(laneOf(data.meta.a2_0)).toBe('open');
@@ -195,5 +203,66 @@ describe('doneByWeek', () => {
 		const split = doneByWeek(boardOf(data).done, new Date(2026, 9, 11, 12));
 		expect(split.week.map((card) => card.key)).toEqual(['a0_0']);
 		expect(split.earlier.map((card) => card.key)).toEqual(['a2_0', 'a7_7']);
+	});
+});
+
+describe('Today and the board', () => {
+	it("shows today's picks in Doing and today's ticks in Done, wherever they were filed", () => {
+		const data = chart();
+		data.meta = { a2_2: { kind: 'milestone', lane: 'todo', rank: 0 }, a0_1: { kind: 'routine' }, a7_7: { kind: 'milestone', done: true, doneAt: '2026-10-02' } };
+		data.days = { [TODAY]: { focus: ['a2_0', 'a2_2', 'a7_7'], checked: ['a0_0', 'a0_1'] } };
+		const board = boardOf(data, TODAY);
+		expect(board.doing.map((card) => card.key)).toEqual(['a2_0', 'a2_2']);
+		expect(board.done.map((card) => [card.key, card.doneAt])).toEqual([
+			['a0_0', TODAY],
+			['a7_7', '2026-10-02']
+		]);
+		expect(board.open.map((card) => card.key)).toEqual(['a0_1']);
+		expect(laneOf(data.meta.a2_2)).toBe('todo');
+	});
+
+	it('finishes from Today the way Done does, and reopens the same way', () => {
+		const data = chart();
+		data.days = { [TODAY]: { focus: ['a2_0'], checked: [] } };
+		apply(data, finish(data, 'a2_0', TODAY, '07:10', 5));
+		expect(finishedOn(data, 'a2_0', TODAY)).toBe(true);
+		expect(findCard(boardOf(data, TODAY), 'a2_0')?.lane).toBe('done');
+		expect(data.meta?.a2_0).toMatchObject({ kind: 'milestone', done: true, doneAt: TODAY, rank: 5 });
+		expect(doneOn(data, TODAY).map((entry) => [entry.key, entry.at])).toEqual([['a2_0', '07:10']]);
+		apply(data, reopen(data, 'a2_0', TODAY));
+		expect(finishedOn(data, 'a2_0', TODAY)).toBe(false);
+		expect(findCard(boardOf(data, TODAY), 'a2_0')?.lane).toBe('doing');
+		expect(doneOn(data, TODAY)).toEqual([]);
+	});
+
+	it('ticks a routine for the day only, and keeps it out of Done', () => {
+		const data = chart();
+		data.meta = { a0_1: { kind: 'routine', lane: 'doing', rank: 0 } };
+		const change = finish(data, 'a0_1', TODAY, '06:00');
+		expect(change.meta).toEqual({});
+		apply(data, change);
+		expect(finishedOn(data, 'a0_1', TODAY)).toBe(true);
+		expect(findCard(boardOf(data, TODAY), 'a0_1')?.lane).toBe('doing');
+		apply(data, reopen(data, 'a0_1', TODAY));
+		expect(data.days?.[TODAY]?.checked).toEqual([]);
+	});
+
+	it("takes a card off today's picks when it goes back to To do or Open", () => {
+		const data = chart();
+		data.days = { [TODAY]: { focus: ['a0_0', 'a2_0'], checked: [] } };
+		apply(data, moveCard(data, 'a0_0', 'todo', 0, TODAY));
+		expect(data.days?.[TODAY]).toMatchObject({ focus: ['a2_0'], dropped: ['a0_0'] });
+		apply(data, moveCard(data, 'a2_0', 'open', 0, TODAY));
+		expect(data.days?.[TODAY]?.focus).toEqual([]);
+		expect(keys(data)).toMatchObject({ todo: ['a0_0'], doing: [] });
+	});
+
+	it("files a pick in Doing once it is moved on the board, so it stays there after today", () => {
+		const data = chart();
+		data.days = { [TODAY]: { focus: ['a7_7'], checked: [] } };
+		data.meta = { a2_2: { kind: 'milestone', lane: 'doing', rank: 0 } };
+		apply(data, moveCard(data, 'a2_2', 'doing', 1, TODAY));
+		expect(data.meta?.a7_7).toMatchObject({ lane: 'doing', rank: 0 });
+		expect(boardOf(data, '2026-10-12').doing.map((card) => card.key)).toEqual(['a7_7', 'a2_2']);
 	});
 });

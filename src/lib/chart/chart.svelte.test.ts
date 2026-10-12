@@ -17,11 +17,14 @@ describe('chart day log', () => {
 		expect(chart.data.days?.['2026-10-05']?.dropped).toBeUndefined();
 	});
 
-	it('keeps the time of a tick and clears it on untick', () => {
-		chart.toggleChecked('2026-10-05', 'a0_0');
-		expect(chart.data.days?.['2026-10-05']?.at?.a0_0).toMatch(/^\d\d:\d\d$/);
-		chart.toggleChecked('2026-10-05', 'a0_0');
-		expect(chart.data.days?.['2026-10-05']?.at).toBeUndefined();
+	it('keeps the time of a tick and clears it when the action reopens', () => {
+		chart.data.actions[0]![0] = 'Book a race';
+		chart.finish('a0_0');
+		expect(chart.todayLog.at?.a0_0).toMatch(/^\d\d:\d\d$/);
+		expect(chart.data.meta?.a0_0).toMatchObject({ done: true, doneAt: todayKey() });
+		chart.reopen('a0_0');
+		expect(chart.todayLog.at).toBeUndefined();
+		expect(chart.data.meta?.a0_0?.done).toBe(false);
 	});
 
 	it('records declined suggestions and shown insights once each', () => {
@@ -51,6 +54,9 @@ describe('chart board', () => {
 		expect(chart.data.meta?.a0_0).toMatchObject({ lane: 'doing', rank: 0 });
 		expect(chart.moveCard('a0_0', 'done', 0)).toBe(true);
 		expect(chart.data.meta?.a0_0).toMatchObject({ kind: 'milestone', done: true, doneAt: todayKey() });
+		expect(chart.todayLog.checked).toEqual(['a0_0']);
+		chart.toggleDone('a0_0');
+		expect(chart.todayLog.checked).toEqual([]);
 		expect(chart.moveCard('a0_1', 'done', 0)).toBe(false);
 		expect(chart.data.meta?.a0_1?.done).toBeUndefined();
 	});

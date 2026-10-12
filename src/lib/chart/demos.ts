@@ -211,7 +211,8 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'Every action on the chart is a card. Open keeps the chart\'s order; To do, Doing, and Done hold what you moved.',
 			'Drag a card into another list, or up and down in To do and Doing. On a phone, hold a card for a moment before you drag, or drop it on a list\'s tab.',
-			'Drop one in Done: its check stamps, and the calendar shows it today. "Talk to yourself for 5 minutes after dinner" is a routine, so Done turns it away.',
+			'Drop one in Done: its check stamps, Today ticks it, and the calendar shows it today. "Talk to yourself for 5 minutes after dinner" is a routine, so Done turns it away.',
+			'Today\'s three sit in Doing, marked Today. Open Today and tick one: it is in Done when you come back. Untick it, or drag it out of Done, and it reopens everywhere.',
 			'With the keyboard: Tab to a card, Space picks it up, the arrows carry it, Space puts it down, Escape puts it back.',
 			'Click a card to move it from a sheet, or open it in the editor. Today deals what is in Doing first.'
 		]

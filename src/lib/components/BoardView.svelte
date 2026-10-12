@@ -527,6 +527,7 @@
 
 	function markOf(card: Card, inLane: Lane): { icon: 'check' | 'calendar' | 'refresh'; label: string } | null {
 		if (inLane === 'done') return { icon: 'check', label: shortDay(card.doneAt) };
+		if (card.routine && todayTicks.has(card.key)) return { icon: 'check', label: 'Today' };
 		if (todayFocus.has(card.key)) return { icon: 'calendar', label: 'Today' };
 		if (card.routine) return { icon: 'refresh', label: 'Routine' };
 		return null;
@@ -745,9 +746,9 @@
 			{:else if card.routine}
 				<p class="m-0 text-[0.9rem] text-pretty text-muted">A routine never goes to Done. Tick it in Today, day by day.</p>
 			{/if}
-			{#if todayTicks.has(card.key)}
+			{#if card.routine && todayTicks.has(card.key)}
 				<p class="m-0 text-[0.9rem] text-pretty text-muted">Ticked today.</p>
-			{:else if todayFocus.has(card.key)}
+			{:else if sheet.lane !== 'done' && todayFocus.has(card.key)}
 				<p class="m-0 text-[0.9rem] text-pretty text-muted">One of today's three.</p>
 			{/if}
 		</div>

@@ -1,4 +1,4 @@
-import { actionKey, getByKey, isRoutine, todayKey, weekStartKey, type ActionMeta, type ChartData } from './model.ts';
+import { actionKey, clockOf, getByKey, isRoutine, todayKey, weekStartKey, type ActionMeta, type ChartData, type DayLog } from './model.ts';
 
 export type Lane = 'open' | 'todo' | 'doing' | 'done';
 
@@ -20,9 +20,19 @@ export type Board = Record<Lane, Card[]>;
 
 export type MetaPatch = Record<string, Partial<ActionMeta>>;
 
+/** What a move writes: the actions' meta, and each day log it ticks, unticks, or takes a pick off. */
+export type Change = { meta: MetaPatch; days: Record<string, DayLog> };
+
 export function laneOf(meta: ActionMeta | undefined): Lane {
 	if (meta?.done && !isRoutine(meta)) return 'done';
 	return meta?.lane === 'todo' || meta?.lane === 'doing' ? meta.lane : 'open';
+}
+
+/** Ticked in Today, dropped in Done, or marked done in the editor: the three are one record. */
+export function finishedOn(data: ChartData, key: string, dateKey: string): boolean {
+	if (data.days?.[dateKey]?.checked.includes(key)) return true;
+	const meta = data.meta?.[key];
+	return !isRoutine(meta) && meta?.done === true && meta.doneAt === dateKey;
 }
 
 export function canGo(card: Card, lane: Lane): boolean {
@@ -43,8 +53,10 @@ function doneOrder(a: Card, b: Card): number {
 	return (b.doneAt ?? '').localeCompare(a.doneAt ?? '') || byRank(b.rank, a.rank, Number.NEGATIVE_INFINITY) || chartOrder(a, b);
 }
 
-export function boardOf(data: ChartData): Board {
+/** Today's picks show in Doing, and what was ticked today in Done, whatever list they were filed in. */
+export function boardOf(data: ChartData, today: string = todayKey()): Board {
 	const board: Board = { open: [], todo: [], doing: [], done: [] };
+	const day = data.days?.[today];
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 		for (let slot = 0; slot < 8; slot++) {
 			const key = actionKey(pillarIndex, slot);
@@ -52,9 +64,13 @@ export function boardOf(data: ChartData): Board {
 			if (!text) continue;
 			const meta = data.meta?.[key];
 			const card: Card = { key, text, pillarIndex, slot, routine: isRoutine(meta) };
-			const lane = laneOf(meta);
-			if (lane === 'done' && meta?.doneAt) card.doneAt = meta.doneAt;
-			if (lane !== 'open' && meta?.rank !== undefined) card.rank = meta.rank;
+			const filed = laneOf(meta);
+			let lane = filed;
+			if (filed !== 'done' && !card.routine && day?.checked.includes(key)) lane = 'done';
+			else if ((filed === 'open' || filed === 'todo') && day?.focus.includes(key)) lane = 'doing';
+			const doneAt = filed === 'done' ? meta?.doneAt : today;
+			if (lane === 'done' && doneAt) card.doneAt = doneAt;
+			if (lane === filed && lane !== 'open' && meta?.rank !== undefined) card.rank = meta.rank;
 			board[lane].push(card);
 		}
 	}
@@ -91,6 +107,70 @@ export function placed(board: Board, key: string, lane: Lane, index: number, tod
 	return next;
 }
 
+function blank(): Change {
+	return { meta: {}, days: {} };
+}
+
+function patchMeta(change: Change, key: string, patch: Partial<ActionMeta>): void {
+	change.meta[key] = { ...change.meta[key], ...patch };
+}
+
+function editDay(change: Change, data: ChartData, dateKey: string, edit: (log: DayLog) => DayLog): void {
+	const log = change.days[dateKey] ?? data.days?.[dateKey] ?? { focus: [], checked: [] };
+	const next = edit(log);
+	if (next !== log) change.days[dateKey] = next;
+}
+
+function tick(key: string, time: string): (log: DayLog) => DayLog {
+	return (log) => (log.checked.includes(key) ? log : { ...log, checked: [...log.checked, key], at: { ...log.at, [key]: time } });
+}
+
+function untick(key: string): (log: DayLog) => DayLog {
+	return (log) => {
+		if (!log.checked.includes(key)) return log;
+		const at = { ...log.at };
+		delete at[key];
+		return { ...log, checked: log.checked.filter((each) => each !== key), at: Object.keys(at).length > 0 ? at : undefined };
+	};
+}
+
+/** Kept as dropped, the same as a pick taken off in Today, so Bindu sees it. */
+function unpick(key: string): (log: DayLog) => DayLog {
+	return (log) =>
+		log.focus.includes(key)
+			? { ...log, focus: log.focus.filter((each) => each !== key), dropped: [...new Set([...(log.dropped ?? []), key])] }
+			: log;
+}
+
+/** A plain action becomes a milestone, so once done it leaves Today's picks. */
+export function finish(
+	data: ChartData,
+	key: string,
+	today: string = todayKey(),
+	time: string = clockOf(new Date()),
+	now: number = Date.now()
+): Change {
+	const change = blank();
+	const meta = data.meta?.[key];
+	if (!isRoutine(meta) && !(meta?.done && meta.doneAt === today)) {
+		patchMeta(change, key, { kind: meta?.kind ?? 'milestone', done: true, doneAt: today, rank: now });
+		if (meta?.done && meta.doneAt) editDay(change, data, meta.doneAt, untick(key));
+	}
+	editDay(change, data, today, tick(key, time));
+	return change;
+}
+
+export function reopen(data: ChartData, key: string, today: string = todayKey()): Change {
+	const change = blank();
+	const meta = data.meta?.[key];
+	if (!isRoutine(meta) && meta?.done) {
+		patchMeta(change, key, { done: false, doneAt: undefined });
+		if (meta.doneAt) editDay(change, data, meta.doneAt, untick(key));
+	}
+	editDay(change, data, today, untick(key));
+	return change;
+}
+
 /** To do and Doing are renumbered from 0 on every move, so their order survives a sync merge. */
 export function moveCard(
 	data: ChartData,
@@ -98,31 +178,25 @@ export function moveCard(
 	lane: Lane,
 	index: number,
 	today: string = todayKey(),
-	now: number = Date.now()
-): MetaPatch | null {
-	const board = boardOf(data);
+	now: number = Date.now(),
+	time: string = clockOf(new Date(now))
+): Change | null {
+	const board = boardOf(data, today);
 	const found = findCard(board, key);
 	if (!found || !canGo(found.card, lane)) return null;
-	const meta = data.meta?.[key];
-	const reopen: Partial<ActionMeta> = found.lane === 'done' ? { done: false, doneAt: undefined } : {};
-	if (lane === 'done') {
-		if (found.lane === 'done') return {};
-		return { [key]: { kind: meta?.kind ?? 'milestone', done: true, doneAt: today, lane: undefined, rank: now } };
-	}
+	if (lane === 'done') return found.lane === 'done' ? blank() : finish(data, key, today, time, now);
+	if (lane === 'open' && found.lane === 'open') return blank();
+	const change = found.lane === 'done' ? reopen(data, key, today) : blank();
+	if (lane !== 'doing') editDay(change, data, today, unpick(key));
 	if (lane === 'open') {
-		if (found.lane === 'open') return {};
-		return { [key]: { ...reopen, lane: undefined, rank: undefined } };
+		patchMeta(change, key, { lane: undefined, rank: undefined });
+		return change;
 	}
-	const list = placed(board, key, lane, index, today)[lane];
-	const patch: MetaPatch = {};
-	list.forEach((card, rank) => {
-		if (card.key === key) {
-			if (found.lane !== lane || meta?.rank !== rank) patch[key] = { ...reopen, lane, rank };
-		} else if (data.meta?.[card.key]?.rank !== rank) {
-			patch[card.key] = { rank };
-		}
+	placed(board, key, lane, index, today)[lane].forEach((card, rank) => {
+		const meta = data.meta?.[card.key];
+		if (laneOf(meta) !== lane || meta?.rank !== rank) patchMeta(change, card.key, { lane, rank });
 	});
-	return patch;
+	return change;
 }
 
 export function dealFirst(a: ActionMeta | undefined, b: ActionMeta | undefined): number {
