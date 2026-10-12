@@ -1,3 +1,4 @@
+import { newId } from './library.ts';
 import { dateKeyOf, isRoutine, isUrl, type ChartData, type Tool, type ToolKind } from './model.ts';
 
 /** How many of the last 14 days a repeat tool is opened before Bindu asks if it is known. */
@@ -42,7 +43,7 @@ export function linkIn(text: string): string | null {
 }
 
 export function newTool(url: string, title = '', kind: ToolKind = 'repeat'): Tool {
-	return { id: Math.random().toString(36).slice(2, 10), url: url.trim(), title: title.trim() || hostOf(url), kind };
+	return { id: newId(), url: url.trim(), title: title.trim() || hostOf(url), kind };
 }
 
 export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {

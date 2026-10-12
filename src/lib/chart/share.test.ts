@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeChartShare, encodeChartShare, isShareHash } from './share.ts';
+import { decodeChartShare, encodeChartShare, forSharing, isShareHash } from './share.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function sampleChart(): ChartData {
@@ -37,6 +37,18 @@ describe('share encoding', () => {
 		const decoded = await decodeChartShare(`#${await encodeChartShare(data)}`);
 		expect(decoded?.goal).toBe('Run a half marathon');
 		expect(decoded?.icons).toBeUndefined();
+	});
+
+	it('gives another person the chart without the brief, the icons, or what was opened when', () => {
+		const data = emptyChart();
+		data.brief = { timeline: 'October' };
+		data.icons = { 'youtube.com': 'data:image/png;base64,AAAA' };
+		data.tools = { p0: [{ id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat', opened: ['2026-10-01'], known: true }] };
+		const shared = forSharing(data);
+		expect(shared.brief).toBeUndefined();
+		expect(shared.icons).toBeUndefined();
+		expect(shared.tools).toEqual({ p0: [{ id: 't', url: 'https://youtu.be/x', title: 'X', kind: 'repeat' }] });
+		expect(data.tools.p0![0]!.opened).toEqual(['2026-10-01']);
 	});
 
 	it('round-trips a plain (uncompressed) payload', async () => {

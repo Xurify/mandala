@@ -1,4 +1,5 @@
-import type { ChartData } from '../model.ts';
+import { parseChart, type ChartData } from '../model.ts';
+import { forSharing } from '../share.ts';
 
 const SECRET_KEY = 'mandala-share-secrets-v1';
 
@@ -66,7 +67,7 @@ export async function publishChart(
 		throw new Error('The update secret for this share is missing on this device.');
 	}
 	const useSecret = secret ?? newSecret();
-	const response = await request('PUT', id, useSecret, { chart: { ...data, brief: undefined } });
+	const response = await request('PUT', id, useSecret, { chart: forSharing(data) });
 	if (!response.ok) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
 		throw new Error(detail ?? `Publish failed (${response.status}).`);
@@ -102,7 +103,11 @@ export async function fetchRow(id: string, ifNoneMatch: number | null = null): P
 	if (response.status === 304) return { chart: null, updatedAt: ifNoneMatch, unchanged: true };
 	if (!response.ok) throw new Error(`Could not load the chart (${response.status}).`);
 	const payload = (await response.json()) as { chart: unknown; updatedAt: number };
-	return { chart: (payload.chart as ChartData) ?? null, updatedAt: payload.updatedAt, unchanged: false };
+	if (!payload.chart) return { chart: null, updatedAt: payload.updatedAt, unchanged: false };
+	// Unreadable is not missing: treated as missing, sync would write this device's copy over it.
+	const chart = parseChart(JSON.stringify(payload.chart));
+	if (!chart) throw new Error('This chart cannot be read here. It may come from a newer version of Mandala.');
+	return { chart, updatedAt: payload.updatedAt, unchanged: false };
 }
 
 export const fetchShare = fetchRow;

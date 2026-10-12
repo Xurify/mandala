@@ -47,6 +47,7 @@ import {
   flushActive,
   forgetManyFromLibrary,
   newRecord,
+  heldRows,
   parseLibrary,
   purgeLibrary,
   reconcile,
@@ -77,6 +78,7 @@ import { overlayLocalEdits } from "./sync/sync.ts";
 export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
 const SYNC_STATE_KEY = "mandala-sync-state-v1";
+const HELD_KEY = "mandala-held";
 import { exampleChart, isExampleChart } from "./example.ts";
 import { applySavedGoalFit } from "$lib/components/goal-fit";
 import { buildChart, type Preset } from "./presets/index.ts";
@@ -239,6 +241,8 @@ export class ChartStore {
   #backupWarned = false;
 
   #syncBase: ChartData | null = null;
+  /** The chart sync was turned on for. The prototype carries one chart, so others never go out under its key. */
+  #syncChart = "";
   #syncBaseAt = 0;
   #syncBusy = false;
   #syncApplying = false;
@@ -317,6 +321,7 @@ export class ChartStore {
       const rawLibrary = localStorage.getItem(LIBRARY_KEY);
       if (rawLibrary) {
         const parsed = parseLibrary(rawLibrary);
+        this.#setAside(rawLibrary, parsed === null);
         if (parsed) {
           this.#seen = rawLibrary;
           const next = purgeLibrary(parsed);
@@ -451,16 +456,34 @@ export class ChartStore {
     if (!raw || raw === this.#seen) return;
     this.#seen = raw;
     const stored = parseLibrary(raw);
+    this.#setAside(raw, stored === null);
     if (!stored) return;
     const was = this.#library.activeId;
     this.#library = reconcile(this.#library, stored, keep);
     this.#follow(was, keep !== null);
   }
 
+  /**
+   * Sets aside what this version cannot read (a newer version's chart, a damaged row, or the whole library),
+   * under its own key, before the library is written back without it.
+   */
+  #setAside(raw: string, whole: boolean): void {
+    const rows = whole ? [raw] : heldRows(raw);
+    if (rows.length === 0) return;
+    try {
+      const before = JSON.parse(localStorage.getItem(HELD_KEY) ?? "[]") as unknown;
+      const kept: unknown[] = Array.isArray(before) ? before : [];
+      const seen = new Set(kept.map((row) => JSON.stringify(row)));
+      const added = rows.filter((row) => !seen.has(JSON.stringify(row)));
+      if (added.length > 0) localStorage.setItem(HELD_KEY, JSON.stringify([...kept, ...added]));
+    } catch {}
+  }
+
   #absorb(raw: string): void {
     if (raw === this.#seen) return;
     this.#seen = raw;
     const stored = parseLibrary(raw);
+    this.#setAside(raw, stored === null);
     if (!stored) return;
     const editing = this.#flush() || this.#saveTimer !== null;
     const was = this.#library.activeId;
@@ -940,8 +963,13 @@ export class ChartStore {
       this.syncEnabled = true;
       this.syncRoom = room;
       this.#loadSyncState(room);
+      if (!this.#syncChart) this.#syncChart = this.#library.activeId;
       void this.pullSync();
     } catch {}
+  }
+
+  #syncing(): boolean {
+    return this.syncEnabled && Boolean(this.syncRoom) && this.#library.activeId === this.#syncChart;
   }
 
   #loadSyncState(room: string): void {
@@ -950,12 +978,14 @@ export class ChartStore {
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         room: string;
+        chart?: string;
         updatedAt: number;
         data: ChartData;
       };
       if (parsed.room !== room) return;
       this.#syncBase = parsed.data;
       this.#syncBaseAt = parsed.updatedAt;
+      if (parsed.chart) this.#syncChart = parsed.chart;
     } catch {
       // corrupt or blocked state; the next pull rebuilds it
     }
@@ -968,6 +998,7 @@ export class ChartStore {
         SYNC_STATE_KEY,
         JSON.stringify({
           room: this.syncRoom,
+          chart: this.#syncChart,
           updatedAt: this.#syncBaseAt,
           data: this.#syncBase,
         }),
@@ -978,7 +1009,7 @@ export class ChartStore {
   }
 
   async pullSync(): Promise<void> {
-    if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
+    if (!this.#syncing() || this.#syncBusy) return;
     this.#syncBusy = true;
     this.syncStatus = "syncing";
     try {
@@ -1015,7 +1046,7 @@ export class ChartStore {
 
   /** Pulls first so a stale tab can't clobber newer work. */
   async pushSync(): Promise<void> {
-    if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
+    if (!this.#syncing() || this.#syncBusy) return;
     this.#syncBusy = true;
     this.syncStatus = "syncing";
     try {
@@ -1057,7 +1088,7 @@ export class ChartStore {
   }
 
   #scheduleSyncPush(): void {
-    if (this.#syncApplying) return;
+    if (this.#syncApplying || !this.#syncing()) return;
     if (this.#syncTimer) clearTimeout(this.#syncTimer);
     this.#syncTimer = setTimeout(() => {
       this.#syncTimer = null;
@@ -1079,14 +1110,16 @@ export class ChartStore {
     this.syncEnabled = true;
     this.syncRoom = trimmed;
     this.#loadSyncState(trimmed);
+    this.#syncChart = this.#library.activeId;
     void this.pullSync();
-    this.say("Sync on. Charts follow you to devices with the same key.");
+    this.say("Sync on for this chart. It follows you to devices with the same key.");
   }
 
   disableSync(): void {
     this.syncEnabled = false;
     this.syncStatus = "off";
     this.syncRoom = "";
+    this.#syncChart = "";
     this.#syncBase = null;
     this.#syncBaseAt = 0;
     if (this.#syncTimer) {
@@ -1326,6 +1359,7 @@ export class ChartStore {
     this.data = cloneChart(record.data);
     this.#resetView();
     this.saveNow();
+    if (id === this.#syncChart) void this.pullSync();
   }
 
   deleteChart(id: string): void {

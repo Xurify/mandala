@@ -15,6 +15,7 @@ import {
 	formatDaysLeft,
 	formatUpdated,
 	newRecord,
+	heldRows,
 	parseLibrary,
 	purgeDeleted,
 	reconcile,
@@ -80,6 +81,18 @@ describe('trash list labels', () => {
 });
 
 describe('parseLibrary', () => {
+	it('keeps every chart it can read, and names the rows it set aside', () => {
+		const good = newRecord(buildChart(getPreset('fitness')!));
+		const newer = { id: 'newer', updatedAt: 2, data: { ...emptyChart(), version: 99 } };
+		const raw = JSON.stringify({ activeId: 'newer', charts: [good, newer, { ...good }, 'junk'], deleted: [] });
+		const parsed = parseLibrary(raw);
+		expect(parsed?.charts.map((chart) => chart.id)).toEqual([good.id]);
+		expect(parsed?.activeId).toBe(good.id);
+		expect(heldRows(raw)).toEqual([newer, { ...good }, 'junk']);
+		expect(heldRows(JSON.stringify({ activeId: good.id, charts: [good] }))).toEqual([]);
+		expect(parseLibrary(JSON.stringify({ activeId: 'newer', charts: [newer] }))).toBeNull();
+	});
+
 	it('returns null for junk', () => {
 		expect(parseLibrary('nope')).toBeNull();
 		expect(parseLibrary('{}')).toBeNull();

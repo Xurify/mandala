@@ -157,32 +157,57 @@ function chartFromUnknown(value: unknown): ChartData | null {
 	return parseChart(JSON.stringify(value));
 }
 
-export function parseLibrary(raw: string): ChartLibrary | null {
+function chartRecordFromUnknown(item: unknown): ChartRecord | null {
+	if (!item || typeof item !== 'object') return null;
+	const row = item as Record<string, unknown>;
+	if (typeof row.id !== 'string' || !row.id) return null;
+	if (typeof row.updatedAt !== 'number' || !Number.isFinite(row.updatedAt)) return null;
+	const data = chartFromUnknown(row.data);
+	return data ? { id: row.id, updatedAt: row.updatedAt, data } : null;
+}
+
+function rowsOf(raw: string): { record: Record<string, unknown>; rows: unknown[] } | null {
 	try {
 		const parsed = JSON.parse(raw) as unknown;
 		if (!parsed || typeof parsed !== 'object') return null;
 		const record = parsed as Record<string, unknown>;
-		if (typeof record.activeId !== 'string' || !record.activeId) return null;
-		if (!Array.isArray(record.charts) || record.charts.length < 1) return null;
-
-		const charts: ChartRecord[] = [];
-		for (const item of record.charts) {
-			if (!item || typeof item !== 'object') return null;
-			const row = item as Record<string, unknown>;
-			if (typeof row.id !== 'string' || !row.id) return null;
-			if (typeof row.updatedAt !== 'number' || !Number.isFinite(row.updatedAt)) return null;
-			const data = chartFromUnknown(row.data);
-			if (!data) return null;
-			charts.push({ id: row.id, updatedAt: row.updatedAt, data });
-		}
-
-		const ids = new Set(charts.map((chart) => chart.id));
-		if (ids.size !== charts.length) return null;
-		const activeId = ids.has(record.activeId) ? record.activeId : charts[0]!.id;
-		return { activeId, charts, deleted: parseDeleted(record.deleted, ids) };
+		return Array.isArray(record.charts) ? { record, rows: record.charts } : null;
 	} catch {
 		return null;
 	}
+}
+
+/**
+ * Keeps every chart it can read. A row it cannot (a newer version's, or a damaged one) is left out here, and
+ * `heldRows` names it, so the store can set it aside before anything writes over it.
+ */
+export function parseLibrary(raw: string): ChartLibrary | null {
+	const read = rowsOf(raw);
+	if (!read) return null;
+	const charts: ChartRecord[] = [];
+	const ids = new Set<string>();
+	for (const item of read.rows) {
+		const chart = chartRecordFromUnknown(item);
+		if (!chart || ids.has(chart.id)) continue;
+		ids.add(chart.id);
+		charts.push(chart);
+	}
+	if (charts.length === 0) return null;
+	const wanted = read.record.activeId;
+	const activeId = typeof wanted === 'string' && ids.has(wanted) ? wanted : charts[0]!.id;
+	return { activeId, charts, deleted: parseDeleted(read.record.deleted, ids) };
+}
+
+export function heldRows(raw: string): unknown[] {
+	const read = rowsOf(raw);
+	if (!read) return [];
+	const ids = new Set<string>();
+	return read.rows.filter((item) => {
+		const chart = chartRecordFromUnknown(item);
+		if (!chart || ids.has(chart.id)) return true;
+		ids.add(chart.id);
+		return false;
+	});
 }
 
 function deletedFromUnknown(value: unknown): DeletedRecord | null {

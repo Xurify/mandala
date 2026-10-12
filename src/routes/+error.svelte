@@ -73,11 +73,10 @@
 		try {
 			const storedData = localStorage.getItem(LIBRARY_KEY);
 			if (storedData) {
-				const library = parseLibrary(storedData);
-				if (library) {
-					library.activeId = goalId;
-					localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
-				}
+				// Only the open chart changes, so every row stays as stored, read or not.
+				const library = JSON.parse(storedData) as Record<string, unknown>;
+				library.activeId = goalId;
+				localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 			}
 		} catch {
 			// Storage access blocked or restricted

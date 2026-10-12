@@ -62,12 +62,19 @@ export function isShareHash(hash: string): boolean {
 	return hash.startsWith(`#${SHARE_PREFIX}`);
 }
 
-export async function encodeChartShare(data: ChartData): Promise<string> {
-	// The shelves travel with the chart; what was opened when stays here.
+/**
+ * What another person gets, by link or published share. The shelves travel; what was opened when stays here, and
+ * so do the brief and the site icons, which would outgrow a link.
+ */
+export function forSharing(data: ChartData): ChartData {
 	const tools = data.tools
 		? Object.fromEntries(Object.entries(data.tools).map(([key, list]) => [key, list.map(({ opened: _opened, known: _known, ...tool }) => tool)]))
 		: undefined;
-	const raw = new TextEncoder().encode(exportJson({ ...data, brief: undefined, tools, icons: undefined }));
+	return { ...data, brief: undefined, tools, icons: undefined };
+}
+
+export async function encodeChartShare(data: ChartData): Promise<string> {
+	const raw = new TextEncoder().encode(exportJson(forSharing(data)));
 	const compressed = await gzipBytes(raw);
 	if (compressed && compressed.length < raw.length) {
 		return `${SHARE_PREFIX}${COMPRESSED_PREFIX}${bytesToBase64Url(compressed)}`;

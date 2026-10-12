@@ -53,7 +53,7 @@ export type WeekReflection = {
 /** `day` is as `Date.getDay` gives it. */
 export type ReflectAt = { day: number; hour: number };
 
-/** Stays on the device and out of share links. */
+/** Out of share links and published shares. Sync takes it to your own devices. */
 export type ChartBrief = {
 	timeline?: string;
 	situation?: string;
@@ -320,6 +320,8 @@ export function parseChart(raw: string): ChartData | null {
 		const parsedObject = JSON.parse(raw) as unknown;
 		if (!parsedObject || typeof parsedObject !== 'object') return null;
 		const record = parsedObject as Record<string, unknown>;
+		// A newer version's chart would lose what this one does not know, and be written back without it.
+		if (typeof record.version === 'number' && record.version > CHART_VERSION) return null;
 		if (typeof record.goal !== 'string') return null;
 		if (!Array.isArray(record.pillars) || record.pillars.length !== 8) return null;
 		if (!record.pillars.every((pillar) => typeof pillar === 'string')) return null;

@@ -53,9 +53,11 @@ describe('cellKey', () => {
 });
 
 describe('parseChart', () => {
-	it('returns null for junk', () => {
+	it('returns null for junk, and for a chart from a newer version', () => {
 		expect(parseChart('nope')).toBeNull();
 		expect(parseChart('{}')).toBeNull();
+		expect(parseChart(JSON.stringify({ ...emptyChart(), version: 99 }))).toBeNull();
+		expect(parseChart(JSON.stringify(emptyChart()))?.version).toBe(1);
 	});
 
 	it('round-trips a valid chart', () => {
