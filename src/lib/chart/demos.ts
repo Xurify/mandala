@@ -256,7 +256,7 @@ export const DEMOS: readonly Demo[] = [
 			"Its ring goes round once an hour in the pillar's hue. On the row, a smaller ring stands in for the timer button.",
 			'Press the square to stop it. The whole minutes are logged on today, the row says so, and the slip offers Tick it, then leaves on its own. Point at it to keep it.',
 			'Start a stopwatch on another row and stop it within a minute: nothing is logged. Start one while another runs: the first is logged, and a slip says how long.',
-			"To take time off, open the row's timer button: Remove today's time. The slip can undo it."
+			"To take time off, open the row's timer button: Remove time entry. The slip can undo it."
 		]
 	},
 	{
