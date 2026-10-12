@@ -308,7 +308,7 @@
 											</span>
 											<span class="shrink-0 text-[0.86rem] font-[620] whitespace-nowrap text-text tabular-nums">{formatMinutes(session.minutes)}</span>
 										</button>
-										<!-- Only the open chart's time comes off here; another goal's opens that chart first. -->
+										<!-- `removeTime` works on the open chart. -->
 										{#if group.goal.id === chart.activeId}
 											<IconButton
 												icon="close"

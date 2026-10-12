@@ -11,7 +11,6 @@ export function readyChime(): void {
 	}
 }
 
-/** Two soft notes, a fifth apart. Without a tap since the page loaded, the browser keeps it silent. */
 export function chime(): void {
 	readyChime();
 	if (!context) return;

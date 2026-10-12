@@ -93,7 +93,6 @@ import {
   actionLabel,
 } from "./timer.ts";
 
-/** The last word on a timer that ended: stopped by hand, or a block or a break that ran out. */
 export type TimerEnd = {
   id: number;
   kind: "stopped" | "block" | "break";
@@ -286,7 +285,6 @@ export class ChartStore {
   shareId = $state("");
   shareUpdatedAt = $state<number | null>(null);
   autoShare = $state(false);
-  /** Whether this chart's shares carry its notes. Off until asked. */
   shareNotes = $state(false);
   shareBusy = $state(false);
   #shareTimer: ReturnType<typeof setTimeout> | null = null;
@@ -942,7 +940,7 @@ export class ChartStore {
     this.timerEnd = timer.action ? { id: this.#endSeq++, kind: "stopped", action: timer.action, minutes: logged?.minutes ?? 0 } : null;
   }
 
-  /** For a block or a break that has run out. A block logs its whole length, however late this runs. */
+  /** A block logs its whole length, however late this runs. */
   finishTimer(): TimerEnd | null {
     const timer = this.data.timer;
     const now = Date.now();
@@ -957,7 +955,6 @@ export class ChartStore {
     this.timerEnd = null;
   }
 
-  /** For a stopwatch left on: it stops without logging anything. */
   discardTimer(): void {
     if (!this.data.timer) return;
     this.loggingTime = null;
@@ -982,7 +979,7 @@ export class ChartStore {
   #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
   #timeSeq = 1;
 
-  /** Takes logged time off a day: one session, or without one, all of the action's time that day. The slip can undo it. */
+  /** One session, or without one, all of the action's time that day. The slip can undo it. */
   removeTime(dateKey: string, action: ActionId, session?: Session): void {
     const log = this.data.days?.[dateKey];
     const all = log?.sessions ?? [];
@@ -1514,7 +1511,6 @@ export class ChartStore {
     return true;
   }
 
-  /** `fresh` leaves the history behind: days, time, the board, done marks, and reflections. */
   duplicateChart(fresh = false): boolean {
     this.#flush();
     const record = newRecord(fresh ? withoutHistory(this.data) : this.data);

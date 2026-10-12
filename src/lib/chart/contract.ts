@@ -90,7 +90,6 @@ export const SESSION: Record<keyof Session, Reach> = {
 	minutes: 'yours'
 };
 
-/** A timer running on your phone shows on your laptop. */
 export const TIMER: Record<keyof Timer, Reach> = {
 	action: 'yours',
 	since: 'yours',
@@ -136,12 +135,10 @@ export const BRIEF: Record<keyof ChartBrief, Reach> = {
 	constraint: 'yours'
 };
 
-/** The fields of `value` whose place in `places` passes `keep`. */
 export function only<T extends object, P>(value: T, places: Record<keyof T, P>, keep: (place: P) => boolean): T {
 	return Object.fromEntries(Object.entries(value).filter(([field]) => keep(places[field as keyof T]))) as T;
 }
 
-/** A chart's meta and shelves with only the fields the two tests keep. */
 export function narrowed(data: ChartData, keepMeta: (field: keyof ActionMeta) => boolean, keepTool: (field: keyof Tool) => boolean): Pick<ChartData, 'meta' | 'tools'> {
 	const meta = data.meta
 		? Object.fromEntries(

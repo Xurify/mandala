@@ -136,7 +136,6 @@ function clocked(data: ChartData, now: Date): ChartData {
 	return data;
 }
 
-/** A demo chart with a timer on one of its actions, started `ago` milliseconds before `now`. */
 function timed(now: Date, cell: string, ago: number, length?: number): ChartData {
 	const data = livedIn(now);
 	data.timer = { action: idIn(data, cell), since: now.getTime() - ago, ...(length ? { length } : {}) };

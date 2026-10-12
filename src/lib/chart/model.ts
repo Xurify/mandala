@@ -45,7 +45,6 @@ export type DayLog = {
 	declined?: ActionId[];
 	/** As `id:key`. */
 	shown?: string[];
-	/** Time on an action, in the order it was logged. */
 	sessions?: Session[];
 };
 
