@@ -28,6 +28,7 @@
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import EmptyChart from './EmptyChart.svelte';
 	import Helper from './Helper.svelte';
+	import HelperFace from './HelperFace.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import ImportDialog from './ImportDialog.svelte';
 	import MandalaGrid from './MandalaGrid.svelte';
@@ -47,7 +48,7 @@
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
-	import { fieldInk } from './ui/styles';
+	import { fieldInk, iconButton } from './ui/styles';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import IconButton from './ui/IconButton.svelte';
@@ -593,9 +594,8 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
-<!-- Under 900px the Bindu launcher sits at the right of the dock's row: 50px, plus a 16px gap. -->
 <div
-	class="page-gutter mx-auto max-w-295 max-[900px]:[--dock-aside:66px] pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class="page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
@@ -630,6 +630,17 @@
 					{/if}
 				</div>
 
+				<button
+					type="button"
+					data-bindu-launcher
+					class={cn(iconButton(), 'hidden max-[900px]:inline-flex')}
+					aria-label={helper.open ? 'Close Bindu' : 'Open Bindu'}
+					aria-expanded={helper.open}
+					title="Bindu"
+					onclick={() => (helper.open ? helper.hide() : helper.show())}
+				>
+					<HelperFace mood={helper.mood} size={32} />
+				</button>
 				<IconButton
 					icon="search"
 					label="Search your chart and commands"
@@ -894,7 +905,7 @@
 	</main>
 
 	{#if updateReady}
-		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 max-[900px]:pr-[calc(1rem+var(--dock-aside,0px))] print:hidden">
+		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 print:hidden">
 			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
 				<span>Mandala was updated.</span>
 				<button

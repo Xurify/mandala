@@ -254,7 +254,7 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ### Feedback
 
-- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock. Under 900px Bindu's launcher sits at the right of the dock's row, so the slip, like the dock, centers in the space beside it (`--dock-aside`), never over it.
+- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock.
 - `Notice` for persistent inline info with an optional small primary or soft `Button`.
 
 ### Brand
@@ -272,7 +272,7 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 - Hero: title + actions on the left, progress ring + stats on the right. The method lives in the guide (`MethodGuide`), opened from the ⓘ on the progress card, since it explains what those numbers count, from the link under a new chart's buttons, and from the more-actions menu and the command palette. It is not in the row under the title, which holds the chart's views. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
 - Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only), and `today`, `board`, `calendar`, which take the stage and keep the chart's hero card out of it.
-- The page reserves 128px of bottom padding for the fixed dock (92px under 900px). Under 900px Bindu's launcher shares the dock's row, at its right edge, and the dock and toast center in the room beside it (`--dock-aside`). Anything new that scrolls on its own must do the same.
+- The page reserves 128px of bottom padding for the fixed dock (92px under 900px). Bindu floats at the bottom right on a desktop; under 900px its face sits in the top bar beside search instead, so the dock and the toast have the bottom row to themselves, centered. Its panel still rises from the bottom as a sheet.
 
 ## Voice and copy
 

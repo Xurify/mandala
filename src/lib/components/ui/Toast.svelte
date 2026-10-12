@@ -27,12 +27,8 @@
 	}
 </script>
 
-<!--
-	Under 900px the dock's row holds Bindu at its right edge. `--dock-aside` is the room it needs, set by
-	the page. The dock and the slip center in the space beside it, so neither covers it.
--->
 <div
-	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(26rem,calc(100vw-2rem))] grid-cols-[minmax(0,1fr)] justify-items-center max-[900px]:left-[calc(50%-var(--dock-aside,0px)/2)] max-[900px]:max-w-[calc(100vw-2rem-var(--dock-aside,0px))] transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
+	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(26rem,calc(100vw-2rem))] grid-cols-[minmax(0,1fr)] justify-items-center transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
 		? 'pointer-events-auto'
 		: 'pointer-events-none'}"
 	style:translate="-50% 0"
