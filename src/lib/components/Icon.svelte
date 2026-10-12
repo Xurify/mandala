@@ -38,6 +38,7 @@
 		| 'calendar'
 		| 'pin'
 		| 'link'
+		| 'shelf'
 		| 'refresh'
 		| 'folder'
 		| 'command'
@@ -243,6 +244,11 @@
 	{:else if name === 'link'}
 		<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
 		<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+	{:else if name === 'shelf'}
+		<path d="M4 4v16" />
+		<path d="M8 8v12" />
+		<path d="M12 6v14" />
+		<path d="m16 6 4 14" />
 	{:else if name === 'refresh'}
 		<polyline points="23 4 23 10 17 10" />
 		<polyline points="1 20 1 14 7 14" />

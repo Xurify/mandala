@@ -39,7 +39,7 @@
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
-	import { linkIn } from '$lib/chart/tools';
+	import { linkIn, shelfOf } from '$lib/chart/tools';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -516,6 +516,29 @@
 					chart.setViewMode('edit');
 				}
 			});
+		}
+		const needle = paletteQuery.trim().toLowerCase();
+		if (needle) {
+			for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+				const count = shelfOf(chart.data, pillarIndex).length;
+				if (!count) continue;
+				const name = chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+				items.push({ id: `shelf-${pillarIndex}`, label: `Open the ${name} shelf`, section: 'Actions', icon: 'shelf', hint: `${count} on the shelf`, run: () => chart.openShelf(pillarIndex) });
+			}
+			const shelved = Array.from({ length: 8 }, (_, pillarIndex) => shelfOf(chart.data, pillarIndex).map((tool) => ({ pillarIndex, tool }))).flat();
+			for (const { pillarIndex, tool } of shelved.filter(({ tool }) => tool.title.toLowerCase().includes(needle)).slice(0, 4)) {
+				items.push({
+					id: `tool-${tool.id}`,
+					label: tool.title,
+					section: 'Your chart',
+					icon: 'shelf',
+					hint: `${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`} shelf`,
+					run: () => {
+						window.open(tool.url, '_blank', 'noopener');
+						chart.openTool(pillarIndex, tool.id);
+					}
+				});
+			}
 		}
 		return items;
 	});

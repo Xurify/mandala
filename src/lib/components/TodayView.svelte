@@ -7,7 +7,7 @@
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import IconButton from './ui/IconButton.svelte';
-	import { dealTools, toolsFor } from '$lib/chart/tools';
+	import { dealKeys, dealTools, toolsFor } from '$lib/chart/tools';
 	import { dealFirst } from '$lib/chart/board';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -50,7 +50,7 @@
 
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
 	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
-	const dealt = $derived(dealTools(chart.data, [...habits, ...allActions.filter((entry) => !isRoutine(entry.meta))].map((entry) => entry.key), new Date(), passed));
+	const dealt = $derived(dealTools(chart.data, dealKeys(chart.data), new Date(), passed));
 
 	function passOver(key: string, id: string): void {
 		const next = new Map(passed);
@@ -263,6 +263,12 @@
 								onclick={() => passOver(entry.key, tool.id)}
 							/>
 						{/if}
+						<IconButton
+							icon="shelf"
+							label="Open the {entry.pillarName} shelf"
+							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+							onclick={() => chart.openShelf(entry.pillarIndex)}
+						/>
 					</div>
 				{/if}
 				{#if entry.meta?.note}

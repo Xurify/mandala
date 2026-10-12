@@ -217,6 +217,8 @@ export class ChartStore {
   themeTick = $state(0);
   hoveredColorIndex = $state<number | null>(null);
   focusedKey = $state<string | null>(null);
+  /** Which side of a pillar's block the editor shows. The shelf is its back. */
+  face = $state<"actions" | "shelf">("actions");
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
   /** The library JSON this tab last wrote or read, so a change in storage can be told from its own. */
@@ -505,7 +507,9 @@ export class ChartStore {
     if (!front || front.undo.length === 0) return;
     const ids = front.undo;
     this.slips = this.slips.filter((slip) => slip.id !== front.id);
-    this.restoreCharts(ids);
+    const tools = ids.filter((id) => this.#removedTools.has(id));
+    for (const token of tools) this.#restoreTool(token);
+    this.restoreCharts(ids.filter((id) => !tools.includes(id)));
   }
 
   holdToasts(held: boolean): void {
@@ -809,13 +813,33 @@ export class ChartStore {
     });
   }
 
+  /** Tools taken off a shelf while their slip can still undo it, by the slip's undo token. */
+  #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
+
   removeTool(pillarIndex: number, id: string): void {
     const key = `p${pillarIndex}`;
-    const rest = (this.data.tools?.[key] ?? []).filter((tool) => tool.id !== id);
+    const list = this.data.tools?.[key] ?? [];
+    const at = list.findIndex((tool) => tool.id === id);
+    if (at < 0) return;
+    const rest = list.filter((tool) => tool.id !== id);
     const tools = { ...this.data.tools };
     if (rest.length > 0) tools[key] = rest;
     else delete tools[key];
     this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+    this.save();
+    const token = `tool:${id}`;
+    this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
+    this.#place({ key: token, kicker: "Off the shelf", subject: list[at]!.title, undo: [token] });
+  }
+
+  #restoreTool(token: string): void {
+    const removed = this.#removedTools.get(token);
+    this.#removedTools.delete(token);
+    if (!removed || removed.chartId !== this.#library.activeId) return;
+    const key = `p${removed.pillarIndex}`;
+    const list = [...(this.data.tools?.[key] ?? [])];
+    list.splice(Math.min(removed.at, list.length), 0, removed.tool);
+    this.data = { ...this.data, tools: { ...this.data.tools, [key]: list } };
     this.save();
   }
 
@@ -1107,8 +1131,21 @@ export class ChartStore {
 
   jumpToKey(key: string): void {
     this.select(blockOfKey(key));
+    this.face = "actions";
     this.focusedKey = key;
     if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
+      this.setViewMode("edit");
+    }
+  }
+
+  setFace(face: "actions" | "shelf"): void {
+    this.face = face;
+  }
+
+  openShelf(pillarIndex: number): void {
+    this.selectPillar(pillarIndex);
+    this.face = "shelf";
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
       this.setViewMode("edit");
     }
   }

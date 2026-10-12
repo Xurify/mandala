@@ -8,10 +8,13 @@
 	interface Props {
 		tool: Pick<Tool, 'url' | 'title' | 'kind' | 'known'>;
 		size?: 'sm' | 'md';
+		/** Replaces the kind and status after the site's name. */
+		detail?: string;
+		tag?: string;
 		class?: string;
 	}
 
-	let { tool, size = 'sm', class: className }: Props = $props();
+	let { tool, size = 'sm', detail, tag, class: className }: Props = $props();
 
 	const picture = $derived(thumbnailOf(tool.url));
 	const icon = $derived(picture ? null : iconOf(chart.data, tool.url));
@@ -19,7 +22,7 @@
 	const short = $derived(/\/shorts\//.test(tool.url));
 	// Built as one string: Svelte trims the space at the start of a block, so pieces would run together.
 	const caption = $derived(
-		[videoId(tool.url) ? (short ? 'YouTube short' : 'YouTube') : host, tool.known ? 'known' : tool.kind === 'once' ? 'once' : null].filter(Boolean).join(' · ')
+		[videoId(tool.url) ? (short ? 'YouTube short' : 'YouTube') : host, detail ?? (tool.known ? 'known' : tool.kind === 'once' ? 'once' : null)].filter(Boolean).join(' · ')
 	);
 </script>
 
@@ -47,6 +50,11 @@
 	</span>
 	<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 		<span class={cn('truncate font-[560]', size === 'sm' ? 'text-[0.9rem] leading-snug' : 'text-[0.95rem] leading-snug', tool.known && 'text-muted')}>{tool.title || host}</span>
-		<span class="truncate text-[0.74rem] leading-snug text-muted">{caption}</span>
+		<span class="flex min-w-0 items-center gap-1.5">
+			<span class="truncate text-[0.74rem] leading-snug text-muted">{caption}</span>
+			{#if tag}
+				<span class="shrink-0 rounded-full bg-sunken px-1.5 py-px text-[0.68rem] leading-snug font-[620] text-muted">{tag}</span>
+			{/if}
+		</span>
 	</span>
 </span>

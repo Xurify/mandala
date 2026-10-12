@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayTitle, doneOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth } from './calendar.ts';
+import { dayTitle, doneOn, openedOn, firstDoneMonth, lastDoneDay, monthLine, monthOf, shiftMonth } from './calendar.ts';
 import { emptyChart, type ChartData } from './model.ts';
 
 function chart(): ChartData {
@@ -17,6 +17,20 @@ function chart(): ChartData {
 	data.meta = { a0_1: { kind: 'milestone', done: true, doneAt: '2026-10-09' } };
 	return data;
 }
+
+describe('openedOn', () => {
+	it('lists the tools opened that day, in pillar order', () => {
+		const data = chart();
+		const tool = (id: string, opened: string[]) => ({ id, url: `https://example.com/${id}`, title: id, kind: 'repeat' as const, opened });
+		data.tools = { p2: [tool('talk', ['2026-10-09'])], p0: [tool('clip', ['2026-10-08', '2026-10-09']), tool('song', ['2026-10-08'])] };
+		expect(openedOn(data, '2026-10-09').map((entry) => [entry.pillarIndex, entry.tool.id])).toEqual([
+			[0, 'clip'],
+			[2, 'talk']
+		]);
+		expect(openedOn(data, '2026-10-10')).toEqual([]);
+		expect(openedOn(chart(), '2026-10-09')).toEqual([]);
+	});
+});
 
 describe('doneOn', () => {
 	it('lists the ticks in the order they happened, then the milestones closed that day', () => {
