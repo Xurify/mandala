@@ -14,7 +14,7 @@
 		searchHits,
 		type ChartData
 	} from '$lib/chart/model';
-	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
+	import type { AppTheme, ChartLayout, ViewScale } from '$lib/chart/chart.svelte';
 	import { ACCENTS } from '$lib/chart/accent';
 	import { applyAccent, applyTheme } from '$lib/chart/theme';
 	import type { Preset } from '$lib/chart/presets';
@@ -79,11 +79,6 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
-	let startsGone = $state(chart.dirty || chart.viewMode === 'view');
-	$effect(() => {
-		if (!chart.dirty && effectiveViewMode !== 'view') startsGone = false;
-		if (effectiveViewMode === 'view' && !chart.dirty) startsGone = true;
-	});
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
 	let shareOpen = $state(false);
@@ -102,6 +97,11 @@
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
 	const offChart = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar' || effectiveViewMode === 'board');
+	const layouts = $derived([
+		{ value: 'view', label: 'View', title: 'The whole 9×9 chart (V)' },
+		{ value: 'edit', label: 'Edit', title: 'One block at a time (E)' },
+		...(isMobile ? [] : [{ value: 'split', label: 'Split', title: 'Chart and editor side by side (S)' }])
+	]);
 	const searching = $derived(chart.query.trim() !== '');
 
 	$effect(() => {
@@ -681,14 +681,20 @@
 				{/if}
 				{#if !offChart}
 					<div class="mt-3.5 flex flex-wrap items-center gap-2 max-[900px]:mt-3">
+						<SegmentedControl
+							tabs
+							label="Look at the chart"
+							options={layouts}
+							value={effectiveViewMode}
+							onchange={(value) => chart.setViewMode(value as ChartLayout)}
+						/>
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
-							<div class="flex flex-wrap items-center gap-2" out:slipOut onoutroend={() => (startsGone = true)}>
+							<div class="flex flex-wrap items-center gap-2" out:slipOut>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
 								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
 							</div>
 						{/if}
-						<!-- Alone, the ghost button's label lines up with the title instead of its padding. -->
-						<MethodGuide class={startsGone ? '-ms-[18px]' : undefined} />
+						<MethodGuide />
 					</div>
 				{/if}
 			</div>
@@ -918,33 +924,15 @@
 		</DockTab>
 		<DockTab
 			icon="grid"
-			selected={effectiveViewMode === 'view'}
-			title="Full 9×9 chart (V)"
+			selected={!offChart}
+			title="Your chart: view, edit, or split (V, E, S)"
 			onclick={() => {
-				chart.setViewMode('view');
-				if (isMobile) window.scrollTo({ top: 0, behavior: 'smooth' });
+				chart.setViewMode(chart.chartLayout);
+				if (isMobile && chart.chartLayout === 'view') window.scrollTo({ top: 0, behavior: 'smooth' });
 			}}
 		>
 			Chart
 		</DockTab>
-		<DockTab
-			icon="edit"
-			selected={effectiveViewMode === 'edit'}
-			title="Focused block editor (E)"
-			onclick={() => chart.setViewMode('edit')}
-		>
-			Edit
-		</DockTab>
-		{#if !isMobile}
-			<DockTab
-				icon="columns"
-				selected={effectiveViewMode === 'split'}
-				title="Chart and editor side by side (S)"
-				onclick={() => chart.setViewMode('split')}
-			>
-				Split
-			</DockTab>
-		{/if}
 	</Dock>
 
 	{#if isDraggingFile}

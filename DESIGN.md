@@ -154,7 +154,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Segmented control
 
-`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
+`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf; the chart as View, Edit, or Split): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
 
 ### Select
 
@@ -162,7 +162,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Today / Board / Calendar / Chart / Edit / Split, Split desktop only). Today is a sun, the day, as Plan tomorrow is a moon; Calendar is the month. On a phone only the open tab shows its name, and the others are their icon with the name kept for screen readers and the title, so the dock fits at 320px. `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds the places, four of them: Today, Board, Calendar, Chart. Today is a sun, the day, as Plan tomorrow is a moon; Calendar is the month. How you look at the chart is not a place: View, Edit, and Split (desktop only) are `SegmentedControl` tabs under the chart's title, and the Chart tab goes back to the one last open. The V, E, and S keys still switch them. Under 420px only the open tab shows its name, and the others are their icon with the name kept for screen readers and the title, so the dock fits at 320px. `Toast` sits directly above it.
 
 ### Menus
 

@@ -99,6 +99,12 @@ import {
 
 export type { AppTheme } from "./theme.ts";
 export type ViewMode = "view" | "edit" | "split" | "today" | "calendar" | "board";
+/** The ways of looking at the chart itself, under the Chart tab. */
+export type ChartLayout = "view" | "edit" | "split";
+
+function isLayout(mode: ViewMode): mode is ChartLayout {
+  return mode === "view" || mode === "edit" || mode === "split";
+}
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
 
@@ -200,6 +206,8 @@ export class ChartStore {
   theme: AppTheme = $state(loadInitialTheme());
   accent: AccentId = $state(loadInitialAccent());
   viewMode: ViewMode = $state(loadInitialViewMode());
+  /** The chart's layout last open, so the Chart tab goes back to it. */
+  chartLayout: ChartLayout = $state(isLayout(this.viewMode) ? this.viewMode : "view");
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
   status = $state("");
@@ -710,6 +718,7 @@ export class ChartStore {
   setViewMode(mode: ViewMode, animate = true): void {
     const apply = (): void => {
       this.viewMode = mode;
+      if (isLayout(mode)) this.chartLayout = mode;
       document.documentElement.dataset.view = mode;
       try {
         localStorage.setItem("mandala_view_mode", mode);
