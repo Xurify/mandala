@@ -153,12 +153,12 @@
 	function handlePointerEnter(blockIndex: number, cellIndex: number, event: PointerEvent): void {
 		if (source || event.pointerType === 'touch') return;
 		const cellInformation = info(blockIndex, cellIndex);
-		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
+		chart.hoverColor(cellInformation.type === 'goal' ? -1 : cellInformation.k);
 	}
 
 	function handlePointerLeave(event: PointerEvent): void {
 		if (source || event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
+		chart.unhoverColor();
 	}
 
 	function aria(blockIndex: number, cellIndex: number): string {

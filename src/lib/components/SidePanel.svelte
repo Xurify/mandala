@@ -177,12 +177,12 @@
 	function handleFieldPointerEnter(cellIndex: number, event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
 		const cellInformation = info(chart.sel, cellIndex);
-		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
+		chart.hoverColor(cellInformation.type === 'goal' ? -1 : cellInformation.k);
 	}
 
 	function handleFieldPointerLeave(event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
+		chart.unhoverColor();
 	}
 
 	function handleFieldKeydown(cellIndex: number, event: KeyboardEvent): void {

@@ -209,6 +209,22 @@ export class ChartStore {
   saveWarned = $state(false);
   themeTick = $state(0);
   hoveredColorIndex = $state<number | null>(null);
+  #unhoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+  hoverColor(colorIndex: number): void {
+    if (this.#unhoverTimer) clearTimeout(this.#unhoverTimer);
+    this.#unhoverTimer = null;
+    this.hoveredColorIndex = colorIndex;
+  }
+
+  /** Waits a beat, so crossing the gap to the next cell does not switch the highlight off and on again. */
+  unhoverColor(): void {
+    if (this.#unhoverTimer) clearTimeout(this.#unhoverTimer);
+    this.#unhoverTimer = setTimeout(() => {
+      this.#unhoverTimer = null;
+      this.hoveredColorIndex = null;
+    }, 90);
+  }
   focusedKey = $state<string | null>(null);
   face = $state<"actions" | "shelf">("actions");
 
