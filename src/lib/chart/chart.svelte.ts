@@ -35,7 +35,8 @@ import {
   type ToolKind,
   type WeekReflection,
 } from "./model.ts";
-import { DEFAULT_ACCENT, isAccent, type AccentId } from "./accent.ts";
+import { DEFAULT_ACCENT, type AccentId } from "./accent.ts";
+import { accentOf, applyAccent, applyTheme, saveAccent, saveTheme, themeOf, type AppTheme } from "./theme.ts";
 import {
   LIBRARY_KEY,
   activeRecord,
@@ -90,7 +91,7 @@ import {
   writeBackupFile,
 } from "./backup.ts";
 
-export type AppTheme = "system" | "light" | "dark";
+export type { AppTheme } from "./theme.ts";
 export type ViewMode = "view" | "edit" | "split" | "today" | "calendar" | "board";
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
@@ -98,9 +99,7 @@ export type ViewScale = "fit" | "large";
 function loadInitialAccent(): AccentId {
   if (typeof window === "undefined") return DEFAULT_ACCENT;
   try {
-    const storedAccent = localStorage.getItem("accent");
-    if (storedAccent && isAccent(storedAccent)) return storedAccent;
-    return DEFAULT_ACCENT;
+    return accentOf(localStorage.getItem("accent"));
   } catch {
     return DEFAULT_ACCENT;
   }
@@ -109,11 +108,7 @@ function loadInitialAccent(): AccentId {
 function loadInitialTheme(): AppTheme {
   if (typeof window === "undefined") return "system";
   try {
-    const storedTheme = localStorage.getItem("theme");
-    if (storedTheme === "dark" || storedTheme === "light") {
-      return storedTheme;
-    }
-    return "system";
+    return themeOf(localStorage.getItem("theme"));
   } catch {
     return "system";
   }
@@ -518,7 +513,23 @@ export class ChartStore {
     this.#watching = true;
     window.addEventListener("storage", (event) => {
       if (event.key === LIBRARY_KEY && event.newValue) this.#absorb(event.newValue);
+      else if (event.key === "theme") this.#followTheme(themeOf(event.newValue));
+      else if (event.key === "accent") this.#followAccent(accentOf(event.newValue));
     });
+  }
+
+  /** Another tab chose it, and saved it already. */
+  #followTheme(theme: AppTheme): void {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    applyTheme(theme);
+    this.bumpTheme();
+  }
+
+  #followAccent(accent: AccentId): void {
+    if (accent === this.accent) return;
+    this.accent = accent;
+    applyAccent(accent);
   }
 
   purgeExpired(): void {
@@ -1214,15 +1225,8 @@ export class ChartStore {
     if (theme === this.theme) return;
     morph(() => {
       this.theme = theme;
-      try {
-        if (theme === "system") {
-          localStorage.removeItem("theme");
-          document.documentElement.removeAttribute("data-theme");
-        } else {
-          localStorage.setItem("theme", theme);
-          document.documentElement.setAttribute("data-theme", theme);
-        }
-      } catch {}
+      saveTheme(theme);
+      applyTheme(theme);
       this.bumpTheme();
     }, "theme");
   }
@@ -1231,15 +1235,8 @@ export class ChartStore {
     if (accent === this.accent) return;
     morph(() => {
       this.accent = accent;
-      try {
-        if (accent === DEFAULT_ACCENT) {
-          localStorage.removeItem("accent");
-          document.documentElement.removeAttribute("data-accent");
-        } else {
-          localStorage.setItem("accent", accent);
-          document.documentElement.setAttribute("data-accent", accent);
-        }
-      } catch {}
+      saveAccent(accent);
+      applyAccent(accent);
     }, "theme");
   }
 

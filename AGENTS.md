@@ -41,6 +41,7 @@ src/
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
+    theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)

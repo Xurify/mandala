@@ -15,7 +15,8 @@
 		type ChartData
 	} from '$lib/chart/model';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
-	import { ACCENTS, DEFAULT_ACCENT } from '$lib/chart/accent';
+	import { ACCENTS } from '$lib/chart/accent';
+	import { applyAccent, applyTheme } from '$lib/chart/theme';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
@@ -146,16 +147,8 @@
 			});
 		}
 		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
-		if (chart.theme === 'light' || chart.theme === 'dark') {
-			document.documentElement.setAttribute('data-theme', chart.theme);
-		} else {
-			document.documentElement.removeAttribute('data-theme');
-		}
-		if (chart.accent === DEFAULT_ACCENT) {
-			document.documentElement.removeAttribute('data-accent');
-		} else {
-			document.documentElement.setAttribute('data-accent', chart.accent);
-		}
+		applyTheme(chart.theme);
+		applyAccent(chart.accent);
 		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleThemeChange = (): void => chart.bumpTheme();
 		themeMediaQuery.addEventListener('change', handleThemeChange);

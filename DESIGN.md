@@ -28,7 +28,7 @@ A second pass asked what makes a warm, oatmeal app look crafted rather than plai
 4. **Two faces, one family.** Source Serif 4 for titles, dialog headings, the goal, and the wordmark (`font-serif`, through `--serif`); its sibling Source Sans 3 for everything else, controls included. Size and weight do the rest of the hierarchy. Do not add Fraunces, Bricolage Grotesque, Epilogue, or any other family.
 5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
 6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
-7. **Both themes are first-class.** Every new token gets a dark value in the same commit.
+7. **Both themes are first-class.** Every new token gets a dark value in the same commit. The theme and the accent belong to the device (`theme.ts`): they paint before first paint from `app.html`, another open tab follows a change at once, and the browser's bar takes the page's own paper (`THEME_COLORS`, held to `--bg` by a test).
 
 ## Making a component
 
