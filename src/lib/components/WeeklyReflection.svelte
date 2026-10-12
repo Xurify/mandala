@@ -17,7 +17,6 @@
 
 	type Step = 'week' | 'closed' | 'quiet' | 'note' | 'done';
 
-	/** The week on offer: the one whose offer time passed last, so a Monday morning still gets the week that ended. */
 	const weekKey = $derived(chart.reflectionWeek);
 	// Live, so a pillar rewritten on the quiet page shows its new line at once.
 	const review = $derived(weekInReview(chart.data, new Date(), weekKey));

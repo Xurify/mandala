@@ -1,6 +1,6 @@
 import { ACTION_MAX, briefLines, PILLAR_MAX } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
-import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionMeta, type ChartData } from './model.ts';
+import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionMeta, type ChartData, type Ref } from './model.ts';
 
 export const UNTICKABLE =
 	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder|get better|be more|be better)\b/i;
@@ -490,8 +490,7 @@ export function describeKey(data: ChartData, key: string): string {
 	return labelOfKey(data, key);
 }
 
-/** `ref` is a cell or an action's id. */
-export function textOfKey(data: ChartData, ref: string): string {
+export function textOfKey(data: ChartData, ref: Ref): string {
 	return getByKey(data, ref).trim();
 }
 function currentStreak(data: ChartData, now: Date): number {

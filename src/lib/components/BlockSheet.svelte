@@ -9,7 +9,6 @@
 	import { cn } from './ui/cn';
 
 	type Props = {
-		/** The pillar whose block is open, or null. */
 		pillar?: number | null;
 		/** The cell of its block the tap landed on, as the chart counts them (4 is the pillar), to start typing in. */
 		focus?: number | null;

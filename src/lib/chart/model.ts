@@ -318,8 +318,10 @@ export function withNewIds(data: ChartData): ChartData {
 	};
 }
 
-/** `ref` is a cell (`g`, `p{k}`, `a{k}_{j}`) or an action's id. */
-export function getByKey(data: ChartData, ref: string): string {
+/** A cell (`g`, `p{k}`, `a{k}_{j}`) or an action's id. */
+export type Ref = string;
+
+export function getByKey(data: ChartData, ref: Ref): string {
 	const key = isActionId(ref) ? keyOf(data, ref) : ref;
 	if (!key) return '';
 	if (key === 'g') return data.goal;
@@ -329,7 +331,7 @@ export function getByKey(data: ChartData, ref: string): string {
 }
 
 /** Clearing an action's words clears the action: the line gets a new id, and what pointed at the old one stays with it. */
-export function setByKey(data: ChartData, ref: string, value: string): void {
+export function setByKey(data: ChartData, ref: Ref, value: string): void {
 	const key = isActionId(ref) ? keyOf(data, ref) : ref;
 	if (!key) return;
 	const v = value.slice(0, TEXT_MAX);
@@ -350,8 +352,7 @@ export function setByKey(data: ChartData, ref: string, value: string): void {
 	else if (v.trim() && data.cleared) bringBack(data, k!, j, v);
 }
 
-/** `ref` is a cell or an action's id. */
-export function labelOfKey(data: ChartData, ref: string): string {
+export function labelOfKey(data: ChartData, ref: Ref): string {
 	if (isActionId(ref)) {
 		const pillarIndex = pillarOfAction(data, ref);
 		return pillarIndex === null ? 'A cleared line' : data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;

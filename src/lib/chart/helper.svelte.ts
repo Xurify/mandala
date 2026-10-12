@@ -20,7 +20,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData } from './model.ts';
+import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
@@ -31,8 +31,7 @@ export type HelperTarget = {
 	setCells(edits: CellEdit[]): void;
 	setToday(ids: ActionId[]): void;
 	pinWeek(ids: ActionId[]): void;
-	/** `ref` is a cell or an action's id. */
-	showCell(ref: string): void;
+	showCell(ref: Ref): void;
 	decline?(ids: ActionId[]): void;
 	noteShown?(signature: string): void;
 	openTool?(pillarIndex: number, id: string): void;

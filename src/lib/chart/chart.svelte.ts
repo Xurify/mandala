@@ -35,6 +35,7 @@ import {
   type DayLog,
   type Milestones,
   type ReflectAt,
+  type Ref,
   type Tool,
   type ToolKind,
   type WeekReflection,
@@ -801,8 +802,7 @@ export class ChartStore {
     this.#landedTimer = setTimeout(() => (this.landed = null), 3200);
   }
 
-  /** `ref` is a cell or an action's id. */
-  textOf(ref: string): string {
+  textOf(ref: Ref): string {
     return getByKey(this.data, ref);
   }
 
@@ -1223,8 +1223,7 @@ export class ChartStore {
     return exportText(this.data);
   }
 
-  /** `ref` is a cell or an action's id. */
-  jumpToKey(ref: string): void {
+  jumpToKey(ref: Ref): void {
     const key = isActionId(ref) ? keyOf(this.data, ref) : ref;
     if (!key) return;
     this.select(blockOfKey(key));

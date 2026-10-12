@@ -2,10 +2,8 @@
 	import PickMark from './PickMark.svelte';
 
 	type Props = {
-		/** How many rows the list shows, and how many of those are picked. */
 		total: number;
 		picked: number;
-		/** The name for picking them all, when the list is narrowed by a search. */
 		label?: string;
 		disabled?: boolean;
 		onclick: () => void;
@@ -17,7 +15,6 @@
 	const words = $derived(all ? (total === 1 ? '1 selected' : `All ${total} selected`) : picked > 0 ? `${picked} of ${total} selected` : label);
 </script>
 
-<!-- The box that picks the whole list sits in the rows' own column, and says how many are picked. -->
 <div class="sticky top-0 z-10 bg-surface pb-1">
 	<button
 		type="button"
