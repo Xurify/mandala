@@ -145,7 +145,7 @@ Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps th
 | --- | --- |
 | `Button` `variant="primary"` | The single main action of a view or dialog ("Start from a preset", "Use this preset") |
 | `Button` `variant="soft"` | Secondary actions that still matter ("Get a prompt", "Cancel") |
-| `Button` `variant="ghost"` | Tertiary / informational ("How it works") |
+| `Button` `variant="ghost"` | Tertiary ("Write it myself") |
 | `Button` `variant="danger"` | Throw away, or kill a link. Danger text and wash only, never a fill. A recoverable confirm stays `primary` |
 | `size="sm"` | Dense contexts (notice rows, toolbars, inside dialogs) |
 | `IconButton` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
@@ -154,7 +154,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Segmented control
 
-`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf; the chart as View, Edit, or Split): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
+`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large on desktop: on a phone the chart takes the width either way, so the choice is not offered). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf; the chart as View, Edit, or Split): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
 
 ### Select
 
@@ -263,7 +263,7 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 ## Layout
 
 - Page max width 1180px, 28px gutters, safe-area aware.
-- Hero: title + actions on the left, progress ring + stats on the right. The method lives in How it works. Collapses to a stack at ≤900px.
+- Hero: title + actions on the left, progress ring + stats on the right. The method lives in the guide (`MethodGuide`), opened from the ⓘ on the progress card, since it explains what those numbers count, from the link under a new chart's buttons, and from the more-actions menu and the command palette. It is not in the row under the title, which holds the chart's views. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
 - Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only), and `today`, `board`, `calendar`, which take the stage and keep the chart's hero card out of it.
 - The page reserves 128px of bottom padding for the fixed dock (148px under 900px, where Bindu's launcher sits above the dock). Anything new that scrolls on its own must do the same.

@@ -1054,6 +1054,13 @@ html[data-scale='large']:is([data-view='view'], :not([data-view])) .chart-frame 
 	--chart-grow: 1;
 }
 
+/* On a phone the chart takes the width either way, so Fit and Large are not offered there. */
+@media (max-width: 900px) {
+	.chart-frame {
+		--chart-grow: 1;
+	}
+}
+
 html {
 	scroll-padding-top: env(safe-area-inset-top, 0px);
 	/* clip keeps overflow-y visible. hidden would force it to auto and cut a menu on a short page. */

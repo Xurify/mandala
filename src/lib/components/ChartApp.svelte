@@ -79,6 +79,7 @@
 	);
 	let searchInputElement: HTMLInputElement | null = $state(null);
 	let presetOpen = $state(false);
+	let guideOpen = $state(false);
 	let importOpen = $state(false);
 	let exportOpen = $state(false);
 	let shareOpen = $state(false);
@@ -466,6 +467,7 @@
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
+			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
 			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
@@ -628,6 +630,7 @@
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+				<MenuItem icon="info" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -694,7 +697,6 @@
 								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
 							</div>
 						{/if}
-						<MethodGuide />
 					</div>
 				{/if}
 			</div>
@@ -721,11 +723,13 @@
 						</dd>
 					</div>
 				</dl>
+				<IconButton icon="info" label="How the method works" class="-me-3.5 size-9 self-start text-muted hover:text-text max-[900px]:-me-2.5" aria-haspopup="dialog" onclick={() => (guideOpen = true)} />
 			</div>
 			{/if}
 		</div>
 
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
+		<MethodGuide bind:open={guideOpen} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
@@ -775,11 +779,9 @@
 		</div>
 	{/if}
 
-	{#if effectiveViewMode === 'view' && chart.dirty}
-		<div
-			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
-		>
-			<span class="text-[0.84rem] text-muted max-[900px]:hidden">Double-click a cell to edit its block</span>
+	{#if effectiveViewMode === 'view' && chart.dirty && !isMobile}
+		<div class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden">
+			<span class="text-[0.84rem] text-muted">Double-click a cell to edit its block</span>
 			<SegmentedControl
 				label="Chart scale"
 				size="sm"
@@ -819,6 +821,7 @@
 			>
 				{#if effectiveViewMode === 'view' && !chart.dirty}
 					<EmptyChart
+						onguide={() => (guideOpen = true)}
 						onpreset={handleOpenPresets}
 						onchat={() => helper.show('write', 'new')}
 						onwrite={() => chart.jumpToKey('g')}
