@@ -10,10 +10,6 @@ import { dateKeyOf, setMeta, type ActionMeta, type ChartData, type Tool } from '
 export type DemoId =
 	| 'complete'
 	| 'pillar'
-	| 'empty'
-	| 'spatial'
-	| 'search'
-	| 'views'
 	| 'today'
 	| 'calendar'
 	| 'board'
@@ -30,7 +26,6 @@ export type DemoSetup = {
 	data: ChartData | null;
 	view: ViewMode;
 	focus?: string;
-	query?: string;
 	copies?: number;
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
@@ -40,7 +35,7 @@ export type DemoSetup = {
 export type Demo = {
 	id: DemoId;
 	title: string;
-	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Tools' | 'Bindu';
+	group: 'Writing the chart' | 'Days and weeks' | 'Tools' | 'Your charts' | 'Bindu';
 	steps: string[];
 	reply?: () => string;
 };
@@ -158,47 +153,12 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
-		id: 'empty',
-		title: 'A blank chart',
-		group: 'Writing the chart',
-		steps: [
-			'A new, empty chart in chart view. The ring draws itself, the center dot lands, then the words.',
-			'Try each way to start: a preset, a chat app, or writing it yourself.'
-		]
-	},
-	{
-		id: 'views',
-		title: 'Views that move',
-		group: 'Moving around',
-		steps: [
-			'Click any cell. Its block grows into the editor.',
-			'Or Tab to a cell and press Enter. Its block opens with that cell ready to type.',
-			'Switch views with the dock. The dock stays where it is while the page changes under it.',
-			'Change the theme or the accent in the menu (the three dots). The page crossfades.'
-		]
-	},
-	{
-		id: 'spatial',
-		title: 'Move around the map',
-		group: 'Moving around',
-		steps: [
-			'The editor is open on the goal.',
-			'Tap the numbered pillars, or the arrows on a wide screen. Each block slides in from where it sits on the chart: pillar 1 from the top left, pillar 8 from the bottom right.'
-		]
-	},
-	{
-		id: 'search',
-		title: 'Search and travel',
-		group: 'Moving around',
-		steps: ['The search already holds "phrases".', 'Click a result. The chip travels into the cell it names, in the editor.']
-	},
-	{
 		id: 'today',
 		title: "Today's three",
 		group: 'Days and weeks',
 		steps: [
-			'Today view. Ten days of ticks are already in the log: the calendar (top right) shows them day by day, and Bindu counts them in How it is going.',
-			'Deal three, start the day, then tick them all to see the day sealed.'
+			'Today view, with ten days of ticks in the log: the calendar (top right of the sheet) shows them day by day, and Bindu counts them in How it is going.',
+			'Today\'s three are picked and one is done. Tick the rest and the habit to see the day sealed. Adjust deals three again; Plan tomorrow picks the next day\'s.'
 		]
 	},
 	{
@@ -252,7 +212,7 @@ export const DEMOS: readonly Demo[] = [
 	{
 		id: 'select',
 		title: 'Clearing out copies',
-		group: 'Moving around',
+		group: 'Your charts',
 		steps: [
 			'Select charts opens with six copies of one chart. Select all, or type part of a name and Select these to pick every match.',
 			'Untick the one to keep, or shift-click to pick a run of rows. Delete moves them to recently deleted, and the slip can undo all of them at once.',
@@ -314,10 +274,6 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		for (let index = 4; index < 8; index++) data.actions[6]![index] = '';
 		return { data, view: 'split', focus: 'a2_5' };
 	}
-	if (id === 'empty') return { data: null, view: 'view' };
-	if (id === 'views') return { data: preset('fitness'), view: 'view' };
-	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
-	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
 	if (id === 'today') return { data: livedIn(now), view: 'today' };
 	if (id === 'calendar') return { data: livedIn(now), view: 'calendar', others: [inTraining(now), preset('money')] };
 	if (id === 'board') return { data: onTheBoard(now), view: 'board' };

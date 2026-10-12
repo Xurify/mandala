@@ -119,7 +119,6 @@
 		chart.setViewMode(setup.view, false);
 		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
 		if (setup.focus) chart.jumpToKey(setup.focus);
-		if (setup.query) chart.setQuery(setup.query);
 		const open = setup.open;
 		if (!open) return;
 		// After the chart switch has settled, so Bindu does not start over on the new chart's first page.

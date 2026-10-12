@@ -256,7 +256,7 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ## Trying it
 
-`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the board, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the moments that need a nearly full chart (the last line, a pillar finishing), days with history behind them (Today, the calendar across charts, the board, the weekly reflection), shelves of real links, a pile of copies to clear, and each of Bindu's pages. A screen one click away does not get a demo. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 
