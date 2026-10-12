@@ -3,7 +3,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { cellKey, describe, HUES, idOfKey, idx, info, isUrl, POS, slotOf, type ActionId } from '$lib/chart/model';
 	import {
-		FIELD_FONT_MIN_PX,
+		fitCellField,
 		largestSizeThatFits,
 		remeasureWhenFontSettles,
 		saveGoalFitForNextVisit,
@@ -268,20 +268,14 @@
 					clamp.style.display = '-webkit-box';
 					clamp.style.webkitBoxOrient = 'vertical';
 					clamp.style.overflow = 'hidden';
-					clamp.style.paddingBottom = `${GOAL_PAD_BOTTOM + counter}px`;
-					const style = getComputedStyle(clamp);
-					const line = parseFloat(style.lineHeight);
-					const inner =
-						clamp.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-					let lines = Math.max(
-						1,
-						Math.floor(inner / (Number.isFinite(line) && line > 0 ? line : chosen))
+					// The lines after the ellipsis are hidden only past the box's padding edge, so the box ends at the last line.
+					clamp.style.bottom = 'auto';
+					clamp.style.paddingBottom = '0px';
+					const line = parseFloat(getComputedStyle(clamp).lineHeight);
+					const room = element.clientHeight - GOAL_PAD_TOP - GOAL_PAD_BOTTOM - counter;
+					clamp.style.webkitLineClamp = String(
+						Math.max(1, Math.floor(room / (Number.isFinite(line) && line > 0 ? line : chosen)))
 					);
-					clamp.style.webkitLineClamp = String(lines);
-					if (clamp.scrollHeight > clamp.clientHeight + 1 && lines > 1) {
-						lines -= 1;
-						clamp.style.webkitLineClamp = String(lines);
-					}
 				}
 				syncColor();
 				return;
@@ -292,7 +286,8 @@
 			if (clamp) {
 				clamp.style.display = '';
 				clamp.style.removeProperty('-webkit-line-clamp');
-				clamp.style.paddingBottom = '';
+				clamp.style.bottom = '';
+				clamp.style.paddingBottom = `${GOAL_PAD_BOTTOM}px`;
 			}
 
 			centerShortText();
@@ -345,45 +340,6 @@
 			element.removeAttribute('data-clamped');
 			host?.removeAttribute('data-goal-clamped');
 			host?.style.removeProperty('--goal-fit');
-		};
-	};
-
-	const fitCellField: Attachment = (element) => {
-		if (!(element instanceof HTMLTextAreaElement)) return;
-		let frame = 0;
-
-		const apply = (): void => {
-			element.style.fontSize = '';
-			if (element.clientHeight <= 0 || element.value.trim() === '') return;
-			if (element.scrollHeight <= element.clientHeight + 1) return;
-			const max = parseFloat(getComputedStyle(element).fontSize);
-			if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX) return;
-			const fits = (size: number): boolean => {
-				element.style.fontSize = `${size}px`;
-				return element.scrollHeight <= element.clientHeight + 1;
-			};
-			const chosen = largestSizeThatFits(FIELD_FONT_MIN_PX, max, fits);
-			element.style.fontSize = `${Math.floor(chosen * 4) / 4}px`;
-		};
-
-		const schedule = (): void => {
-			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(apply);
-		};
-
-		apply();
-		const stopFace = remeasureWhenFontSettles(schedule);
-		const resizeObserver = new ResizeObserver(schedule);
-		resizeObserver.observe(element);
-		// The value changes without an input event when the editor turns to another block.
-		const textObserver = new MutationObserver(schedule);
-		textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
-		return () => {
-			cancelAnimationFrame(frame);
-			stopFace();
-			resizeObserver.disconnect();
-			textObserver.disconnect();
-			element.style.fontSize = '';
 		};
 	};
 </script>
@@ -569,7 +525,7 @@
 								<textarea
 									bind:this={textareaElements[cellIndex]}
 									class={cn(
-										'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto',
+										'field block h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto',
 										info(chart.sel, cellIndex).type === 'goal' &&
 											'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 										info(chart.sel, cellIndex).type === 'pillar' &&

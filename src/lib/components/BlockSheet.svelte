@@ -5,6 +5,7 @@
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import IconButton from './ui/IconButton.svelte';
+	import { fitCellField } from './goal-fit';
 	import { cn } from './ui/cn';
 
 	type Props = {
@@ -62,7 +63,6 @@
 	title={name}
 	description="Pillar {shown + 1} · {written} of 8 actions written"
 >
-	<!-- A row grows to its longest line, so every word shows while it is written. -->
 	<div class="grid grid-cols-3 gap-1.5" style:--h={HUES[shown]}>
 		{#each Array(9) as _, cellIndex (cellIndex)}
 			{@const key = keyAt(cellIndex)}
@@ -70,7 +70,7 @@
 			<textarea
 				bind:this={fields[cellIndex]}
 				class={cn(
-					'field m-0 min-h-[88px] w-full min-w-0 resize-none border-0 p-2 font-sans text-[15px] leading-[1.25] text-pretty text-text [field-sizing:content] placeholder:text-muted placeholder:opacity-75 motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:shadow-[0_0_0_2px_var(--accent)] focus:outline-none',
+					'field m-0 aspect-square w-full min-w-0 resize-none self-start border-0 p-2 font-sans text-[15px] leading-[1.25] text-pretty text-text placeholder:text-muted placeholder:opacity-75 motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:shadow-[0_0_0_2px_var(--accent)] focus:outline-none',
 					cellIndex === 4
 						? 'pillar-cell rounded-[28%] text-center font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60'
 						: 'pillar-action rounded-[16px]',
@@ -82,6 +82,8 @@
 				aria-label={cellIndex === 4 ? `Pillar ${shown + 1}` : `Action ${idx(cellIndex) + 1}`}
 				placeholder={cellIndex === 4 ? 'Name this pillar' : `Action ${idx(cellIndex) + 1}`}
 				value={chart.textOf(key)}
+				data-fit={chart.textOf(key)}
+				{@attach fitCellField}
 				onfocus={() => (last = key)}
 				onblur={() => chart.settle()}
 				onkeydown={(event) => {
