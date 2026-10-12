@@ -79,7 +79,7 @@ const SYNC_ROOM_KEY = "mandala-sync-room";
 const SYNC_STATE_KEY = "mandala-sync-state-v1";
 import { exampleChart, isExampleChart } from "./example.ts";
 import { applySavedGoalFit } from "$lib/components/goal-fit";
-import { buildChart, type Preset } from "./presets/index.ts";
+import { buildChart, getPreset, type Preset, type PresetId } from "./presets/index.ts";
 import {
   clearBackupHandle,
   loadBackupHandle,
@@ -174,6 +174,25 @@ function loadInitialLibrary(): ChartLibrary {
 
 const bootLibrary = loadInitialLibrary();
 
+const START_KEY = "mandala_start";
+
+/** The chart being written from the center out, and the preset it borrowed from, if any. */
+type StartRecord = { id: string; preset: PresetId | null };
+
+function loadInitialStart(): StartRecord | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(START_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StartRecord>;
+    if (typeof parsed.id !== "string") return null;
+    const preset = typeof parsed.preset === "string" && getPreset(parsed.preset) ? (parsed.preset as PresetId) : null;
+    return { id: parsed.id, preset };
+  } catch {
+    return null;
+  }
+}
+
 const SHARE_STATE_KEY = "mandala-share-state-v1";
 const REFLECT_KEY = "mandala_reflect";
 
@@ -259,6 +278,10 @@ export class ChartStore {
     summarizeDeleted(this.#library.deleted),
   );
   activeId = $derived(this.#library.activeId);
+  #start: StartRecord | null = $state(loadInitialStart());
+  /** This chart is being written from the center out, so chart view shows the start sheet instead of the grid. */
+  starting = $derived(this.#start?.id === this.#library.activeId);
+  startPreset: PresetId | null = $derived(this.starting ? (this.#start?.preset ?? null) : null);
   chartCount = $derived(this.#library.charts.length);
 
   todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
@@ -1202,6 +1225,22 @@ export class ChartStore {
     }, "theme");
   }
 
+  /** `preset` is the one whose goal was borrowed; its pillars and actions are offered ring by ring. */
+  beginStart(preset: PresetId | null = null): void {
+    this.#start = { id: this.#library.activeId, preset };
+    try {
+      localStorage.setItem(START_KEY, JSON.stringify(this.#start));
+    } catch {}
+  }
+
+  endStart(): void {
+    if (!this.starting) return;
+    this.#start = null;
+    try {
+      localStorage.removeItem(START_KEY);
+    } catch {}
+  }
+
   applyPreset(preset: Preset): boolean {
     return this.#fillOrSpawn(
       buildChart(preset),
@@ -1380,6 +1419,8 @@ export class ChartStore {
 
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
+      // A whole chart arriving from elsewhere (a preset, a draft, an import) is past the start.
+      this.endStart();
       this.data = cloneChart(next);
       this.#resetView();
       this.saveNow();

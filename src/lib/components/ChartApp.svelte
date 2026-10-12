@@ -23,7 +23,7 @@
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
-	import EmptyChart from './EmptyChart.svelte';
+	import CenterOut from './CenterOut.svelte';
 	import Helper from './Helper.svelte';
 	import ExportDialog from './ExportDialog.svelte';
 	import ImportDialog from './ImportDialog.svelte';
@@ -99,6 +99,20 @@
 		isMobile && chart.viewMode === 'split' ? 'edit' : chart.viewMode
 	);
 	const dayView = $derived(effectiveViewMode === 'today' || effectiveViewMode === 'calendar');
+	/** Being written from the center out. Search, Today and Split wait until there is something to use them on. */
+	const fresh = $derived(!chart.dirty || chart.starting);
+	/** The start sheet takes the stage in chart view, in place of the grid. */
+	const starting = $derived(effectiveViewMode === 'view' && fresh);
+	/** A first chart has nothing to switch to, so the sheet is the page's only heading. */
+	const bare = $derived(starting && chart.chartCount === 1);
+	/** Today and Split land in the dock when a chart is started, not on a page that opens with them. */
+	let earned = $state(false);
+	let wasFresh = untrack(() => fresh);
+	$effect(() => {
+		const now = fresh;
+		if (wasFresh && !now) earned = true;
+		wasFresh = now;
+	});
 	const searching = $derived(chart.query.trim() !== '');
 
 	$effect(() => {
@@ -114,6 +128,7 @@
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
 		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
+		if (setup.start) chart.beginStart(setup.start.preset);
 		if (setup.focus) chart.jumpToKey(setup.focus);
 		if (setup.query) chart.setQuery(setup.query);
 		const open = setup.open;
@@ -586,6 +601,7 @@
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
 			<Wordmark class="max-[900px]:flex-auto" onclick={handleGoHome} />
 
+			{#if !fresh}
 			<div class="relative ms-auto w-full max-w-[340px] flex-[0_1_340px] max-[900px]:order-3 max-[900px]:ms-0 max-[900px]:max-w-none max-[900px]:flex-auto">
 				<span class="pointer-events-none absolute start-[15px] top-1/2 flex -translate-y-1/2 text-muted" aria-hidden="true">
 					<Icon name="search" size={16} />
@@ -614,6 +630,7 @@
 						<kbd class="pointer-events-none absolute end-3 top-1/2 min-w-[22px] -translate-y-1/2 rounded-md bg-surface px-1.5 py-px text-center font-sans text-[0.72rem] font-semibold text-muted shadow-card peer-focus:hidden max-[900px]:hidden" aria-hidden="true">/</kbd>
 					{/if}
 				</div>
+			{/if}
 
 				<IconButton
 					icon="command"
@@ -623,7 +640,7 @@
 					onclick={() => (paletteOpen = true)}
 				/>
 
-			<Menu label="More actions">
+			<Menu label="More actions" class={fresh ? 'ms-auto' : undefined}>
 				<MenuItem icon="command" shortcut="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
 				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
@@ -672,6 +689,7 @@
 			</Menu>
 		</div>
 
+		{#if !bare}
 		<div class="mt-8 mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12 gap-y-5 max-[900px]:mt-6 max-[900px]:mb-5 max-[900px]:grid-cols-1 max-[900px]:gap-4">
 			<div class="min-w-0">
 				<Eyebrow class="mb-2">Your chart</Eyebrow>
@@ -690,8 +708,8 @@
 				{/if}
 			</div>
 
-			<!-- On a blank chart in chart view, the empty ring below says what this card would. -->
-			{#if !dayView && !(effectiveViewMode === 'view' && !chart.dirty)}
+			<!-- While the start sheet shows, its rings say what this card would. -->
+			{#if !dayView && !starting}
 			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card max-[900px]:gap-4 max-[900px]:rounded-3xl max-[900px]:py-2.5 max-[900px]:pr-5 max-[900px]:pl-2.5">
 				<ProgressRing size={isMobile ? 56 : 76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px] max-[900px]:min-w-0 max-[900px]:flex-1 max-[900px]:grid-cols-3 max-[900px]:justify-between max-[900px]:gap-2">
@@ -715,6 +733,7 @@
 			</div>
 			{/if}
 		</div>
+		{/if}
 
 		<PresetPicker bind:open={presetOpen} onapply={handleApplyPreset} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
@@ -764,7 +783,7 @@
 		{/if}
 	</div>
 
-	{#if effectiveViewMode === 'view' && chart.dirty}
+	{#if effectiveViewMode === 'view' && !starting}
 		<div
 			class="chart-frame mx-auto mb-3.5 flex w-full items-center justify-between gap-3 print:hidden max-[900px]:mb-2.5 max-[900px]:justify-end"
 		>
@@ -806,12 +825,10 @@
 					effectiveViewMode === 'split' && 'max-w-[660px] flex-[1_1_520px]'
 				)}
 			>
-				{#if effectiveViewMode === 'view' && !chart.dirty}
-					<EmptyChart
-						onpreset={handleOpenPresets}
-						onchat={() => helper.show('write', 'new')}
-						onwrite={() => chart.jumpToKey('g')}
-					/>
+				{#if starting}
+					{#key chart.activeId}
+						<CenterOut guide={bare} class={bare ? 'mt-8 max-[900px]:mt-5' : undefined} ondraft={() => helper.show('write', 'new')} />
+					{/key}
 				{:else}
 					<MandalaGrid
 						mode={effectiveViewMode === 'edit' || effectiveViewMode === 'today' || effectiveViewMode === 'calendar' ? 'view' : effectiveViewMode}
@@ -877,17 +894,20 @@
 		</div>
 	{/if}
 
-	<Helper {helper} />
+	<Helper {helper} quiet={starting} />
 
 	<Dock label="Layout view mode">
-		<DockTab
-			icon="calendar"
-			selected={effectiveViewMode === 'today'}
-			title="Today's focus (T)"
-			onclick={() => chart.setViewMode('today')}
-		>
-			Today
-		</DockTab>
+		{#if !fresh}
+			<DockTab
+				icon="calendar"
+				class={earned ? 'motion-safe:animate-pop-in' : undefined}
+				selected={effectiveViewMode === 'today'}
+				title="Today's focus (T)"
+				onclick={() => chart.setViewMode('today')}
+			>
+				Today
+			</DockTab>
+		{/if}
 		<DockTab
 			icon="grid"
 			selected={effectiveViewMode === 'view'}
@@ -907,9 +927,10 @@
 		>
 			Edit
 		</DockTab>
-		{#if !isMobile}
+		{#if !isMobile && !fresh}
 			<DockTab
 				icon="columns"
+				class={earned ? 'motion-safe:animate-pop-in' : undefined}
 				selected={effectiveViewMode === 'split'}
 				title="Chart and editor side by side (S)"
 				onclick={() => chart.setViewMode('split')}

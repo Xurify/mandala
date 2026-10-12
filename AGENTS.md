@@ -38,6 +38,7 @@ src/
     library.ts                multiple saved charts
     presets/                  starter charts
     draft.ts                  prompts for a chat app, and reading the pasted reply
+    start.ts                  starting a chart: where a reload resumes, what a borrowed preset lends (pure, tested)
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
@@ -52,7 +53,8 @@ src/
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
     Helper*.svelte            Bindu: launcher, panel, and one component per page
-    EmptyChart, WeeklyReflection, WeekStrip, MiniChart, CalendarView
+    CenterOut.svelte          a new chart, from the center out: goal, pillars, one pillar's actions
+    WeeklyReflection, WeekStrip, MiniChart, CalendarView
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui

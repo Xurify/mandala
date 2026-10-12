@@ -1,3 +1,5 @@
+import type { Attachment } from 'svelte/attachments';
+
 export const GOAL_FONT_FLOOR_RATIO = 0.7;
 export const GOAL_FONT_MIN_PX = 11;
 export const FIELD_FONT_MIN_PX = 12;
@@ -96,3 +98,43 @@ export function largestSizeThatFits(min: number, max: number, fits: (size: numbe
 	}
 	return low;
 }
+
+/** A cell field keeps its box and shrinks its text, down to a floor, until the line fits. */
+export const fitCellField: Attachment = (element) => {
+	if (!(element instanceof HTMLTextAreaElement)) return;
+	let frame = 0;
+
+	const apply = (): void => {
+		element.style.fontSize = '';
+		if (element.clientHeight <= 0 || element.value.trim() === '') return;
+		if (element.scrollHeight <= element.clientHeight + 1) return;
+		const max = parseFloat(getComputedStyle(element).fontSize);
+		if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX) return;
+		const fits = (size: number): boolean => {
+			element.style.fontSize = `${size}px`;
+			return element.scrollHeight <= element.clientHeight + 1;
+		};
+		const chosen = largestSizeThatFits(FIELD_FONT_MIN_PX, max, fits);
+		element.style.fontSize = `${Math.floor(chosen * 4) / 4}px`;
+	};
+
+	const schedule = (): void => {
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(apply);
+	};
+
+	apply();
+	const stopFace = remeasureWhenFontSettles(schedule);
+	const resizeObserver = new ResizeObserver(schedule);
+	resizeObserver.observe(element);
+	// The value changes without an input event when the editor turns to another block.
+	const textObserver = new MutationObserver(schedule);
+	textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
+	return () => {
+		cancelAnimationFrame(frame);
+		stopFace();
+		resizeObserver.disconnect();
+		textObserver.disconnect();
+		element.style.fontSize = '';
+	};
+};

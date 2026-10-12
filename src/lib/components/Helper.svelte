@@ -6,15 +6,17 @@
 
 	interface Props {
 		helper: HelperStore;
+		/** No launcher while the page offers Bindu's one job itself. An open panel still shows it, to close. */
+		quiet?: boolean;
 	}
 
-	let { helper }: Props = $props();
+	let { helper, quiet = false }: Props = $props();
 
 	let launcher: HTMLButtonElement | null = $state(null);
 
 	function close(): void {
 		helper.hide();
-		launcher?.focus();
+		if (!quiet) launcher?.focus();
 	}
 </script>
 
@@ -27,6 +29,7 @@
 	</div>
 {/if}
 
+{#if !quiet || helper.open}
 <button
 	bind:this={launcher}
 	type="button"
@@ -38,3 +41,4 @@
 >
 	<HelperFace mood={helper.mood} size={42} class="max-[900px]:size-[38px]" />
 </button>
+{/if}

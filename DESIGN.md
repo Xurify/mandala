@@ -94,6 +94,7 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | `foldOut` | A row leaving a live list because it no longer applies. Fades, then its height closes up |
 | `slipOut` | A slip being replaced. Fades without travel |
 | `morph` (`src/lib/chart/morph.ts`) | Switching views, theme, or accent, as one view transition. The chrome swaps at once, the stage (`main`) fades out fast and rises in, and the selected block travels between the chart and the editor (`view-transition-name: focus-block`). A search hit travels into its cell (`travel`). A theme or accent change crossfades the whole page. Morphs called in the same moment join one transition. A name is only on one element at a time, so a block that is on screen twice (split) carries none |
+| `deal-in` on the start sheet | A borrowed preset's pillars, or a pillar's actions, arriving in the ring in pillar order. Lines the person wrote sit still |
 | `swell` + `seal-draw` on the hero ring | A pillar that just got its last line redraws its arc, swelling once. A full chart redraws all eight in order, then the count steps aside for a check |
 | `stamp` | A check pressed onto a pill: it comes down large and tilted, and lands flat |
 | `glow` | A block whose pillar just became whole: a ring of its hue spreads out and fades |
@@ -153,7 +154,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Chart / Edit / Split, Split desktop only). Today and Split wait until a chart is started (Starting a chart). `Toast` sits directly above it.
 
 ### Menus
 
@@ -215,9 +216,18 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
-### The empty chart
+### Starting a chart
 
-A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.
+A new chart is written the way a mandala is drawn: from the center out, one ring at a time (`CenterOut.svelte`, rules in `start.ts`). In chart view, a chart with nothing on it is not a grid of placeholders and not 64 cells of someone else's plan. It is one sheet that asks one thing per page, with three marks for the rings.
+
+- **The center.** The empty ring draws itself and the dot lands beside "What do you want to get done?", one field, and the presets as goals to borrow. Borrowing puts the preset's goal in the field to change, and nothing else yet. The other door is a chat app, through Bindu.
+- **The first ring.** The goal sits in the middle of a 3×3 and the eight pillars around it are the fields. A borrowed goal deals its preset's pillars in, in pillar order. A ring the person has not touched follows a change of preset; one they have, never. One pillar is enough to go on.
+- **The outer ring.** The named pillars are cards to pick from, the unnamed ones gaps. The picked pillar's block opens with its eight actions as fields, the preset's dealt in when the pillar still has the preset's name. Back puts lent lines that nobody touched away again, so another pillar can be tried. Skip for now is fine.
+- **The moment.** Done for now draws a ring for the pillars that were named and says what is written. See the chart is its only door.
+
+Every line is written to the chart as it is typed, so a reload carries on: at the goal until there is one, then at the ring, then at the pillar that has actions. `chart.starting` keeps the sheet up once the goal makes the chart non-empty. A whole chart arriving from elsewhere (a preset, a draft, an import) ends it.
+
+While a chart is being started, the page holds only what can be used on it: no search, no stats card, no scale row, no Bindu launcher (the sheet has the chat app door), and the dock is Chart and Edit. On the first chart the hero steps aside too, since there is nothing to switch to, and How it works moves into the sheet beside the marks. Once the chart is started, Today and Split land in the dock. The full preset, all 64 at once, is still in the command palette and the editor's start buttons for anyone who asks for it.
 
 ### Feedback
 

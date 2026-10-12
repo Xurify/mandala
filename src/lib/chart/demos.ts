@@ -10,6 +10,7 @@ export type DemoId =
 	| 'complete'
 	| 'pillar'
 	| 'empty'
+	| 'borrowed'
 	| 'spatial'
 	| 'search'
 	| 'views'
@@ -30,6 +31,8 @@ export type DemoSetup = {
 	focus?: string;
 	query?: string;
 	copies?: number;
+	/** Opens on the start sheet, borrowing from this preset. */
+	start?: { preset: PresetId | null };
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
@@ -131,11 +134,22 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'empty',
-		title: 'A blank chart',
+		title: 'Start from the center',
 		group: 'Writing the chart',
 		steps: [
-			'A new, empty chart in chart view. The ring draws itself, the center dot lands, then the words.',
-			'Try each way to start: a preset, a chat app, or writing it yourself.'
+			'A new, empty chart in chart view. The sheet asks for the goal while the ring draws itself and the center dot lands. Search, Today and Split are not in the way yet.',
+			'Type a goal, or borrow one. Next turns to the ring of pillars around it. A borrowed goal brings its preset’s pillars, dealt in one by one.',
+			'Pick a pillar and write its eight actions. Done for now draws a ring for the pillars you named, and See the chart opens the grid, with Today and Split joining the dock.'
+		]
+	},
+	{
+		id: 'borrowed',
+		title: 'A borrowed goal, one pillar at a time',
+		group: 'Writing the chart',
+		steps: [
+			'The Fitness goal and its eight pillars are in, with no actions yet. The sheet opens on the ring.',
+			'Next, then pick Long runs. The preset’s eight actions deal in under it. Change any of them.',
+			'Go Back without changing anything and the lent actions go back too, so another pillar can be tried. Rename a pillar and it starts empty.'
 		]
 	},
 	{
@@ -273,6 +287,11 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		return { data, view: 'split', focus: 'a2_5' };
 	}
 	if (id === 'empty') return { data: null, view: 'view' };
+	if (id === 'borrowed') {
+		const data = preset('fitness');
+		data.actions = data.actions.map((row) => row.map(() => ''));
+		return { data, view: 'view', start: { preset: 'fitness' } };
+	}
 	if (id === 'views') return { data: preset('fitness'), view: 'view' };
 	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
 	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };

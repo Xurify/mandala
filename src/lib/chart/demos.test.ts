@@ -4,6 +4,8 @@ import { parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { completedBy, getByKey, wholeness } from './model.ts';
+import { getPreset } from './presets/index.ts';
+import { actionsFor, startPage } from './start.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -24,6 +26,13 @@ describe('demos', () => {
 		expect(data.actions.flat().filter((action) => !action.trim())).toHaveLength(1);
 		data.actions[7]![7] = 'Done';
 		expect(completedBy(before, wholeness(data))).toEqual({ pillars: [7], chart: true });
+	});
+
+	it('opens a borrowed start on the ring, with actions to lend', () => {
+		const setup = demoSetup('borrowed', now);
+		expect(setup.start).toEqual({ preset: 'fitness' });
+		expect(startPage(setup.data!)).toEqual({ page: 'pillars', pillar: null });
+		expect(actionsFor(setup.data!, getPreset('fitness'), 2)).toHaveLength(8);
 	});
 
 	it('finishes a pillar without finishing the chart', () => {
