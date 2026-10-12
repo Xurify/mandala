@@ -30,6 +30,7 @@
 		| 'list'
 		| 'eye'
 		| 'columns'
+		| 'board'
 		| 'maximize'
 		| 'minimize'
 		| 'info'
@@ -209,6 +210,11 @@
 	{:else if name === 'columns'}
 		<rect x="3" y="3" width="18" height="18" rx="2" />
 		<line x1="12" y1="3" x2="12" y2="21" />
+	{:else if name === 'board'}
+		<rect x="3" y="3" width="18" height="18" rx="2" />
+		<line x1="8" y1="7" x2="8" y2="15" />
+		<line x1="12" y1="7" x2="12" y2="11" />
+		<line x1="16" y1="7" x2="16" y2="17" />
 	{:else if name === 'maximize'}
 		<polyline points="15 3 21 3 21 9" />
 		<polyline points="9 21 3 21 3 15" />

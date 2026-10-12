@@ -113,7 +113,7 @@
 					{#each [0, 1, 2, 3, 4, 5, 6, 7, 8] as slot (slot)}
 						{#if slot === 4}
 							<div
-								class="flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-goal px-2 text-center font-serif text-[0.84rem] leading-[1.15] font-[560] tracking-[-0.01em] text-balance text-goal-fg"
+								class="flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-goal px-2 text-center font-serif text-[0.84rem] leading-[1.15] font-[560] tracking-[-0.005em] text-balance text-goal-fg"
 							>
 								{@render fadingName(shown.title)}
 							</div>

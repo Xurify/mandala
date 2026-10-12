@@ -83,7 +83,7 @@
 		<Wordmark />
 		<div class="flex flex-col gap-3">
 			<Eyebrow>Prototype</Eyebrow>
-			<h1 class="m-0 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">
+			<h1 class="m-0 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-[-0.012em] text-balance">
 				Sync harness
 			</h1>
 			<p class="m-0 max-w-[62ch] text-pretty text-muted">

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type MonthDay } from '$lib/chart/calendar';
+	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type Goal, type GoalDone, type MonthDay } from '$lib/chart/calendar';
 	import { HUES, todayKey } from '$lib/chart/model';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
-	import Eyebrow from './ui/Eyebrow.svelte';
 	import IconButton from './ui/IconButton.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
 	import Pages from './ui/Pages.svelte';
 	import { cn } from './ui/cn';
 
@@ -26,17 +26,54 @@
 	let month = $state(now.getMonth());
 	let direction = $state(1);
 	let selected = $state<string>(today);
-
-	const current = $derived(monthOf(chart.data, year, month));
+	const inScope = $derived.by((): Goal[] => {
+		const chosen = chart.goals.filter((goal) => goal.id === chart.calendarScope);
+		return chosen.length > 0 ? chosen : chart.goals;
+	});
+	const across = $derived(inScope.length > 1);
+	const current = $derived(monthOf(inScope, year, month));
 	const days = $derived(current.weeks.flat());
 	const thisMonth = $derived(year === now.getFullYear() && month === now.getMonth());
-	const earliest = $derived(firstDoneMonth(chart.data));
+	const earliest = $derived(firstDoneMonth(inScope));
 	const atStart = $derived(earliest === null || year < earliest.year || (year === earliest.year && month <= earliest.month));
 	const turnable = $derived(!atStart || !thisMonth);
 	const selectedDay = $derived(days.find((day) => day.inMonth && day.key === selected));
 	const fallbackKey = $derived(thisMonth ? today : lastDoneDay(current));
 	const picked = $derived(selectedDay ?? days.find((day) => day.key === fallbackKey) ?? null);
-	const opened = $derived(picked ? openedOn(chart.data, picked.key) : []);
+	const groups = $derived(
+		picked
+			? inScope
+					.map((goal) => ({ goal, done: picked.done.filter((entry) => entry.goal === goal.id), opened: openedOn(goal.data, picked.key) }))
+					.filter((group) => group.done.length > 0 || group.opened.length > 0)
+			: []
+	);
+	const tally = $derived(
+		across && current.finishedCount > 0
+			? current.byGoal.flatMap(({ goal, finished }) => {
+					const found = inScope.find((each) => each.id === goal);
+					return found ? [{ goal: found, finished }] : [];
+				})
+			: []
+	);
+	const outside = $derived.by(() => {
+		const others = chart.goals.filter((goal) => !inScope.includes(goal));
+		return others.length > 0 ? monthOf(others, year, month).finishedCount : 0;
+	});
+
+	function pillarName(goal: Goal, pillarIndex: number): string {
+		return goal.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`;
+	}
+
+	function openToday(): void {
+		const only = inScope.length === 1 ? inScope[0]! : null;
+		if (only && only.id !== chart.activeId) chart.switchChart(only.id);
+		chart.setViewMode('today');
+	}
+
+	function openEntry(entry: GoalDone): void {
+		if (entry.goal !== chart.activeId) chart.switchChart(entry.goal);
+		chart.jumpToKey(entry.id);
+	}
 
 	function go(by: 1 | -1): void {
 		direction = by;
@@ -67,17 +104,29 @@
 
 	function spoken(day: MonthDay): string {
 		const count = day.done.length;
-		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}`;
+		const goals = across && day.goals.length > 1 ? `, ${day.goals.length} goals` : '';
+		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}${goals}`;
 	}
 </script>
 
 <div class="mx-auto w-full max-w-[520px] px-4 pb-6 max-[900px]:px-0 max-[900px]:pb-2">
 	<section class="rounded-[28px] bg-surface p-2 shadow-card select-none max-[900px]:rounded-3xl" aria-labelledby="calendar-month">
-		<header class="flex items-center gap-2 pt-2 pb-1 ps-3 pe-0.5">
+		<header class="flex items-center gap-2 pt-2 pb-1 ps-4 pe-0.5">
 			<div class="min-w-0 flex-1">
-				<Eyebrow class="mb-1">Calendar</Eyebrow>
-				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.02em] text-text">{current.title}</h2>
+				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.01em] text-text">{current.title}</h2>
 				<p class="m-0 mt-0.5 text-[0.86rem] text-muted">{monthLine(current)}</p>
+				{#if outside > 0}
+					<p class="m-0 mt-0.5 text-[0.86rem] text-pretty text-muted">
+						{outside} more in your other charts.
+						<button
+							type="button"
+							class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.86rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+							onclick={() => (chart.calendarScope = 'all')}
+						>
+							Show all charts
+						</button>
+					</p>
+				{/if}
 			</div>
 			{#if turnable}
 				<div class="flex shrink-0 items-center">
@@ -117,7 +166,15 @@
 										disabled={day.future}
 										onclick={() => open(day)}
 									>
-										{#if day.pillars.length > 0}
+										{#if across}
+											{#if day.goals.length > 0}
+												<span class="flex gap-[3px] self-end pb-[3px] [grid-area:1/1]" aria-hidden="true">
+													{#each day.goals as goal, order (goal)}
+														<span class="size-[5px] rounded-full bg-ink motion-safe:animate-pop-in" style:animation-delay="{rowIndex * 50 + columnIndex * 15 + order * 40}ms"></span>
+													{/each}
+												</span>
+											{/if}
+										{:else if day.pillars.length > 0}
 											<svg class="size-[42px] overflow-visible [grid-area:1/1]" viewBox="0 0 {VIEW} {VIEW}" aria-hidden="true">
 												{#each ARCS as arc (arc.pillarIndex)}
 													{@const order = day.pillars.indexOf(arc.pillarIndex)}
@@ -172,63 +229,96 @@
 						<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-2.5 pb-2">
 							<p class="m-0 text-[0.9rem] leading-snug text-pretty text-muted">{picked.today ? 'Nothing finished yet today.' : 'Nothing finished this day.'}</p>
 							{#if picked.today}
-								<Button size="sm" variant="soft" icon="calendar" onclick={() => chart.setViewMode('today')}>Open today</Button>
+								<Button size="sm" variant="soft" icon="calendar" onclick={openToday}>Open today</Button>
 							{/if}
 						</div>
-					{:else}
-						<ul class="m-0 flex list-none flex-col gap-px p-0">
-							{#each picked.done as entry, index (entry.key)}
-								<li class="motion-safe:animate-pop-in" style:animation-delay="{index * 45}ms">
-									<button
-										type="button"
-										class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans text-text select-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
-										onclick={() => chart.jumpToKey(entry.key)}
-									>
-										<span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface" aria-hidden="true">
-											<Icon name="check" size={12} strokeWidth={2.6} />
-										</span>
-										<span class="flex min-w-0 flex-1 flex-col gap-px">
-											<span class="text-[0.92rem] leading-snug text-pretty">{entry.text}</span>
-											<span class="flex items-center gap-1.5 text-[0.74rem] leading-tight font-[620]">
-												<span class="pillar-ink truncate" style:--h={HUES[entry.pillarIndex]}>{chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`}</span>
-												{#if entry.milestone}
-													<span class="shrink-0 rounded-full bg-sunken px-1.5 py-px text-[0.68rem] font-[620] text-muted">Milestone</span>
-												{/if}
+					{/if}
+					{#each groups as group, groupIndex (group.goal.id)}
+						{#if across}
+							<h4 class="m-0 flex min-w-0 items-center gap-2 px-2.5 pt-2.5 pb-1 text-[0.8rem] leading-tight font-[620] text-muted">
+								<span class="size-[5px] shrink-0 rounded-full bg-ink" aria-hidden="true"></span>
+								<span class="truncate">{group.goal.title}</span>
+							</h4>
+						{/if}
+						{#if group.done.length > 0}
+							<ul class="m-0 flex list-none flex-col gap-px p-0">
+								{#each group.done as entry, index (entry.id)}
+									<li class="motion-safe:animate-pop-in" style:animation-delay="{(groupIndex * 2 + index) * 45}ms">
+										<button
+											type="button"
+											class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans text-text select-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+											onclick={() => openEntry(entry)}
+										>
+											<span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface" aria-hidden="true">
+												<Icon name="check" size={12} strokeWidth={2.6} />
 											</span>
-										</span>
-										{#if entry.at}
-											<span class="shrink-0 text-[0.78rem] text-muted tabular-nums">{clock(entry.at)}</span>
-										{/if}
-									</button>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-					{#if opened.length > 0}
-						<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
-							<h4 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="shelf" size={14} />Opened from the shelf</h4>
-							<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{opened.length}</span>
-						</div>
-						<ul class="m-0 flex list-none flex-col gap-px p-0">
-							{#each opened as entry, index (entry.tool.id)}
-								<li class="motion-safe:animate-pop-in" style:animation-delay="{(picked.done.length + index) * 45}ms">
-									<a
-										href={entry.tool.url}
-										target="_blank"
-										rel="noopener noreferrer"
-										class="flex min-h-11 min-w-0 items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-text no-underline hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
-										onclick={() => chart.openTool(entry.pillarIndex, entry.tool.id)}
-									>
-										<ToolFace tool={entry.tool} class="min-w-0 flex-1" />
-										<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[entry.pillarIndex]} title={chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`} aria-hidden="true"></span>
-										<span class="sr-only">, {chart.data.pillars[entry.pillarIndex]?.trim() || `Pillar ${entry.pillarIndex + 1}`}</span>
-									</a>
-								</li>
-							{/each}
-						</ul>
-					{/if}
+											<span class="flex min-w-0 flex-1 flex-col gap-px">
+												<span class="text-[0.92rem] leading-snug text-pretty">{entry.text}</span>
+												<span class="flex items-center gap-1.5 text-[0.74rem] leading-tight font-[620]">
+													<span class="pillar-ink truncate" style:--h={HUES[entry.pillarIndex]}>{pillarName(group.goal, entry.pillarIndex)}</span>
+													{#if entry.milestone}
+														<span class="shrink-0 rounded-full bg-sunken px-1.5 py-px text-[0.68rem] font-[620] text-muted">Milestone</span>
+													{/if}
+												</span>
+											</span>
+											{#if entry.at}
+												<span class="shrink-0 text-[0.78rem] text-muted tabular-nums">{clock(entry.at)}</span>
+											{/if}
+										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if group.opened.length > 0}
+							<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
+								<h5 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="shelf" size={14} />Opened from the shelf</h5>
+								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{group.opened.length}</span>
+							</div>
+							<ul class="m-0 flex list-none flex-col gap-px p-0">
+								{#each group.opened as entry, index (entry.tool.id)}
+									<li class="motion-safe:animate-pop-in" style:animation-delay="{(groupIndex * 2 + group.done.length + index) * 45}ms">
+										<a
+											href={entry.tool.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="flex min-h-11 min-w-0 items-center gap-3 rounded-[14px] px-2.5 py-1.5 text-text no-underline hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+											onclick={() => {
+												if (group.goal.id === chart.activeId) chart.openTool(entry.pillarIndex, entry.tool.id);
+											}}
+										>
+											<ToolFace tool={entry.tool} class="min-w-0 flex-1" />
+											<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[entry.pillarIndex]} title={pillarName(group.goal, entry.pillarIndex)} aria-hidden="true"></span>
+											<span class="sr-only">, {pillarName(group.goal, entry.pillarIndex)}</span>
+										</a>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					{/each}
 				</section>
 			{/key}
+		{/if}
+
+		{#if tally.length > 1}
+			<section class="mt-3 px-0.5 pb-0.5" aria-labelledby="calendar-goals">
+				<Eyebrow class="px-2.5 pb-1"><span id="calendar-goals">Goals this month</span></Eyebrow>
+				<ul class="m-0 flex list-none flex-col gap-px p-0">
+					{#each tally as row (row.goal.id)}
+						<li>
+							<button
+								type="button"
+								class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+								aria-label="{row.goal.title}: {row.finished > 0 ? `${row.finished} finished` : 'nothing finished yet'}. Show only this chart"
+								onclick={() => (chart.calendarScope = row.goal.id)}
+							>
+								<span class={cn('size-[7px] shrink-0 rounded-full', row.finished > 0 ? 'bg-ink' : 'shadow-[inset_0_0_0_1.5px_var(--muted)]')} aria-hidden="true"></span>
+								<span class={cn('min-w-0 flex-1 truncate text-[0.9rem]', row.finished > 0 ? 'font-[560] text-text' : 'text-muted')}>{row.goal.title}</span>
+								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{row.finished > 0 ? `${row.finished} finished` : 'Nothing yet'}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
 		{/if}
 	</section>
 </div>

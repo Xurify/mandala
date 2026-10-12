@@ -5,6 +5,7 @@
 		cellKey,
 		describe,
 		getByKey,
+		idOfKey,
 		HUES,
 		idx,
 		info,
@@ -23,8 +24,6 @@
 
 	let {
 		mode = 'split',
-		// A read-only grid can be driven by plain data (shared chart page) instead
-		// of the singleton store.
 		source = null,
 		onSelect,
 		onEdit
@@ -43,7 +42,8 @@
 	}
 
 	function metaOf(key: string): ActionMeta | undefined {
-		return data.meta?.[key];
+		const id = idOfKey(data, key);
+		return id ? data.meta?.[id] : undefined;
 	}
 
 	function hue(blockIndex: number, cellIndex: number): number | undefined {
@@ -88,9 +88,11 @@
 			type === 'action' && (view ? 'p-[max(4px,5%)]' : 'p-[max(3px,4%)]'),
 			type === 'pillar' && 'p-[max(5px,10%)]',
 			type === 'goal' && 'p-[max(6px,10%)]',
+			// The 28% corner leaves no inset to spare in a phone's 32px cell, and a name needs every pixel of it.
+			view && type === 'pillar' && '@max-[480px]:px-px @max-[480px]:py-[2px]',
 			view && type === 'action' && 'text-[clamp(8.5px,1.3cqw,13px)]',
 			view && type === 'pillar' && 'text-[clamp(9px,1.45cqw,13.5px)]',
-			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.01em]',
+			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.005em]',
 			type === 'goal' &&
 				'goal bg-goal text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
 			type === 'goal' && (view ? 'font-[560]' : 'font-semibold'),
@@ -107,13 +109,12 @@
 			placeholder &&
 				type === 'pillar' &&
 				'before:text-[0.88em] before:font-medium before:opacity-50 before:content-[attr(data-placeholder)]',
-				hasText &&
-				// Compact mode swaps words for dots below 480px container width —
-				// only where a side panel shows the words. Read-only grids keep text.
-				(!source &&
-					"filled @max-[480px]:after:size-[32%] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden") ||
-				(source && 'filled'),
 			hasText ? 'filled' : 'empty',
+			// A whole number of pixels, or snapping draws the dot a pixel narrower in some columns.
+			hasText &&
+				!source &&
+				!(view && type === 'pillar') &&
+				"@max-[480px]:after:size-[round(32%,1px)] @max-[480px]:after:rounded-full @max-[480px]:after:bg-current @max-[480px]:after:opacity-60 @max-[480px]:after:content-[''] print:after:hidden",
 			hit && 'hit shadow-[inset_0_0_0_2px_var(--ink)]',
 			query !== '' && !hit && 'dim opacity-[0.18]',
 			highlighted && 'highlight'
@@ -153,12 +154,12 @@
 	function handlePointerEnter(blockIndex: number, cellIndex: number, event: PointerEvent): void {
 		if (source || event.pointerType === 'touch') return;
 		const cellInformation = info(blockIndex, cellIndex);
-		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
+		chart.hoverColor(cellInformation.type === 'goal' ? -1 : cellInformation.k);
 	}
 
 	function handlePointerLeave(event: PointerEvent): void {
 		if (source || event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
+		chart.unhoverColor();
 	}
 
 	function aria(blockIndex: number, cellIndex: number): string {
@@ -175,6 +176,63 @@
 
 	/** The cell's leading, as `leading-[1.15]` on the button. Set in whole pixels: a fraction snaps line by line, unevenly. */
 	const LINE = 1.15;
+
+	const NAME_MAX_PX = 9.5;
+	const NAME_MIN_PX = 7;
+
+	const fitNames: Attachment<HTMLElement> = (grid) => {
+		const lines = document.createRange();
+		const roomOf = (name: HTMLElement): number => {
+			const cell = name.parentElement!;
+			const style = getComputedStyle(cell);
+			return cell.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+		};
+		const fitsAt = (name: HTMLElement, size: number): boolean => {
+			name.style.fontSize = `${size}px`;
+			// scrollWidth rounds, and a word a fraction of a pixel too wide still gets the ellipsis.
+			lines.selectNodeContents(name);
+			const widest = Math.max(0, ...[...lines.getClientRects()].map((line) => line.width));
+			return widest <= name.getBoundingClientRect().width && name.scrollHeight <= roomOf(name) + 0.5;
+		};
+		const fit = (): void => {
+			const names = [...grid.querySelectorAll<HTMLElement>('[data-name]')];
+			for (const name of names) {
+				name.style.fontSize = '';
+				name.style.display = '';
+				name.style.webkitLineClamp = '';
+				name.style.textOverflow = 'clip';
+			}
+			const shown = names.filter((name) => getComputedStyle(name).display !== 'none');
+			let size = NAME_MAX_PX;
+			const cut: HTMLElement[] = [];
+			for (const name of shown) {
+				let own = size;
+				while (own > NAME_MIN_PX && !fitsAt(name, own)) own -= 0.25;
+				if (fitsAt(name, own)) size = own;
+				else cut.push(name);
+			}
+			for (const name of names) {
+				name.style.fontSize = shown.length ? `${size}px` : '';
+				name.style.textOverflow = '';
+			}
+			for (const name of cut) {
+				const room = roomOf(name);
+				if (name.scrollHeight <= room + 0.5) continue;
+				name.style.display = '-webkit-box';
+				name.style.webkitLineClamp = String(Math.max(1, Math.floor(room / parseFloat(getComputedStyle(name).lineHeight))));
+			}
+		};
+		fit();
+		const resizeObserver = new ResizeObserver(fit);
+		resizeObserver.observe(grid);
+		const textObserver = new MutationObserver(fit);
+		textObserver.observe(grid, { characterData: true, childList: true, subtree: true });
+		void document.fonts?.ready.then(fit);
+		return () => {
+			resizeObserver.disconnect();
+			textObserver.disconnect();
+		};
+	};
 
 	const fitCellText: Attachment = (element) => {
 		if (!(element instanceof HTMLSpanElement)) return;
@@ -238,7 +296,6 @@
 				return;
 			}
 
-			// Still too long at the floor: ellipsize on a whole line, never through a letter.
 			element.style.overflowWrap = 'anywhere';
 			element.style.display = '-webkit-box';
 			element.style.webkitBoxOrient = 'vertical';
@@ -293,6 +350,7 @@
 		'mandala @container grid w-full grid-cols-3 max-[900px]:mx-auto max-[900px]:max-w-[480px] max-[900px]:gap-1',
 		view ? 'aspect-square gap-2.5' : 'gap-1.5'
 	)}
+	{@attach fitNames}
 >
 	{#each Array(9) as _, blockIndex (blockIndex)}
 		<div
@@ -341,6 +399,13 @@
 						data-kind={cellInformation.type}
 						{@attach fitCellText}>{textOf(key)}</span
 					>
+					{#if view && !source && cellInformation.type === 'pillar'}
+						<span
+							class="hidden w-full overflow-hidden text-center text-[9.5px] leading-[1.1] font-[650] tracking-[-0.01em] text-ellipsis break-normal [-webkit-box-orient:vertical] @max-[480px]:block print:hidden"
+							aria-hidden="true"
+							data-name>{textOf(key)}</span
+						>
+					{/if}
 				</button>
 			{/each}
 		</div>

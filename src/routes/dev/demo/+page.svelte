@@ -47,7 +47,7 @@
 		<div class="flex max-w-[62ch] flex-col gap-3">
 			<div>
 				<Eyebrow>Lab</Eyebrow>
-				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">Demos</h1>
+				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-[-0.012em] text-balance">Demos</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
 				Each demo opens the app set up to show one thing, as a new chart. Nothing you have saved changes. Delete a demo chart from

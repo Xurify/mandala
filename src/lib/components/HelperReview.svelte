@@ -12,7 +12,6 @@
 
 	const findings = $derived(reviewChart(helper.data));
 	const lines = $derived(helper.data.pillars.filter((pillar) => pillar.trim()).length + helper.data.actions.flat().filter((action) => action.trim()).length);
-	/** Most of the chart is in another language. The rules here read English, so say so and point to the prompt. */
 	const foreign = $derived(lines > 0 && foreignShare(helper.data) >= 0.3);
 
 	function reviewWithPrompt(): void {

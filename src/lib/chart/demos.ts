@@ -1,20 +1,15 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
-import { dateKeyOf, type ChartData, type DayLog, type Tool } from './model.ts';
+import { applyChange, finish } from './board.ts';
+import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type ChartData, type Tool } from './model.ts';
 
-/**
- * Ready-made situations for trying each feature by hand, from `/dev/demo`. Each one opens as a new chart
- * (or fills the current one when it is empty), so nothing saved is touched.
- */
 export type DemoId =
 	| 'complete'
 	| 'pillar'
-	| 'empty'
-	| 'spatial'
-	| 'search'
-	| 'views'
+	| 'phone'
 	| 'today'
 	| 'calendar'
+	| 'board'
 	| 'reflection'
 	| 'bindu-week'
 	| 'bindu-review'
@@ -28,15 +23,16 @@ export type DemoSetup = {
 	data: ChartData | null;
 	view: ViewMode;
 	focus?: string;
-	query?: string;
 	copies?: number;
+	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
+	others?: ChartData[];
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
 export type Demo = {
 	id: DemoId;
 	title: string;
-	group: 'Writing the chart' | 'Moving around' | 'Days and weeks' | 'Tools' | 'Bindu';
+	group: 'Writing the chart' | 'Days and weeks' | 'Tools' | 'Your charts' | 'Bindu';
 	steps: string[];
 	reply?: () => string;
 };
@@ -45,40 +41,74 @@ function preset(id: PresetId): ChartData {
 	return buildChart(getPreset(id)!);
 }
 
+function idIn(data: ChartData, key: string): ActionId {
+	return idOfKey(data, key)!;
+}
+
+function metaFor(data: ChartData, byCell: Record<string, ActionMeta>): Record<ActionId, ActionMeta> {
+	return Object.fromEntries(Object.entries(byCell).map(([key, meta]) => [idIn(data, key), meta]));
+}
+
+/** Ticks go through `finish`, the same as in the app, so a one-time action ticked here is done that day. */
 function history(data: ChartData, now: Date, days: Record<number, { focus: string[]; checked: string[] }>): void {
 	data.days = {};
-	for (const [back, log] of Object.entries(days)) {
+	for (const back of Object.keys(days).map(Number).sort((a, b) => b - a)) {
 		const date = new Date(now);
-		date.setDate(now.getDate() - Number(back));
-		const entry: DayLog = { focus: log.focus, checked: log.checked, started: log.focus.length > 0 };
-		entry.at = Object.fromEntries(log.checked.map((key, index) => [key, `0${7 + (index % 3)}:${10 + index * 7}`]));
-		data.days[dateKeyOf(date)] = entry;
+		date.setDate(now.getDate() - back);
+		const dateKey = dateKeyOf(date);
+		const { focus, checked } = days[back]!;
+		data.days[dateKey] = { focus: focus.map((key) => idIn(data, key)), checked: [], started: focus.length > 0 };
+		checked.forEach((key, index) =>
+			applyChange(data, finish(data, idIn(data, key), dateKey, `0${7 + (index % 3)}:${10 + index * 7}`, date.getTime() + index))
+		);
 	}
 }
 
 function livedIn(now: Date): ChartData {
 	const data = preset('language');
+	data.meta = metaFor(data, { a2_7: { kind: 'milestone' }, a0_0: { kind: 'routine' } });
 	history(data, now, {
-		0: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a0_1'] },
+		0: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a1_6', 'a0_1'] },
 		1: { focus: ['a0_0', 'a1_0', 'a3_2'], checked: ['a0_0', 'a1_0', 'a3_2'] },
-		2: { focus: ['a5_1', 'a1_3', 'a2_2'], checked: ['a5_1', 'a2_2'] },
+		2: { focus: ['a5_1', 'a1_3', 'a2_2'], checked: ['a5_1', 'a2_2', 'a3_5'] },
 		3: { focus: ['a0_2', 'a3_0', 'a4_1'], checked: ['a0_2', 'a3_0', 'a4_1', 'a1_1'] },
 		4: { focus: ['a5_1', 'a2_3', 'a0_0'], checked: ['a2_3', 'a0_0'] },
 		5: { focus: ['a1_2', 'a4_2', 'a5_1'], checked: ['a1_2', 'a4_2'] },
 		9: { focus: ['a5_1'], checked: [] }
 	});
-	const twoDaysAgo = new Date(now);
-	twoDaysAgo.setDate(now.getDate() - 2);
-	data.meta = {
-		a3_5: { kind: 'milestone', done: true, doneAt: dateKeyOf(twoDaysAgo) },
-		a1_6: { kind: 'milestone', done: true, doneAt: dateKeyOf(now) },
-		a2_7: { kind: 'milestone' },
-		a0_0: { kind: 'routine' }
-	};
 	return data;
 }
 
-function shelves(now: Date): NonNullable<ChartData['tools']> {
+function inTraining(now: Date): ChartData {
+	const data = preset('fitness');
+	data.meta = metaFor(data, { a1_0: { kind: 'routine' } });
+	history(data, now, {
+		0: { focus: ['a2_1', 'a3_0'], checked: ['a1_0'] },
+		2: { focus: ['a0_2', 'a6_1'], checked: ['a1_0', 'a0_2'] },
+		3: { focus: ['a3_0'], checked: ['a1_0'] },
+		6: { focus: ['a4_3', 'a5_0'], checked: ['a4_3', 'a5_0', 'a1_0'] }
+	});
+	return data;
+}
+
+function onTheBoard(now: Date): ChartData {
+	const data = livedIn(now);
+	const filed: Record<string, Partial<ActionMeta>> = {
+		a0_0: { kind: 'routine', lane: 'doing', rank: 0 },
+		a5_0: { kind: 'milestone', lane: 'doing', rank: 1 },
+		a2_1: { kind: 'milestone', lane: 'doing', rank: 2 },
+		a5_2: { kind: 'milestone', lane: 'todo', rank: 0 },
+		a4_0: { kind: 'milestone', lane: 'todo', rank: 1 },
+		a3_1: { kind: 'milestone', lane: 'todo', rank: 2 }
+	};
+	for (const [key, meta] of Object.entries(filed)) setMeta(data, idIn(data, key), meta);
+	const nineDaysAgo = new Date(now);
+	nineDaysAgo.setDate(now.getDate() - 9);
+	applyChange(data, finish(data, idIn(data, 'a1_4'), dateKeyOf(nineDaysAgo), '19:40', nineDaysAgo.getTime()));
+	return data;
+}
+
+function shelves(data: ChartData, now: Date): NonNullable<ChartData['tools']> {
 	const days = (count: number) =>
 		Array.from({ length: count }, (_, index) => {
 			const date = new Date(now);
@@ -87,7 +117,7 @@ function shelves(now: Date): NonNullable<ChartData['tools']> {
 		}).reverse();
 	const tool = (id: string, url: string, title: string, extra: Partial<Tool> = {}): Tool => ({ id, url, title, kind: 'repeat', ...extra });
 	return {
-		p0: [tool('t-conv', 'https://youtu.be/6mCmru24BOI', 'Jak začít a udržet konverzaci s kýmkoliv', { kind: 'once', action: 1 })],
+		p0: [tool('t-conv', 'https://youtu.be/6mCmru24BOI', 'Jak začít a udržet konverzaci s kýmkoliv', { kind: 'once', action: idAt(data, 0, 1) })],
 		p1: [
 			tool('t-easy', 'https://youtu.be/SZaaZpKLTFE', "you'll understand this video WITHOUT subtitles! 💯🇷🇺 | Super Easy Russian", { opened: days(3) }),
 			tool('t-talk', 'https://youtu.be/wzMrFFcC1BU', "Let's Talk IN RUSSIAN! Easy Russian Listening Practice about new hobbies and life updates"),
@@ -102,8 +132,8 @@ function shelves(now: Date): NonNullable<ChartData['tools']> {
 			tool('t-test', 'https://youtu.be/1FWYOawIJNA', 'Are you really A2 level? Take this vocabulary test', { kind: 'once', known: true, opened: days(1) })
 		],
 		p4: [
-			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: 0 }),
-			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: 0 })
+			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: idAt(data, 4, 0) }),
+			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: idAt(data, 4, 0) })
 		]
 	};
 }
@@ -130,47 +160,23 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
-		id: 'empty',
-		title: 'A blank chart',
+		id: 'phone',
+		title: 'The chart on a phone',
 		group: 'Writing the chart',
 		steps: [
-			'A new, empty chart in chart view. The ring draws itself, the center dot lands, then the words.',
-			'Try each way to start: a preset, a chat app, or writing it yourself.'
+			'Open it on a phone, or narrow the window under 900px. The whole chart shows, a dot for each action and each pillar by name, and the page fits without scrolling.',
+			'Tap any cell. Its pillar\'s block opens ready to write in, starting where you tapped; Enter moves on, the arrows walk round the pillars, and Open in the editor has the rest.',
+			'The search button in the top bar opens the command palette, which finds lines in the chart.'
 		]
-	},
-	{
-		id: 'views',
-		title: 'Views that move',
-		group: 'Moving around',
-		steps: [
-			'Click any cell. Its block grows into the editor.',
-			'Or Tab to a cell and press Enter. Its block opens with that cell ready to type.',
-			'Switch views with the dock. The dock stays where it is while the page changes under it.',
-			'Change the theme or the accent in the menu (the three dots). The page crossfades.'
-		]
-	},
-	{
-		id: 'spatial',
-		title: 'Move around the map',
-		group: 'Moving around',
-		steps: [
-			'The editor is open on the goal.',
-			'Tap the numbered pillars, or the arrows on a wide screen. Each block slides in from where it sits on the chart: pillar 1 from the top left, pillar 8 from the bottom right.'
-		]
-	},
-	{
-		id: 'search',
-		title: 'Search and travel',
-		group: 'Moving around',
-		steps: ['The search already holds "phrases".', 'Click a result. The chip travels into the cell it names, in the editor.']
 	},
 	{
 		id: 'today',
 		title: "Today's three",
 		group: 'Days and weeks',
 		steps: [
-			'Today view. Ten days of ticks are already in the log: the calendar (top right) shows them day by day, and Bindu counts them in How it is going.',
-			'Deal three, start the day, then tick them all to see the day sealed.'
+			'Today view, with ten days of ticks in the log: Calendar in the dock shows them day by day, and Bindu counts them in How it is going.',
+			'Today\'s three are picked and one is done. Tick the rest and the habit to see the day sealed. Adjust deals three again; Plan tomorrow picks the next day\'s.',
+			'A second chart, the half marathon, has two picks left today. Also today, under the list, names it and opens it; the dot on the chart title says the same from every view, and its row in the menu counts what is left.'
 		]
 	},
 	{
@@ -178,9 +184,23 @@ export const DEMOS: readonly Demo[] = [
 		title: 'The calendar',
 		group: 'Days and weeks',
 		steps: [
-			'A month of days with what got finished on each: a pip per tick, in the pillar\'s hue. Today has a ring.',
-			'Tap a day to read what was finished, and when. Arrow keys walk the days; the arrows at the top turn the month.',
-			'Reach it from Today, the command palette (Go to Calendar), or the C key.'
+			'Every chart is on it. A day shows a dot for each goal that finished something; tap it to read what, under each goal, and when.',
+			'Under the days, Goals this month says what each goal finished. The emergency fund has nothing yet; tap a row to see only that goal.',
+			'Pick one chart from the title menu: its days show a ring of its pillars instead, and a line under the month says what the other charts finished, with Show all charts. Arrow keys walk the days; the arrows at the top turn the month.',
+			'Reach it from Calendar in the dock, the command palette (Go to Calendar), or the C key.'
+		]
+	},
+	{
+		id: 'board',
+		title: 'The board',
+		group: 'Days and weeks',
+		steps: [
+			'Every action on the chart is a card. Open keeps the chart\'s order; To do, Doing, and Done hold what you moved.',
+			'Drag a card into another list, or up and down in To do and Doing. On a phone, swipe between the lists; hold a card for a moment before you drag, and hold it at the edge to turn to the next list.',
+			'Drop one in Done: its check stamps, Today ticks it, and the calendar shows it today. "Talk to yourself for 5 minutes after dinner" is a routine, so Done turns it away.',
+			'Today\'s three sit in Doing, marked Today. Open Today and tick one: it is in Done when you come back. Untick it, or drag it out of Done, and it reopens everywhere.',
+			'With the keyboard: Tab to a card, Space picks it up, the arrows carry it, Space puts it down, Escape puts it back.',
+			'Click a card: it opens beside the board like a ticket. Write notes on it, move it, change its kind, read its activity. Click another card and the sheet follows; Escape closes it.'
 		]
 	},
 	{
@@ -210,7 +230,7 @@ export const DEMOS: readonly Demo[] = [
 	{
 		id: 'select',
 		title: 'Clearing out copies',
-		group: 'Moving around',
+		group: 'Your charts',
 		steps: [
 			'Select charts opens with six copies of one chart. Select all, or type part of a name and Select these to pick every match.',
 			'Untick the one to keep, or shift-click to pick a run of rows. Delete moves them to recently deleted, and the slip can undo all of them at once.',
@@ -272,16 +292,14 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		for (let index = 4; index < 8; index++) data.actions[6]![index] = '';
 		return { data, view: 'split', focus: 'a2_5' };
 	}
-	if (id === 'empty') return { data: null, view: 'view' };
-	if (id === 'views') return { data: preset('fitness'), view: 'view' };
-	if (id === 'spatial') return { data: preset('study'), view: 'edit', focus: 'g' };
-	if (id === 'search') return { data: preset('language'), view: 'view', query: 'phrases' };
-	if (id === 'today') return { data: livedIn(now), view: 'today' };
-	if (id === 'calendar') return { data: livedIn(now), view: 'calendar' };
+	if (id === 'phone') return { data: livedIn(now), view: 'view' };
+	if (id === 'today') return { data: livedIn(now), view: 'today', others: [inTraining(now)] };
+	if (id === 'calendar') return { data: livedIn(now), view: 'calendar', others: [inTraining(now), preset('money')] };
+	if (id === 'board') return { data: onTheBoard(now), view: 'board' };
 	if (id === 'tools') {
 		const data = livedIn(now);
-		data.meta = { ...data.meta, a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } };
-		data.tools = shelves(now);
+		data.meta = { ...data.meta, ...metaFor(data, { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } }) };
+		data.tools = shelves(data, now);
 		return { data, view: 'today' };
 	}
 	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };

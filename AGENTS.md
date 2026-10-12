@@ -9,7 +9,7 @@ Mandala is a local-first goal chart (Mandala method): one goal in the center, ei
 - SvelteKit 2 + **Svelte 5 runes only** (`$state`, `$derived`, `$effect`, `$props`, snippets, `{@attach}`). No stores from `svelte/store`, no `export let`, no `on:click`.
 - TypeScript strict. Package manager and runner: **bun**.
 - Styling: tokens, base reset, and pillar utilities live in `src/app.css` (OKLCH custom properties, no component `<style>` blocks). Chart print lives in `src/print.css`, imported from `app.css`. Tailwind v4 utilities everywhere else, preflight off. A raw `<button>` or text field keeps the browser border and gray face unless it is a primitive or sets `border-0` and an explicit background (`DESIGN.md` → Native chrome). Primitives in `src/lib/components/ui/` use `tv` + `cn` and are previewed at `/dev/ui`. Feature screens use those primitives plus layout utilities. They don't restyle a primitive's color, radius, or type.
-- Fonts: `@fontsource-variable/source-sans-3` only, imported in `src/routes/+layout.svelte`. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
+- Fonts: `@fontsource-variable/source-sans-3` for text and controls, and its serif sibling `@fontsource-variable/source-serif-4` for titles through `--serif` (`font-serif`). Faces are declared in `src/app.css` and preloaded in `src/routes/+layout.svelte`. Do not add another family (no Fraunces, Bricolage Grotesque, or Epilogue).
 - PWA: `src/service-worker.ts` + `static/manifest.webmanifest`. Deployed on Vercel.
 
 ## Commands
@@ -32,7 +32,9 @@ src/
   routes/+layout.svelte       fonts, app.css, theme-color metas, favicon
   routes/+page.svelte         mounts ChartApp
   lib/chart/
-    model.ts                  chart data model, HUES, block/cell indexing (pure, tested)
+    model.ts                  chart data model, HUES, block/cell indexing, action ids (pure, tested)
+    id.ts                     prefixed, sortable ids (TypeID): chart_, action_, tool_, share_
+    fixtures.ts               for tests: `A.a0_0`, an id that names its cell, and `slotted` to give a chart those ids
     chart.svelte.ts           ChartStore singleton `chart`: state, persistence, theme, view mode
     ring.ts                   ring geometry (PILLAR_ANGLES, pillarArc, arcPath) + OKLCH→sRGB + BRAND colors
     library.ts                multiple saved charts
@@ -41,20 +43,26 @@ src/
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
+    theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
+    contract.ts               where each saved field may travel (shared, yours, device), and every browser storage key
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
-    calendar.ts               a month of days and what was finished on each (pure, tested)
+    calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
+    board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
     MandalaGrid.svelte        the 9×9 grid
+    BlockSheet.svelte         a pillar's block in words, opened from the chart on a phone
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
     BrandMark.svelte          logo mark, same geometry as the ring
     Helper*.svelte            Bindu: launcher, panel, and one component per page
     EmptyChart, WeeklyReflection, WeekStrip, MiniChart, CalendarView
+    BoardView.svelte          the board: Open, To do, Doing, Done; drag, keyboard carry, card sheet
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
     ChartSwitcher, PresetPicker, MethodGuide, Icon
+    MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
   routes/dev/demo             one-click situations for trying every interaction
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
@@ -67,6 +75,11 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Anything arranged in a circle (ring, mark, icon) places pillar `k` at `PILLAR_ANGLES[k]`, so it matches the grid spatially.
 - All state goes through `chart` (`chart.svelte.ts`). Components call its methods (`chart.setText`, `chart.select`, `chart.say(message)` for toasts); they don't write to `localStorage` themselves. The store never writes over another tab: it merges what storage holds first (`reconcile` in `library.ts`) and follows `storage` events.
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
+- A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
+- Saved things have ids from `id.ts`: `chart_`, `action_`, `tool_`, `share_`, then a sortable UUIDv7. A new kind of saved thing gets its own prefix there. `meta`, day logs, and tools point at an action by its id (`ActionId`), never by its cell; `a{k}_{j}` is only a place on the grid. Convert with `idAt`, `slotOf`, `keyOf`, and `idOfKey` in `model.ts`. A cleared line gets a new id (`setByKey`), and a copy gets new ids for all (`withNewIds`). Tests name actions with `A.a0_0` from `fixtures.ts`.
+- Saved data has a place in the sync contract (`contract.ts`, `docs/sync.md`). A new field on a saved type fails `bun run check` until it is placed, and a new `localStorage` key fails `contract.test.ts` until `BROWSER_KEYS` lists it. Decide where it goes in the same change, and keep what is not `shared` out of `forSharing`.
+- Saved charts carry a `version` (`CHART_VERSION` in `model.ts`), stamped by `parseChart`, which every chart passes through on load, import, share, and sync. There are no users yet, so there is no upgrade or legacy code: change the shape of saved data freely, and don't add a fallback for an old shape. Write upgrades in `parseChart` once people have data to keep.
+- Done is one record across Today, the board, the editor, and the calendar: the action's `done`/`doneAt` and the day's tick are written together. Finish or reopen with `chart.finish` / `chart.reopen` (or `chart.moveCard`), never by writing one of them alone. Ask `finishedOn` in `board.ts` whether something was finished on a day.
 
 ## Conventions
 

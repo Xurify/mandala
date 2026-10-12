@@ -6,6 +6,7 @@
 	import type { HelperMood } from '$lib/chart/helper.svelte';
 	import { filledCount } from '$lib/chart/model';
 	import { LIBRARY_KEY, formatUpdated, parseLibrary, titleOf } from '$lib/chart/library';
+	import { applyTheme, saveTheme, themeOf, type AppTheme } from '$lib/chart/theme';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import Icon from '$lib/components/Icon.svelte';
@@ -32,7 +33,7 @@
 		{ value: 'dark', label: 'Dark', icon: 'moon' as const }
 	];
 
-	let currentTheme = $state<'system' | 'light' | 'dark'>('system');
+	let currentTheme = $state<AppTheme>('system');
 	let savedGoals = $state<SavedGoalItem[]>([]);
 
 	const binduNotes = [
@@ -62,42 +63,30 @@
 	}
 
 	function handleThemeChange(selectedTheme: string): void {
-		const nextTheme = selectedTheme as 'system' | 'light' | 'dark';
+		const nextTheme = themeOf(selectedTheme);
 		currentTheme = nextTheme;
-		if (typeof window !== 'undefined') {
-			if (nextTheme === 'light' || nextTheme === 'dark') {
-				document.documentElement.setAttribute('data-theme', nextTheme);
-				localStorage.setItem('theme', nextTheme);
-			} else {
-				document.documentElement.removeAttribute('data-theme');
-				localStorage.removeItem('theme');
-			}
-		}
+		saveTheme(nextTheme);
+		applyTheme(nextTheme);
 	}
 
 	function openSavedGoal(goalId: string): void {
 		try {
 			const storedData = localStorage.getItem(LIBRARY_KEY);
 			if (storedData) {
-				const library = parseLibrary(storedData);
-				if (library) {
-					library.activeId = goalId;
-					localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
-				}
+				// Only the open chart changes, so every row stays as stored, read or not.
+				const library = JSON.parse(storedData) as Record<string, unknown>;
+				library.activeId = goalId;
+				localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 			}
 		} catch {
-			// Storage access blocked or restricted
 		}
 		window.location.href = '/';
 	}
 
 	onMount(() => {
 		try {
-			const storedTheme = localStorage.getItem('theme');
-			if (storedTheme === 'light' || storedTheme === 'dark') {
-				currentTheme = storedTheme;
-				document.documentElement.setAttribute('data-theme', storedTheme);
-			}
+			currentTheme = themeOf(localStorage.getItem('theme'));
+			applyTheme(currentTheme);
 
 			const storedData = localStorage.getItem(LIBRARY_KEY);
 			if (storedData) {
@@ -187,7 +176,7 @@
 			</div>
 
 			<h1
-				class="m-0 font-serif text-[clamp(1.9rem,5vw,2.5rem)] leading-[1.1] font-[600] tracking-[-0.03em] text-balance text-text"
+				class="m-0 font-serif text-[clamp(1.9rem,5vw,2.5rem)] leading-[1.1] font-[600] tracking-[-0.015em] text-balance text-text"
 			>
 				{statusHeading}
 			</h1>

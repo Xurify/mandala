@@ -1,3 +1,5 @@
+import type { Attachment } from 'svelte/attachments';
+
 export const GOAL_FONT_FLOOR_RATIO = 0.7;
 export const GOAL_FONT_MIN_PX = 11;
 export const FIELD_FONT_MIN_PX = 12;
@@ -72,7 +74,6 @@ export function saveGoalFitForNextVisit(part: GoalFitPart, px: number): void {
 	try {
 		localStorage.setItem(GOAL_FIT_KEY, JSON.stringify(next));
 	} catch {
-		// private mode / blocked storage
 	}
 }
 
@@ -95,4 +96,68 @@ export function largestSizeThatFits(min: number, max: number, fits: (size: numbe
 		else high = mid;
 	}
 	return low;
+}
+
+/**
+ * Shrinks a cell's field until its words fit the square, no smaller than `FIELD_FONT_MIN_PX`. Set `data-fit` to
+ * the text, so words that arrive without an input event (another block, another pillar) fit again.
+ */
+export const fitCellField: Attachment = (element) => {
+	if (!(element instanceof HTMLTextAreaElement)) return;
+	let frame = 0;
+
+	// A word too wide for the cell counts as not fitting, so "Pronunciation" shrinks before it breaks. A textarea
+	// wraps a long word without reporting any overflow, so the widest word is measured on a canvas in its font.
+	const widestWord = (size: number): number => {
+		const style = getComputedStyle(element);
+		const pen = measuringPen();
+		if (!pen) return 0;
+		pen.font = `${style.fontStyle} ${style.fontWeight} ${size}px ${style.fontFamily}`;
+		return Math.max(0, ...element.value.split(/\s+/).map((word) => pen.measureText(word).width));
+	};
+	const fitsAt = (size: number): boolean => {
+		element.style.fontSize = `${size}px`;
+		const style = getComputedStyle(element);
+		const across = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+		return element.scrollHeight <= element.clientHeight + 1 && widestWord(size) <= across + 0.5;
+	};
+
+	const apply = (): void => {
+		element.style.fontSize = '';
+		if (element.clientHeight <= 0 || element.value.trim() === '') return;
+		const max = parseFloat(getComputedStyle(element).fontSize);
+		if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX || fitsAt(max)) {
+			element.style.fontSize = '';
+			return;
+		}
+		const chosen = largestSizeThatFits(FIELD_FONT_MIN_PX, max, fitsAt);
+		element.style.fontSize = `${Math.floor(chosen * 4) / 4}px`;
+	};
+
+	const schedule = (): void => {
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(apply);
+	};
+
+	apply();
+	const stopFace = remeasureWhenFontSettles(schedule);
+	const resizeObserver = new ResizeObserver(schedule);
+	resizeObserver.observe(element);
+	// The value changes without an input event when the editor turns to another block.
+	const textObserver = new MutationObserver(schedule);
+	textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
+	return () => {
+		cancelAnimationFrame(frame);
+		stopFace();
+		resizeObserver.disconnect();
+		textObserver.disconnect();
+		element.style.fontSize = '';
+	};
+};
+
+let pen: CanvasRenderingContext2D | null | undefined;
+
+function measuringPen(): CanvasRenderingContext2D | null {
+	if (pen === undefined) pen = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+	return pen;
 }

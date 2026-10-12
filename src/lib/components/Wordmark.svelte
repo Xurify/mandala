@@ -22,5 +22,5 @@
 	{onclick}
 >
 	<BrandMark />
-	<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.02em]">Mandala</span>
+	<span class="font-serif text-[1.3rem] leading-none font-[560] tracking-[-0.01em]">Mandala</span>
 </a>

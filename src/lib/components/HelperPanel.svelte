@@ -66,7 +66,6 @@
 		if (helper.receive(text)) event.preventDefault();
 	}
 
-	/** Shows a cell on the chart. On a phone the panel covers the chart, so it steps aside. */
 	function reveal(key: string): void {
 		helper.showCell(key);
 		if (onclose && window.matchMedia('(max-width: 900px)').matches) onclose();
@@ -89,14 +88,12 @@
 	{@attach focusOnMount}
 >
 	<div class="flex shrink-0 items-center gap-1 ps-2.5 pe-2 pt-2.5 pb-1.5">
-		<!-- The back button opens out from nothing, so the face slides over to make room. -->
 		<div
 			class={cn(
 				'grid motion-safe:transition-[grid-template-columns,opacity] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)]',
 				view !== 'home' && view !== 'moment' ? 'grid-cols-[1fr]' : 'grid-cols-[0fr] opacity-0'
 			)}
 		>
-			<!-- Clipped with room for the focus ring. -->
 			<div class="min-w-0 overflow-clip [overflow-clip-margin:4px]">
 				<IconButton
 					data-back

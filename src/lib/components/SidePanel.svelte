@@ -1,15 +1,14 @@
 <script lang="ts">
 	import type { Attachment } from 'svelte/attachments';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { cellKey, describe, HUES, idx, info, isUrl, POS } from '$lib/chart/model';
+	import { cellKey, describe, HUES, idOfKey, idx, info, isUrl, POS, slotOf, type ActionId } from '$lib/chart/model';
 	import {
-		FIELD_FONT_MIN_PX,
+		fitCellField,
 		largestSizeThatFits,
 		remeasureWhenFontSettles,
 		saveGoalFitForNextVisit,
 		smallestEditorGoalFontSize
 	} from './goal-fit';
-	import HaradaOnboarding from './HaradaOnboarding.svelte';
 	import Icon from './Icon.svelte';
 	import Shelf from './Shelf.svelte';
 	import { fetchTitle, linkIn, shelfOf, toolsFor } from '$lib/chart/tools';
@@ -19,14 +18,12 @@
 	import { cn } from './ui/cn';
 	import { fieldInk } from './ui/styles';
 	import Eyebrow from './ui/Eyebrow.svelte';
-	import Notice from './ui/Notice.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 
 	let { alone = false }: { alone?: boolean } = $props();
 
 	let faceElement: HTMLDivElement | null = $state(null);
 	let titleElement: HTMLHeadingElement | null = $state(null);
-	/** The block the editor showed last, so the next one can arrive from where it sits on the map. */
 	let shownSel = chart.sel;
 	$effect(() => {
 		const sel = chart.sel;
@@ -54,30 +51,6 @@
 	const textareaElements: (HTMLTextAreaElement | null)[] = $state(Array(9).fill(null));
 	let activePulseIndex: number | null = $state(null);
 	let activeCellIndex: number | null = $state(null);
-	let haradaOpen = $state(false);
-
-	const showHaradaNotice = $derived.by((): boolean => {
-		if (chart.sel !== 4) return false;
-		if (!chart.data.goal.trim()) return false;
-		let filledPillars = 0;
-		for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
-			if ((chart.data.pillars[pillarIndex] ?? '').trim() !== '') {
-				filledPillars++;
-			}
-		}
-		if (filledPillars >= 3) return false;
-		if (typeof window !== 'undefined') {
-			try {
-				if (sessionStorage.getItem('mandala-harada-completed') === 'true') {
-					return false;
-				}
-			} catch {
-				// storage blocked
-			}
-		}
-		return true;
-	});
-
 	const effectiveCellIndex = $derived.by((): number | null => {
 		if (chart.sel === 4) return null;
 		if (activeCellIndex !== null && activeCellIndex !== 4) return activeCellIndex;
@@ -92,6 +65,8 @@
 	const activeActionKey = $derived(
 		effectiveCellIndex !== null ? cellKey(chart.sel, effectiveCellIndex) : null
 	);
+	const activeActionId = $derived(activeActionKey ? idOfKey(chart.data, activeActionKey) : null);
+	const idIn = (cellIndex: number): ActionId | null => idOfKey(chart.data, cellKey(chart.sel, cellIndex));
 
 	const onShelf = $derived(chart.sel !== 4 && chart.face === 'shelf');
 	const shelfCount = $derived(chart.sel === 4 ? 0 : shelfOf(chart.data, idx(chart.sel)).length);
@@ -99,7 +74,6 @@
 		{ value: 'actions', label: 'Actions' },
 		{ value: 'shelf', label: 'Shelf', detail: shelfCount ? String(shelfCount) : undefined }
 	]);
-	/** True when the face changed on the same pillar. Moving between pillars slides instead, and a reload does not swing. */
 	let swing = $state(false);
 	let seen = { face: chart.face, sel: chart.sel };
 	$effect.pre(() => {
@@ -127,25 +101,23 @@
 		return () => observer.disconnect();
 	};
 
-	const handedOut = $derived(activeActionKey ? toolsFor(chart.data, activeActionKey).filter((tool) => !tool.known).length : 0);
+	const handedOut = $derived(activeActionId ? toolsFor(chart.data, activeActionId).filter((tool) => !tool.known).length : 0);
 
-	/** A link goes on the pillar's shelf, handed out by this action. */
-	function shelve(key: string, url: string, fromNote = false): void {
-		const match = key.match(/^a(\d)_(\d)$/);
-		if (!match) return;
-		const pillarIndex = Number(match[1]);
-		const tool = chart.addTool(pillarIndex, url);
-		chart.updateTool(pillarIndex, tool.id, { action: Number(match[2]) });
-		if (fromNote) chart.setActionMeta(key, { note: undefined });
-		void fetchTitle(url).then((title) => title && chart.updateTool(pillarIndex, tool.id, { title }));
-		chart.say(`Put on the shelf for action ${Number(match[2]) + 1}.`);
+	function shelve(id: ActionId, url: string, fromNote = false): void {
+		const at = slotOf(chart.data, id);
+		if (!at) return;
+		const tool = chart.addTool(at.pillarIndex, url);
+		chart.updateTool(at.pillarIndex, tool.id, { action: id });
+		if (fromNote) chart.setActionMeta(id, { note: undefined });
+		void fetchTitle(url).then((title) => title && chart.updateTool(at.pillarIndex, tool.id, { title }));
+		chart.say(`Put on the shelf for action ${at.slot + 1}.`);
 	}
 
-	function pasteNote(event: ClipboardEvent, key: string): void {
+	function pasteNote(event: ClipboardEvent, id: ActionId): void {
 		const url = linkIn(event.clipboardData?.getData('text') ?? '');
 		if (!url) return;
 		event.preventDefault();
-		shelve(key, url);
+		shelve(id, url);
 	}
 
 	const panelTitle = $derived.by(() => {
@@ -205,12 +177,12 @@
 	function handleFieldPointerEnter(cellIndex: number, event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
 		const cellInformation = info(chart.sel, cellIndex);
-		chart.hoveredColorIndex = cellInformation.type === 'goal' ? -1 : cellInformation.k;
+		chart.hoverColor(cellInformation.type === 'goal' ? -1 : cellInformation.k);
 	}
 
 	function handleFieldPointerLeave(event: PointerEvent): void {
 		if (event.pointerType === 'touch') return;
-		chart.hoveredColorIndex = null;
+		chart.unhoverColor();
 	}
 
 	function handleFieldKeydown(cellIndex: number, event: KeyboardEvent): void {
@@ -295,20 +267,14 @@
 					clamp.style.display = '-webkit-box';
 					clamp.style.webkitBoxOrient = 'vertical';
 					clamp.style.overflow = 'hidden';
-					clamp.style.paddingBottom = `${GOAL_PAD_BOTTOM + counter}px`;
-					const style = getComputedStyle(clamp);
-					const line = parseFloat(style.lineHeight);
-					const inner =
-						clamp.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-					let lines = Math.max(
-						1,
-						Math.floor(inner / (Number.isFinite(line) && line > 0 ? line : chosen))
+					// The lines after the ellipsis are hidden only past the box's padding edge, so the box ends at the last line.
+					clamp.style.bottom = 'auto';
+					clamp.style.paddingBottom = '0px';
+					const line = parseFloat(getComputedStyle(clamp).lineHeight);
+					const room = element.clientHeight - GOAL_PAD_TOP - GOAL_PAD_BOTTOM - counter;
+					clamp.style.webkitLineClamp = String(
+						Math.max(1, Math.floor(room / (Number.isFinite(line) && line > 0 ? line : chosen)))
 					);
-					clamp.style.webkitLineClamp = String(lines);
-					if (clamp.scrollHeight > clamp.clientHeight + 1 && lines > 1) {
-						lines -= 1;
-						clamp.style.webkitLineClamp = String(lines);
-					}
 				}
 				syncColor();
 				return;
@@ -319,7 +285,8 @@
 			if (clamp) {
 				clamp.style.display = '';
 				clamp.style.removeProperty('-webkit-line-clamp');
-				clamp.style.paddingBottom = '';
+				clamp.style.bottom = '';
+				clamp.style.paddingBottom = `${GOAL_PAD_BOTTOM}px`;
 			}
 
 			centerShortText();
@@ -372,45 +339,6 @@
 			element.removeAttribute('data-clamped');
 			host?.removeAttribute('data-goal-clamped');
 			host?.style.removeProperty('--goal-fit');
-		};
-	};
-
-	const fitCellField: Attachment = (element) => {
-		if (!(element instanceof HTMLTextAreaElement)) return;
-		let frame = 0;
-
-		const apply = (): void => {
-			element.style.fontSize = '';
-			if (element.clientHeight <= 0 || element.value.trim() === '') return;
-			if (element.scrollHeight <= element.clientHeight + 1) return;
-			const max = parseFloat(getComputedStyle(element).fontSize);
-			if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX) return;
-			const fits = (size: number): boolean => {
-				element.style.fontSize = `${size}px`;
-				return element.scrollHeight <= element.clientHeight + 1;
-			};
-			const chosen = largestSizeThatFits(FIELD_FONT_MIN_PX, max, fits);
-			element.style.fontSize = `${Math.floor(chosen * 4) / 4}px`;
-		};
-
-		const schedule = (): void => {
-			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(apply);
-		};
-
-		apply();
-		const stopFace = remeasureWhenFontSettles(schedule);
-		const resizeObserver = new ResizeObserver(schedule);
-		resizeObserver.observe(element);
-		// The value changes without an input event when the editor turns to another block.
-		const textObserver = new MutationObserver(schedule);
-		textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
-		return () => {
-			cancelAnimationFrame(frame);
-			stopFace();
-			resizeObserver.disconnect();
-			textObserver.disconnect();
-			element.style.fontSize = '';
 		};
 	};
 </script>
@@ -514,7 +442,7 @@
 			{/if}
 		</div>
 
-		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
+		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.01em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 		{#if chart.sel !== 4}
 			<SegmentedControl
 				tabs
@@ -527,21 +455,6 @@
 			/>
 		{/if}
 	</div>
-
-	{#if showHaradaNotice}
-		<div class="mb-4">
-			<Notice>
-				{#snippet children()}
-					Suggest pillars for this goal?
-				{/snippet}
-				{#snippet action()}
-					<Button size="sm" variant="soft" onclick={() => (haradaOpen = true)}>
-						Explore
-					</Button>
-				{/snippet}
-			</Notice>
-		</div>
-	{/if}
 
 	<div
 		bind:this={faceElement}
@@ -571,7 +484,7 @@
 									<span
 										class={cn(
 											'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
-											chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
+											chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg max-[900px]:left-1/2'
 										)}
 									>
 										<Icon name={chart.sel === 4 ? 'target' : 'compass'} size={11} />
@@ -585,8 +498,9 @@
 										{/if}
 									</span>
 									{#if info(chart.sel, cellIndex).type === 'action'}
-										{@const actionMeta = chart.metaOf(cellKey(chart.sel, cellIndex))}
-										{@const shelved = toolsFor(chart.data, cellKey(chart.sel, cellIndex)).filter((tool) => !tool.known).length}
+										{@const actionId = idIn(cellIndex)!}
+										{@const actionMeta = chart.metaOf(actionId)}
+										{@const shelved = toolsFor(chart.data, actionId).filter((tool) => !tool.known).length}
 										{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
 											<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
 												{#if actionMeta?.pinned}
@@ -610,7 +524,7 @@
 								<textarea
 									bind:this={textareaElements[cellIndex]}
 									class={cn(
-										'field h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto',
+										'field block h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto',
 										info(chart.sel, cellIndex).type === 'goal' &&
 											'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 										info(chart.sel, cellIndex).type === 'pillar' &&
@@ -618,11 +532,10 @@
 										info(chart.sel, cellIndex).type === 'action' &&
 											'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 										info(chart.sel, cellIndex).type === 'action' &&
-											chart.metaOf(cellKey(chart.sel, cellIndex))?.done &&
+											chart.metaOf(idIn(cellIndex)!)?.done &&
 											'line-through opacity-60 text-muted',
 										isPanelCellHighlighted(cellIndex) && 'highlight',
 										activePulseIndex === cellIndex && 'motion-safe:animate-target',
-										// The cell a search hit or a finding opened: a chip that names it travels here.
 										activePulseIndex === cellIndex && '[view-transition-name:travel]'
 									)}
 									style:--h={hue(cellIndex)}
@@ -660,9 +573,9 @@
 						{/each}
 					</div>
 
-					{#if activeActionKey && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
-						{@const meta = chart.metaOf(activeActionKey)}
-						{@const actionHasText = chart.textOf(activeActionKey).trim().length > 0}
+					{#if activeActionId && effectiveCellIndex !== null && info(chart.sel, effectiveCellIndex).type === 'action'}
+						{@const meta = chart.metaOf(activeActionId)}
+						{@const actionHasText = chart.textOf(activeActionId).trim().length > 0}
 						{#if actionHasText}
 							<div class="mt-4 flex flex-col gap-2.5">
 								<div class="flex flex-wrap items-center justify-between gap-2">
@@ -674,7 +587,7 @@
 											options={actionKinds}
 											value={meta?.kind ?? 'standard'}
 											onchange={(value) => {
-												chart.setActionMeta(activeActionKey, {
+												chart.setActionMeta(activeActionId, {
 													kind: value === 'routine' || value === 'milestone' ? value : undefined
 												});
 											}}
@@ -688,7 +601,7 @@
 												variant={meta?.pinned ? 'soft' : 'ghost'}
 												icon="pin"
 												aria-pressed={Boolean(meta?.pinned)}
-												onclick={() => chart.setActionMeta(activeActionKey, { pinned: !meta?.pinned })}
+												onclick={() => chart.setActionMeta(activeActionId, { pinned: !meta?.pinned })}
 											>
 												{meta?.pinned ? 'Pinned' : 'Pin'}
 											</Button>
@@ -699,7 +612,7 @@
 												variant={meta?.done ? 'soft' : 'ghost'}
 												icon="check"
 												aria-pressed={Boolean(meta?.done)}
-												onclick={() => chart.toggleDone(activeActionKey)}
+												onclick={() => chart.toggleDone(activeActionId)}
 											>
 												{meta?.done ? 'Completed' : 'Mark done'}
 											</Button>
@@ -717,14 +630,14 @@
 										placeholder="Add a note, like a chapter or a page"
 										aria-label="Note for action {idx(effectiveCellIndex) + 1}"
 										value={meta?.note ?? ''}
-										onpaste={(event) => pasteNote(event, activeActionKey)}
-										oninput={(event) => chart.setActionMeta(activeActionKey, { note: event.currentTarget.value })}
+										onpaste={(event) => pasteNote(event, activeActionId)}
+										oninput={(event) => chart.setActionMeta(activeActionId, { note: event.currentTarget.value })}
 									/>
 								</div>
 								{#if meta?.note && isUrl(meta.note.trim())}
 									<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.84rem] leading-snug text-pretty text-muted">
 										<span>A link does more on the shelf: Today hands it out and counts the opens.</span>
-										<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionKey, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
+										<Button size="sm" variant="soft" icon="shelf" onclick={() => shelve(activeActionId, meta.note?.trim() ?? '', true)}>Move to the shelf</Button>
 									</p>
 								{:else if handedOut > 0}
 									<Button
@@ -749,20 +662,9 @@
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Pillars should cover different angles: skills, habits, health, resources, support, mindset.</li>
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Actions should start with a verb and be within your control.</li>
 						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">Editing a pillar here also updates it in the center block.</li>
-						<li class="tip relative mb-1.5 ps-4 before:absolute before:start-0.5 before:top-[0.62em] before:size-[5px] before:rounded-full before:bg-line before:content-['']">
-							<button
-								type="button"
-								class="cursor-pointer border-0 bg-transparent p-0 text-muted underline underline-offset-2 hover:text-text focus-visible:text-text focus-visible:outline-none"
-								onclick={() => (haradaOpen = true)}
-							>
-								Suggest pillars
-							</button>
-						</li>
 					</ul>
 				{/if}
 			</div>
 		{/key}
 	</div>
-
-	<HaradaOnboarding bind:open={haradaOpen} />
 </div>

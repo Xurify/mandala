@@ -1,9 +1,10 @@
 import { morph } from "./morph";
+import { applyChange, finish as finishAction, leftToday, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
+import type { Goal } from "./calendar.ts";
 import { newTool, opened } from "./tools";
 import {
   blockOfK,
   blockOfKey,
-  clockOf,
   completedBy,
   emptyChart,
   exportText,
@@ -14,28 +15,33 @@ import {
   getWeekReflection,
   hasContent,
   idx,
+  isActionId,
+  keyOf,
   pillarActivityLast7,
   progressMilestones,
   reflectionWeekOf,
   searchHits,
   setByKey,
   setMeta,
-  STORAGE_KEY,
   todayKey,
   weekHadTicks,
   weekStartKey,
   wholeness,
+  withNewIds,
+  type ActionId,
   type ActionMeta,
   type ChartBrief,
   type ChartData,
   type DayLog,
   type Milestones,
   type ReflectAt,
+  type Ref,
   type Tool,
   type ToolKind,
   type WeekReflection,
 } from "./model.ts";
-import { isAccent, type AccentId } from "./accent.ts";
+import { DEFAULT_ACCENT, type AccentId } from "./accent.ts";
+import { accentOf, applyAccent, applyTheme, saveAccent, saveTheme, themeOf, type AppTheme } from "./theme.ts";
 import {
   LIBRARY_KEY,
   activeRecord,
@@ -45,8 +51,8 @@ import {
   emptyLibrary,
   flushActive,
   forgetManyFromLibrary,
-  migrateFromV1,
   newRecord,
+  heldRows,
   parseLibrary,
   purgeLibrary,
   reconcile,
@@ -77,6 +83,7 @@ import { overlayLocalEdits } from "./sync/sync.ts";
 export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
 const SYNC_STATE_KEY = "mandala-sync-state-v1";
+const HELD_KEY = "mandala-held";
 import { exampleChart, isExampleChart } from "./example.ts";
 import { applySavedGoalFit } from "$lib/components/goal-fit";
 import { buildChart, type Preset } from "./presets/index.ts";
@@ -91,32 +98,29 @@ import {
   writeBackupFile,
 } from "./backup.ts";
 
-export type AppTheme = "system" | "light" | "dark";
-export type ViewMode = "view" | "edit" | "split" | "today" | "calendar";
+export type { AppTheme } from "./theme.ts";
+export type ViewMode = "view" | "edit" | "split" | "today" | "calendar" | "board";
+export type ChartLayout = "view" | "edit" | "split";
+
+function isLayout(mode: ViewMode): mode is ChartLayout {
+  return mode === "view" || mode === "edit" || mode === "split";
+}
 export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
 
 function loadInitialAccent(): AccentId {
-  if (typeof window === "undefined") return "ink";
+  if (typeof window === "undefined") return DEFAULT_ACCENT;
   try {
-    const storedAccent = localStorage.getItem("accent");
-    if (storedAccent && isAccent(storedAccent)) return storedAccent;
-    if (storedAccent) localStorage.removeItem("accent");
-    return "ink";
-    return "ink";
+    return accentOf(localStorage.getItem("accent"));
   } catch {
-    return "ink";
+    return DEFAULT_ACCENT;
   }
 }
 
 function loadInitialTheme(): AppTheme {
   if (typeof window === "undefined") return "system";
   try {
-    const storedTheme = localStorage.getItem("theme");
-    if (storedTheme === "dark" || storedTheme === "light") {
-      return storedTheme;
-    }
-    return "system";
+    return themeOf(localStorage.getItem("theme"));
   } catch {
     return "system";
   }
@@ -126,14 +130,13 @@ function loadInitialViewMode(): ViewMode {
   if (typeof window === "undefined") return "view";
   try {
     const storedMode = localStorage.getItem("mandala_view_mode");
-    // The year view became the calendar.
-    if (storedMode === "year") return "calendar";
     if (
       storedMode === "view" ||
       storedMode === "edit" ||
       storedMode === "split" ||
       storedMode === "today" ||
-      storedMode === "calendar"
+      storedMode === "calendar" ||
+      storedMode === "board"
     ) {
       return storedMode;
     }
@@ -166,7 +169,7 @@ function loadInitialLibrary(): ChartLibrary {
       const parsed = parseLibrary(rawLibrary);
       if (parsed) return purgeLibrary(parsed);
     }
-    return migrateFromV1(localStorage.getItem(STORAGE_KEY));
+    return emptyLibrary();
   } catch {
     return emptyLibrary();
   }
@@ -203,6 +206,7 @@ export class ChartStore {
   theme: AppTheme = $state(loadInitialTheme());
   accent: AccentId = $state(loadInitialAccent());
   viewMode: ViewMode = $state(loadInitialViewMode());
+  chartLayout: ChartLayout = $state(isLayout(this.viewMode) ? this.viewMode : "view");
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
   status = $state("");
@@ -214,8 +218,23 @@ export class ChartStore {
   saveWarned = $state(false);
   themeTick = $state(0);
   hoveredColorIndex = $state<number | null>(null);
+  #unhoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+  hoverColor(colorIndex: number): void {
+    if (this.#unhoverTimer) clearTimeout(this.#unhoverTimer);
+    this.#unhoverTimer = null;
+    this.hoveredColorIndex = colorIndex;
+  }
+
+  /** Waits a beat, so crossing the gap to the next cell does not switch the highlight off and on again. */
+  unhoverColor(): void {
+    if (this.#unhoverTimer) clearTimeout(this.#unhoverTimer);
+    this.#unhoverTimer = setTimeout(() => {
+      this.#unhoverTimer = null;
+      this.hoveredColorIndex = null;
+    }, 90);
+  }
   focusedKey = $state<string | null>(null);
-  /** Which side of a pillar's block the editor shows. The shelf is its back. */
   face = $state<"actions" | "shelf">("actions");
 
   #saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -233,6 +252,8 @@ export class ChartStore {
   #backupWarned = false;
 
   #syncBase: ChartData | null = null;
+  /** The chart sync was turned on for. The prototype carries one chart, so others never go out under its key. */
+  #syncChart = "";
   #syncBaseAt = 0;
   #syncBusy = false;
   #syncApplying = false;
@@ -260,8 +281,24 @@ export class ChartStore {
   );
   activeId = $derived(this.#library.activeId);
   chartCount = $derived(this.#library.charts.length);
+  calendarScope = $state("all");
+  goals: Goal[] = $derived(
+    this.#library.charts.map((record) => {
+      const data = record.id === this.#library.activeId ? this.data : record.data;
+      return { id: record.id, title: titleOf(data), data };
+    }),
+  );
 
-  todayLog: DayLog = $derived(getDayLog(this.data, todayKey()));
+  /** The local date. It rolls over at midnight and when the page wakes, so a tab left open ticks into the right day. */
+  today = $state(todayKey());
+  elsewhere: { id: string; title: string; left: number }[] = $derived(
+    this.goals.flatMap((goal) => {
+      if (goal.id === this.#library.activeId) return [];
+      const left = leftToday(goal.data, this.today);
+      return left > 0 ? [{ id: goal.id, title: goal.title, left }] : [];
+    }),
+  );
+  todayLog: DayLog = $derived(getDayLog(this.data, this.today));
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
   reflecting = $state(false);
   selecting = $state(false);
@@ -274,7 +311,6 @@ export class ChartStore {
 
   /** Now, as of the last time anything asked. A page left open overnight still sees the new offer. */
   #clockTick = $state(Date.now());
-  /** The person's own, so it holds across charts. */
   reflectAt: ReflectAt = $state(loadInitialReflectAt());
   reflectionWeek: string = $derived(reflectionWeekOf(this.reflectAt, new Date(this.#clockTick)));
   weekReflectionDue: boolean = $derived.by(() => {
@@ -295,10 +331,12 @@ export class ChartStore {
 
   load(): void {
     this.#watchStorage();
+    this.#watchDay();
     try {
       const rawLibrary = localStorage.getItem(LIBRARY_KEY);
       if (rawLibrary) {
         const parsed = parseLibrary(rawLibrary);
+        this.#setAside(rawLibrary, parsed === null);
         if (parsed) {
           this.#seen = rawLibrary;
           const next = purgeLibrary(parsed);
@@ -308,7 +346,7 @@ export class ChartStore {
           return;
         }
       }
-      this.#adopt(migrateFromV1(localStorage.getItem(STORAGE_KEY)));
+      this.#adopt(emptyLibrary());
       this.saveNow();
     } catch {}
   }
@@ -390,7 +428,6 @@ export class ChartStore {
       const raw = JSON.stringify(this.#library);
       localStorage.setItem(LIBRARY_KEY, raw);
       this.#seen = raw;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
     } catch {
       if (!this.saveWarned) {
         this.saveWarned = true;
@@ -434,16 +471,34 @@ export class ChartStore {
     if (!raw || raw === this.#seen) return;
     this.#seen = raw;
     const stored = parseLibrary(raw);
+    this.#setAside(raw, stored === null);
     if (!stored) return;
     const was = this.#library.activeId;
     this.#library = reconcile(this.#library, stored, keep);
     this.#follow(was, keep !== null);
   }
 
+  /**
+   * Sets aside what this version cannot read (a newer version's chart, a damaged row, or the whole library),
+   * under its own key, before the library is written back without it.
+   */
+  #setAside(raw: string, whole: boolean): void {
+    const rows = whole ? [raw] : heldRows(raw);
+    if (rows.length === 0) return;
+    try {
+      const before = JSON.parse(localStorage.getItem(HELD_KEY) ?? "[]") as unknown;
+      const kept: unknown[] = Array.isArray(before) ? before : [];
+      const seen = new Set(kept.map((row) => JSON.stringify(row)));
+      const added = rows.filter((row) => !seen.has(JSON.stringify(row)));
+      if (added.length > 0) localStorage.setItem(HELD_KEY, JSON.stringify([...kept, ...added]));
+    } catch {}
+  }
+
   #absorb(raw: string): void {
     if (raw === this.#seen) return;
     this.#seen = raw;
     const stored = parseLibrary(raw);
+    this.#setAside(raw, stored === null);
     if (!stored) return;
     const editing = this.#flush() || this.#saveTimer !== null;
     const was = this.#library.activeId;
@@ -465,12 +520,53 @@ export class ChartStore {
     }
   }
 
+  #watchingDay = false;
+
+  #watchDay(): void {
+    if (this.#watchingDay || typeof window === "undefined") return;
+    this.#watchingDay = true;
+    const roll = (): void => {
+      this.#clockTick = Date.now();
+      const now = todayKey();
+      if (now !== this.today) this.today = now;
+    };
+    const atMidnight = (): void => {
+      const next = new Date();
+      next.setHours(24, 0, 1, 0);
+      setTimeout(() => {
+        roll();
+        atMidnight();
+      }, next.getTime() - Date.now());
+    };
+    atMidnight();
+    // Timers stall while a laptop sleeps or a phone tab is frozen; waking is the other way the day turns over.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") roll();
+    });
+    window.addEventListener("focus", roll);
+  }
+
   #watchStorage(): void {
     if (this.#watching || typeof window === "undefined") return;
     this.#watching = true;
     window.addEventListener("storage", (event) => {
       if (event.key === LIBRARY_KEY && event.newValue) this.#absorb(event.newValue);
+      else if (event.key === "theme") this.#followTheme(themeOf(event.newValue));
+      else if (event.key === "accent") this.#followAccent(accentOf(event.newValue));
     });
+  }
+
+  #followTheme(theme: AppTheme): void {
+    if (theme === this.theme) return;
+    this.theme = theme;
+    applyTheme(theme);
+    this.bumpTheme();
+  }
+
+  #followAccent(accent: AccentId): void {
+    if (accent === this.accent) return;
+    this.accent = accent;
+    applyAccent(accent);
   }
 
   purgeExpired(): void {
@@ -612,10 +708,10 @@ export class ChartStore {
     this.sel = blockIndex;
   }
 
-  /** `animate` false switches at once, for setup code that changes more right after. */
   setViewMode(mode: ViewMode, animate = true): void {
     const apply = (): void => {
       this.viewMode = mode;
+      if (isLayout(mode)) this.chartLayout = mode;
       document.documentElement.dataset.view = mode;
       try {
         localStorage.setItem("mandala_view_mode", mode);
@@ -698,77 +794,71 @@ export class ChartStore {
     this.#landedTimer = setTimeout(() => (this.landed = null), 3200);
   }
 
-  textOf(key: string): string {
-    return getByKey(this.data, key);
+  textOf(ref: Ref): string {
+    return getByKey(this.data, ref);
   }
 
-  metaOf(key: string): ActionMeta | undefined {
-    return getMeta(this.data, key);
+  metaOf(id: ActionId): ActionMeta | undefined {
+    return getMeta(this.data, id);
   }
 
-  setActionMeta(key: string, patch: Partial<ActionMeta>): void {
-    setMeta(this.data, key, patch);
+  setActionMeta(id: ActionId, patch: Partial<ActionMeta>): void {
+    setMeta(this.data, id, patch);
     this.data = { ...this.data };
     this.save();
   }
 
-  toggleDone(key: string): void {
-    const current = getMeta(this.data, key);
-    const isDone = !current?.done;
-    const patch: Partial<ActionMeta> = {
-      kind: current?.kind ?? "milestone",
-      done: isDone,
-      doneAt: isDone ? todayKey() : undefined,
-    };
-    setMeta(this.data, key, patch);
+  toggleDone(id: ActionId): void {
+    if (getMeta(this.data, id)?.done) this.reopen(id);
+    else this.finish(id);
+  }
+
+  finish(id: ActionId): void {
+    this.#apply(finishAction(this.data, id, this.today));
+  }
+
+  reopen(id: ActionId): void {
+    this.#apply(reopenAction(this.data, id, this.today));
+  }
+
+  moveCard(id: ActionId, lane: Lane, index: number): boolean {
+    const change = cardMove(this.data, id, lane, index, this.today);
+    if (!change) return false;
+    this.#apply(change);
+    return true;
+  }
+
+  #apply(change: Change): void {
+    if (!applyChange(this.data, change)) return;
     this.data = { ...this.data };
     this.save();
   }
 
   /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
-  setFocus(dateKey: string, keys: string[], replaced = false): void {
+  setFocus(dateKey: string, ids: ActionId[], replaced = false): void {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    const removed = replaced ? [] : existing.focus.filter((key) => !keys.includes(key));
-    const dropped = [...(existing.dropped ?? []).filter((key) => !keys.includes(key)), ...removed];
-    const log: DayLog = { ...existing, focus: keys, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
+    const removed = replaced ? [] : existing.focus.filter((id) => !ids.includes(id));
+    const dropped = [...(existing.dropped ?? []).filter((id) => !ids.includes(id)), ...removed];
+    const log: DayLog = { ...existing, focus: ids, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
     this.data.days[dateKey] = log;
     this.data = { ...this.data };
     this.save();
   }
 
-  toggleChecked(dateKey: string, key: string): void {
+  declineToday(ids: ActionId[]): void {
+    if (ids.length === 0) return;
     if (!this.data.days) this.data.days = {};
+    const dateKey = this.today;
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    const isChecked = existing.checked.includes(key);
-    const at = { ...existing.at };
-    if (isChecked) delete at[key];
-    else at[key] = clockOf(new Date());
-    const log: DayLog = {
-      ...existing,
-      checked: isChecked
-        ? existing.checked.filter((checkedKey) => checkedKey !== key)
-        : [...existing.checked, key],
-      at: Object.keys(at).length > 0 ? at : undefined,
-    };
-    this.data.days[dateKey] = log;
-    this.data = { ...this.data };
-    this.save();
-  }
-
-  declineToday(keys: string[]): void {
-    if (keys.length === 0) return;
-    if (!this.data.days) this.data.days = {};
-    const dateKey = todayKey();
-    const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
-    this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...keys])] };
+    this.data.days[dateKey] = { ...existing, declined: [...new Set([...(existing.declined ?? []), ...ids])] };
     this.data = { ...this.data };
     this.save();
   }
 
   noteShown(signature: string): void {
     if (!this.data.days) this.data.days = {};
-    const dateKey = todayKey();
+    const dateKey = this.today;
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     if (existing.shown?.includes(signature)) return;
     this.data.days[dateKey] = { ...existing, shown: [...(existing.shown ?? []), signature] };
@@ -794,13 +884,11 @@ export class ChartStore {
   updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
     this.#patchTool(pillarIndex, id, (tool) => {
       const next = { ...tool, ...patch };
-      // Clearing a field removes it, so the saved chart stays small.
       for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
       return next;
     });
   }
 
-  /** Tools taken off a shelf while their slip can still undo it, by the slip's undo token. */
   #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
 
   removeTool(pillarIndex: number, id: string): void {
@@ -862,7 +950,7 @@ export class ChartStore {
 
   saveWeekReflection(
     weekKey: string,
-    patch: Partial<{ note: string; swapped: string[] }>,
+    patch: Partial<{ note: string }>,
   ): void {
     if (!this.data.weeks) this.data.weeks = {};
     const existing = getWeekReflection(this.data, weekKey);
@@ -888,8 +976,13 @@ export class ChartStore {
       this.syncEnabled = true;
       this.syncRoom = room;
       this.#loadSyncState(room);
+      if (!this.#syncChart) this.#syncChart = this.#library.activeId;
       void this.pullSync();
     } catch {}
+  }
+
+  #syncing(): boolean {
+    return this.syncEnabled && Boolean(this.syncRoom) && this.#library.activeId === this.#syncChart;
   }
 
   #loadSyncState(room: string): void {
@@ -898,14 +991,15 @@ export class ChartStore {
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         room: string;
+        chart?: string;
         updatedAt: number;
         data: ChartData;
       };
       if (parsed.room !== room) return;
       this.#syncBase = parsed.data;
       this.#syncBaseAt = parsed.updatedAt;
+      if (parsed.chart) this.#syncChart = parsed.chart;
     } catch {
-      // corrupt or blocked state; the next pull rebuilds it
     }
   }
 
@@ -916,17 +1010,17 @@ export class ChartStore {
         SYNC_STATE_KEY,
         JSON.stringify({
           room: this.syncRoom,
+          chart: this.#syncChart,
           updatedAt: this.#syncBaseAt,
           data: this.#syncBase,
         }),
       );
     } catch {
-      // storage blocked; sync still works, just without the stale guard
     }
   }
 
   async pullSync(): Promise<void> {
-    if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
+    if (!this.#syncing() || this.#syncBusy) return;
     this.#syncBusy = true;
     this.syncStatus = "syncing";
     try {
@@ -961,9 +1055,8 @@ export class ChartStore {
     }
   }
 
-  /** Pulls first so a stale tab can't clobber newer work. */
   async pushSync(): Promise<void> {
-    if (!this.syncEnabled || this.#syncBusy || !this.syncRoom) return;
+    if (!this.#syncing() || this.#syncBusy) return;
     this.#syncBusy = true;
     this.syncStatus = "syncing";
     try {
@@ -1005,7 +1098,7 @@ export class ChartStore {
   }
 
   #scheduleSyncPush(): void {
-    if (this.#syncApplying) return;
+    if (this.#syncApplying || !this.#syncing()) return;
     if (this.#syncTimer) clearTimeout(this.#syncTimer);
     this.#syncTimer = setTimeout(() => {
       this.#syncTimer = null;
@@ -1022,19 +1115,20 @@ export class ChartStore {
     try {
       localStorage.setItem(SYNC_ROOM_KEY, trimmed);
     } catch {
-      // storage blocked; sync still works for this session
     }
     this.syncEnabled = true;
     this.syncRoom = trimmed;
     this.#loadSyncState(trimmed);
+    this.#syncChart = this.#library.activeId;
     void this.pullSync();
-    this.say("Sync on. Charts follow you to devices with the same key.");
+    this.say("Sync on for this chart. It follows you to devices with the same key.");
   }
 
   disableSync(): void {
     this.syncEnabled = false;
     this.syncStatus = "off";
     this.syncRoom = "";
+    this.#syncChart = "";
     this.#syncBase = null;
     this.#syncBaseAt = 0;
     if (this.#syncTimer) {
@@ -1116,11 +1210,13 @@ export class ChartStore {
     return exportText(this.data);
   }
 
-  jumpToKey(key: string): void {
+  jumpToKey(ref: Ref): void {
+    const key = isActionId(ref) ? keyOf(this.data, ref) : ref;
+    if (!key) return;
     this.select(blockOfKey(key));
     this.face = "actions";
     this.focusedKey = key;
-    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
       this.setViewMode("edit");
     }
   }
@@ -1173,15 +1269,8 @@ export class ChartStore {
     if (theme === this.theme) return;
     morph(() => {
       this.theme = theme;
-      try {
-        if (theme === "system") {
-          localStorage.removeItem("theme");
-          document.documentElement.removeAttribute("data-theme");
-        } else {
-          localStorage.setItem("theme", theme);
-          document.documentElement.setAttribute("data-theme", theme);
-        }
-      } catch {}
+      saveTheme(theme);
+      applyTheme(theme);
       this.bumpTheme();
     }, "theme");
   }
@@ -1190,15 +1279,8 @@ export class ChartStore {
     if (accent === this.accent) return;
     morph(() => {
       this.accent = accent;
-      try {
-        if (accent === "ink") {
-          localStorage.removeItem("accent");
-          document.documentElement.removeAttribute("data-accent");
-        } else {
-          localStorage.setItem("accent", accent);
-          document.documentElement.setAttribute("data-accent", accent);
-        }
-      } catch {}
+      saveAccent(accent);
+      applyAccent(accent);
     }, "theme");
   }
 
@@ -1244,7 +1326,6 @@ export class ChartStore {
     return this.#fillOrSpawn(importedData, message);
   }
 
-  /** `quiet` when the caller says it itself, as Bindu does with its own moment. */
   applyDraft(next: ChartData, quiet = false): boolean {
     return this.#fillOrSpawn(
       next,
@@ -1257,7 +1338,7 @@ export class ChartStore {
     const record = newRecord(emptyChart());
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
-    this.data = emptyChart();
+    this.data = cloneChart(record.data);
     this.#resetView();
     const held = this.#copySlips();
     this.saveNow();
@@ -1288,6 +1369,7 @@ export class ChartStore {
     this.data = cloneChart(record.data);
     this.#resetView();
     this.saveNow();
+    if (id === this.#syncChart) void this.pullSync();
   }
 
   deleteChart(id: string): void {
@@ -1380,7 +1462,7 @@ export class ChartStore {
 
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
-      this.data = cloneChart(next);
+      this.data = withNewIds(next);
       this.#resetView();
       this.saveNow();
       if (message) this.say(message);
@@ -1390,7 +1472,7 @@ export class ChartStore {
     const record = newRecord(next);
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
-    this.data = cloneChart(next);
+    this.data = cloneChart(record.data);
     this.#resetView();
     this.saveNow();
     if (message) this.say(message);

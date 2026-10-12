@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { HUES, info } from '$lib/chart/model';
-	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import { cn } from './ui/cn';
 
-	let { class: className }: { class?: string } = $props();
-
-	let open = $state(false);
+	let { open = $bindable(false) }: { open?: boolean } = $props();
 	let focusK = $state<number | null>(null);
 
 	const mapCaption = $derived(
@@ -54,10 +51,6 @@
 		if (!open) focusK = null;
 	});
 </script>
-
-<Button variant="ghost" icon="info" class={className} aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = true)}>
-	How it works
-</Button>
 
 <Dialog bind:open title="The Mandala Method">
 	<figure class="m-0 mb-[18px] rounded-[22px] bg-bg px-4 pt-[18px] pb-3.5">
@@ -114,7 +107,7 @@
 		redraw it every day.
 	</p>
 
-	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How it’s built</h3>
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.005em]">How it’s built</h3>
 	<ol class="mb-2.5 list-decimal space-y-1.5 ps-5">
 		<li>Write one goal in the center.</li>
 		<li>Around it, name the eight pillars that would make that goal happen.</li>
@@ -128,7 +121,7 @@
 		One chart is one direction. Keep a separate chart for each real aim, and switch between them.
 	</p>
 
-	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Two tests</h3>
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.005em]">Two tests</h3>
 	<p class="mb-2.5">Every pillar and every action has to pass both.</p>
 	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
 		<li>
@@ -141,7 +134,7 @@
 		</li>
 	</ul>
 
-	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">How often you use it</h3>
+	<h3 class="mt-[22px] mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.005em]">How often you use it</h3>
 	<ul class="mb-2.5 list-disc space-y-1.5 ps-5">
 		<li>
 			<strong>Setup.</strong> Once, usually in a single sitting. It often takes a few revisions.
@@ -160,7 +153,7 @@
 		chart.
 	</p>
 
-	<h3 class="mt-5.5 mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.01em]">Ohtani’s sheet</h3>
+	<h3 class="mt-5.5 mb-1.5 font-serif text-[1.1rem] font-[560] tracking-[-0.005em]">Ohtani’s sheet</h3>
 	<p class="mb-2.5">
 		Shohei Ohtani filled this same 9×9 as a
 		<a

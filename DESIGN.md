@@ -1,6 +1,6 @@
 # Mandala design system
 
-Direction: **calm editorial**. Warm paper, ink, one typeface, pill-shaped controls, color reserved for the chart itself. The app should feel like a good notebook, not a dashboard.
+Direction: **calm editorial**. Warm paper and sand, espresso ink, a serif for titles over a sans for the rest, a clay accent, pill-shaped controls, color reserved for the chart itself. The app should feel like a good notebook, not a dashboard.
 
 Studied on Mobbin while building this (all self-improvement / planning apps): Finch, Me+, Tiimo, Structured, stoic., Bloom, ABY Journal, Atoms, timespent, pliability, QUITTR, Liven. What we took:
 
@@ -12,15 +12,23 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 | Finch, Me+ | Floating bottom pill bar for primary navigation on every size |
 | pliability, Liven | Surfaces separated by tone and soft shadow, never by borders |
 
+A second pass asked what makes a warm, oatmeal app look crafted rather than plain (Claude, Origin, Tiimo, 5 Minute Journal, Rox):
+
+| From | Lesson |
+| --- | --- |
+| Claude, Origin, Tiimo, 5 Minute Journal | A serif title over a sans body is what makes warm paper read as considered |
+| Claude, Rox | The accent is a warm clay from the paper's own palette. Black on cream reads as a default |
+| Rox, Claude | What sits under the page is sand, a step warmer than it, and quiet text is brown, not grey |
+
 ## Principles
 
-1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It aliases `--ink` until the more-actions menu picks Leaf, Field, Walnut, or Olive. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
+1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It is clay (`--swatch-clay`) unless the more-actions menu picks Ink, Walnut, Olive, Field, or Leaf. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
 3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
-4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
+4. **Two faces, one family.** Source Serif 4 for titles, dialog headings, the goal, and the wordmark (`font-serif`, through `--serif`); its sibling Source Sans 3 for everything else, controls included. Size and weight do the rest of the hierarchy. Do not add Fraunces, Bricolage Grotesque, Epilogue, or any other family.
 5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
 6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
-7. **Both themes are first-class.** Every new token gets a dark value in the same commit.
+7. **Both themes are first-class.** Every new token gets a dark value in the same commit. The theme and the accent belong to the device (`theme.ts`): they paint before first paint from `app.html`, another open tab follows a change at once, and the browser's bar takes the page's own paper (`THEME_COLORS`, held to `--bg` by a test).
 
 ## Making a component
 
@@ -50,7 +58,7 @@ All tokens live at the top of `src/app.css` as CSS custom properties in OKLCH. T
 | `--muted` | Secondary copy, ghost buttons, eyebrows |
 | `--line` | Hairline dividers only |
 | `--ink` / `--ink-hover` / `--on-ink` | Goal cell, focus ring, and ink fills that are not the primary action. Inverts in dark (light ink on dark paper) |
-| `--accent` / `--accent-hover` / `--on-accent` | Primary button, selected dock tab, field halo, selected radio, checkbox. Aliases of `--ink` until a saved accent (`data-accent`) overrides them |
+| `--accent` / `--accent-hover` / `--on-accent` | Primary button, selected dock tab, field halo, selected radio, checkbox. Clay (`--swatch-clay`) by default. A saved accent (`data-accent`) swaps them, Ink included |
 | `--success` / `--danger` | Status text and destructive menu items. Never as fills |
 
 ### Chart color
@@ -61,6 +69,7 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
+| `--card-l` / `--card-c` / `--card-lift` (`pillar-card`) | A board card: a light pillar tint on a 1px warm lift, with no outline and no halo |
 | `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
@@ -71,7 +80,7 @@ Write colors as `oklch(var(--p-l) var(--p-c) var(--h))` with `--h` set inline pe
 
 ### Elevation and motion
 
-- `--shadow-sm`: resting cards. In dark it's a 1px light hairline, because shadows vanish on dark paper.
+- `--shadow-sm`: resting cards. A faint ring and a soft, diffuse drop, so a card sits on the paper instead of being outlined. In dark it's a 1px light hairline, because shadows vanish on dark paper.
 - `--shadow-md`: floating things (menus, dialogs, dock, toast).
 - `--ease: cubic-bezier(0.2, 0, 0, 1)` for small state changes, about 150ms.
 - An arrival that lands (a sheet, a dealt card) may overshoot with `cubic-bezier(0.34, 1.56, 0.64, 1)`, 280–420ms. A departure never overshoots. It eases, takes about 500–700ms, and a timed one begins before removal. See Making a component.
@@ -103,18 +112,18 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 
 | Use | Family | Size / weight |
 | --- | --- | --- |
-| Chart title (hero) | `--font` | large, fluid, tight tracking |
-| Dialog / panel heading | `--font` | medium |
-| Goal cell text | `--font` | fluid, via container query units |
-| Wordmark | `--font` | small, semibold |
+| Chart title (hero) | `--serif` | large, fluid, light negative tracking |
+| Dialog / panel heading | `--serif` | medium |
+| Goal cell text | `--serif` | fluid, via container query units |
+| Wordmark | `--serif` | small, semibold |
 | Body / lede | `--font` | ~1rem, 400, `--muted` for lede |
 | Controls | `--font` | 0.84–0.9rem, 560 |
 | Eyebrow | `--font` | 0.72rem, 600, uppercase, `0.12em` tracking, `--muted` |
-| Stats numbers | `--font` | tabular-nums |
+| Stats numbers | `--font`; the ring's count is `--serif` | tabular-nums |
 
 Exact sizes live on the nearest component; copy that rather than inventing a new step.
 
-Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose.
+Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose. A serif title takes about half the negative tracking a sans would (−0.005 to −0.015em): tighter, and its letters touch.
 
 ## Components
 
@@ -136,7 +145,7 @@ Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps th
 | --- | --- |
 | `Button` `variant="primary"` | The single main action of a view or dialog ("Start from a preset", "Use this preset") |
 | `Button` `variant="soft"` | Secondary actions that still matter ("Get a prompt", "Cancel") |
-| `Button` `variant="ghost"` | Tertiary / informational ("How it works") |
+| `Button` `variant="ghost"` | Tertiary ("Write it myself") |
 | `Button` `variant="danger"` | Throw away, or kill a link. Danger text and wash only, never a fill. A recoverable confirm stays `primary` |
 | `size="sm"` | Dense contexts (notice rows, toolbars, inside dialogs) |
 | `IconButton` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
@@ -145,7 +154,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Segmented control
 
-`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
+`SegmentedControl`, buttons with `aria-pressed`. Use for 2–4 mutually exclusive options that apply instantly (theme, Fit/Large on desktop: on a phone the chart takes the width either way, so the choice is not offered). Not for navigation, which uses the dock. With `tabs` it switches what one panel shows (a pillar's actions and its shelf; the chart as View, Edit, or Split): `role="tab"`, `aria-selected`, and arrow keys move between them. An option's `detail` is a quiet count beside its label.
 
 ### Select
 
@@ -153,11 +162,11 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds view modes only (Chart / Edit / Split, Split desktop only). `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds the places, four of them: Today, Board, Calendar, Chart. Today is a sun, the day, as Plan tomorrow is a moon; Calendar is the month. How you look at the chart is not a place: View, Edit, and Split (desktop only) are `SegmentedControl` tabs under the chart's title, and the Chart tab goes back to the one last open. The V, E, and S keys still switch them. Under 420px only the open tab shows its name, and the others are their icon with the name kept for screen readers and the title, so the dock fits at 320px. `Toast` sits directly above it.
 
 ### Menus
 
-`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height. **Select charts** and **Recently deleted** are the same dialog with two jobs: rows with a box each, shift-click for a run, Select all for what the search shows ("Select these" while searching), and the one action in the footer with the count on it. Deleting from Select charts is one click, since the charts wait in recently deleted and the slip undoes the whole batch.
+`Menu` owns open, escape, outside click, focus return, and arrow keys. `MenuItem`, `MenuDivider`. Destructive items go last, after a divider, in the danger tone. A long chart list scrolls on its own; the actions under it stay on screen, and the panel stops above the dock. The chart list ends on a fade into the actions (`to-surface`), not on a shadow: a shadow next to the divider reads as two edges. Pair short sibling actions two to a row so the actions stay short and the list keeps the height. A page title that opens a menu (the chart, the calendar's scope) is `MenuTitle`: a round chevron that rides on the last word, so it never wraps alone, and a title too long for two lines ends in an ellipsis before it, cut where the line runs out (mid-word, as a phone cuts a title), so the chevron is never clamped away and the line is full. A chart with something left today (`leftToday`: its routines and open picks) says "2 left today" behind an ink dot where it would say when it was saved, and while any other chart does, the title's chevron wears the same dot, so a goal out of view is not forgotten. Ink, not accent: the dot is the goal's own center dot, as on the calendar. **Select charts** and **Recently deleted** are the same dialog with two jobs: rows with a box each, shift-click for a run, and above them a box that picks them all (`PickAll`): in the rows' own column, a dash when some are picked, and its words say how many ("2 of 14 selected", "Select these" while searching). It stays at the top while the list scrolls. The footer holds the actions only, with the count on them. Deleting from Select charts is one click, since the charts wait in recently deleted and the slip undoes the whole batch.
 
 ### Dialogs
 
@@ -188,11 +197,29 @@ Writing the last line of a pillar, or of the chart, is a moment too, without a l
 
 ### Picking the day
 
-Today, before the day starts, is one sheet of paper with the decks below it on the desk. The sheet holds the date and the question, three slots, the habits already in the day (read, not ticked: they are ticked once the day starts), and one line of status beside Deal and Start my day. The calendar is an icon in the sheet's header. Each deck below is a pillar's top card with the rest of the deck as edges under it, and a quiet foot that counts the cards and spreads them. The sheet is where cards go; the decks are where they come from. In the Plan tomorrow dialog the dialog is the sheet.
+Today, before the day starts, is one sheet of paper with the decks below it on the desk. The sheet holds the date and the question, three slots, the habits already in the day (read, not ticked: they are ticked once the day starts), and one line of status beside Deal and Start my day. Each deck below is a pillar's top card with the rest of the deck as edges under it, and a quiet foot that counts the cards and spreads them. The sheet is where cards go; the decks are where they come from. In the Plan tomorrow dialog the dialog is the sheet.
+
+Once the day has started, and once it is done, a small card under the list says **Also today**: each other chart with something left today, how much, and a row that opens it. Each goal keeps its own Today, so the others say what they still hold rather than wait to be remembered.
 
 ### The calendar
 
-Every day's finished things, on a month (`CalendarView.svelte`, rules in `calendar.ts`). A day shows a pip per tick in the pillar's hue, so a month reads as colour before it reads as numbers; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is reached from Today, from Bindu's progress page, from the command palette and the C key; it is not in the dock, which stays four doors wide.
+Every day's finished things, on a month, across every chart (`CalendarView.svelte`, rules in `calendar.ts`). Your days hold all your goals, so it opens on All charts: a day shows an ink dot for each goal that finished something (the goal's own center dot), a tapped day lists what was finished under each goal's name, and once the month has anything finished, a list at its foot (Goals this month) says how much each goal finished, an ink dot for one that did and a hollow one for Nothing yet; a row narrows the calendar to that goal. The page header says the scope (Your calendar, over All charts) instead of the open chart, and its menu narrows the calendar to one chart, whose days show a ring of its pillars in their hues, so a month reads as colour before it reads as numbers. Pillar hues repeat from chart to chart, which is why All charts marks goals and not pillars. A line from another chart opens that chart at its cell; today wears a ring; days ahead are quiet. A tapped day lists what was finished, in the order it was ticked, with the time when the log kept it, and a milestone says so. Months turn as pages (the `Pages` primitive), no further back than the first month with anything in it. It is in the dock, and on the C key, the command palette, and Bindu's progress page. Narrowed to one chart, it says under the month what the other charts finished, with Show all charts, so one goal in view never reads as all of them.
+
+### The board
+
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar on a soft lift, no outline, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+
+- **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
+- **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
+- **One record of done.** Ticking an action in Today, dropping its card in Done, and Mark done in the editor are the same act (`finish` in `board.ts`): the action is done that day (a plain action becomes a milestone, so it leaves the picks) and the day's log gets the tick and its time. Today shows it ticked, the board files it in Done, and the calendar lists it once on that day. Unticking it, dragging it out of Done, or Completed in the editor reopens it everywhere and takes it off that day (`reopen`). Its check stamps as it lands. A routine never goes to Done: it is ticked in Today, day by day. Done dims while a routine is held over it and the card goes home.
+- **Moving.** Drag with a pointer; on touch, hold a moment first so a swipe still scrolls. The held card tilts like a drawn card, a recessed slot opens where it will land, and on release it flies into that slot. Near a list's edge the list scrolls under it. With the keyboard, Space picks a card up, the arrows carry it (left and right between lists, up and down in To do and Doing), Space or Enter puts it down, Escape puts it back; a live region says where it is. A click or Enter opens the card itself, as a ticket beside the board (`CardSheet.svelte`).
+- **The card is a ticket.** It opens as a sheet on the right, not modal, so clicking another card shows that one in its place, the way an issue opens beside a board. It holds the action as an editable title, its list and kind, a line about where it stands, **Notes** (`meta.details`: what a tutor said, new words, longer than the one-line `note`, and kept off Today), and **Activity**, read from the day logs (`historyOf`). A card with notes wears a small page mark. Escape closes it and hands focus back to the card. On a phone it rises as a sheet from the bottom. It is moved to the end of the page (`toBody`), so the dock and Bindu stay under it.
+- **On a phone** the lists stay side by side, as columns you swipe between (snap), each a little narrower than the screen so the next one shows at the edge. They reach down to the dock, so the page holds still and each list scrolls on its own; the board's title goes to screen readers and the pillar filter sits beside the week's line to give them the room. Hold a card for a moment to drag it; held at the screen's edge, it turns one list at a time. The keyboard's arrows carry a card across and bring its list into view.
+- **Narrowing.** A pillar select, and the header search: on the board, search narrows the cards instead of listing hits. Counts follow what is shown.
+- **New card.** The plus on a list writes a new action into the first empty cell of the pillar you pick, then files it in that list. Hidden once every pillar has eight.
+- **Today deals from it.** The Today picker puts pinned first, then Doing, then To do, each in board order. A card in today's three says Today; a routine says Routine, and once ticked today it says Today with a check.
+- **Today's three are in Doing.** Whatever list a pick was filed in, it shows in Doing for its day, and a pick finished today stays on Today's list, ticked. Moving a pick on the board files it in Doing for good; moving it back to To do or Open takes it off today's list, logged as dropped like one taken off in Today. A pick left alone goes back to its own list when the day ends. Tomorrow's plan shows in To do, marked Tomorrow, and moving a planned card to Open takes it off the plan.
+- **The day turns over on its own.** The store's `chart.today` rolls at midnight and when the page wakes, and Today, the board, and the calendar start the new day without a reload.
 
 ### When the week is offered
 
@@ -215,13 +242,19 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 - **Capture.** A link pasted anywhere that is not a field opens **Add to a shelf**: the tool's face, then a pillar per row. The manifest's share target does the same from Android's share sheet. A paste inside a field, or inside Bindu, is left alone.
 - Shelves travel with a shared chart; what was opened when, and what is known, stays on the device.
 
+### The chart on a phone
+
+Under 900px View still shows the whole chart, all 81 cells, but only the pillars carry words: 81 lines are too many to read on a phone. On a grid under 480px wide an action or the goal is a dot (a done one faded), and a pillar keeps its name (`fitNames`). The names share one size, the largest all of them fit at between words, from 9.5px down to 7px, so they read as a set; a name too long for its cell even at 7px ends in an ellipsis, on the word too wide or on the last line that fits, instead of shrinking the rest. The dot is a whole number of pixels, so it stays round in every column. A tap writes: a cell opens its pillar's block in a dialog (`BlockSheet.svelte`), nine square fields at the editor's size whose words shrink to fit (`fitCellField`, shared with the editor), the one tapped already taken, Enter to the next cell, arrows that walk round the pillars, and Open in the editor for a line's kind, notes, and shelf. A pillar in the center block opens its own block; the goal opens the editor. Cells are squares everywhere: the grid, the sheet, and the editor.
+
+The page fits a 360×740 phone without scrolling. The search field becomes a search button in the top bar, which opens the command palette (it finds lines in the chart too), and the progress ring rides the row of View and Edit, with the guide's ⓘ beside it.
+
 ### The empty chart
 
 A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.
 
 ### Feedback
 
-- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock. On a phone it shares the row above the dock with the Bindu launcher, so it centers in the space beside the launcher (`--dock-aside`), never over it.
+- `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock.
 - `Notice` for persistent inline info with an optional small primary or soft `Button`.
 
 ### Brand
@@ -231,15 +264,15 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ## Trying it
 
-`/dev/demo` sets the app up to show one thing at a time, as a new chart: the last line of a chart, a pillar finishing, a blank chart, the views and the dock, moving around the map, search travel, today, the weekly reflection, and each of Bindu's pages. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the moments that need a nearly full chart (the last line, a pillar finishing), days with history behind them (Today, the calendar across charts, the board, the weekly reflection), shelves of real links, a pile of copies to clear, and each of Bindu's pages. A screen one click away does not get a demo. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 
 - Page max width 1180px, 28px gutters, safe-area aware.
-- Hero: title + actions on the left, progress ring + stats on the right. The method lives in How it works. Collapses to a stack at ≤900px.
+- Hero: title + actions on the left, progress ring + stats on the right. The method lives in the guide (`MethodGuide`), opened from the ⓘ on the progress card, since it explains what those numbers count, from the link under a new chart's buttons, and from the more-actions menu and the command palette. It is not in the row under the title, which holds the chart's views. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
-- Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only).
-- The page reserves 128px of bottom padding for the fixed dock (112px under 900px). Anything new that scrolls on its own must do the same.
+- Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only), and `today`, `board`, `calendar`, which take the stage and keep the chart's hero card out of it.
+- The page reserves 128px of bottom padding for the fixed dock (92px under 900px). Bindu floats at the bottom right on a desktop; under 900px its face sits in the top bar beside search instead, so the dock and the toast have the bottom row to themselves, centered. Its panel still rises from the bottom as a sheet.
 
 ## Voice and copy
 

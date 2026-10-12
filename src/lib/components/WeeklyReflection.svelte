@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { weekInReview } from '$lib/chart/helper';
-	import { HUES } from '$lib/chart/model';
+	import { HUES, type ActionId } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import Icon from './Icon.svelte';
 	import WeekStrip from './WeekStrip.svelte';
@@ -17,16 +17,13 @@
 
 	type Step = 'week' | 'closed' | 'quiet' | 'note' | 'done';
 
-	/** The week on offer: the one whose offer time passed last, so a Monday morning still gets the week that ended. */
 	const weekKey = $derived(chart.reflectionWeek);
-	// Live, so a pillar rewritten on the quiet page shows its new line at once.
 	const review = $derived(weekInReview(chart.data, new Date(), weekKey));
 	const steps = $derived<Step[]>(['week', 'closed', ...(review.quiet.length > 0 ? (['quiet'] as const) : []), 'note']);
 	const named = $derived(chart.data.pillars.filter((pillar) => pillar.trim()).length);
 
 	const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 	const DAYS = [1, 2, 3, 4, 5, 6, 0].map((day) => ({ value: String(day), label: DAY_NAMES[day]! }));
-	/** A short list, so the picker fits inside the dialog: the hours a week gets looked back on. */
 	const HOURS = [
 		{ value: '0', label: 'Any time' },
 		{ value: '8', label: '8 am' },
@@ -40,7 +37,7 @@
 	let step = $state<Step>('week');
 	let direction = $state(1);
 	let note = $state('');
-	let editingKey = $state<string | null>(null);
+	let editingKey = $state<ActionId | null>(null);
 	let expanded = $state<number | null>(null);
 	/** The pillars the week moved, held when it is saved, so the ring draws what was true then. */
 	let sealed = $state<number[]>([]);
@@ -94,7 +91,6 @@
 		open = false;
 	}
 
-	/** The field takes the line's own height, wrapping as the line did, so the row does not change size. */
 	function focusField(node: HTMLTextAreaElement): () => void {
 		const grow = (): void => {
 			node.style.height = '0';
@@ -107,12 +103,11 @@
 		return () => node.removeEventListener('input', grow);
 	}
 
-	function onkeydown(event: KeyboardEvent, key: string): void {
+	function onkeydown(event: KeyboardEvent, key: ActionId): void {
 		if (event.key === 'Enter') {
 			event.preventDefault();
 			(event.currentTarget as HTMLTextAreaElement).blur();
 		} else if (event.key === 'Escape') {
-			// Leave the field, not the reflection.
 			event.stopPropagation();
 			event.preventDefault();
 			if (editingKey === key) editingKey = null;
@@ -131,8 +126,8 @@
 	</span>
 {/snippet}
 
-{#snippet rewrite(entry: { key: string; text: string }, pillarIndex: number, lead: boolean)}
-	{#if editingKey === entry.key}
+{#snippet rewrite(entry: { id: ActionId; text: string }, pillarIndex: number, lead: boolean)}
+	{#if editingKey === entry.id}
 		<div class={cn(row, 'flex-1 bg-sunken shadow-[inset_0_0_0_1.5px_var(--ink)]')}>
 			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
@@ -142,10 +137,10 @@
 					maxlength="120"
 					aria-label="Rewrite {entry.text}"
 					onblur={() => {
-						if (editingKey === entry.key) editingKey = null;
+						if (editingKey === entry.id) editingKey = null;
 					}}
-					onchange={(event) => chart.setText(entry.key, event.currentTarget.value.replace(/\s+/g, ' ').trim())}
-					onkeydown={(event) => onkeydown(event, entry.key)}
+					onchange={(event) => chart.setText(entry.id, event.currentTarget.value.replace(/\s+/g, ' ').trim())}
+					onkeydown={(event) => onkeydown(event, entry.id)}
 					{@attach focusField}>{entry.text}</textarea
 				>
 				{#if lead}
@@ -157,7 +152,7 @@
 		<button
 			type="button"
 			class={cn(row, 'group/line flex-1 cursor-pointer border-0 bg-transparent text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink')}
-			onclick={() => (editingKey = entry.key)}
+			onclick={() => (editingKey = entry.id)}
 		>
 			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
@@ -240,7 +235,7 @@
 					{:else if at === 'closed'}
 						{#if review.closed.length > 0}
 							<ul class="-mx-3 m-0 flex list-none flex-col gap-0.5 p-0">
-								{#each review.closed as milestone, position (milestone.key)}
+								{#each review.closed as milestone, position (milestone.id)}
 									<li class={row}>
 										<span
 											class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface motion-safe:animate-stamp"
@@ -288,7 +283,7 @@
 									</div>
 									{#if expanded === pillar.pillarIndex}
 										<div class="flex flex-col motion-safe:animate-pop-in">
-											{#each pillar.rest as action (action.key)}
+											{#each pillar.rest as action (action.id)}
 												{@render rewrite(action, pillar.pillarIndex, false)}
 											{/each}
 										</div>
@@ -317,7 +312,7 @@
 		{:else}
 			<!-- One button each side, relabelled rather than replaced, so keyboard focus stays put as pages turn. -->
 			<div class="flex w-full items-center justify-between gap-2">
-				<Button variant="ghost" onclick={index === 0 ? dismiss : back}>{index === 0 ? 'Not this week' : 'Back'}</Button>
+				<Button variant="ghost" class="-ms-[18px]" onclick={index === 0 ? dismiss : back}>{index === 0 ? 'Not this week' : 'Back'}</Button>
 				<Button onclick={step === 'note' ? save : next}>{step === 'note' ? 'Save the week' : 'Next'}</Button>
 			</div>
 		{/if}

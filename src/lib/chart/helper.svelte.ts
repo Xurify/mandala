@@ -20,19 +20,18 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { blockOfK, hasContent, todayKey, wholeness, type ChartData } from './model.ts';
+import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
 
-/** The app passes the chart store; the lab passes a sandbox. */
 export type HelperTarget = {
 	data(): ChartData;
 	applyDraft(next: ChartData): boolean;
 	setCells(edits: CellEdit[]): void;
-	setToday(keys: string[]): void;
-	pinWeek(keys: string[]): void;
-	showCell(key: string): void;
-	decline?(keys: string[]): void;
+	setToday(ids: ActionId[]): void;
+	pinWeek(ids: ActionId[]): void;
+	showCell(ref: Ref): void;
+	decline?(ids: ActionId[]): void;
 	noteShown?(signature: string): void;
 	openTool?(pillarIndex: number, id: string): void;
 	openCalendar?(): void;
@@ -78,7 +77,7 @@ export class HelperStore {
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
 	#cheerTimer: ReturnType<typeof setTimeout> | null = null;
-	#swapped = new Set<string>();
+	#swapped = new Set<ActionId>();
 	#target: HelperTarget;
 	#chartId = '';
 
@@ -162,24 +161,24 @@ export class HelperStore {
 		this.reset();
 	}
 
-	swap(key: string): void {
+	swap(key: ActionId): void {
 		const current = this.picks;
 		if (!current) return;
 		this.#swapped.add(key);
 		if (current.scope === 'today') this.#target.decline?.([key]);
-		const keep = current.picks.filter((pick) => pick.key !== key);
-		const exclude = new Set([...current.picks.map((pick) => pick.key), ...this.#swapped]);
+		const keep = current.picks.filter((pick) => pick.id !== key);
+		const exclude = new Set([...current.picks.map((pick) => pick.id), ...this.#swapped]);
 		const data = this.#target.data();
 		const options = current.scope === 'today' ? suggestToday(data, new Date(), 8, exclude) : suggestWeek(data, 8, new Date(), exclude);
 		const taken = new Set(keep.map((pick) => pick.pillarIndex));
 		const next = options.find((pick) => !taken.has(pick.pillarIndex)) ?? options[0];
-		this.picks = { ...current, picks: next ? current.picks.map((pick) => (pick.key === key ? next : pick)) : keep };
+		this.picks = { ...current, picks: next ? current.picks.map((pick) => (pick.id === key ? next : pick)) : keep };
 	}
 
 	commit(): void {
 		const current = this.picks;
 		if (!current || current.picks.length === 0) return;
-		const keys = current.picks.map((pick) => pick.key);
+		const keys = current.picks.map((pick) => pick.id);
 		const pillars = current.picks.map((pick) => pick.pillarIndex);
 		if (current.scope === 'today') {
 			this.#target.setToday(keys);
@@ -192,7 +191,7 @@ export class HelperStore {
 
 	decline(): void {
 		const current = this.picks;
-		if (current?.scope === 'today') this.#target.decline?.(current.picks.map((pick) => pick.key));
+		if (current?.scope === 'today') this.#target.decline?.(current.picks.map((pick) => pick.id));
 		this.back();
 	}
 
@@ -234,7 +233,6 @@ export class HelperStore {
 		try {
 			localStorage.setItem(CHAT_APP_KEY, app);
 		} catch {
-			// storage blocked
 		}
 	}
 
@@ -250,7 +248,6 @@ export class HelperStore {
 		const outcome = this.outcome;
 		if (outcome?.kind === 'chart') {
 			if (!this.#target.applyDraft(outcome.data)) return;
-			// A draft can open as a new chart. Bindu goes with it and stays on this moment.
 			const next = this.#target.chartId?.();
 			if (next) this.#chartId = next;
 			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
@@ -259,7 +256,6 @@ export class HelperStore {
 			const words = editWords(this.#target.data(), outcome.edits);
 			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
 			this.#target.setCells(outcome.edits);
-			// Filling the last gaps fills the chart. That is the bigger news, so the moment says it.
 			if (this.mode !== 'review' && wholeness(this.#target.data()).chart) {
 				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
 			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });

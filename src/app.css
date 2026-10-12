@@ -40,7 +40,43 @@
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Tokens below stay the source of truth. @theme only exposes them as utilities. */
+/* Width-matched to Source Serif 4 by its average Latin advance (479 per 1000), so a title does not reflow on swap. */
+@font-face {
+	font-family: 'Source Serif 4 Fallback';
+	src: local('Georgia');
+	size-adjust: 107.45%;
+	ascent-override: 96.42%;
+	descent-override: 31.18%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: 'Source Serif 4 Fallback';
+	src: local('Times New Roman');
+	size-adjust: 117.91%;
+	ascent-override: 87.86%;
+	descent-override: 28.41%;
+	line-gap-override: 0%;
+}
+
+@font-face {
+	font-family: 'Source Serif 4 Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 200 900;
+	src: url('../node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-ext-opsz-normal.woff2') format('woff2-variations');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: 'Source Serif 4 Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 200 900;
+	src: url('../node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-opsz-normal.woff2') format('woff2-variations');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @theme inline {
 	--color-bg: var(--bg);
 	--color-surface: var(--surface);
@@ -120,7 +156,6 @@
 	}
 }
 
-/* Preflight is off. This file already resets the app, and a second reset would restyle screens that still use the global classes. */
 
 @utility shadow-card {
 	box-shadow: var(--shadow-sm);
@@ -133,7 +168,6 @@
 		inset 0 1px 0 oklch(1 0 0 / 0.12),
 		0 1px 2px oklch(0 0 0 / 0.14);
 }
-/* The wordmark row is 42px, so the mark lands where the home toolbar does. */
 @utility page-gutter {
 	padding-top: max(24px, env(safe-area-inset-top, 24px));
 	padding-right: max(28px, env(safe-area-inset-right, 28px));
@@ -144,7 +178,6 @@
 		padding-left: max(14px, env(safe-area-inset-left, 14px));
 	}
 }
-/* Size, radius, and padding stay on the caller. */
 @utility field-ink {
 	border-width: 0;
 	background-color: var(--sunken);
@@ -200,6 +233,10 @@
 @utility pillar-action {
 	background-color: oklch(var(--t-l) var(--t-c) var(--h));
 }
+@utility pillar-card {
+	background-color: oklch(var(--card-l) var(--card-c) var(--h));
+	box-shadow: var(--card-lift);
+}
 @utility pillar-dot {
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 }
@@ -216,7 +253,6 @@
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
 	color: oklch(var(--dot-fg-l) 0.09 var(--h));
 }
-/* At least 4.5:1 on bg and surface in both themes. */
 @utility pillar-ink {
 	color: oklch(var(--pillar-ink-l) var(--pillar-ink-c) var(--h));
 }
@@ -531,7 +567,6 @@
 	}
 }
 
-/* No spin: the tilt it keeps is the card's own. */
 @keyframes deal-in {
 	from {
 		opacity: 0;
@@ -659,12 +694,10 @@
 ::view-transition-new(stage) {
 	animation: 360ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both view-in;
 }
-/* The chrome around the stage swaps at once. A crossfade there only doubles the title. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
 	animation: none;
 }
-/* The block's old face leaves early, so the zoomed copy never lingers over the new one. */
 ::view-transition-old(travel),
 ::view-transition-old(focus-block) {
 	animation: 180ms cubic-bezier(0.4, 0, 1, 1) both view-out;
@@ -673,8 +706,6 @@
 ::view-transition-new(focus-block) {
 	animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both view-fade;
 }
-/* Floating chrome has its own layer, so it stays on top and still while the stage changes under it.
-   The menu sits above the rest: it is what the person is using. */
 ::view-transition-group(dock),
 ::view-transition-group(bindu-launcher),
 ::view-transition-group(bindu-panel),
@@ -707,8 +738,6 @@
 :root:active-view-transition-type(theme)::view-transition-new(stage) {
 	animation: 300ms cubic-bezier(0.4, 0, 0.2, 1) both view-fade;
 }
-/* Floating chrome over a page that is itself crossfading: two half-faded faces let the page show through,
-   so the old face stays solid and the new one fades in over it. */
 :root:active-view-transition-type(theme)::view-transition-old(dock),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-launcher),
 :root:active-view-transition-type(theme)::view-transition-old(bindu-panel),
@@ -772,32 +801,35 @@
 :root {
 	--bg: oklch(0.972 0.008 85);
 	--surface: oklch(0.994 0.004 85);
-	--sunken: oklch(0.942 0.011 80);
-	--sunken-hover: oklch(0.915 0.013 78);
-	--text: oklch(0.24 0.012 60);
-	--muted: oklch(0.51 0.014 65);
-	--line: oklch(0.9 0.01 80);
-	--ink: oklch(0.24 0.012 60);
-	--ink-hover: oklch(0.33 0.014 60);
+	--sunken: oklch(0.932 0.022 76);
+	--sunken-hover: oklch(0.905 0.028 72);
+	--text: oklch(0.27 0.03 50);
+	--muted: oklch(0.5 0.035 55);
+	--line: oklch(0.88 0.02 75);
+	--ink: oklch(0.27 0.03 50);
+	--ink-hover: oklch(0.35 0.03 50);
 	--on-ink: oklch(0.985 0.006 85);
-	--accent: var(--ink);
-	--accent-hover: var(--ink-hover);
-	--on-accent: var(--on-ink);
+	--accent: var(--swatch-clay);
+	--accent-hover: var(--swatch-clay-hover);
+	--on-accent: var(--swatch-clay-on);
 	--success: oklch(0.5 0.12 150);
 	--danger: oklch(0.52 0.17 8);
 	--goal-bg: var(--ink);
 	--goal-bg-hover: var(--ink-hover);
 	--goal-fg: var(--on-ink);
-	--goal-ring: oklch(0.4 0.015 60);
+	--goal-ring: oklch(0.42 0.025 50);
 	--p-l: 0.845;
 	--p-c: 0.082;
 	--p-l-hover: 0.81;
 	--p-c-hover: 0.105;
-	--on-p: oklch(0.24 0.02 60);
+	--on-p: oklch(0.27 0.03 50);
 	--t-l: 0.945;
 	--t-c: 0.03;
 	--t-l-hover: 0.915;
 	--t-c-hover: 0.05;
+	--card-l: 0.935;
+	--card-c: 0.045;
+	--card-lift: 0 1px 2px oklch(0.35 0.05 55 / 0.06);
 	--dot-l: 0.925;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.4;
@@ -807,13 +839,16 @@
 	--ring-fill-l: 0.66;
 	--soft: var(--sunken);
 	--soft-hover: var(--sunken-hover);
-	--shadow-sm: 0 1px 2px oklch(0.3 0.03 60 / 0.06), 0 0 0 1px oklch(0.3 0.03 60 / 0.055);
-	--shadow-md: 0 18px 40px -16px oklch(0.3 0.04 60 / 0.28), 0 0 0 1px oklch(0.3 0.03 60 / 0.06);
+	--shadow-sm: 0 0 0 1px oklch(0.3 0.03 60 / 0.045), 0 1px 2px oklch(0.3 0.04 60 / 0.05), 0 4px 12px -4px oklch(0.3 0.05 60 / 0.1);
+	--shadow-md: 0 0 0 1px oklch(0.3 0.03 60 / 0.05), 0 8px 20px -8px oklch(0.3 0.05 60 / 0.18), 0 28px 56px -20px oklch(0.3 0.05 60 / 0.22);
 	--scroll-thumb: oklch(0.5 0.02 65 / 0.32);
 	--scroll-thumb-hover: oklch(0.4 0.02 65 / 0.55);
 	--font: 'Source Sans 3 Variable', 'Source Sans 3 Fallback', 'Segoe UI', system-ui, -apple-system, sans-serif;
-	--serif: var(--font);
+	--serif: 'Source Serif 4 Variable', 'Source Serif 4 Fallback', Georgia, serif;
 	--ease: cubic-bezier(0.2, 0, 0, 1);
+	--swatch-clay: oklch(0.55 0.13 42);
+	--swatch-clay-hover: oklch(0.5 0.13 42);
+	--swatch-clay-on: oklch(0.985 0.006 85);
 	--swatch-walnut: oklch(0.42 0.08 80);
 	--swatch-walnut-hover: oklch(0.48 0.086 80);
 	--swatch-walnut-on: oklch(0.985 0.006 85);
@@ -834,17 +869,17 @@
 	:root:not([data-theme='light']) {
 		--bg: oklch(0.185 0.008 65);
 		--surface: oklch(0.225 0.009 65);
-		--sunken: oklch(0.265 0.01 65);
-		--sunken-hover: oklch(0.305 0.011 65);
+		--sunken: oklch(0.27 0.016 62);
+		--sunken-hover: oklch(0.31 0.018 62);
 		--text: oklch(0.95 0.008 85);
-		--muted: oklch(0.72 0.012 75);
-		--line: oklch(0.31 0.01 65);
+		--muted: oklch(0.73 0.022 70);
+		--line: oklch(0.31 0.014 62);
 		--ink: oklch(0.95 0.008 85);
 		--ink-hover: oklch(0.88 0.01 85);
 		--on-ink: oklch(0.2 0.01 65);
-		--accent: var(--ink);
-		--accent-hover: var(--ink-hover);
-		--on-accent: var(--on-ink);
+		--accent: var(--swatch-clay);
+		--accent-hover: var(--swatch-clay-hover);
+		--on-accent: var(--swatch-clay-on);
 		--success: oklch(0.78 0.13 150);
 		--danger: oklch(0.72 0.14 8);
 		--goal-ring: oklch(0.8 0.01 85);
@@ -857,6 +892,9 @@
 		--t-c: 0.035;
 		--t-l-hover: 0.33;
 		--t-c-hover: 0.05;
+		--card-l: 0.285;
+		--card-c: 0.035;
+		--card-lift: 0 0 0 1px oklch(1 0 0 / 0.05), 0 2px 6px -2px oklch(0 0 0 / 0.4);
 		--dot-l: 0.3;
 		--dot-c: 0.04;
 		--dot-fg-l: 0.86;
@@ -864,12 +902,15 @@
 		--pillar-ink-c: 0.11;
 		--ring-track-l: 0.3;
 		--ring-fill-l: 0.72;
-		--soft: oklch(0.36 0.012 65);
-		--soft-hover: oklch(0.42 0.014 65);
+		--soft: oklch(0.36 0.018 62);
+		--soft-hover: oklch(0.42 0.02 62);
 		--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
 		--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
 		--scroll-thumb: oklch(0.75 0.02 75 / 0.3);
 		--scroll-thumb-hover: oklch(0.85 0.02 75 / 0.5);
+		--swatch-clay: oklch(0.56 0.12 42);
+		--swatch-clay-hover: oklch(0.54 0.12 42);
+		--swatch-clay-on: oklch(0.985 0.006 85);
 		--swatch-walnut: oklch(0.52 0.075 80);
 		--swatch-walnut-hover: oklch(0.54 0.075 80);
 		--swatch-walnut-on: oklch(0.985 0.006 85);
@@ -889,17 +930,17 @@
 :root[data-theme='dark'] {
 	--bg: oklch(0.185 0.008 65);
 	--surface: oklch(0.225 0.009 65);
-	--sunken: oklch(0.265 0.01 65);
-	--sunken-hover: oklch(0.305 0.011 65);
+	--sunken: oklch(0.27 0.016 62);
+	--sunken-hover: oklch(0.31 0.018 62);
 	--text: oklch(0.95 0.008 85);
-	--muted: oklch(0.72 0.012 75);
-	--line: oklch(0.31 0.01 65);
+	--muted: oklch(0.73 0.022 70);
+	--line: oklch(0.31 0.014 62);
 	--ink: oklch(0.95 0.008 85);
 	--ink-hover: oklch(0.88 0.01 85);
 	--on-ink: oklch(0.2 0.01 65);
-	--accent: var(--ink);
-	--accent-hover: var(--ink-hover);
-	--on-accent: var(--on-ink);
+	--accent: var(--swatch-clay);
+	--accent-hover: var(--swatch-clay-hover);
+	--on-accent: var(--swatch-clay-on);
 	--success: oklch(0.78 0.13 150);
 	--danger: oklch(0.72 0.14 8);
 	--goal-ring: oklch(0.8 0.01 85);
@@ -912,6 +953,9 @@
 	--t-c: 0.035;
 	--t-l-hover: 0.33;
 	--t-c-hover: 0.05;
+	--card-l: 0.285;
+	--card-c: 0.035;
+	--card-lift: 0 0 0 1px oklch(1 0 0 / 0.05), 0 2px 6px -2px oklch(0 0 0 / 0.4);
 	--dot-l: 0.3;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.86;
@@ -919,12 +963,15 @@
 	--pillar-ink-c: 0.11;
 	--ring-track-l: 0.3;
 	--ring-fill-l: 0.72;
-	--soft: oklch(0.36 0.012 65);
-	--soft-hover: oklch(0.42 0.014 65);
+	--soft: oklch(0.36 0.018 62);
+	--soft-hover: oklch(0.42 0.02 62);
 	--shadow-sm: 0 0 0 1px oklch(1 0 0 / 0.06);
 	--shadow-md: 0 18px 44px -12px oklch(0 0 0 / 0.6), 0 0 0 1px oklch(1 0 0 / 0.07);
 	--scroll-thumb: oklch(0.75 0.02 75 / 0.3);
 	--scroll-thumb-hover: oklch(0.85 0.02 75 / 0.5);
+	--swatch-clay: oklch(0.56 0.12 42);
+	--swatch-clay-hover: oklch(0.54 0.12 42);
+	--swatch-clay-on: oklch(0.985 0.006 85);
 	--swatch-walnut: oklch(0.52 0.075 80);
 	--swatch-walnut-hover: oklch(0.54 0.075 80);
 	--swatch-walnut-on: oklch(0.985 0.006 85);
@@ -938,6 +985,12 @@
 	--swatch-field-hover: oklch(0.53 0.106 125);
 	--swatch-field-on: oklch(0.985 0.006 85);
 	color-scheme: dark;
+}
+
+:root[data-accent='ink'] {
+	--accent: var(--ink);
+	--accent-hover: var(--ink-hover);
+	--on-accent: var(--on-ink);
 }
 
 :root[data-accent='walnut'] {
@@ -964,9 +1017,7 @@
 	--on-accent: var(--swatch-field-on);
 }
 
-/* Registered so Fit and Large blend. max-width of mixed min() cannot.
-   data-scale is set from the head script before hydration, so a saved Large scale does not resize after paint.
-   data-chart-motion turns the blend on after first paint, so that first size does not ease in. */
+/* Registered, since max-width of a mixed min() cannot transition. */
 @property --chart-grow {
 	syntax: '<number>';
 	inherits: true;
@@ -987,6 +1038,12 @@
 
 html[data-scale='large']:is([data-view='view'], :not([data-view])) .chart-frame {
 	--chart-grow: 1;
+}
+
+@media (max-width: 900px) {
+	.chart-frame {
+		--chart-grow: 1;
+	}
 }
 
 html {
@@ -1013,9 +1070,12 @@ body {
 	-moz-osx-font-smoothing: grayscale;
 }
 
-* {
-	scrollbar-width: thin;
-	scrollbar-color: var(--scroll-thumb) transparent;
+/* Chrome and Safari drop every ::-webkit-scrollbar rule once these are set, and draw arrow buttons that poke out of rounded panels. */
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--scroll-thumb) transparent;
+	}
 }
 
 *::-webkit-scrollbar {
@@ -1026,6 +1086,10 @@ body {
 *::-webkit-scrollbar-track,
 *::-webkit-scrollbar-corner {
 	background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+	margin-block: 10px;
 }
 
 *::-webkit-scrollbar-thumb {
@@ -1060,8 +1124,7 @@ body {
 		accent-color: var(--accent);
 	}
 
-	/* Preflight is off, so a button would keep the gray browser face.
-	   scale: none jumps when a transition includes scale. */
+	/* scale: none jumps when a transition includes scale. */
 	button {
 		background-color: transparent;
 		scale: 1;
@@ -1079,7 +1142,6 @@ button {
 	-webkit-tap-highlight-color: transparent;
 }
 
-/* Saved fit from the deferred app bundle, so the first paint is already the measured size. */
 html[style*='--goal-cell-size'] .cell.goal > span {
 	font-size: var(--goal-cell-size);
 }

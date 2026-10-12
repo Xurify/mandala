@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches.keys().then(async (keys) => {
-			// Only previous app shells. Model weights live in IndexedDB; other caches stay.
+			// Only previous app shells; a cache this app did not make stays.
 			const hadOldCache = keys.some((key) => key.startsWith(SHELL) && key !== CACHE);
 			for (const key of keys) {
 				if (key.startsWith(SHELL) && key !== CACHE) await caches.delete(key);

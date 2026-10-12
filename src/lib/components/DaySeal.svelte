@@ -7,7 +7,6 @@
 		moved: number[];
 		play?: boolean;
 		label: string;
-		/** Seconds between arcs as they draw. */
 		step?: number;
 		class?: string;
 	};
