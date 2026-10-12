@@ -82,6 +82,6 @@
 			landed?.chart && 'opacity-0 motion-safe:duration-200'
 		)}
 	>
-		<span class="font-serif text-[length:calc(var(--count-size))] leading-none font-[560] tracking-[-0.02em] tabular-nums" style:--count-size="{size * 0.3}px">{chart.filled}</span>
+		<span class="font-serif text-[length:calc(var(--count-size))] leading-none font-[560] tracking-[-0.01em] tabular-nums" style:--count-size="{size * 0.3}px">{chart.filled}</span>
 	</span>
 </div>

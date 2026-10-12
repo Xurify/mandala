@@ -187,7 +187,7 @@
 			</div>
 
 			<h1
-				class="m-0 font-serif text-[clamp(1.9rem,5vw,2.5rem)] leading-[1.1] font-[600] tracking-[-0.03em] text-balance text-text"
+				class="m-0 font-serif text-[clamp(1.9rem,5vw,2.5rem)] leading-[1.1] font-[600] tracking-[-0.015em] text-balance text-text"
 			>
 				{statusHeading}
 			</h1>

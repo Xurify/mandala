@@ -623,7 +623,7 @@
 		<div class="min-w-0">
 			<Eyebrow class="mb-2">{weekLabel}</Eyebrow>
 			<h2
-				class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.025em] text-balance text-text max-[900px]:text-[1.6rem]"
+				class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.012em] text-balance text-text max-[900px]:text-[1.6rem]"
 			>
 				Your board
 			</h2>

@@ -36,7 +36,7 @@ import {
   type ToolKind,
   type WeekReflection,
 } from "./model.ts";
-import { isAccent, type AccentId } from "./accent.ts";
+import { DEFAULT_ACCENT, isAccent, type AccentId } from "./accent.ts";
 import {
   LIBRARY_KEY,
   activeRecord,
@@ -98,15 +98,14 @@ export type BackupState = "off" | "on" | "needs-permission";
 export type ViewScale = "fit" | "large";
 
 function loadInitialAccent(): AccentId {
-  if (typeof window === "undefined") return "ink";
+  if (typeof window === "undefined") return DEFAULT_ACCENT;
   try {
     const storedAccent = localStorage.getItem("accent");
     if (storedAccent && isAccent(storedAccent)) return storedAccent;
     if (storedAccent) localStorage.removeItem("accent");
-    return "ink";
-    return "ink";
+    return DEFAULT_ACCENT;
   } catch {
-    return "ink";
+    return DEFAULT_ACCENT;
   }
 }
 
@@ -1201,7 +1200,7 @@ export class ChartStore {
     morph(() => {
       this.accent = accent;
       try {
-        if (accent === "ink") {
+        if (accent === DEFAULT_ACCENT) {
           localStorage.removeItem("accent");
           document.documentElement.removeAttribute("data-accent");
         } else {

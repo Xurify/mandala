@@ -342,7 +342,7 @@
 			<h2
 				id="day-closed-title"
 				class={cn(
-					'm-0 font-serif text-[2.6rem] font-[480] leading-[1.05] tracking-[-0.03em] text-balance text-text max-[900px]:text-[2.1rem]',
+					'm-0 font-serif text-[2.6rem] font-[480] leading-[1.05] tracking-[-0.015em] text-balance text-text max-[900px]:text-[2.1rem]',
 					title.class
 				)}
 				style:animation-delay={title.delay}
@@ -413,7 +413,7 @@
 						<Eyebrow class="mb-2">{dayLabel}</Eyebrow>
 						<h2
 							id="today-title"
-							class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.025em] text-balance text-text max-[900px]:text-[1.6rem]"
+							class="m-0 font-serif text-[2rem] leading-[1.08] font-[480] tracking-[-0.012em] text-balance text-text max-[900px]:text-[1.6rem]"
 						>
 							{heading}
 						</h2>
@@ -460,7 +460,7 @@
 					<Eyebrow class="mb-1.5">{dayLabel}</Eyebrow>
 					<h2
 						id="today-title"
-						class="m-0 font-serif text-[1.6rem] leading-[1.1] font-[480] tracking-[-0.02em] text-balance text-text max-[900px]:text-[1.4rem]"
+						class="m-0 font-serif text-[1.6rem] leading-[1.1] font-[480] tracking-[-0.01em] text-balance text-text max-[900px]:text-[1.4rem]"
 					>
 						{heading}
 					</h2>

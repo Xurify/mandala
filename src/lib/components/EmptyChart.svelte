@@ -38,7 +38,7 @@
 		<div class="motion-safe:animate-done-in" style:animation-delay="{DOT + 0.15}s"><Eyebrow class="m-0">A new chart</Eyebrow></div>
 		<h2
 			id="empty-chart-title"
-			class="m-0 font-serif text-[2rem] leading-[1.1] font-[480] tracking-[-0.02em] text-balance motion-safe:animate-done-in max-[900px]:text-[1.6rem]"
+			class="m-0 font-serif text-[2rem] leading-[1.1] font-[480] tracking-[-0.01em] text-balance motion-safe:animate-done-in max-[900px]:text-[1.6rem]"
 			style:animation-delay="{DOT + 0.2}s"
 		>
 			One goal in the center

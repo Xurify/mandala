@@ -512,7 +512,7 @@
 			{/if}
 		</div>
 
-		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
+		<h2 bind:this={titleElement} class="font-serif text-[1.85rem] leading-[1.15] font-[480] tracking-[-0.01em] text-balance wrap-anywhere max-[900px]:text-[1.55rem]">{panelTitle}</h2>
 		{#if chart.sel !== 4}
 			<SegmentedControl
 				tabs

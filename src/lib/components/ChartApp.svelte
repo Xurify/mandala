@@ -15,7 +15,7 @@
 		type ChartData
 	} from '$lib/chart/model';
 	import type { AppTheme, ViewScale } from '$lib/chart/chart.svelte';
-	import { ACCENTS } from '$lib/chart/accent';
+	import { ACCENTS, DEFAULT_ACCENT } from '$lib/chart/accent';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
@@ -63,7 +63,7 @@
 		{ value: 'dark', label: 'Dark', icon: 'moon' as const }
 	];
 
-	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Ink');
+	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Clay');
 
 	const scales = [
 		{ value: 'fit', label: 'Fit', icon: 'minimize' as const, title: 'Fit entire chart on screen without scrolling' },
@@ -149,7 +149,7 @@
 		} else {
 			document.documentElement.removeAttribute('data-theme');
 		}
-		if (chart.accent === 'ink') {
+		if (chart.accent === DEFAULT_ACCENT) {
 			document.documentElement.removeAttribute('data-accent');
 		} else {
 			document.documentElement.setAttribute('data-accent', chart.accent);
@@ -658,7 +658,7 @@
 				</div>
 				<div class="flex flex-col gap-2 px-3 py-1.5 text-[0.9rem]">
 					<span class="text-muted">Accent <span class="text-text">{accentName}</span></span>
-					<div class="grid w-max grid-cols-5 gap-1.5" role="group" aria-label="Accent color">
+					<div class="grid w-max grid-cols-6 gap-1.5 max-[420px]:grid-cols-3" role="group" aria-label="Accent color">
 						{#each ACCENTS as item (item.id)}
 							<button
 								type="button"

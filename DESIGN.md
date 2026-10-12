@@ -1,6 +1,6 @@
 # Mandala design system
 
-Direction: **calm editorial**. Warm paper, ink, one typeface, pill-shaped controls, color reserved for the chart itself. The app should feel like a good notebook, not a dashboard.
+Direction: **calm editorial**. Warm paper and sand, espresso ink, a serif for titles over a sans for the rest, a clay accent, pill-shaped controls, color reserved for the chart itself. The app should feel like a good notebook, not a dashboard.
 
 Studied on Mobbin while building this (all self-improvement / planning apps): Finch, Me+, Tiimo, Structured, stoic., Bloom, ABY Journal, Atoms, timespent, pliability, QUITTR, Liven. What we took:
 
@@ -12,12 +12,20 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 | Finch, Me+ | Floating bottom pill bar for primary navigation on every size |
 | pliability, Liven | Surfaces separated by tone and soft shadow, never by borders |
 
+A second pass asked what makes a warm, oatmeal app look crafted rather than plain (Claude, Origin, Tiimo, 5 Minute Journal, Rox):
+
+| From | Lesson |
+| --- | --- |
+| Claude, Origin, Tiimo, 5 Minute Journal | A serif title over a sans body is what makes warm paper read as considered |
+| Claude, Rox | The accent is a warm clay from the paper's own palette. Black on cream reads as a default |
+| Rox, Claude | What sits under the page is sand, a step warmer than it, and quiet text is brown, not grey |
+
 ## Principles
 
-1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It aliases `--ink` until the more-actions menu picks Leaf, Field, Walnut, or Olive. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
+1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It is clay (`--swatch-clay`) unless the more-actions menu picks Ink, Walnut, Olive, Field, or Leaf. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
 3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
-4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
+4. **Two faces, one family.** Source Serif 4 for titles, dialog headings, the goal, and the wordmark (`font-serif`, through `--serif`); its sibling Source Sans 3 for everything else, controls included. Size and weight do the rest of the hierarchy. Do not add Fraunces, Bricolage Grotesque, Epilogue, or any other family.
 5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
 6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
 7. **Both themes are first-class.** Every new token gets a dark value in the same commit.
@@ -50,7 +58,7 @@ All tokens live at the top of `src/app.css` as CSS custom properties in OKLCH. T
 | `--muted` | Secondary copy, ghost buttons, eyebrows |
 | `--line` | Hairline dividers only |
 | `--ink` / `--ink-hover` / `--on-ink` | Goal cell, focus ring, and ink fills that are not the primary action. Inverts in dark (light ink on dark paper) |
-| `--accent` / `--accent-hover` / `--on-accent` | Primary button, selected dock tab, field halo, selected radio, checkbox. Aliases of `--ink` until a saved accent (`data-accent`) overrides them |
+| `--accent` / `--accent-hover` / `--on-accent` | Primary button, selected dock tab, field halo, selected radio, checkbox. Clay (`--swatch-clay`) by default. A saved accent (`data-accent`) swaps them, Ink included |
 | `--success` / `--danger` | Status text and destructive menu items. Never as fills |
 
 ### Chart color
@@ -61,7 +69,7 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
-| `--card-l` / `--card-c` / `--card-edge-l` / `--card-edge-c` (`pillar-card`) | A board card: a light pillar tint edged by a hairline in its own hue, never a grey one |
+| `--card-l` / `--card-c` / `--card-lift` (`pillar-card`) | A board card: a light pillar tint on a soft warm lift, with no outline |
 | `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
@@ -104,18 +112,18 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 
 | Use | Family | Size / weight |
 | --- | --- | --- |
-| Chart title (hero) | `--font` | large, fluid, tight tracking |
-| Dialog / panel heading | `--font` | medium |
-| Goal cell text | `--font` | fluid, via container query units |
-| Wordmark | `--font` | small, semibold |
+| Chart title (hero) | `--serif` | large, fluid, light negative tracking |
+| Dialog / panel heading | `--serif` | medium |
+| Goal cell text | `--serif` | fluid, via container query units |
+| Wordmark | `--serif` | small, semibold |
 | Body / lede | `--font` | ~1rem, 400, `--muted` for lede |
 | Controls | `--font` | 0.84–0.9rem, 560 |
 | Eyebrow | `--font` | 0.72rem, 600, uppercase, `0.12em` tracking, `--muted` |
-| Stats numbers | `--font` | tabular-nums |
+| Stats numbers | `--font`; the ring's count is `--serif` | tabular-nums |
 
 Exact sizes live on the nearest component; copy that rather than inventing a new step.
 
-Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose.
+Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose. A serif title takes about half the negative tracking a sans would (−0.005 to −0.015em): tighter, and its letters touch.
 
 ## Components
 
@@ -197,7 +205,7 @@ Every day's finished things, on a month (`CalendarView.svelte`, rules in `calend
 
 ### The board
 
-What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar, edged in its hue, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar on a soft lift, no outline, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
 - **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.

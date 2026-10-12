@@ -148,7 +148,7 @@
 		<div class="flex max-w-[62ch] flex-col gap-3">
 			<div>
 				<Eyebrow>Lab</Eyebrow>
-				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-tight text-balance">Bindu</h1>
+				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-[-0.012em] text-balance">Bindu</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
 				Every page of Bindu, against a sandbox chart. It runs on rules, instantly. Writing goes to a chat app through a prompt,

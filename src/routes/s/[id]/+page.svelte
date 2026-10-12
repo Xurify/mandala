@@ -99,7 +99,7 @@
 		<Notice>{error}</Notice>
 	{:else if chartData}
 		<div class="flex flex-col gap-2">
-			<h1 class="m-0 font-serif text-[clamp(1.6rem,4vw,2.2rem)] font-[480] tracking-tight text-balance">
+			<h1 class="m-0 font-serif text-[clamp(1.6rem,4vw,2.2rem)] font-[480] tracking-[-0.012em] text-balance">
 				{chartData.goal.trim() || 'Untitled chart'}
 			</h1>
 			<p class="m-0 text-[0.9rem] text-muted">

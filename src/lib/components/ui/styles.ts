@@ -122,7 +122,7 @@ export const dialog = tv({
 		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-clip',
 		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px]',
 		title:
-			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.02em] text-balance text-text',
+			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.01em] text-balance text-text',
 		// No stacking context of its own, so a select's list (fixed, z-50) can rise over the head and the foot.
 		body: 'relative min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
@@ -166,7 +166,7 @@ export const toast = tv({
 	},
 	variants: {
 		named: {
-			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.015em]' },
+			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.008em]' },
 			false: { words: 'text-[0.94rem] leading-[1.35] font-medium' }
 		}
 	},

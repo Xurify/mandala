@@ -76,7 +76,7 @@
 		<header class="flex items-center gap-2 pt-2 pb-1 ps-4 pe-0.5">
 			<div class="min-w-0 flex-1">
 				<Eyebrow class="mb-1">Calendar</Eyebrow>
-				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.02em] text-text">{current.title}</h2>
+				<h2 id="calendar-month" class="m-0 font-serif text-[1.45rem] leading-tight font-[540] tracking-[-0.01em] text-text">{current.title}</h2>
 				<p class="m-0 mt-0.5 text-[0.86rem] text-muted">{monthLine(current)}</p>
 			</div>
 			{#if turnable}

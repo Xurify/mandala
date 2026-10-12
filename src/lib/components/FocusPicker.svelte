@@ -352,7 +352,7 @@
 	{/if}
 	<span
 		class={cn(
-			'line-clamp-4 font-serif text-[1.12rem] leading-[1.18] font-[500] tracking-[-0.01em] text-pretty',
+			'line-clamp-4 font-serif text-[1.12rem] leading-[1.18] font-[500] tracking-[-0.005em] text-pretty',
 			entry.meta?.done && 'text-muted line-through'
 		)}	>{entry.text}</span
 	>
@@ -516,7 +516,7 @@
 								</span>
 								<span
 									class={cn(
-										'line-clamp-3 font-serif leading-[1.12] font-[520] tracking-[-0.015em] text-balance',
+										'line-clamp-3 font-serif leading-[1.12] font-[520] tracking-[-0.008em] text-balance',
 										inset ? 'text-[1.08rem]' : 'text-[1.2rem] @min-[540px]:text-[1.4rem]'
 									)}>{entry.text}</span
 								>

@@ -90,7 +90,7 @@
 			type === 'goal' && 'p-[max(6px,10%)]',
 			view && type === 'action' && 'text-[clamp(8.5px,1.3cqw,13px)]',
 			view && type === 'pillar' && 'text-[clamp(9px,1.45cqw,13.5px)]',
-			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.01em]',
+			view && type === 'goal' && 'font-serif text-[clamp(10.5px,1.6cqw,16px)] tracking-[-0.005em]',
 			type === 'goal' &&
 				'goal bg-goal text-goal-fg can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover',
 			type === 'goal' && (view ? 'font-[560]' : 'font-semibold'),
