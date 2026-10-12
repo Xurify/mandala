@@ -51,8 +51,7 @@
 			if (fits(`${text.slice(0, mid).trimEnd()}…`)) low = mid;
 			else high = mid - 1;
 		}
-		const space = text.lastIndexOf(' ', low);
-		return space > 0 && space > low - 12 ? space : low;
+		return low;
 	}
 
 	$effect(() => {
