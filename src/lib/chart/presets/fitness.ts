@@ -3,7 +3,7 @@ import type { Preset } from './index.ts';
 export const fitness: Preset = {
 	id: 'fitness',
 	title: 'Fitness',
-	goal: 'Run a half marathon in under 2:00 within 16 weeks',
+	goal: 'Run a half marathon in under 2 hours within 16 weeks',
 	pillars: [
 		'Training plan',
 		'Easy miles',

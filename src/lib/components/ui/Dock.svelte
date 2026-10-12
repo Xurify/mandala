@@ -5,11 +5,12 @@
 
 	type Props = {
 		label: string;
+		hideTabs?: boolean;
 		children: Snippet;
 	};
 
-	let { label, children }: Props = $props();
-	const styles = dock();
+	let { label, hideTabs = false, children }: Props = $props();
+	const styles = $derived(dock({ hideTabs }));
 </script>
 
 <div class={styles.wrap()}>

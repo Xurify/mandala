@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { chart } from './chart.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { emptyChart, todayKey } from './model.ts';
+import { buildChart, getPreset } from './presets/index.ts';
 
 beforeEach(() => {
 	chart.data = slotted(emptyChart());
@@ -84,5 +85,26 @@ describe('chart shelves', () => {
 		expect(chart.slips.at(-1)?.kicker).toBe('Off the shelf');
 		chart.undoSlip();
 		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
+	});
+});
+
+describe('starting from the center', () => {
+	it('follows the chart it began on, and ends when a whole chart arrives', () => {
+		chart.openStartSheet('fitness');
+		expect(chart.inStartSheet).toBe(true);
+		expect(chart.borrowedPreset).toBe('fitness');
+		chart.setText('g', 'Run a half marathon');
+		chart.newChart();
+		expect(chart.inStartSheet).toBe(false);
+		expect(chart.borrowedPreset).toBeNull();
+		chart.openStartSheet(null);
+		chart.importChart(buildChart(getPreset('music')!));
+		expect(chart.inStartSheet).toBe(false);
+	});
+
+	it('ends only for the chart that is starting', () => {
+		chart.openStartSheet(null);
+		chart.closeStartSheet();
+		expect(chart.inStartSheet).toBe(false);
 	});
 });

@@ -103,6 +103,7 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | `foldOut` | A row leaving a live list because it no longer applies. Fades, then its height closes up |
 | `slipOut` | A slip being replaced. Fades without travel |
 | `morph` (`src/lib/chart/morph.ts`) | Switching views, theme, or accent, as one view transition. The chrome swaps at once, the stage (`main`) fades out fast and rises in, and the selected block travels between the chart and the editor (`view-transition-name: focus-block`). A search hit travels into its cell (`travel`). A theme or accent change crossfades the whole page. Morphs called in the same moment join one transition. A name is only on one element at a time, so a block that is on screen twice (split) carries none |
+| `deal-in` on the start sheet | A borrowed preset's pillars, or a pillar's actions, arriving in the ring in pillar order. Lines the person wrote sit still |
 | `swell` + `seal-draw` on the hero ring | A pillar that just got its last line redraws its arc, swelling once. A full chart redraws all eight in order, then the count steps aside for a check |
 | `stamp` | A check pressed onto a pill: it comes down large and tilted, and lands flat |
 | `glow` | A block whose pillar just became whole: a ring of its hue spreads out and fades |
@@ -162,7 +163,7 @@ Order in a row: primary first on the left in content; in a dialog footer cancel 
 
 ### Dock
 
-`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds the places, four of them: Today, Board, Calendar, Chart. Today is a sun, the day, as Plan tomorrow is a moon; Calendar is the month. How you look at the chart is not a place: View, Edit, and Split (desktop only) are `SegmentedControl` tabs under the chart's title, and the Chart tab goes back to the one last open. The V, E, and S keys still switch them. Under 420px only the open tab shows its name, and the others are their icon with the name kept for screen readers and the title, so the dock fits at 320px. `Toast` sits directly above it.
+`Dock` + `DockTab`, `role="tablist"`, with `aria-selected` giving the accent fill. It holds the places, four of them: Today, Board, Calendar, Chart. Today is a sun, the day, as Plan tomorrow is a moon; Calendar is the month. How you look at the chart is not a place: View, Edit, and Split (desktop only) are `SegmentedControl` tabs under the chart's title, and the Chart tab goes back to the one last open. The V, E, and S keys still switch them. Under 420px only the open tab shows its name, and the others are their icon with the name kept for screen readers and the title, so the dock fits at 320px. `Toast` sits directly above it. While the start sheet is on the stage the tabs step aside (`hideTabs`): the bar keeps its room, so the toast does not drop, and it lands again when the sheet closes.
 
 ### Menus
 
@@ -248,9 +249,18 @@ Under 900px View still shows the whole chart, all 81 cells, but only the pillars
 
 The page fits a 360×740 phone without scrolling. The search field becomes a search button in the top bar, which opens the command palette (it finds lines in the chart too), and the progress ring rides the row of View and Edit, with the guide's ⓘ beside it.
 
-### The empty chart
+### Starting a chart
 
-A chart with nothing on it, in chart view, is not a grid of placeholders. It is the ring drawn empty with the center dot landing, one line about the method, and the three ways to start. The stats card and the scale row stay out of it. The hero's start buttons belong to this state; once a chart has a line they fade, and New chart in the menu starts another.
+The method is one sitting: a goal, eight pillars, eight actions under each, all 64 written, then a few revisions. What keeps that from being a wall is the order, not leaving most of it out. A new chart is written the way a mandala is drawn, from the center out, one ring and then one block at a time (`CenterOut.svelte`, rules in `start.ts`). In chart view, a chart with nothing on it is not a grid of placeholders and not 64 cells of someone else's plan. It is one sheet that asks one thing per page, with three marks for the rings.
+
+- **The center.** The empty ring draws itself and the dot lands beside "What do you want to get done?", one field, and the presets as goals to borrow. The lede says what comes and that it usually takes one sitting, and that stopping anywhere is fine. Borrowing puts the preset's goal in the field to change, and nothing else yet. The other door is a chat app, through Bindu.
+- **The first ring.** The goal sits in the middle of a 3×3 and the eight pillars around it are the fields. The ask is eight; a pillar is left empty only when its driver is not known yet. A borrowed goal deals its preset's pillars in, in pillar order. A ring the person has not touched follows a change of preset; one they have, never.
+- **The outer ring.** A hub: the named pillars are cards with a count (2/8) or a check when the block is whole, and an unnamed one is a plus that turns back to the ring with its field ready. Start writing, then Next pillar, walks the blocks in pillar order, skipping whole ones. Each block is its own page with the pillar in the middle and the eight actions around it, the preset's dealt in when the pillar still has the preset's name. The lede carries the two tests and asks for a gap over filler. All pillars, without a change, puts lent lines away again, so the hub counts only what was kept.
+- **The ending.** When no named block has an empty line, Finish plays it. A whole chart is Chart complete: all eight arcs, then the check, and the line that the 64 are not all done at once (Today asks for three a day). A chart with a pillar still unnamed is Chart drawn, and says where the hole is. See the chart is its only door. Lines are written quietly, so the last one does not also toast.
+
+Done for now is on every page after the goal. It keeps every line and goes back to the grid, since every line is written to the chart as it is typed. A whole chart still gets its ending. While a chart has a goal and fewer than eight whole blocks, the row above the grid carries Keep building and the count, in place of the double-click hint. It reopens the sheet where the chart left off (a half-written block, else the outer ring), still lending from the preset whose pillar names the chart carries. `chart.inStartSheet` keeps the sheet up once the goal makes the chart non-empty. A whole chart arriving from elsewhere (a preset, a draft, an import) ends it.
+
+While the sheet is up, the page holds only what can be used on it: no search field or search button, no stats card, no scale row, no Bindu face in the corner or the top bar (the sheet has the chat app door), and the dock's tabs step aside. On the first chart the hero steps aside too, since there is nothing to switch to, and How the method works moves into the sheet beside the marks. When the sheet closes, the dock's tabs land again. The full preset, all 64 at once, is still in the command palette and the editor's start buttons for anyone who asks for it.
 
 ### Feedback
 
@@ -264,12 +274,12 @@ A chart with nothing on it, in chart view, is not a grid of placeholders. It is 
 
 ## Trying it
 
-`/dev/demo` sets the app up to show one thing at a time, as a new chart: the moments that need a nearly full chart (the last line, a pillar finishing), days with history behind them (Today, the calendar across charts, the board, the weekly reflection), shelves of real links, a pile of copies to clear, and each of Bindu's pages. A screen one click away does not get a demo. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
+`/dev/demo` sets the app up to show one thing at a time, as a new chart: the moments that need a nearly full chart (the last line, a pillar finishing), a chart half written from the center (a borrowed goal, Keep building), days with history behind them (Today, the calendar across charts, the board, the weekly reflection), shelves of real links, a pile of copies to clear, and each of Bindu's pages. A screen one click away does not get a demo. A demo card lists what to do once it opens. The demos that need a chat app's reply carry a sample to copy. New motion gets a demo there, so it can be felt, not read.
 
 ## Layout
 
 - Page max width 1180px, 28px gutters, safe-area aware.
-- Hero: title + actions on the left, progress ring + stats on the right. The method lives in the guide (`MethodGuide`), opened from the ⓘ on the progress card, since it explains what those numbers count, from the link under a new chart's buttons, and from the more-actions menu and the command palette. It is not in the row under the title, which holds the chart's views. Collapses to a stack at ≤900px.
+- Hero: title + actions on the left, progress ring + stats on the right. The method lives in the guide (`MethodGuide`), opened from the ⓘ on the progress card, since it explains what those numbers count, from the start sheet on a first chart, and from the more-actions menu and the command palette. It is not in the row under the title, which holds the chart's views. Collapses to a stack at ≤900px.
 - The chart uses container queries (`cqi`) so cell text scales with the grid, not the viewport.
 - Modes: `view` (chart only, square), `edit` (panel only), `split` (side by side, desktop only), and `today`, `board`, `calendar`, which take the stage and keep the chart's hero card out of it.
 - The page reserves 128px of bottom padding for the fixed dock (92px under 900px). Bindu floats at the bottom right on a desktop; under 900px its face sits in the top bar beside search instead, so the dock and the toast have the bottom row to themselves, centered. Its panel still rises from the bottom as a sheet.

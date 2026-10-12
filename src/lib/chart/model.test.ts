@@ -229,7 +229,7 @@ describe('exportJson and exportFilename', () => {
 		const data = slotted(emptyChart());
 		expect(exportFilename(data)).toBe('mandala-chart.json');
 
-		data.goal = 'Run a half marathon in under 2:00!';
+		data.goal = 'Run a half marathon in under 2 hours!';
 		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-00.json');
 	});
 });

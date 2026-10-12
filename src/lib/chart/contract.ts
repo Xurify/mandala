@@ -84,6 +84,7 @@ export const BROWSER_KEYS: Record<string, string> = {
 	'mandala-share-state-v1': 'Which charts were published from here, and whether they update on their own',
 	'mandala-share-secrets-v1': 'The secret that lets this device update its published shares',
 	mandala_reflect: 'The day and hour the weekly reflection is offered',
+	mandala_start_sheet: 'The chart being written from the center out, and the preset it borrowed from',
 	mandala_view_mode: 'The view last open',
 	mandala_view_scale: 'Fit or Large',
 	mandala_goal_fit: 'Measured goal text sizes, so the goal does not resize after paint',
