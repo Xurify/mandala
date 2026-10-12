@@ -142,7 +142,7 @@
 	{#if currentStep === 1}
 		<div class="flex flex-col gap-5">
 			<div class="rounded-[18px] bg-sunken p-4 text-center">
-				<p class="text-[0.76rem] font-bold tracking-wider text-muted uppercase">The goal</p>
+				<p class="text-[0.84rem] font-[560] text-muted">The goal</p>
 				<p class="mt-1 font-serif text-[1.25rem] font-medium text-text">
 					{chart.data.goal.trim() || 'Your main goal'}
 				</p>

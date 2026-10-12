@@ -130,7 +130,7 @@
 			{@const showHeader = index === 0 || filtered[index - 1]!.section !== item.section}
 			{#if showHeader}
 				<li
-					class="px-3.5 pb-1 pt-2.5 text-[0.72rem] font-semibold tracking-[0.12em] text-muted uppercase"
+					class="px-3.5 pb-1 pt-2.5 text-[0.84rem] font-[560] text-muted"
 					role="presentation"
 				>
 					{item.section}

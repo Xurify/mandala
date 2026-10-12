@@ -178,7 +178,7 @@ export const notice = tv({
 });
 
 export const eyebrow = tv({
-	base: 'm-0 inline-flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.12em] text-muted uppercase'
+	base: 'm-0 inline-flex items-center gap-2 text-[0.84rem] font-[560] text-muted'
 });
 
 export const card = tv({

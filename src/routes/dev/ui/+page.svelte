@@ -107,6 +107,9 @@
 		{ name: 'surface', swatch: 'bg-surface' },
 		{ name: 'sunken', swatch: 'bg-sunken' },
 		{ name: 'sunken-hover', swatch: 'bg-sunken-hover' },
+		{ name: 'tray', swatch: 'bg-tray' },
+		{ name: 'tray-over', swatch: 'bg-tray-over' },
+		{ name: 'card', swatch: 'bg-card' },
 		{ name: 'soft', swatch: 'bg-soft' },
 		{ name: 'soft-hover', swatch: 'bg-soft-hover' },
 		{ name: 'ink', swatch: 'bg-ink' },
@@ -585,7 +588,7 @@
 						<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
 							<span class="text-[1rem] font-[620]">{option.name}</span>
 							{#if option.applied}
-								<span class="text-[0.75rem] font-semibold tracking-[0.08em] text-muted uppercase">In the app</span>
+								<span class="text-[0.84rem] font-[560] text-muted">In the app</span>
 							{/if}
 						</span>
 						<span class="text-[0.88rem] text-pretty text-muted">{option.note}</span>

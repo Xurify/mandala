@@ -46,6 +46,9 @@
 	--color-surface: var(--surface);
 	--color-sunken: var(--sunken);
 	--color-sunken-hover: var(--sunken-hover);
+	--color-card: var(--card);
+	--color-tray: var(--tray);
+	--color-tray-over: var(--tray-over);
 	--color-soft: var(--soft);
 	--color-soft-hover: var(--soft-hover);
 	--color-text: var(--text);
@@ -147,10 +150,10 @@
 /* Size, radius, and padding stay on the caller. */
 @utility field-ink {
 	border-width: 0;
-	background-color: var(--sunken);
+	background-color: var(--surface);
 	color: var(--text);
 	font-family: var(--font);
-	box-shadow: inset 0 0 0 1px transparent;
+	box-shadow: inset 0 0 0 1px var(--edge);
 	transition-property: box-shadow;
 	transition-duration: 200ms;
 	transition-timing-function: var(--ease);
@@ -161,8 +164,7 @@
 		transition: none;
 	}
 	&:hover:not(:focus):not(:disabled) {
-		background-color: var(--sunken-hover);
-		box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 16%, transparent);
+		box-shadow: inset 0 0 0 1px var(--edge-hover);
 	}
 	&:focus {
 		background-color: var(--surface);
@@ -199,13 +201,6 @@
 }
 @utility pillar-action {
 	background-color: oklch(var(--t-l) var(--t-c) var(--h));
-}
-@utility pillar-card {
-	background-color: oklch(var(--card-l) var(--card-c) var(--h));
-	box-shadow:
-		0 0 0 1px oklch(var(--card-edge-l) var(--card-edge-c) var(--h)),
-		0 1px 2px oklch(0.3 0.04 60 / 0.05),
-		0 3px 8px -3px oklch(0.3 0.05 60 / 0.09);
 }
 @utility pillar-dot {
 	background-color: oklch(var(--dot-l) var(--dot-c) var(--h));
@@ -784,6 +779,8 @@
 	--text: oklch(0.24 0.012 60);
 	--muted: oklch(0.51 0.014 65);
 	--line: oklch(0.9 0.01 80);
+	--edge: oklch(0.3 0.03 60 / 0.13);
+	--edge-hover: oklch(0.3 0.03 60 / 0.24);
 	--ink: oklch(0.24 0.012 60);
 	--ink-hover: oklch(0.33 0.014 60);
 	--on-ink: oklch(0.985 0.006 85);
@@ -805,10 +802,9 @@
 	--t-c: 0.03;
 	--t-l-hover: 0.915;
 	--t-c-hover: 0.05;
-	--card-l: 0.965;
-	--card-c: 0.036;
-	--card-edge-l: 0.89;
-	--card-edge-c: 0.066;
+	--card: var(--surface);
+	--tray: oklch(0.953 0.01 82);
+	--tray-over: oklch(0.935 0.012 80);
 	--dot-l: 0.925;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.4;
@@ -850,6 +846,8 @@
 		--text: oklch(0.95 0.008 85);
 		--muted: oklch(0.72 0.012 75);
 		--line: oklch(0.31 0.01 65);
+		--edge: oklch(1 0 0 / 0.1);
+		--edge-hover: oklch(1 0 0 / 0.18);
 		--ink: oklch(0.95 0.008 85);
 		--ink-hover: oklch(0.88 0.01 85);
 		--on-ink: oklch(0.2 0.01 65);
@@ -868,10 +866,9 @@
 		--t-c: 0.035;
 		--t-l-hover: 0.33;
 		--t-c-hover: 0.05;
-		--card-l: 0.285;
-		--card-c: 0.035;
-		--card-edge-l: 0.36;
-		--card-edge-c: 0.05;
+		--card: oklch(0.25 0.009 65);
+		--tray: oklch(0.205 0.008 65);
+		--tray-over: oklch(0.225 0.009 65);
 		--dot-l: 0.3;
 		--dot-c: 0.04;
 		--dot-fg-l: 0.86;
@@ -909,6 +906,8 @@
 	--text: oklch(0.95 0.008 85);
 	--muted: oklch(0.72 0.012 75);
 	--line: oklch(0.31 0.01 65);
+	--edge: oklch(1 0 0 / 0.1);
+	--edge-hover: oklch(1 0 0 / 0.18);
 	--ink: oklch(0.95 0.008 85);
 	--ink-hover: oklch(0.88 0.01 85);
 	--on-ink: oklch(0.2 0.01 65);
@@ -927,10 +926,9 @@
 	--t-c: 0.035;
 	--t-l-hover: 0.33;
 	--t-c-hover: 0.05;
-	--card-l: 0.285;
-	--card-c: 0.035;
-	--card-edge-l: 0.36;
-	--card-edge-c: 0.05;
+	--card: oklch(0.25 0.009 65);
+	--tray: oklch(0.205 0.008 65);
+	--tray-over: oklch(0.225 0.009 65);
 	--dot-l: 0.3;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.86;

@@ -502,7 +502,7 @@
 								aria-label="Remove {entry.text}"
 							>
 								<span class="flex items-center justify-between gap-2">
-									<span class="truncate text-[0.74rem] font-semibold tracking-[0.08em] uppercase opacity-75">
+									<span class="truncate text-[0.82rem] font-semibold opacity-75">
 										{entry.pillarName}
 									</span>
 									<span

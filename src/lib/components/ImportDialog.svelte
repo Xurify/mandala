@@ -158,15 +158,15 @@
 			<div class="text-[0.78rem] text-muted">Supports .json backups and .txt outlines</div>
 		</button>
 
-		<div class="flex items-center gap-3 text-[0.74rem] font-semibold tracking-[0.1em] text-muted uppercase">
+		<div class="flex items-center gap-3 text-[0.84rem] font-[560] text-muted">
 			<span class="h-px flex-1 bg-line"></span>
-			<span>or paste text</span>
+			<span>Or paste text</span>
 			<span class="h-px flex-1 bg-line"></span>
 		</div>
 
 		<div class="flex flex-col gap-1.5">
 			<div class="flex items-center justify-between gap-2">
-				<span class="text-[0.78rem] font-semibold tracking-[0.08em] text-muted uppercase">
+				<span class="text-[0.84rem] font-[560] text-muted">
 					Chart text
 				</span>
 				<Button

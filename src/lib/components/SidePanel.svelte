@@ -568,7 +568,7 @@
 								{#if cellIndex === 4}
 									<span
 										class={cn(
-											'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
+											'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.7rem] font-semibold text-on-p max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.62rem] dark:bg-white/16',
 											chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg'
 										)}
 									>

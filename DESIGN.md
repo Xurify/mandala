@@ -12,11 +12,19 @@ Studied on Mobbin while building this (all self-improvement / planning apps): Fi
 | Finch, Me+ | Floating bottom pill bar for primary navigation on every size |
 | pliability, Liven | Surfaces separated by tone and soft shadow, never by borders |
 
+A second pass, on what makes a cream app read as crafted rather than oatmeal (Claude, Charma, Notion, Linear, and GitLab's board):
+
+| From | Lesson |
+| --- | --- |
+| Claude, Charma | Cream is the page only. A field or a card on it is white with a hairline, so nothing beige sits on beige |
+| Notion, Linear, GitLab | A board card is paper, and its group is a dot and a name. Color is the signal, not the card |
+| Claude, Linear | Small labels are quiet sentence case, not tracked capitals |
+
 ## Principles
 
 1. **Color belongs to the chart.** Chrome is paper and ink. The eight pillar hues appear only where they mean a pillar (cells, ring, brand mark). The one exception is `--accent`: the primary button, the selected dock tab, and input chrome (the field halo, a selected radio, a checkbox). It aliases `--ink` until the more-actions menu picks Leaf, Field, Walnut, or Olive. A swatch replaces only `--accent`, `--accent-hover`, and `--on-accent`, and the label on it is white. The goal stays `--ink`: dark on paper, white in the dark. It does not follow the accent. Paper, focus rings on buttons, and the pillar hues stay. Danger sits at hue 8 so Clear stays a red. Never use a pillar hue, or the accent, for decoration.
 2. **One loud thing.** Each view has at most one `btn-primary`. If you want two, one of them is wrong.
-3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things.
+3. **Tone over lines.** Separate regions with `--surface` vs `--bg` vs `--sunken` and `--shadow-sm`. Borders (`--line`) are for dividers inside a menu, not for boxing things. The one edge is `--edge`, the hairline around a text field or a select, so white paper in a field still reads on white paper around it.
 4. **One typeface.** Source Sans 3 everywhere. Titles, the goal, and dialog headings use the same face as controls; size and weight do the hierarchy. Do not add Fraunces, Bricolage Grotesque, or Epilogue.
 5. **Round everything you can press.** Buttons, segmented controls, chips, dock: `border-radius: 999px`. Cards and dialogs: 20–28px.
 6. **Quiet until touched.** Hover and press states do the talking: tone shift on hover, `scale(0.97)` on press. No resting glow, no gradients on chrome.
@@ -45,7 +53,9 @@ All tokens live at the top of `src/app.css` as CSS custom properties in OKLCH. T
 | --- | --- |
 | `--bg` | Page paper |
 | `--surface` | Raised: cards, panels, dialogs, dock, active segment |
-| `--sunken` / `--sunken-hover` | Recessed: soft buttons, segmented track, inputs, hover wash |
+| `--sunken` / `--sunken-hover` | Recessed: soft buttons, segmented track, hover wash |
+| `--edge` / `--edge-hover` | The hairline around a field (`field-ink`), and its hover. Translucent, so it holds on paper and on the page |
+| `--tray` / `--tray-over` / `--card` | The board: a list is a tray a shade under the page, darker while a card is held over it, and a card is paper on it (`--surface` in light, a step lighter than the tray in dark) |
 | `--text` | Body and headings |
 | `--muted` | Secondary copy, ghost buttons, eyebrows |
 | `--line` | Hairline dividers only |
@@ -61,7 +71,6 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
-| `--card-l` / `--card-c` / `--card-edge-l` / `--card-edge-c` (`pillar-card`) | A board card: a light pillar tint edged by a hairline in its own hue, never a grey one |
 | `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |
@@ -110,12 +119,12 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | Wordmark | `--font` | small, semibold |
 | Body / lede | `--font` | ~1rem, 400, `--muted` for lede |
 | Controls | `--font` | 0.84–0.9rem, 560 |
-| Eyebrow | `--font` | 0.72rem, 600, uppercase, `0.12em` tracking, `--muted` |
+| Eyebrow | `--font` | 0.84rem, 560, sentence case, `--muted` |
 | Stats numbers | `--font` | tabular-nums |
 
 Exact sizes live on the nearest component; copy that rather than inventing a new step.
 
-Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps except `.eyebrow`, max ~62ch for prose.
+Rules: headings `text-wrap: balance`, paragraphs `text-wrap: pretty`, no all-caps on screen (an eyebrow is sentence case too), max ~62ch for prose.
 
 ## Components
 
@@ -127,7 +136,7 @@ Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps th
 
 - A pressable control is a primitive: `Button`, `IconButton`, `SegmentedControl`, `Select`, `DockTab`, or `MenuItem`. Do not draw a new pill out of raw `<button>` elements. Do not use a raw `<select>`.
 - Two to four short options that apply immediately are a `SegmentedControl`. The selected option is the surface thumb, not an ink fill. A longer list, or a choice that waits for another action, is a `Select`.
-- A text field uses `textField` from `src/lib/components/ui/styles.ts`. A longer note uses `textArea`. Both are the `field-ink` utility: resting fill `--sunken`, hover deepens to `--sunken-hover` and draws an ink hairline at 16%, focus lifts to `--surface` with a 1px ink ring at 42% and a 4px ink wash at 9%. No browser outline. Callers add width and icon insets (`ps-10`) on top. Chart cells are not `field-ink`; their focus ring stays a solid ink stroke so the selected cell reads in the grid.
+- A text field uses `textField` from `src/lib/components/ui/styles.ts`. A longer note uses `textArea`. Both are the `field-ink` utility: white paper (`--surface`) inside a 1px `--edge` hairline, hover darkens the hairline to `--edge-hover`, focus trades it for a 1px ink ring at 42% and a 4px ink wash at 9%. No browser outline. Callers add width and icon insets (`ps-10`) on top. Chart cells are not `field-ink`; their focus ring stays a solid ink stroke so the selected cell reads in the grid.
 - A control that must stay a raw element (a text-link button, a checkbox) still sets `border-0` and an explicit background (`bg-transparent` or `bg-sunken`). Checkboxes and radios stay native. Their checked color is `accent-color: var(--accent)`.
 - A fill that changes on hover, focus, or selection is a normal background utility (`hover:bg-sunken`, `bg-accent`). Do not transition `background-color` on a control that contains text: that promotes the glyphs and they jump at fractional device scale. `transition-colors` fades color and border only. Chart cells and text fields change fill the same way, with no background transition. Buttons rest transparent and at `scale: 1`, so a press scale does not animate from `none` and a raw button does not keep the gray browser face.
 
@@ -197,7 +206,7 @@ Every day's finished things, on a month (`CalendarView.svelte`, rules in `calend
 
 ### The board
 
-What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are `pillar-card`: a light tint of their pillar, edged in its hue, with the pillar's name above the action in `pillar-ink` and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the lists are trays a shade under the paper, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
+What is in play, as a work board (`BoardView.svelte`, rules in `board.ts`). Every written action is a card in one of four lists: **Open**, **To do**, **Doing**, **Done**. The cards are paper (`bg-card`, `shadow-card`), with the pillar's pip and name above the action and one quiet mark on the right (when it was done, Today, or Routine), all on the card's one left edge; the hue is the pip, not the card. The lists are trays (`bg-tray`) a shade under the page, their titles on that same edge. It is in the dock and on the B key, and it is meant to be glanced at daily and read back at the end of the week.
 
 - **Where a card is lives on its action.** `meta.lane` (`todo` or `doing`) and `meta.rank` place an open action; `meta.done` puts it in Done, whatever its lane. Nothing new is stored, so a share link, sync, and another tab carry the board as they carry the chart.
 - **Order.** Open keeps the chart's order. To do and Doing keep the order you give them and are renumbered from 0 on every move. Done is newest first, the last card moved there leading its day, with an **Earlier** mark where this week ends.
