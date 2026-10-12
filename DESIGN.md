@@ -69,7 +69,7 @@ Pillar hues are fixed: `HUES = [25, 60, 100, 150, 195, 240, 290, 345]` in `src/l
 | --- | --- |
 | `--p-l` / `--p-c` (+ `-hover`) | Pillar cells |
 | `--t-l` / `--t-c` (+ `-hover`) | Action cells |
-| `--card-l` / `--card-c` / `--card-lift` (`pillar-card`) | A board card: a light pillar tint on a soft warm lift, with no outline |
+| `--card-l` / `--card-c` / `--card-lift` (`pillar-card`) | A board card: a light pillar tint on a 1px warm lift, with no outline and no halo |
 | `--dot-l` / `--dot-c` / `--dot-fg-l` | Pale pillar tints behind small things (an empty slot, a mini chart's pillar cell). Not a marker: at 8px it nearly vanishes, in dark most of all |
 | `--ring-track-l` / `--ring-fill-l` | Progress ring and brand mark arcs |
 | `--goal-*` | Goal cell (ink) |

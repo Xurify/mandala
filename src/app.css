@@ -841,7 +841,7 @@
 	--t-c-hover: 0.05;
 	--card-l: 0.935;
 	--card-c: 0.045;
-	--card-lift: 0 1px 2px oklch(0.35 0.05 55 / 0.08), 0 4px 10px -4px oklch(0.35 0.05 55 / 0.14);
+	--card-lift: 0 1px 2px oklch(0.35 0.05 55 / 0.06);
 	--dot-l: 0.925;
 	--dot-c: 0.04;
 	--dot-fg-l: 0.4;
