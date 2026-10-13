@@ -30,9 +30,7 @@ export type PresetId =
 
 export type Preset = {
 	id: PresetId;
-	/** The preset this one is another goal of. It stays out of the main list and shows as a choice under that one. */
 	group?: PresetId;
-	/** The goal's short name among its group's choices. */
 	variant?: string;
 	title: string;
 	goal: string;
@@ -67,7 +65,6 @@ export function getPreset(id: string): Preset | undefined {
 	return PRESETS.find((preset) => preset.id === id);
 }
 
-/** The preset and every other goal in its group, the main one first. */
 export function goalsOf(id: PresetId): readonly Preset[] {
 	const root = getPreset(id)?.group ?? id;
 	return PRESETS.filter((preset) => preset.id === root || preset.group === root);
