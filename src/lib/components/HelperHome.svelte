@@ -68,7 +68,7 @@
 								<svg class="block size-[22px] overflow-visible" viewBox="0 0 100 100">
 									{#each arcs as arc (arc.pillarIndex)}
 										<path
-											class="{ticked.has(arc.pillarIndex) ? 'pillar-stroke' : 'ring-track'} fill-none stroke-[13] [stroke-linecap:round]"
+											class="{ticked.has(arc.pillarIndex) ? 'pillar-stroke' : 'stroke-[var(--ink)] opacity-45'} fill-none stroke-[13] [stroke-linecap:round]"
 											d={arc.d}
 											style:--h={arc.hue}
 										/>
