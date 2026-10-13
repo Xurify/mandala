@@ -30,7 +30,6 @@
 	let now = $state(Date.now());
 	let held = $state(false);
 	let leaving = $state(false);
-	/** The action a break follows, so the end of the break can offer the next block. Forgotten on reload. */
 	let breakAfter = $state<ActionId | null>(null);
 	let slip = $state<HTMLElement | null>(null);
 
@@ -93,7 +92,6 @@
 		document.title = `${face} · ${timer.action ? label : "Break"}`;
 	});
 
-	// Only the word after a stop leaves on its own. The end of a block waits, since the person may be away.
 	$effect(() => {
 		leaving = false;
 		if (!end || end.kind !== 'stopped' || timer || held) return;
@@ -162,7 +160,6 @@
 					onclick={() => chart.setViewMode('today')}
 				>
 					<TimerRing share={ringShare(timer, now)} hue={hueOf(timer.action)} class="size-10" />
-					<!-- A phone's slip is too narrow for the name beside the time, so the time goes on top of the name. -->
 					<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 						<Eyebrow class="@max-[21rem]:hidden">{kicker}</Eyebrow>
 						<span class="hidden text-[1.15rem] leading-none font-[620] tracking-[-0.02em] tabular-nums @max-[21rem]:block">{face}</span>

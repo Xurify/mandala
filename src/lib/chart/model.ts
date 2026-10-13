@@ -57,10 +57,8 @@ export type Session = {
 
 /** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
 export type Timer = {
-	/** A break has none. */
 	action?: ActionId;
 	since: number;
-	/** Minutes, for a block or a break. Without one it is a stopwatch, and runs until it is stopped. */
 	length?: number;
 };
 

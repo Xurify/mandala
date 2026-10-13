@@ -118,7 +118,6 @@ function onTheBoard(now: Date): ChartData {
 
 const MINUTE = 60_000;
 
-/** A week of time logged, most of it on Listening, on top of the ticks. */
 function clocked(data: ChartData, now: Date): ChartData {
 	const week: Record<number, [string, string, number][]> = {
 		0: [['a2_0', '07:40', 20]],

@@ -917,13 +917,10 @@ export class ChartStore {
   }
 
   timer: Timer | null = $derived(this.data.timer ?? null);
-  /** Not saved, so a reload does not say it again. */
   timerEnd = $state<TimerEnd | null>(null);
-  /** The Log time dialog. `forgotten` is a stopwatch left on, which the dialog logs instead of its hours. */
   loggingTime = $state<{ action: ActionId; forgotten?: Timer } | null>(null);
   #endSeq = 1;
 
-  /** Without a length it is a stopwatch, and runs until it is stopped. One runs at a time, so the one before is logged. */
   startTimer(action: ActionId, length?: number): void {
     const now = Date.now();
     const previous = this.data.timer;
@@ -948,7 +945,6 @@ export class ChartStore {
     this.save();
   }
 
-  /** A stopwatch left on for hours asks how long instead of logging them. */
   stopTimer(): void {
     const timer = this.data.timer;
     if (!timer) return;
@@ -962,7 +958,6 @@ export class ChartStore {
     this.timerEnd = timer.action ? { id: this.#endSeq++, kind: "stopped", action: timer.action, minutes: logged?.minutes ?? 0 } : null;
   }
 
-  /** A block logs its whole length, however late this runs. */
   finishTimer(): TimerEnd | null {
     const timer = this.data.timer;
     const now = Date.now();
@@ -1001,7 +996,6 @@ export class ChartStore {
   #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
   #timeSeq = 1;
 
-  /** One session, or without one, all of the action's time that day. The slip can undo it. */
   removeTime(dateKey: string, action: ActionId, session?: Session): void {
     const log = this.data.days?.[dateKey];
     const all = log?.sessions ?? [];
@@ -1345,7 +1339,6 @@ export class ChartStore {
     await unpublishChart(id);
   }
 
-  /** A live page updates to match, the same way an edit does. */
   setShareNotes(on: boolean): void {
     this.shareNotes = on;
     this.#persistShareState();

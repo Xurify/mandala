@@ -34,7 +34,6 @@
 	/** The dock floats over the bottom of the page: 18px off the edge, a 54px bar, and a gap above it. */
 	const DOCK_ROOM = 96;
 
-	/** A menu low on the page would open under the dock, so it opens upward when there is room above. */
 	function place(panel: HTMLElement): void {
 		const below = panel.getBoundingClientRect();
 		const trigger = root?.getBoundingClientRect();

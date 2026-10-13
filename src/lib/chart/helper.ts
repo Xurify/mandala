@@ -725,7 +725,6 @@ export type HelperProgress = {
 	written: number;
 	everTicked: boolean;
 	quiet: number[];
-	/** Per pillar, over the same 7 days as the strip. */
 	minutes: number[];
 	insights: HelperInsight[];
 };

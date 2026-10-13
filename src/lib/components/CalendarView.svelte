@@ -308,7 +308,6 @@
 											</span>
 											<span class="shrink-0 text-[0.86rem] font-[620] whitespace-nowrap text-text tabular-nums">{formatMinutes(session.minutes)}</span>
 										</button>
-										<!-- `removeTime` works on the open chart. -->
 										{#if group.goal.id === chart.activeId}
 											<IconButton
 												icon="close"

@@ -2,13 +2,9 @@
 	import { cn } from './ui/cn';
 
 	type Props = {
-		/** How much of the ring is drawn, 0 to 1. */
 		share: number;
-		/** The action's pillar hue. A break has none and draws in ink. */
 		hue?: number;
-		/** Drawn whole, with a check in place of the dot. */
 		done?: boolean;
-		/** Draw the ring and the check in, once, as the moment happens. */
 		play?: boolean;
 		class?: string;
 	};

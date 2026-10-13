@@ -7,7 +7,6 @@
 		label: string;
 		hideTabs?: boolean;
 		children: Snippet;
-		/** Something that rides on the dock, between it and the toast. */
 		above?: Snippet;
 	};
 

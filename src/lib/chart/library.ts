@@ -134,7 +134,6 @@ export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibr
 	return { ...library, deleted };
 }
 
-/** The chart and how it is set up, without what happened while it was worked: what `contract.ts` marks `plan`. */
 export function withoutHistory(data: ChartData): ChartData {
 	const plan = (part: string): boolean => part === 'plan';
 	return {

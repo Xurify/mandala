@@ -50,7 +50,6 @@ export const CHART_PART: Record<keyof ChartData, Part> = {
 	timer: 'history'
 };
 
-/** Notes are the person's own words to themselves, so a share leaves them out unless asked. */
 export const ACTION_META: Record<keyof ActionMeta, Reach> = {
 	kind: 'shared',
 	pinned: 'shared',

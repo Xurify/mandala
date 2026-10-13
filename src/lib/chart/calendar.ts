@@ -22,7 +22,6 @@ export type MonthDay = {
 	done: GoalDone[];
 	goals: string[];
 	pillars: number[];
-	/** Time logged that day, ticked or not, across every goal. */
 	minutes: number;
 };
 

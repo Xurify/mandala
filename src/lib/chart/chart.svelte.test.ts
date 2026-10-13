@@ -92,7 +92,6 @@ describe('chart time', () => {
 	const MINUTE = 60_000;
 
 	const ids = () => ({ a0_0: chart.data.actionIds[0]![0]!, a3_2: chart.data.actionIds[3]![2]! });
-	// A session is logged on the day its timer started, which is yesterday when these run just after midnight.
 	const logged = () => Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []).map((session) => session.minutes);
 
 	beforeEach(() => {

@@ -58,7 +58,6 @@
 	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
 	const dealt = $derived(dealTools(chart.data, dealOrder(chart.data), new Date(), passed));
 
-	/** The ring on a timed row moves once a minute; the slip on the dock carries the seconds. */
 	let minuteNow = $state(Date.now());
 	$effect(() => {
 		if (!chart.timer) return;

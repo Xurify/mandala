@@ -63,7 +63,6 @@ export function isShareHash(hash: string): boolean {
 	return hash.startsWith(`#${SHARE_PREFIX}`);
 }
 
-/** What another person gets, by link or published share: what `contract.ts` marks `shared`, and `asked` too when `notes` is on. */
 export function forSharing(data: ChartData, { notes = false }: { notes?: boolean } = {}): ChartData {
 	const open = (reach: Reach): boolean => reach === 'shared' || (notes && reach === 'asked');
 	return {
