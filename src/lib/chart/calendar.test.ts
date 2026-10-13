@@ -85,6 +85,27 @@ describe('monthOf', () => {
 		expect(monthLine(monthOf(mine(), 2026, 7, now))).toBe('Nothing finished this month yet.');
 	});
 
+	it('counts time logged across every goal, on days with ticks and days without', () => {
+		const data = chart();
+		data.days!['2026-10-09']!.sessions = [{ action: A.a0_0, at: '07:00', minutes: 30 }];
+		data.days!['2026-10-10']!.sessions = [{ action: A.a0_1, at: '09:00', minutes: 50 }];
+		data.days!['2026-09-28']!.sessions = [{ action: A.a0_0, at: '07:00', minutes: 600 }];
+		const month = monthOf([{ id: 'slovak', title: 'Speak Slovak', data }], 2026, 9, now);
+		expect(month.weeks[1]![4]!.minutes).toBe(30);
+		expect(month.minutes).toBe(80);
+		expect(monthLine(month)).toBe('3 things finished on 1 day, 1 h 20 min logged.');
+		const other = running();
+		other.days!['2026-10-09']!.sessions = [{ action: A.a1_0, at: '06:00', minutes: 40 }];
+		const both = monthOf([{ id: 'slovak', title: 'Speak Slovak', data }, { id: 'run', title: 'Run', data: other }], 2026, 9, now);
+		expect(both.weeks[1]![4]!.minutes).toBe(70);
+		const quiet = chart();
+		quiet.days = { '2026-08-03': { focus: [], checked: [], sessions: [{ action: A.a0_0, at: '07:00', minutes: 45 }] } };
+		quiet.meta = {};
+		const goals = [{ id: 'slovak', title: 'Speak Slovak', data: quiet }];
+		expect(monthLine(monthOf(goals, 2026, 7, now))).toBe('Nothing finished yet, 45 min logged.');
+		expect(firstDoneMonth(goals)).toEqual({ year: 2026, month: 7 });
+	});
+
 	it('names each pillar a day touched once, lowest first', () => {
 		const month = monthOf(mine(), 2026, 9, now);
 		expect(month.weeks[1]![4]!.pillars).toEqual([0, 2]);

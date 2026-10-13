@@ -45,6 +45,21 @@ export type DayLog = {
 	declined?: ActionId[];
 	/** As `id:key`. */
 	shown?: string[];
+	sessions?: Session[];
+};
+
+export type Session = {
+	action: ActionId;
+	/** Local start, "HH:MM". */
+	at: string;
+	minutes: number;
+};
+
+/** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
+export type Timer = {
+	action?: ActionId;
+	since: number;
+	length?: number;
 };
 
 export type WeekReflection = {
@@ -107,6 +122,7 @@ export type ChartData = {
 	tools?: Record<string, Tool[]>;
 	icons?: Record<string, string>;
 	cleared?: Record<ActionId, ClearedAction>;
+	timer?: Timer;
 };
 
 /** A line cleared from the chart that something still points at, so its days still name it, and the same words back in the same place bring it back whole. */
@@ -148,6 +164,16 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 		if (tools.length > 0) out[key] = tools;
 	}
 	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export function parseTimer(value: unknown): Timer | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const record = value as Record<string, unknown>;
+	if (typeof record.since !== 'number' || !Number.isFinite(record.since)) return undefined;
+	const timer: Timer = { since: record.since };
+	if (isId('action', record.action)) timer.action = record.action;
+	if (typeof record.length === 'number' && record.length > 0 && record.length <= 24 * 60) timer.length = record.length;
+	return timer.action || timer.length ? timer : undefined;
 }
 
 export const CHART_VERSION = 1;
@@ -201,8 +227,13 @@ function pointedAt(data: ChartData, id: ActionId): boolean {
 	if (data.meta?.[id]) return true;
 	if (Object.values(data.tools ?? {}).some((list) => list.some((tool) => tool.action === id))) return true;
 	return Object.values(data.days ?? {}).some(
-		(log) => log.focus.includes(id) || log.checked.includes(id) || log.dropped?.includes(id) || log.declined?.includes(id)
-	);
+		(log) =>
+			log.focus.includes(id) ||
+			log.checked.includes(id) ||
+			log.dropped?.includes(id) ||
+			log.declined?.includes(id) ||
+			log.sessions?.some((session) => session.action === id)
+	) || data.timer?.action === id;
 }
 
 function clearLine(data: ChartData, pillarIndex: number, slot: number, words: string): void {
@@ -302,6 +333,7 @@ export function withNewIds(data: ChartData): ChartData {
 							dropped: list(log.dropped),
 							declined: list(log.declined),
 							at: keyed(log.at),
+							sessions: log.sessions?.map((session) => ({ ...session, action: swap(session.action) })),
 							shown: log.shown?.map((signature) => signature.replace(/action_[0-9a-z]{26}/g, (id) => swap(id as ActionId)))
 						}
 					])
@@ -309,7 +341,8 @@ export function withNewIds(data: ChartData): ChartData {
 			: undefined,
 		tools: copy.tools
 			? Object.fromEntries(Object.entries(copy.tools).map(([key, list]) => [key, list.map((tool) => (tool.action ? { ...tool, action: swap(tool.action) } : tool))]))
-			: undefined
+			: undefined,
+		timer: copy.timer?.action ? { ...copy.timer, action: swap(copy.timer.action) } : copy.timer
 	};
 }
 
@@ -483,7 +516,8 @@ export function parseChart(raw: string): ChartData | null {
 			brief: parseBrief(record.brief),
 			tools: parseTools(record.tools),
 			icons: parseIcons(record.icons),
-			cleared: parseCleared(record.cleared, new Set(actionIds.flat()))
+			cleared: parseCleared(record.cleared, new Set(actionIds.flat())),
+			timer: parseTimer(record.timer)
 		};
 	} catch {
 		return null;

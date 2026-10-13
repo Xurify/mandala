@@ -97,6 +97,9 @@
 		command: true,
 		keyboard: true,
 		clock: true,
+		timer: true,
+		hourglass: true,
+		stop: true,
 		plus: true
 	} satisfies Record<IconName, true>;
 

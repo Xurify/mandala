@@ -163,7 +163,7 @@ export const dockTab = tv({
 export const toast = tv({
 	slots: {
 		root: 'group relative w-max max-w-full',
-		slip: 'relative flex items-center gap-2.5 rounded-[22px] bg-surface p-2.5 pr-3 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
+		slip: 'relative flex items-center gap-2.5 max-[400px]:flex-wrap rounded-[22px] bg-surface p-2.5 pr-3 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
 		sheet:
 			'absolute inset-0 rounded-[22px] bg-surface shadow-card [translate:var(--sheet)] [rotate:var(--tilt)] motion-safe:transition-[translate,rotate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:[translate:var(--fan)] can-hover:motion-safe:group-hover:[rotate:var(--tilt-fan)]',
 		mark: 'block size-10 shrink-0 overflow-visible',

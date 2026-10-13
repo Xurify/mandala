@@ -88,6 +88,110 @@ describe('chart shelves', () => {
 	});
 });
 
+describe('chart time', () => {
+	const MINUTE = 60_000;
+
+	const ids = () => ({ a0_0: chart.data.actionIds[0]![0]!, a3_2: chart.data.actionIds[3]![2]! });
+	const logged = () => Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []).map((session) => session.minutes);
+
+	beforeEach(() => {
+		chart.data = emptyChart();
+		chart.data.actions[0]![0] = 'Scales before work';
+		chart.data.actions[3]![2] = 'Run the set once';
+		chart.timerEnd = null;
+		chart.loggingTime = null;
+	});
+
+	it('logs the stopwatch when it is stopped, and leaves the tick alone', () => {
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 12 * MINUTE;
+		chart.stopTimer();
+		expect(chart.timer).toBeNull();
+		const day = Object.values(chart.data.days ?? {})[0];
+		expect(day?.sessions).toEqual([expect.objectContaining({ action: ids().a0_0, minutes: 12 })]);
+		expect(day?.checked).toEqual([]);
+		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', action: ids().a0_0, minutes: 12 });
+	});
+
+	it('logs the one running when another starts', () => {
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 5 * MINUTE;
+		chart.startTimer(ids().a3_2, 25);
+		expect(chart.timer).toMatchObject({ action: ids().a3_2, length: 25 });
+		expect(logged()).toEqual([5]);
+	});
+
+	it('finishes a block at its length, and a break without logging', () => {
+		chart.startTimer(ids().a3_2, 25);
+		expect(chart.finishTimer()).toBeNull();
+		chart.data.timer!.since -= 40 * MINUTE;
+		expect(chart.finishTimer()).toMatchObject({ kind: 'block', minutes: 25 });
+		chart.startBreak(5);
+		chart.data.timer!.since -= 6 * MINUTE;
+		expect(chart.finishTimer()).toMatchObject({ kind: 'break' });
+		expect(logged()).toEqual([25]);
+	});
+
+	it('asks how long instead of logging a stopwatch left on for hours', () => {
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 9 * 60 * MINUTE;
+		chart.stopTimer();
+		expect(chart.timer).not.toBeNull();
+		expect(chart.loggingTime?.forgotten).toBeDefined();
+		chart.logTime(ids().a0_0, 40);
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([40]);
+	});
+
+	it('logs nothing for under a minute', () => {
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 50_000;
+		chart.stopTimer();
+		expect(logged()).toEqual([]);
+		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', minutes: 0 });
+	});
+
+	it('takes logged time off, one session or a whole day, and puts it back on undo', () => {
+		chart.logTime(ids().a3_2, 45);
+		chart.logTime(ids().a3_2, 20);
+		chart.logTime(ids().a0_0, 15);
+		const day = todayKey();
+		const twenty = chart.data.days![day]!.sessions!.find((session) => session.minutes === 20)!;
+		chart.removeTime(day, ids().a3_2, twenty);
+		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes)).toEqual([45, 15]);
+		expect(chart.slips.at(-1)?.kicker).toBe('Removed');
+		chart.undoSlip();
+		expect(chart.data.days![day]!.sessions!.map((session) => session.minutes).sort()).toEqual([15, 20, 45]);
+		chart.removeTime(day, ids().a3_2);
+		expect(chart.data.days![day]!.sessions!.map((session) => session.action)).toEqual([ids().a0_0]);
+		chart.removeTime(day, ids().a0_0);
+		expect(chart.data.days![day]!.sessions).toBeUndefined();
+	});
+
+	it('adds time spent away from the app', () => {
+		chart.logTime(ids().a3_2, 45);
+		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45 })]);
+	});
+});
+
+describe('chart copies', () => {
+	it('copies a chart fresh: the words and setup come, the history stays behind', () => {
+		chart.data = emptyChart();
+		chart.data.goal = 'Read more';
+		chart.data.actions[0]![0] = 'Read 10 pages at lunch';
+		const action = chart.data.actionIds[0]![0]!;
+		chart.setActionMeta(action, { kind: 'routine', note: 'Page 40' });
+		chart.logTime(action, 20);
+		chart.duplicateChart(true);
+		const copy = chart.data.actionIds[0]![0]!;
+		expect(copy).not.toBe(action);
+		expect(chart.data.actions[0]![0]).toBe('Read 10 pages at lunch');
+		expect(chart.data.meta?.[copy]).toEqual({ kind: 'routine', note: 'Page 40' });
+		expect(chart.data.days).toBeUndefined();
+		expect(chart.slips.at(-1)?.kicker).toBe('Copied fresh');
+	});
+});
+
 describe('starting from the center', () => {
 	it('follows the chart it began on, and ends when a whole chart arrives', () => {
 		chart.openStartSheet('fitness');

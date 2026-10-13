@@ -49,6 +49,8 @@ src/
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
+    timer.ts                  time on an action: the running timer, sessions, minutes per pillar (pure, tested)
+    chime.ts                  the sound at the end of a block, readied by a tap
     demos.ts                  the situations /dev/demo opens (pure, tested)
     export-image.ts           poster export (canvas)
   lib/components/
@@ -63,6 +65,7 @@ src/
     WeeklyReflection, WeekStrip, MiniChart, CalendarView
     BoardView.svelte          the board: Open, To do, Doing, Done; drag, keyboard carry, card sheet
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
+    TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
@@ -79,9 +82,10 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - A link is a tool on a pillar's shelf (`data.tools.p{k}`), never an action. Actions hand tools out; `tools.ts` decides which one today.
 - A board card is an action. Its list lives on its meta (`lane`, `rank`, `done`); move it with `chart.moveCard`, and let `board.ts` decide order. A routine never goes to Done.
 - Saved things have ids from `id.ts`: `chart_`, `action_`, `tool_`, `share_`, then a sortable UUIDv7. A new kind of saved thing gets its own prefix there. `meta`, day logs, and tools point at an action by its id (`ActionId`), never by its cell; `a{k}_{j}` is only a place on the grid. Convert with `idAt`, `slotOf`, `keyOf`, and `idOfKey` in `model.ts`. A cleared line gets a new id (`setByKey`), and a copy gets new ids for all (`withNewIds`). Tests name actions with `A.a0_0` from `fixtures.ts`.
-- Saved data has a place in the sync contract (`contract.ts`, `docs/sync.md`). A new field on a saved type fails `bun run check` until it is placed, and a new `localStorage` key fails `contract.test.ts` until `BROWSER_KEYS` lists it. Decide where it goes in the same change, and keep what is not `shared` out of `forSharing`.
+- Saved data has a place in the sync contract (`contract.ts`, `docs/sync.md`). A new field on a saved type fails `bun run check` until it is placed, and a new `localStorage` key fails `contract.test.ts` until `BROWSER_KEYS` lists it. Decide where it goes, and whether it is `plan` or `history`, in the same change. History is never `shared`: another person gets the plan, not your days. `forSharing` and `withoutHistory` read the contract, so they follow it.
 - Saved charts carry a `version` (`CHART_VERSION` in `model.ts`), stamped by `parseChart`, which every chart passes through on load, import, share, and sync. There are no users yet, so there is no upgrade or legacy code: change the shape of saved data freely, and don't add a fallback for an old shape. Write upgrades in `parseChart` once people have data to keep.
 - Done is one record across Today, the board, the editor, and the calendar: the action's `done`/`doneAt` and the day's tick are written together. Finish or reopen with `chart.finish` / `chart.reopen` (or `chart.moveCard`), never by writing one of them alone. Ask `finishedOn` in `board.ts` whether something was finished on a day.
+- Time is logged per day as sessions (`days[date].sessions`, each pointing at an action by id), never as a tick. One timer runs at a time (`data.timer`), as a start time, not a count.
 
 ## Conventions
 

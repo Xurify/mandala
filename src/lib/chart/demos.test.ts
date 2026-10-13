@@ -3,6 +3,7 @@ import { DEMOS, demoSetup, isDemoId } from './demos.ts';
 import { parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
+import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } from './timer.ts';
 import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
 import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
@@ -98,5 +99,19 @@ describe('demos', () => {
 		expect(month.moved).toEqual(['g0', 'g2']);
 		expect(month.byGoal.map((row) => row.finished > 0)).toEqual([true, false, true]);
 		expect(month.weeks.flat().some((day) => day.goals.length === 2)).toBe(true);
+	});
+
+	it('starts each timer where its card says, and gives the week a pillar that leads', () => {
+		const clock = demoSetup('time-stopwatch', now).data!.timer!;
+		expect(clock.length).toBeUndefined();
+		const block = demoSetup('time-block', now).data!.timer!;
+		expect(isOver(block, now.getTime())).toBe(false);
+		expect(remainingMs(block, now.getTime())).toBe(40_000);
+		expect(isForgotten(demoSetup('time-forgot', now).data!.timer!, now.getTime())).toBe(true);
+		expect(FORGOTTEN_MINUTES).toBeLessThan(552);
+		const minutes = minutesByPillar(demoSetup('time-week', now).data!, now);
+		const total = minutes.reduce((sum, value) => sum + value, 0);
+		expect(minutes[1]! / total).toBeGreaterThanOrEqual(0.5);
+		expect(greetingInsight(demoSetup('time-week', now).data!, now)?.id).toBe('time');
 	});
 });

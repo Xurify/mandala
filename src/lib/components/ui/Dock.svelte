@@ -7,14 +7,16 @@
 		label: string;
 		hideTabs?: boolean;
 		children: Snippet;
+		above?: Snippet;
 	};
 
-	let { label, hideTabs = false, children }: Props = $props();
+	let { label, hideTabs = false, children, above }: Props = $props();
 	const styles = $derived(dock({ hideTabs }));
 </script>
 
 <div class={styles.wrap()}>
 	<Toast />
+	{@render above?.()}
 	<div class={styles.bar()} role="tablist" aria-label={label}>
 		{@render children()}
 	</div>

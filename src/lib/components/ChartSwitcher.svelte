@@ -480,6 +480,7 @@
 				Duplicate chart
 			</MenuItem>
 		</div>
+		<MenuItem icon="sparkles" onclick={() => chart.duplicateChart(true)}>Copy without history</MenuItem>
 		<MenuDivider />
 		<MenuItem icon="list" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
 		<MenuItem icon="clock" count={chart.deletedCharts.length} onclick={openDeleted}>Recently deleted</MenuItem>

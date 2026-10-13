@@ -9,9 +9,15 @@
 	import IconButton from './ui/IconButton.svelte';
 	import { dealOrder, dealTools, toolsFor } from '$lib/chart/tools';
 	import { dealFirst, finishedOn } from '$lib/chart/board';
+	import { readyChime } from '$lib/chart/chime';
+	import { BLOCK_MINUTES, elapsedMs, formatMinutes, minutesOn, ringShare } from '$lib/chart/timer';
+	import TimerRing from './TimerRing.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
+	import Menu from './ui/Menu.svelte';
+	import MenuDivider from './ui/MenuDivider.svelte';
+	import MenuItem from './ui/MenuItem.svelte';
 	import Notice from './ui/Notice.svelte';
 	import { cn } from './ui/cn';
 
@@ -51,6 +57,19 @@
 	const pickable = $derived(allActions.filter((entry) => isOpenFocus(entry.meta)));
 	/** Today's tool per action, dealt routines first so two on one shelf never show the same thing. */
 	const dealt = $derived(dealTools(chart.data, dealOrder(chart.data), new Date(), passed));
+
+	let minuteNow = $state(Date.now());
+	$effect(() => {
+		if (!chart.timer) return;
+		minuteNow = Date.now();
+		const interval = setInterval(() => (minuteNow = Date.now()), 15_000);
+		return () => clearInterval(interval);
+	});
+
+	function startTimer(action: ActionId, length?: number): void {
+		readyChime();
+		chart.startTimer(action, length);
+	}
 
 	function passOver(key: ActionId, id: string): void {
 		const next = new Map(passed);
@@ -200,10 +219,13 @@
 	{@const isChecked = ticked(entry.id)}
 	{@const justChecked = justCheckedKey === entry.id}
 	{@const tool = dealt.get(entry.id) ?? null}
-	<div class="flex flex-col">
+	{@const timed = chart.timer?.action === entry.id ? chart.timer : null}
+	{@const spent = minutesOn(chart.data, dateKey, entry.id)}
+	<div class="group/row flex flex-col">
+		<div class="flex items-center gap-0.5">
 		<button
 			type="button"
-			class={rowClass}
+			class={cn(rowClass, 'min-w-0 flex-1')}
 			onclick={() => toggleChecked(entry.id)}
 			aria-pressed={isChecked}
 		>
@@ -242,9 +264,48 @@
 			></span>
 			<span class="sr-only">, {entry.pillarName}</span>
 		</button>
-		{#if tool || entry.meta?.note}
+		{#if timed}
+			{@const minutes = Math.floor(elapsedMs(timed, minuteNow) / 60_000)}
+			<button
+				type="button"
+				class="grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink coarse:size-11"
+				aria-label="{timed.length ? 'Stop the block' : 'Stop the stopwatch'} on {entry.text}, {minutes === 1 ? '1 minute' : `${minutes} minutes`} so far"
+				title={timed.length ? 'Stop the block' : 'Stop the stopwatch'}
+				onclick={() => chart.stopTimer()}
+			>
+				<TimerRing share={ringShare(timed, minuteNow)} hue={HUES[entry.pillarIndex]} class="size-6" />
+			</button>
+		{:else}
+			<Menu label="Time on {entry.text}">
+				{#snippet trigger({ expanded, toggle })}
+					<IconButton
+						icon="timer"
+						label="Time on {entry.text}"
+						class="size-10 text-muted hover:text-text coarse:size-11 can-hover:opacity-0 can-hover:group-hover/row:opacity-100 can-hover:focus-visible:opacity-100 can-hover:aria-expanded:opacity-100"
+						aria-haspopup="menu"
+						aria-expanded={expanded}
+						onclick={toggle}
+					/>
+				{/snippet}
+				<MenuItem icon="timer" badge="until you stop" onclick={() => startTimer(entry.id)}>Stopwatch</MenuItem>
+				<MenuItem icon="hourglass" badge="{BLOCK_MINUTES} min, then a break" onclick={() => startTimer(entry.id, BLOCK_MINUTES)}>Focus block</MenuItem>
+				<MenuDivider />
+				<MenuItem icon="plus" onclick={() => (chart.loggingTime = { action: entry.id })}>Log time</MenuItem>
+				{#if spent > 0}
+					<MenuDivider />
+					<MenuItem icon="trash" tone="danger" badge={formatMinutes(spent)} onclick={() => chart.removeTime(dateKey, entry.id)}>Remove time entry</MenuItem>
+				{/if}
+			</Menu>
+		{/if}
+		</div>
+		{#if tool || entry.meta?.note || spent > 0}
 			<!-- Lined up under the text: the row's padding, the check, and the gap between them. -->
 			<div class="-mt-0.5 flex min-w-0 flex-col gap-0.5 ps-[46px] pe-3 pb-2.5">
+				{#if spent > 0}
+					<span class="flex items-center gap-1 text-[0.78rem] leading-snug text-muted tabular-nums">
+						<Icon name="clock" size={12} />{formatMinutes(spent)} today
+					</span>
+				{/if}
 				{#if tool}
 					<div class="flex min-w-0 items-center gap-1 rounded-[16px] bg-bg p-1.5 pe-1" role="group" aria-label="Today's tool for {entry.text}">
 						<a

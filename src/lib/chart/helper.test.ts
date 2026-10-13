@@ -23,7 +23,7 @@ import {
 	weekStrip
 } from './helper.ts';
 import { A, slotted, type Cell } from './fixtures.ts';
-import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ChartData } from './model.ts';
+import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ActionId, type ChartData } from './model.ts';
 import { exampleChart } from './example.ts';
 import { buildChart, PRESETS } from './presets/index.ts';
 
@@ -282,6 +282,19 @@ describe('insightsFor', () => {
 		expect(insightsFor(data, now).some((insight) => insight.text === 'Most of your ticks land before noon.')).toBe(true);
 	});
 
+	it('says where most of the week\'s time went, once there is an hour of it', () => {
+		const data = sample();
+		const session = (action: ActionId, minutes: number) => ({ action, at: '18:00', minutes });
+		data.days = {
+			[day(-1)]: { focus: [], checked: [A.a2_0], sessions: [session(A.a2_0, 50), session(A.a4_1, 15)] },
+			[day(-3)]: { focus: [], checked: [], sessions: [session(A.a2_3, 40)] }
+		};
+		const time = insightsFor(data, now).find((insight) => insight.id === 'time');
+		expect(time).toMatchObject({ ref: 'p2', text: 'Most of your time this week went to Long run: 1 h 30 min.' });
+		data.days = { [day(-1)]: { focus: [], checked: [A.a2_0], sessions: [session(A.a2_0, 40)] } };
+		expect(insightsFor(data, now).some((insight) => insight.id === 'time')).toBe(false);
+	});
+
 	it('notices an action taken off the list twice', () => {
 		const data = sample();
 		data.days = {
@@ -509,6 +522,18 @@ describe('how it is going', () => {
 		expect(progress).toMatchObject({ ticks: 4, pillars: [0, 1, 2], streak: 3, everTicked: true, written: 64 });
 		expect(progress.quiet).toEqual([3, 4, 5, 6, 7]);
 		expect(progressOf(sample(), now).everTicked).toBe(false);
+	});
+
+	it('sums time per pillar over the same 7 days, and keeps its insight for the first page', () => {
+		const data = sample();
+		const session = (action: ActionId, minutes: number) => ({ action, at: '18:00', minutes });
+		data.days = {
+			[day(0)]: { focus: [], checked: [A.a1_0], sessions: [session(A.a1_0, 70)] },
+			[day(-7)]: { focus: [], checked: [], sessions: [session(A.a3_0, 30)] }
+		};
+		const progress = progressOf(data, now);
+		expect(progress.minutes).toEqual([0, 70, 0, 0, 0, 0, 0, 0]);
+		expect(progress.insights.some((insight) => insight.id === 'time')).toBe(false);
 	});
 });
 

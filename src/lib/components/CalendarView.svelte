@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type Goal, type GoalDone, type MonthDay } from '$lib/chart/calendar';
-	import { HUES, todayKey } from '$lib/chart/model';
+	import { HUES, pillarOfAction, todayKey, wordsOf, type ActionId } from '$lib/chart/model';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
+	import { formatMinutes, sessionsOn } from '$lib/chart/timer';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
@@ -43,8 +44,13 @@
 	const groups = $derived(
 		picked
 			? inScope
-					.map((goal) => ({ goal, done: picked.done.filter((entry) => entry.goal === goal.id), opened: openedOn(goal.data, picked.key) }))
-					.filter((group) => group.done.length > 0 || group.opened.length > 0)
+					.map((goal) => ({
+						goal,
+						done: picked.done.filter((entry) => entry.goal === goal.id),
+						sessions: sessionsOn(goal.data, picked.key),
+						opened: openedOn(goal.data, picked.key)
+					}))
+					.filter((group) => group.done.length > 0 || group.sessions.length > 0 || group.opened.length > 0)
 			: []
 	);
 	const tally = $derived(
@@ -68,6 +74,11 @@
 		const only = inScope.length === 1 ? inScope[0]! : null;
 		if (only && only.id !== chart.activeId) chart.switchChart(only.id);
 		chart.setViewMode('today');
+	}
+
+	function openAction(goal: Goal, action: ActionId): void {
+		if (goal.id !== chart.activeId) chart.switchChart(goal.id);
+		chart.jumpToKey(action);
 	}
 
 	function openEntry(entry: GoalDone): void {
@@ -105,7 +116,8 @@
 	function spoken(day: MonthDay): string {
 		const count = day.done.length;
 		const goals = across && day.goals.length > 1 ? `, ${day.goals.length} goals` : '';
-		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}${goals}`;
+		const time = day.minutes > 0 ? `, ${formatMinutes(day.minutes)} logged` : '';
+		return `${dayTitle(day.key)}: ${count === 0 ? 'nothing finished' : count === 1 ? '1 thing finished' : `${count} things finished`}${goals}${time}`;
 	}
 </script>
 
@@ -265,6 +277,45 @@
 												<span class="shrink-0 text-[0.78rem] text-muted tabular-nums">{clock(entry.at)}</span>
 											{/if}
 										</button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if group.sessions.length > 0}
+							<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
+								<h5 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="clock" size={14} />Time logged</h5>
+								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{formatMinutes(group.sessions.reduce((sum, session) => sum + session.minutes, 0))}</span>
+							</div>
+							<ul class="m-0 flex list-none flex-col gap-px p-0">
+								{#each group.sessions as session, index (`${session.action}-${session.at}-${index}`)}
+									{@const pillarIndex = pillarOfAction(group.goal.data, session.action) ?? 0}
+									{@const text = wordsOf(group.goal.data, session.action) || 'A line since removed'}
+									<li class="flex items-center gap-0.5 motion-safe:animate-pop-in" style:animation-delay="{(groupIndex * 2 + group.done.length + index) * 45}ms">
+										<button
+											type="button"
+											class="flex min-h-11 w-full min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans text-text select-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
+											onclick={() => openAction(group.goal, session.action)}
+										>
+											<span class="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+												<span class="pip size-2 rounded-full" style:--pip-h={HUES[pillarIndex]}></span>
+											</span>
+											<span class="flex min-w-0 flex-1 flex-col gap-px">
+												<span class="text-[0.92rem] leading-snug text-pretty">{text}</span>
+												<span class="flex min-w-0 items-center gap-1.5 text-[0.74rem] leading-tight">
+													<span class="pillar-ink truncate font-[620]" style:--h={HUES[pillarIndex]}>{pillarName(group.goal, pillarIndex)}</span>
+													<span class="shrink-0 text-muted tabular-nums">from {clock(session.at)}</span>
+												</span>
+											</span>
+											<span class="shrink-0 text-[0.86rem] font-[620] whitespace-nowrap text-text tabular-nums">{formatMinutes(session.minutes)}</span>
+										</button>
+										{#if group.goal.id === chart.activeId}
+											<IconButton
+												icon="close"
+												label="Remove {formatMinutes(session.minutes)} on {text}"
+												class="size-9 shrink-0 text-muted hover:text-text coarse:size-11"
+												onclick={() => chart.removeTime(picked.key, session.action, session)}
+											/>
+										{/if}
 									</li>
 								{/each}
 							</ul>

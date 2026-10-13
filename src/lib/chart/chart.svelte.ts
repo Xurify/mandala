@@ -36,6 +36,8 @@ import {
   type Milestones,
   type ReflectAt,
   type Ref,
+  type Session,
+  type Timer,
   type Tool,
   type ToolKind,
   type WeekReflection,
@@ -60,6 +62,7 @@ import {
   summarize,
   summarizeDeleted,
   titleOf,
+  withoutHistory,
   TRASH_MS,
   type ChartLibrary,
   type ChartSummary,
@@ -79,6 +82,23 @@ import {
   unpublishChart,
 } from "./sync/publish.ts";
 import { overlayLocalEdits } from "./sync/sync.ts";
+import {
+  addSession,
+  BREAK_MINUTES,
+  formatMinutes,
+  isForgotten,
+  isOver,
+  sessionEndingAt,
+  sessionOf,
+  actionLabel,
+} from "./timer.ts";
+
+export type TimerEnd = {
+  id: number;
+  kind: "stopped" | "block" | "break";
+  action?: ActionId;
+  minutes: number;
+};
 
 export type SyncStatus = "off" | "syncing" | "synced" | "error";
 const SYNC_ROOM_KEY = "mandala-sync-room";
@@ -284,6 +304,7 @@ export class ChartStore {
   shareId = $state("");
   shareUpdatedAt = $state<number | null>(null);
   autoShare = $state(false);
+  shareNotes = $state(false);
   shareBusy = $state(false);
   #shareTimer: ReturnType<typeof setTimeout> | null = null;
   #shareChartId = "";
@@ -395,17 +416,19 @@ export class ChartStore {
       const all = raw
         ? (JSON.parse(raw) as Record<
             string,
-            { id: string; updatedAt: number | null; auto: boolean }
+            { id: string; updatedAt: number | null; auto: boolean; notes?: boolean }
           >)
         : {};
       const entry = all[chartId];
       this.shareId = entry?.id ?? "";
       this.shareUpdatedAt = entry?.updatedAt ?? null;
       this.autoShare = entry?.auto ?? false;
+      this.shareNotes = entry?.notes === true;
     } catch {
       this.shareId = "";
       this.shareUpdatedAt = null;
       this.autoShare = false;
+      this.shareNotes = false;
     }
   }
 
@@ -417,6 +440,7 @@ export class ChartStore {
         id: this.shareId,
         updatedAt: this.shareUpdatedAt,
         auto: this.autoShare,
+        notes: this.shareNotes,
       };
       localStorage.setItem(SHARE_STATE_KEY, JSON.stringify(all));
     } catch {}
@@ -426,6 +450,8 @@ export class ChartStore {
     this.sel = 4;
     this.query = "";
     this.focusedKey = null;
+    this.timerEnd = null;
+    this.loggingTime = null;
   }
 
   #flush(): boolean {
@@ -625,7 +651,9 @@ export class ChartStore {
     this.slips = this.slips.filter((slip) => slip.id !== front.id);
     const tools = ids.filter((id) => this.#removedTools.has(id));
     for (const token of tools) this.#restoreTool(token);
-    this.restoreCharts(ids.filter((id) => !tools.includes(id)));
+    const time = ids.filter((id) => this.#removedTime.has(id));
+    for (const token of time) this.#restoreTime(token);
+    this.restoreCharts(ids.filter((id) => !tools.includes(id) && !time.includes(id)));
   }
 
   holdToasts(held: boolean): void {
@@ -885,6 +913,130 @@ export class ChartStore {
     if (existing.shown?.includes(signature)) return;
     this.data.days[dateKey] = { ...existing, shown: [...(existing.shown ?? []), signature] };
     this.data = { ...this.data };
+    this.save();
+  }
+
+  timer: Timer | null = $derived(this.data.timer ?? null);
+  timerEnd = $state<TimerEnd | null>(null);
+  loggingTime = $state<{ action: ActionId; forgotten?: Timer } | null>(null);
+  #endSeq = 1;
+
+  startTimer(action: ActionId, length?: number): void {
+    const now = Date.now();
+    const previous = this.data.timer;
+    if (previous?.action) {
+      if (isForgotten(previous, now)) {
+        this.say(`The stopwatch on ${actionLabel(this.data, previous.action)} ran for hours, so it was not logged.`);
+      } else {
+        const logged = this.#logTimer(previous, now);
+        if (logged) this.say(`Logged ${formatMinutes(logged.minutes)} on ${actionLabel(this.data, previous.action)}.`);
+      }
+    }
+    this.data.timer = length ? { action, since: now, length } : { action, since: now };
+    this.timerEnd = null;
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  startBreak(minutes = BREAK_MINUTES): void {
+    this.data.timer = { since: Date.now(), length: minutes };
+    this.timerEnd = null;
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  stopTimer(): void {
+    const timer = this.data.timer;
+    if (!timer) return;
+    const now = Date.now();
+    if (timer.action && isForgotten(timer, now)) {
+      this.loggingTime = { action: timer.action, forgotten: timer };
+      return;
+    }
+    const logged = this.#logTimer(timer, now);
+    this.#clearTimer();
+    this.timerEnd = timer.action ? { id: this.#endSeq++, kind: "stopped", action: timer.action, minutes: logged?.minutes ?? 0 } : null;
+  }
+
+  finishTimer(): TimerEnd | null {
+    const timer = this.data.timer;
+    const now = Date.now();
+    if (!timer || !isOver(timer, now)) return null;
+    const logged = this.#logTimer(timer, now);
+    this.#clearTimer();
+    this.timerEnd = { id: this.#endSeq++, kind: timer.action ? "block" : "break", action: timer.action, minutes: logged?.minutes ?? timer.length ?? 0 };
+    return this.timerEnd;
+  }
+
+  dismissTimerEnd(): void {
+    this.timerEnd = null;
+  }
+
+  discardTimer(): void {
+    if (!this.data.timer) return;
+    this.loggingTime = null;
+    this.#clearTimer();
+  }
+
+  logTime(action: ActionId, minutes: number): void {
+    const forgotten = this.loggingTime?.forgotten;
+    if (forgotten && this.data.timer?.since === forgotten.since) {
+      this.#logTimer(forgotten, Date.now(), minutes);
+      this.#clearTimer();
+    } else {
+      const { dateKey, session } = sessionEndingAt(action, minutes, new Date());
+      addSession(this.data, dateKey, session);
+      this.data = { ...this.data };
+      this.save();
+    }
+    this.loggingTime = null;
+    this.say(`Logged ${formatMinutes(minutes)} on ${actionLabel(this.data, action)}.`);
+  }
+
+  #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
+  #timeSeq = 1;
+
+  removeTime(dateKey: string, action: ActionId, session?: Session): void {
+    const log = this.data.days?.[dateKey];
+    const all = log?.sessions ?? [];
+    let matched = false;
+    const removed: Session[] = [];
+    const rest = all.filter((entry) => {
+      if (entry.action !== action) return true;
+      if (session && (matched || entry.at !== session.at || entry.minutes !== session.minutes)) return true;
+      matched = true;
+      removed.push(entry);
+      return false;
+    });
+    if (!log || removed.length === 0) return;
+    this.data.days![dateKey] = { ...log, sessions: rest.length > 0 ? rest : undefined };
+    this.data = { ...this.data };
+    this.save();
+    const token = `time:${this.#timeSeq++}`;
+    this.#removedTime.set(token, { chartId: this.#library.activeId, dateKey, sessions: removed });
+    const minutes = removed.reduce((sum, entry) => sum + entry.minutes, 0);
+    this.#place({ key: token, kicker: "Removed", subject: `${formatMinutes(minutes)} on ${actionLabel(this.data, action)}`, undo: [token] });
+  }
+
+  #restoreTime(token: string): void {
+    const removed = this.#removedTime.get(token);
+    this.#removedTime.delete(token);
+    if (!removed || removed.chartId !== this.#library.activeId) return;
+    for (const session of removed.sessions) addSession(this.data, removed.dateKey, session);
+    this.data = { ...this.data };
+    this.save();
+  }
+
+  #logTimer(timer: Timer, now: number, minutes?: number): { minutes: number } | null {
+    const logged = sessionOf(timer, now, minutes);
+    if (!logged) return null;
+    addSession(this.data, logged.dateKey, logged.session);
+    return logged.session;
+  }
+
+  #clearTimer(): void {
+    const { timer: _timer, ...rest } = this.data;
+    this.data = rest;
     this.save();
   }
 
@@ -1168,7 +1320,7 @@ export class ChartStore {
     if (this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId || null);
+      const result = await publishChart(this.data, this.shareId || null, this.shareNotes);
       this.shareId = result.id;
       this.shareUpdatedAt = result.updatedAt;
       this.#persistShareState();
@@ -1185,6 +1337,12 @@ export class ChartStore {
     this.autoShare = false;
     this.#persistShareState();
     await unpublishChart(id);
+  }
+
+  setShareNotes(on: boolean): void {
+    this.shareNotes = on;
+    this.#persistShareState();
+    if (this.shareId && this.autoShare) this.#scheduleAutoPublish();
   }
 
   setAutoShare(on: boolean): void {
@@ -1217,7 +1375,7 @@ export class ChartStore {
     if (!this.autoShare || !this.shareId || this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId);
+      const result = await publishChart(this.data, this.shareId, this.shareNotes);
       this.shareUpdatedAt = result.updatedAt;
       this.#persistShareState();
     } catch {
@@ -1383,9 +1541,9 @@ export class ChartStore {
     return true;
   }
 
-  duplicateChart(): boolean {
+  duplicateChart(fresh = false): boolean {
     this.#flush();
-    const record = newRecord(this.data);
+    const record = newRecord(fresh ? withoutHistory(this.data) : this.data);
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
     this.data = cloneChart(record.data);
@@ -1393,7 +1551,7 @@ export class ChartStore {
     const title = titleOf(this.data);
     const held = this.#copySlips();
     this.saveNow();
-    this.#applyNote(held, "Duplicated", title, 1, false);
+    this.#applyNote(held, fresh ? "Copied fresh" : "Duplicated", title, 1, false);
     return true;
   }
 

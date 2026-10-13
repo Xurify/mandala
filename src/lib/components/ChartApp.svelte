@@ -44,6 +44,8 @@
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
+	import LogTimeDialog from './LogTimeDialog.svelte';
+	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
@@ -487,6 +489,7 @@
 		items.push(
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
+			{ id: 'duplicate-fresh', label: 'Copy without history', section: 'Actions', icon: 'sparkles', run: () => chart.duplicateChart(true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
 			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
 			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
@@ -600,8 +603,12 @@
 />
 <svelte:document onvisibilitychange={persistHidden} />
 
+<!-- A timer rides on the dock, and the page makes room for it: the slip is about 68px, plus the dock's 10px gap. -->
 <div
-	class="page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0"
+	class={cn(
+		'page-gutter mx-auto max-w-295 pb-[calc(128px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(92px+env(safe-area-inset-bottom,0px))] print:!m-0 print:!w-full print:!max-w-full print:!p-0',
+		(chart.timer || chart.timerEnd) && 'pb-[calc(206px+env(safe-area-inset-bottom,0px))] max-[900px]:pb-[calc(170px+env(safe-area-inset-bottom,0px))]'
+	)}
 >
 	<header class="relative z-30 print:hidden">
 		<div class="flex items-center gap-x-4 gap-y-3 max-[900px]:flex-wrap max-[900px]:gap-x-2 max-[900px]:gap-y-2.5">
@@ -798,6 +805,7 @@
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
 		<ShelfSheet />
+		<LogTimeDialog />
 	</header>
 
 	{#if effectiveViewMode !== 'board'}
@@ -953,6 +961,9 @@
 	<Helper {helper} hideLauncher={showStartSheet} />
 
 	<Dock label="Layout view mode" hideTabs={showStartSheet}>
+		{#snippet above()}
+			<TimerSlip />
+		{/snippet}
 		<DockTab
 			icon="sun"
 			selected={effectiveViewMode === 'today'}

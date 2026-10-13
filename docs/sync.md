@@ -4,20 +4,23 @@ Mandala keeps everything in the browser today. This page is the contract that ke
 
 ## The contract
 
-`src/lib/chart/contract.ts` places every field of a saved chart in one of three reaches:
+`src/lib/chart/contract.ts` places every field of a saved chart in one of four reaches:
 
 | Reach | Travels | Today |
 | --- | --- | --- |
-| `shared` | With anyone, by link or published share, and between your devices | the goal, pillars, actions, `meta`, `days`, `weeks`, the shelves |
-| `yours` | Between your own devices, never to another person | the `brief`, site `icons`, what was opened from a shelf and when (`opened`, `known`) |
+| `shared` | With anyone, by link or published share, and between your devices | the goal, pillars, actions, whether an action is a routine or a one-time step, pinned, the shelves' links |
+| `asked` | Between your devices, and to another person only when that share includes it | an action's `note` and its board `details` (Include notes, in Export) |
+| `yours` | Between your own devices, never to another person | everything that happened while the chart was worked (`days` with ticks and time logged, `weeks`, done marks, the board's lanes, `cleared`, what was opened from a shelf and when, the running `timer`), the `brief`, site `icons` |
 | `device` | Nowhere | nothing inside a chart; see the browser keys below |
+
+It also says which part of the chart each field is. `plan` is the chart and how it is set up; `history` is what happened while it was worked. Copy without history keeps only `plan` (`withoutHistory` in `library.ts`). History is never `shared`: a person you send a chart to gets the plan, not your days.
 
 It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one cloud sync replaces. The rest belong to the device: theme, accent, the view, the chat app, share secrets, the prototype's sync state.
 
 Two checks keep it honest:
 
-- A new field on `ChartData`, `ActionMeta`, `DayLog`, `WeekReflection`, `Tool`, or `ChartBrief` fails `bun run check` until `contract.ts` places it.
-- `contract.test.ts` fails when `forSharing` (`share.ts`) gives away anything not `shared`, or keeps anything that is, and when a `localStorage` key appears in the code that `BROWSER_KEYS` does not list, or a listed one is no longer used.
+- A new field on `ChartData`, `ActionMeta`, `DayLog`, `Session`, `Timer`, `WeekReflection`, `Tool`, or `ChartBrief` fails `bun run check` until `contract.ts` places it.
+- `contract.test.ts` fails when `forSharing` (`share.ts`) gives away anything not `shared` (or `asked`, when notes are included), or keeps anything that is, when `withoutHistory` keeps history or drops plan, when a history field is `shared`, and when a `localStorage` key appears in the code that `BROWSER_KEYS` does not list, or a listed one is no longer used.
 
 So a feature that saves something new has to decide where it goes, in the same change.
 

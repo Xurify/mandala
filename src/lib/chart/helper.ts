@@ -1,5 +1,6 @@
 import { ACTION_MAX, briefLines, PILLAR_MAX } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
+import { formatMinutes, minutesByPillar } from './timer.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionMeta, type ChartData, type Ref } from './model.ts';
 
 export const UNTICKABLE =
@@ -514,7 +515,7 @@ function quietPillars(data: ChartData, history: PickHistory, days = 7): number[]
 }
 
 export type HelperInsight = {
-	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'words' | 'follow' | 'retire' | 'tool';
+	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'time' | 'words' | 'follow' | 'retire' | 'tool';
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
@@ -626,6 +627,13 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		else if (share((hour) => hour >= 12 && hour < 18) >= 0.7) insights.push({ id: 'rhythm', text: 'Most of your ticks happen in the afternoon.', weight: 16 });
 	}
 
+	const minutes = minutesByPillar(data, now);
+	const total = minutes.reduce((sum, value) => sum + value, 0);
+	const most = minutes.indexOf(Math.max(...minutes));
+	if (total >= 60 && minutes[most]! / total >= 0.5 && filled(pillarName(data, most))) {
+		insights.push({ id: 'time', ref: `p${most}`, text: `Most of your time this week went to ${pillarName(data, most)}: ${formatMinutes(minutes[most]!)}.`, weight: 32 });
+	}
+
 	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now), ...knownByNow(data, now));
 
 	return insights.sort((a, b) => b.weight - a.weight);
@@ -717,6 +725,7 @@ export type HelperProgress = {
 	written: number;
 	everTicked: boolean;
 	quiet: number[];
+	minutes: number[];
 	insights: HelperInsight[];
 };
 
@@ -731,7 +740,8 @@ export function progressOf(data: ChartData, now: Date = new Date()): HelperProgr
 		written: data.actions.flat().filter(filled).length,
 		everTicked: Object.values(data.days ?? {}).some((log) => log.checked.length > 0),
 		quiet: quietPillars(data, history),
-		insights: insightsFor(data, now).filter((insight) => !['streak', 'quiet'].includes(insight.id)).slice(0, 3)
+		minutes: minutesByPillar(data, now),
+		insights: insightsFor(data, now).filter((insight) => !['streak', 'quiet', 'time'].includes(insight.id)).slice(0, 3)
 	};
 }
 

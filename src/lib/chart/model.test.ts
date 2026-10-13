@@ -230,7 +230,7 @@ describe('exportJson and exportFilename', () => {
 		expect(exportFilename(data)).toBe('mandala-chart.json');
 
 		data.goal = 'Run a half marathon in under 2 hours!';
-		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-00.json');
+		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-hours.json');
 	});
 });
 
