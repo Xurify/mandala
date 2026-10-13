@@ -106,7 +106,7 @@ const SYNC_STATE_KEY = "mandala-sync-state-v1";
 const HELD_KEY = "mandala-held";
 import { exampleChart, isExampleChart } from "./example.ts";
 import { applySavedGoalFit } from "$lib/components/goal-fit";
-import { buildChart, type Preset } from "./presets/index.ts";
+import { buildChart, getPreset, type Preset, type PresetId } from "./presets/index.ts";
 import {
   clearBackupHandle,
   loadBackupHandle,
@@ -196,6 +196,25 @@ function loadInitialLibrary(): ChartLibrary {
 }
 
 const bootLibrary = loadInitialLibrary();
+
+const START_SHEET_KEY = "mandala_start_sheet";
+
+type StartSheetState = { chartId: string; borrowedPreset: PresetId | null };
+
+function loadStartSheetState(): StartSheetState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(START_SHEET_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StartSheetState>;
+    if (typeof parsed.chartId !== "string") return null;
+    const presetId = parsed.borrowedPreset;
+    const borrowedPreset = typeof presetId === "string" && getPreset(presetId) ? (presetId as PresetId) : null;
+    return { chartId: parsed.chartId, borrowedPreset };
+  } catch {
+    return null;
+  }
+}
 
 const SHARE_STATE_KEY = "mandala-share-state-v1";
 const REFLECT_KEY = "mandala_reflect";
@@ -301,6 +320,9 @@ export class ChartStore {
     summarizeDeleted(this.#library.deleted),
   );
   activeId = $derived(this.#library.activeId);
+  #startSheet: StartSheetState | null = $state(loadStartSheetState());
+  inStartSheet = $derived(this.#startSheet?.chartId === this.#library.activeId);
+  borrowedPreset: PresetId | null = $derived(this.inStartSheet ? (this.#startSheet?.borrowedPreset ?? null) : null);
   chartCount = $derived(this.#library.charts.length);
   calendarScope = $state("all");
   goals: Goal[] = $derived(
@@ -1449,6 +1471,21 @@ export class ChartStore {
     }, "theme");
   }
 
+  openStartSheet(borrowedPreset: PresetId | null = null): void {
+    this.#startSheet = { chartId: this.#library.activeId, borrowedPreset };
+    try {
+      localStorage.setItem(START_SHEET_KEY, JSON.stringify(this.#startSheet));
+    } catch {}
+  }
+
+  closeStartSheet(): void {
+    if (!this.inStartSheet) return;
+    this.#startSheet = null;
+    try {
+      localStorage.removeItem(START_SHEET_KEY);
+    } catch {}
+  }
+
   applyPreset(preset: Preset): boolean {
     return this.#fillOrSpawn(
       buildChart(preset),
@@ -1627,6 +1664,7 @@ export class ChartStore {
 
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
+      this.closeStartSheet();
       this.data = withNewIds(next);
       this.#resetView();
       this.saveNow();

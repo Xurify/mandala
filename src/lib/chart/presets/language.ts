@@ -3,7 +3,7 @@ import type { Preset } from './index.ts';
 export const language: Preset = {
 	id: 'language',
 	title: 'Language',
-	goal: 'Hold a 20-minute conversation in your target language within 6 months',
+	goal: 'Be conversationally fluent in your target language within 6 months',
 	pillars: [
 		'Speaking time',
 		'Listening',

@@ -5,13 +5,14 @@
 
 	type Props = {
 		label: string;
+		hideTabs?: boolean;
 		children: Snippet;
 		/** Something that rides on the dock, between it and the toast. */
 		above?: Snippet;
 	};
 
-	let { label, children, above }: Props = $props();
-	const styles = dock();
+	let { label, hideTabs = false, children, above }: Props = $props();
+	const styles = $derived(dock({ hideTabs }));
 </script>
 
 <div class={styles.wrap()}>

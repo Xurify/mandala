@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { chart } from './chart.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { emptyChart, todayKey } from './model.ts';
+import { buildChart, getPreset } from './presets/index.ts';
 
 beforeEach(() => {
 	chart.data = slotted(emptyChart());
@@ -91,6 +92,8 @@ describe('chart time', () => {
 	const MINUTE = 60_000;
 
 	const ids = () => ({ a0_0: chart.data.actionIds[0]![0]!, a3_2: chart.data.actionIds[3]![2]! });
+	// A session is logged on the day its timer started, which is yesterday when these run just after midnight.
+	const logged = () => Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []).map((session) => session.minutes);
 
 	beforeEach(() => {
 		chart.data = emptyChart();
@@ -116,7 +119,7 @@ describe('chart time', () => {
 		chart.data.timer!.since -= 5 * MINUTE;
 		chart.startTimer(ids().a3_2, 25);
 		expect(chart.timer).toMatchObject({ action: ids().a3_2, length: 25 });
-		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([5]);
+		expect(logged()).toEqual([5]);
 	});
 
 	it('finishes a block at its length, and a break without logging', () => {
@@ -127,7 +130,7 @@ describe('chart time', () => {
 		chart.startBreak(5);
 		chart.data.timer!.since -= 6 * MINUTE;
 		expect(chart.finishTimer()).toMatchObject({ kind: 'break' });
-		expect(chart.data.days?.[todayKey()]?.sessions?.map((session) => session.minutes)).toEqual([25]);
+		expect(logged()).toEqual([25]);
 	});
 
 	it('asks how long instead of logging a stopwatch left on for hours', () => {
@@ -138,15 +141,14 @@ describe('chart time', () => {
 		expect(chart.loggingTime?.forgotten).toBeDefined();
 		chart.logTime(ids().a0_0, 40);
 		expect(chart.timer).toBeNull();
-		const sessions = Object.values(chart.data.days ?? {}).flatMap((day) => day.sessions ?? []);
-		expect(sessions.map((session) => session.minutes)).toEqual([40]);
+		expect(logged()).toEqual([40]);
 	});
 
 	it('logs nothing for under a minute', () => {
 		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 50_000;
 		chart.stopTimer();
-		expect(chart.data.days?.[todayKey()]?.sessions).toBeUndefined();
+		expect(logged()).toEqual([]);
 		expect(chart.timerEnd).toMatchObject({ kind: 'stopped', minutes: 0 });
 	});
 
@@ -188,5 +190,26 @@ describe('chart copies', () => {
 		expect(chart.data.meta?.[copy]).toEqual({ kind: 'routine', note: 'Page 40' });
 		expect(chart.data.days).toBeUndefined();
 		expect(chart.slips.at(-1)?.kicker).toBe('Copied fresh');
+	});
+});
+
+describe('starting from the center', () => {
+	it('follows the chart it began on, and ends when a whole chart arrives', () => {
+		chart.openStartSheet('fitness');
+		expect(chart.inStartSheet).toBe(true);
+		expect(chart.borrowedPreset).toBe('fitness');
+		chart.setText('g', 'Run a half marathon');
+		chart.newChart();
+		expect(chart.inStartSheet).toBe(false);
+		expect(chart.borrowedPreset).toBeNull();
+		chart.openStartSheet(null);
+		chart.importChart(buildChart(getPreset('music')!));
+		expect(chart.inStartSheet).toBe(false);
+	});
+
+	it('ends only for the chart that is starting', () => {
+		chart.openStartSheet(null);
+		chart.closeStartSheet();
+		expect(chart.inStartSheet).toBe(false);
 	});
 });

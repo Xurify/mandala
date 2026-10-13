@@ -6,14 +6,16 @@
 
 	interface Props {
 		helper: HelperStore;
+		hideLauncher?: boolean;
 	}
 
-	let { helper }: Props = $props();
+	let { helper, hideLauncher = false }: Props = $props();
 
 	let launcher: HTMLButtonElement | null = $state(null);
 
 	function close(): void {
 		helper.hide();
+		if (hideLauncher) return;
 		const launchers = [launcher, document.querySelector<HTMLElement>('[data-bindu-launcher]')];
 		launchers.find((each) => each && each.getClientRects().length > 0)?.focus();
 	}
@@ -28,6 +30,7 @@
 	</div>
 {/if}
 
+{#if !hideLauncher || helper.open}
 <button
 	bind:this={launcher}
 	type="button"
@@ -39,3 +42,4 @@
 >
 	<HelperFace mood={helper.mood} size={42} />
 </button>
+{/if}

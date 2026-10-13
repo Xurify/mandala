@@ -7,6 +7,8 @@ import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } 
 import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
 import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
+import { getPreset } from './presets/index.ts';
+import { countCompletedBlocks, resumeStep, presetActionsToLend } from './start.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -27,6 +29,20 @@ describe('demos', () => {
 		expect(data.actions.flat().filter((action) => !action.trim())).toHaveLength(1);
 		data.actions[7]![7] = 'Done';
 		expect(completedBy(before, wholeness(data))).toEqual({ pillars: [7], chart: true });
+	});
+
+	it('opens a borrowed start on the ring, with actions to lend', () => {
+		const setup = demoSetup('borrowed', now);
+		expect(setup.startSheet).toEqual({ borrowedPreset: 'fitness' });
+		expect(resumeStep(setup.data!)).toEqual({ step: 'pillars', pillar: null });
+		expect(presetActionsToLend(setup.data!, getPreset('fitness'), 2)).toHaveLength(8);
+	});
+
+	it('leaves blocks to keep building, and a pillar to name', () => {
+		const data = demoSetup('building', now).data!;
+		expect(countCompletedBlocks(data)).toBe(3);
+		expect(data.pillars[6]).toBe('');
+		expect(resumeStep(data)).toEqual({ step: 'overview', pillar: null });
 	});
 
 	it('finishes a pillar without finishing the chart', () => {

@@ -3,7 +3,7 @@ import { chartFromDraft, chatLink, fillPrompt, newChartPrompt, parseDraftText, r
 import { emptyChart } from './model.ts';
 
 const sample = {
-	goal: 'Run a half marathon in under 2:00 by October',
+	goal: 'Run a half marathon in under 2 hours by October',
 	pillars: [
 		'Training plan',
 		'Speed',

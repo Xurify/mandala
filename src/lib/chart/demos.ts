@@ -6,6 +6,8 @@ import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type
 export type DemoId =
 	| 'complete'
 	| 'pillar'
+	| 'borrowed'
+	| 'building'
 	| 'phone'
 	| 'today'
 	| 'calendar'
@@ -29,6 +31,7 @@ export type DemoSetup = {
 	view: ViewMode;
 	focus?: string;
 	copies?: number;
+	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
 	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
@@ -191,6 +194,26 @@ export const DEMOS: readonly Demo[] = [
 			'Core phrases is one action short. The cursor is in the empty cell.',
 			'Type the line, then pause or leave the cell. Its check stamps onto pillar 3, its block glows, and its arc in the ring redraws.',
 			'The chart is not full, so there is no chart moment.'
+		]
+	},
+	{
+		id: 'borrowed',
+		title: 'A borrowed goal, block by block',
+		group: 'Writing the chart',
+		steps: [
+			'The Fitness goal and its eight pillars are in, with no actions yet. The sheet opens on the ring.',
+			'Next, then pick Long runs. The preset’s eight actions deal in under it. Change any of them, then Next pillar.',
+			'All pillars, without changing anything, puts the lent actions back, so the outer ring counts only what was kept.'
+		]
+	},
+	{
+		id: 'building',
+		title: 'Keep building',
+		group: 'Writing the chart',
+		steps: [
+			'Three of the eight blocks are written, and one pillar has no name. Above the grid, Keep building says so.',
+			'Press it. The sheet opens on the outer ring: a check on each whole block, a count on the rest, and a plus where a pillar has no name.',
+			'Tap the plus to name it on the ring. Done for now goes back to the grid with every line kept.'
 		]
 	},
 	{
@@ -377,6 +400,17 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[2]![5] = '';
 		for (let index = 4; index < 8; index++) data.actions[6]![index] = '';
 		return { data, view: 'split', focus: 'a2_5' };
+	}
+	if (id === 'borrowed') {
+		const data = preset('fitness');
+		data.actions = data.actions.map((row) => row.map(() => ''));
+		return { data, view: 'view', startSheet: { borrowedPreset: 'fitness' } };
+	}
+	if (id === 'building') {
+		const data = preset('career');
+		data.actions = data.actions.map((row, k) => (k < 3 ? row : row.map(() => '')));
+		data.pillars[6] = '';
+		return { data, view: 'view' };
 	}
 	if (id === 'phone') return { data: livedIn(now), view: 'view' };
 	if (id === 'today') return { data: livedIn(now), view: 'today', others: [inTraining(now)] };
