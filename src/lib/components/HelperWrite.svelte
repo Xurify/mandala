@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { HelperStore, WriteMode } from '$lib/chart/helper.svelte';
-	import { CHAT_APPS } from '$lib/chart/draft';
+	import { CHAT_APPS, chatLink, type ChatApp } from '$lib/chart/draft';
 	import { draftButton, editWords, gapsOf, groupEdits } from '$lib/chart/helper';
 	import { hasContent } from '$lib/chart/model';
 	import { HUES, setByKey } from '$lib/chart/model';
@@ -33,6 +33,8 @@
 	});
 	const copied = $derived(helper.copied === helper.mode);
 	const opened = $derived(copied ? helper.sent : null);
+	let link = $state<{ mode: WriteMode; app: ChatApp } | null>(null);
+	const linked = $derived(copied && link?.mode === helper.mode ? link.app : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
 
@@ -59,7 +61,20 @@
 		try {
 			await navigator.clipboard.writeText(helper.prompt(mode));
 			failed = false;
+			link = null;
 			helper.markCopied(mode);
+		} catch {
+			failed = true;
+		}
+	}
+
+	async function copyLink(): Promise<void> {
+		const mode: WriteMode = helper.mode;
+		try {
+			await navigator.clipboard.writeText(chatLink(helper.app, helper.prompt(mode)));
+			failed = false;
+			helper.markCopied(mode);
+			link = { mode, app: helper.app };
 		} catch {
 			failed = true;
 		}
@@ -133,8 +148,9 @@
 					></textarea>
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
-					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
-					<Button size="sm" variant="soft" icon={app.icon} onclick={() => helper.openIn()}>Open in {app.label}</Button>
+					<Button size="sm" variant="soft" icon={copied && !opened && !linked ? 'check' : 'copy'} onclick={copy}>{copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}</Button>
+					<Button size="sm" variant="soft" icon={app.icon} onclick={() => ((link = null), helper.openIn())}>Open in {app.label}</Button>
+					<Button size="sm" variant="soft" icon={linked ? 'check' : 'link'} onclick={copyLink}>{linked ? 'Link copied' : 'Copy link'}</Button>
 					<Select
 						size="sm"
 						class="w-[9.5rem]"
@@ -158,7 +174,11 @@
 				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{opened ? `It is in ${APPS[opened]}'s box. Send it there.` : 'Paste it into any chat app'}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{opened
+						? `It is in ${APPS[opened]}'s box. Send it there.`
+						: linked
+							? `Paste the link into any browser. ${APPS[linked]} opens with it.`
+							: 'Paste it into any chat app'}</p>
 				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
 			</div>
 		</li>

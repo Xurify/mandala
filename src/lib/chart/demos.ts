@@ -190,7 +190,7 @@ export const DEMOS: readonly Demo[] = [
 		title: 'Finish a pillar',
 		group: 'Writing the chart',
 		steps: [
-			'Core phrases is one action short. The cursor is in the empty cell.',
+			'Vocabulary is one action short. The cursor is in the empty cell.',
 			'Type the line, then pause or leave the cell. Its check stamps onto pillar 3, its block glows, and its arc in the ring redraws.',
 			'The chart is not full, so there is no chart moment.'
 		]
@@ -328,10 +328,10 @@ export const DEMOS: readonly Demo[] = [
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, the arrows for another, or the shelf button to open that pillar\'s shelf.',
 			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. The arrow opens its settings. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
-			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Sentence patterns, a link\'s See action 1 turns back to that cell.',
+			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Reading, a link\'s See action 1 turns back to that cell.',
 			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
 			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
-			'On pillar 5, Sentence patterns, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'On pillar 5, Reading, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
 			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
 		]
 	},

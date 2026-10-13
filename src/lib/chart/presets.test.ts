@@ -5,12 +5,17 @@ import {
 	PRESETS,
 	buildChart,
 	getPreset,
+	goalsOf,
 	listPresets,
 	type PresetId
 } from './presets/index.ts';
 
 const PRESET_IDS: PresetId[] = [
 	'language',
+	'language-conversation',
+	'language-exam',
+	'language-moving',
+	'language-family',
 	'fitness',
 	'career',
 	'money',
@@ -33,7 +38,15 @@ describe('presets', () => {
 	it('registers unique ids in the declared order', () => {
 		expect(PRESETS.map((preset) => preset.id)).toEqual(PRESET_IDS);
 		expect(new Set(PRESETS.map((preset) => preset.id)).size).toBe(PRESET_IDS.length);
-		expect(listPresets().map((summary) => summary.id)).toEqual(PRESET_IDS);
+		expect(listPresets().map((summary) => summary.id)).toEqual(PRESET_IDS.filter((id) => !id.startsWith('language-')));
+	});
+
+	it('lists a group’s goals under its main preset, each with its own name', () => {
+		const ids = ['language', 'language-conversation', 'language-exam', 'language-moving', 'language-family'];
+		expect(goalsOf('language').map((preset) => preset.id)).toEqual(ids);
+		expect(goalsOf('language-exam').map((preset) => preset.id)).toEqual(ids);
+		expect(new Set(goalsOf('language').map((preset) => preset.variant)).size).toBe(ids.length);
+		expect(goalsOf('fitness').map((preset) => preset.id)).toEqual(['fitness']);
 	});
 
 	it('fills every cell within draft caps and unique labels', () => {
@@ -85,11 +98,11 @@ describe('presets', () => {
 		expect(getPreset('nope')).toBeUndefined();
 	});
 
-	it('keeps the language preset language-agnostic', () => {
-		const preset = getPreset('language');
-		expect(preset).toBeDefined();
-		const blob = [preset!.goal, ...preset!.pillars, ...allActions(preset!)].join('\n');
-		expect(blob).not.toMatch(LANGUAGE_LOCK);
+	it('keeps every language goal language-agnostic', () => {
+		for (const preset of goalsOf('language')) {
+			const blob = [preset.goal, ...preset.pillars, ...allActions(preset)].join('\n');
+			expect(blob).not.toMatch(LANGUAGE_LOCK);
+		}
 	});
 
 	it('keeps the fitness marathon example', () => {
