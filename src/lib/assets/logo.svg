@@ -9,11 +9,11 @@
 		<path d="M 52.21 81.74 A 34 34 0 0 1 43.79 81.74" stroke="#9e8fe9"/>
 		<path d="M 74.84 68.88 A 34 34 0 0 1 68.88 74.84" stroke="#d77cb1"/>
 	</g>
-	<circle cx="48" cy="48" r="12" fill="#241e1a"/>
+	<circle cx="48" cy="48" r="12" fill="#332219"/>
 	<text
 		x="112"
 		y="66"
-		fill="#241e1a"
+		fill="#332219"
 		font-family="Source Sans 3 Variable, Source Sans 3, Segoe UI, sans-serif"
 		font-size="54"
 		font-weight="560"
