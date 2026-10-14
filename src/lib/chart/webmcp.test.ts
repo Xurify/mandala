@@ -142,11 +142,13 @@ describe('agent tools', () => {
 		expect(calls.today).toEqual([[A.a2_0]]);
 	});
 
-	it('says when a running stopwatch is left off the new list', async () => {
+	it('says when taking an action off today stopped its stopwatch', async () => {
 		const { data, run } = sandbox();
 		data.timer = { action: A.a3_0, since: now.getTime() - 60_000 };
+		expect(await run('set_today', { ids: [A.a2_0] })).not.toMatch(/stopwatch/);
+		data.days = { [today]: { focus: [A.a3_0], checked: [] } };
 		expect(await run('set_today', { ids: [A.a3_0] })).not.toMatch(/stopwatch/);
-		expect(await run('set_today', { ids: [A.a2_0] })).toMatch(/The stopwatch on “Strength session 1 on Monday” is still running/);
+		expect(await run('set_today', { ids: [A.a2_0] })).toMatch(/The stopwatch on “Strength session 1 on Monday” stopped/);
 	});
 
 	it('sets today without repeats, and logs whole minutes', async () => {

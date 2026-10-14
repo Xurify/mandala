@@ -884,16 +884,34 @@ export class ChartStore {
     this.save();
   }
 
-  /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
-  setFocus(dateKey: string, ids: ActionId[], replaced = false): void {
+  /**
+   * `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. Returns what happened to a
+   * stopwatch on an action taken off today, which it has already said.
+   */
+  setFocus(dateKey: string, ids: ActionId[], replaced = false): string | null {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     const removed = replaced ? [] : existing.focus.filter((id) => !ids.includes(id));
     const dropped = [...(existing.dropped ?? []).filter((id) => !ids.includes(id)), ...removed];
     const log: DayLog = { ...existing, focus: ids, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
     this.data.days[dateKey] = log;
+    const timer = this.data.timer;
+    const stopped = dateKey === this.today && timer?.action && existing.focus.includes(timer.action) && !ids.includes(timer.action) ? this.#timerOff(timer, timer.action) : null;
     this.data = { ...this.data };
     this.save();
+    if (stopped) this.say(stopped);
+    return stopped;
+  }
+
+  /** As switching to another action does: the minutes so far are kept, unless it was left on for hours. */
+  #timerOff(timer: Timer, action: ActionId): string {
+    const now = Date.now();
+    const label = actionLabel(this.data, action);
+    const logged = isForgotten(timer, now) ? null : this.#logTimer(timer, now);
+    delete this.data.timer;
+    this.timerEnd = null;
+    if (isForgotten(timer, now)) return `The stopwatch on ${label} ran for hours, so it was not logged.`;
+    return logged ? `Logged ${formatMinutes(logged.minutes)} on ${label}.` : `Stopped the stopwatch on ${label}.`;
   }
 
   declineToday(ids: ActionId[]): void {

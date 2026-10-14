@@ -374,8 +374,9 @@ export const agentTarget: AgentTarget = {
 		chart.say(`Your assistant reopened “${wordsOf(chart.data, id)}”.`);
 	},
 	setToday: (ids) => {
-		chart.setFocus(todayKey(), ids, true);
-		chart.say(`Your assistant set today: ${ids.length} ${ids.length === 1 ? 'action' : 'actions'}.`);
+		const stopped = chart.setFocus(todayKey(), ids, true);
+		const set = `Your assistant set today: ${ids.length} ${ids.length === 1 ? 'action' : 'actions'}.`;
+		chart.say(stopped ? `${set} ${stopped}` : set);
 	},
 	logTime: (id, minutes) => chart.logTime(id, minutes)
 };

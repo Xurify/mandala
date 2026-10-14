@@ -336,15 +336,13 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				}
 				if (picked.length + habits.length === 0 || picked.length + habits.length > 8) return 'Today was not changed. Give 1 to 8 action ids.';
 				if (picked.length === 0) return `Today was not changed. ${quoted(habits)} ${habits.length === 1 ? 'is a routine' : 'are routines'}, on Today every day already. Pick one-time actions.`;
-				target.setToday(picked.map((entry) => entry.id));
 				const timed = data.timer?.action;
+				const stopping = timed && getDayLog(data, dateKey).focus.includes(timed) && !picked.some((entry) => entry.id === timed) ? written(data, timed) : null;
+				target.setToday(picked.map((entry) => entry.id));
 				const said = [
 					`Today's focus is now: ${quoted(picked.map((entry) => entry.text))}.`,
 					habits.length ? `${quoted(habits)} ${habits.length === 1 ? 'is a routine' : 'are routines'}, on Today every day as a habit.` : '',
-					// A stopwatch belongs to its action, not to the list, so it keeps the person's time when the list changes.
-					timed && !picked.some((entry) => entry.id === timed) && written(data, timed)
-						? `The stopwatch on “${written(data, timed)}” is still running, though that action is off today's list. Tell the person; they can stop it from the slip on the dock.`
-						: ''
+					stopping ? `The stopwatch on “${stopping}” stopped, since that action is off today's list, and its time so far was logged.` : ''
 				];
 				return said.filter(Boolean).join(' ');
 			}
