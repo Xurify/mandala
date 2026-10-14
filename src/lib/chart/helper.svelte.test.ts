@@ -6,12 +6,15 @@ import { dateKeyOf, emptyChart, setByKey, setMeta, type ActionId, type ChartData
 
 const provider = vi.hoisted(() => ({
 	saved: null as Connection | null,
+	consent: true,
 	prompts: [] as string[],
 	next: [] as ((signal?: AbortSignal) => Promise<ProviderReply>)[]
 }));
 
 vi.mock('./provider.ts', () => ({
 	loadConnection: () => provider.saved,
+	loadAiConsent: () => provider.consent,
+	saveAiConsent: (on: boolean) => (provider.consent = on),
 	saveConnection: (connection: Connection | null) => (provider.saved = connection),
 	sendPrompt: (_connection: Connection, prompt: string, signal?: AbortSignal) => {
 		provider.prompts.push(prompt);
@@ -21,6 +24,7 @@ vi.mock('./provider.ts', () => ({
 
 beforeEach(() => {
 	provider.saved = null;
+	provider.consent = true;
 	provider.prompts = [];
 	provider.next = [];
 });
@@ -322,5 +326,42 @@ describe('HelperStore with an AI provider', () => {
 		await sent;
 		expect(helper.reply).toBe('');
 		expect(helper.sendError).toBe('');
+	});
+
+	it('sends nothing until the person turns AI on, and stops when they turn it off', async () => {
+		provider.consent = false;
+		const { helper } = sandbox();
+		helper.connect(gemini);
+		helper.show('write', 'fill');
+		await helper.send();
+		expect(provider.prompts).toEqual([]);
+		helper.offerAi();
+		expect(helper.askingConsent).toBe(true);
+		expect(helper.page).toBe('write');
+		helper.setAiEnabled(true);
+		expect(provider.consent).toBe(true);
+		expect(helper.askingConsent).toBe(false);
+		provider.next.push(() => new Promise(() => {}));
+		void helper.send();
+		expect(helper.sending).toBe(helper.mode);
+		helper.setAiEnabled(false);
+		expect(helper.sending).toBeNull();
+		expect(provider.consent).toBe(false);
+		expect(helper.connection).toEqual(gemini);
+	});
+});
+
+describe('HelperStore turned off', () => {
+	it('closes, and opens for nothing until it is turned back on', () => {
+		const { helper } = sandbox();
+		helper.show('today');
+		helper.setEnabled(false);
+		expect(helper.open).toBe(false);
+		expect(helper.page).toBe('home');
+		helper.show('write');
+		expect(helper.open).toBe(false);
+		helper.setEnabled(true);
+		helper.show();
+		expect(helper.open).toBe(true);
 	});
 });

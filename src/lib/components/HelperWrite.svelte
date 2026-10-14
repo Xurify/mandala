@@ -45,13 +45,15 @@
 	let modelDraft = $state('');
 	let leaving = $state(false);
 	const connected = $derived(helper.connection ? providerOf(helper.connection.provider) : null);
+	/** The provider Bindu may send to: connected, and the person turned AI on. */
+	const live = $derived(helper.aiEnabled ? connected : null);
 	const chosen = $derived(providerOf(choice));
 	const providerOptions = PROVIDERS.map((provider) => ({ value: provider.id, label: provider.label }));
 	const replyFromProvider = $derived(helper.repliedBy === 'provider');
 	const sendingThisMode = $derived(helper.sending !== null && helper.sending === helper.mode);
 	const ready = $derived(helper.mode === 'new' ? helper.goal.trim() !== '' : helper.mode === 'ask' ? helper.question.trim() !== '' : true);
 	const sendLabel = $derived(
-		connected ? (helper.mode === 'ask' ? `Ask ${connected.label}` : helper.mode === 'review' ? `Review with ${connected.label}` : `Write with ${connected.label}`) : ''
+		live ? (helper.mode === 'ask' ? `Ask ${live.label}` : helper.mode === 'review' ? `Review with ${live.label}` : `Write with ${live.label}`) : ''
 	);
 
 	function saveKey(event: SubmitEvent): void {
@@ -62,6 +64,11 @@
 		keyDraft = '';
 		modelDraft = '';
 		connecting = false;
+	}
+
+	function turnOnAi(): void {
+		helper.setAiEnabled(true);
+		if (!helper.connection) connecting = true;
 	}
 
 	async function signInWithOpenRouter(): Promise<void> {
@@ -158,7 +165,7 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{connected ? `Write it with ${connected.label}, or copy the prompt` : 'Copy the prompt'}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or copy the prompt` : 'Copy the prompt'}</p>
 				{#if helper.mode === 'review'}
 					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
 				{:else if helper.mode === 'new'}
@@ -185,9 +192,9 @@
 						onblur={() => (helper.listening = false)}
 					></textarea>
 				{/if}
-				{#if connected}
+				{#if live}
 					<div class="flex flex-wrap items-center gap-2">
-						<Button size="sm" variant={answered || helper.askAnswer ? 'soft' : 'primary'} icon={connected.icon} disabled={!ready || helper.sending !== null} onclick={() => helper.send()}>
+						<Button size="sm" variant={answered || helper.askAnswer ? 'soft' : 'primary'} icon={live.icon} disabled={!ready || helper.sending !== null} onclick={() => helper.send()}>
 							{#if sendingThisMode}<span class="inline-flex items-center">Writing<BouncingDots /></span>{:else}{sendLabel}{/if}
 						</Button>
 						{#if sendingThisMode}
@@ -227,12 +234,12 @@
 				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{sendingThisMode && connected
-						? `${connected.label} is writing. It can take a minute.`
-						: helper.askAnswer && helper.mode === 'ask' && connected
-							? `${connected.label} answered`
-							: replyFromProvider && connected
-								? `${connected.label} wrote it`
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{sendingThisMode && live
+						? `${live.label} is writing. It can take a minute.`
+						: helper.askAnswer && helper.mode === 'ask' && live
+							? `${live.label} answered`
+							: replyFromProvider && live
+								? `${live.label} wrote it`
 								: opened
 						? `It is in ${APPS[opened]}'s box. Send it there.`
 						: linked
@@ -252,7 +259,7 @@
 					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}{@render check()}{:else}3{/if}
 				</span>
 				<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{replyFromProvider && connected ? `${connected.label}'s reply` : 'Paste the reply here'}</p>
+					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{replyFromProvider && live ? `${live.label}'s reply` : 'Paste the reply here'}</p>
 					{#if outcome?.kind === 'chart'}
 						{@const data = outcome.data}
 						<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
@@ -332,7 +339,26 @@
 		{/if}
 	</ol>
 
-	{#if connected && helper.connection}
+	{#if helper.askingConsent}
+		<section class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" aria-labelledby="ai-consent-title">
+			<p id="ai-consent-title" class="m-0 text-[0.95rem] leading-tight font-[620]">Let Mandala send your chart to an AI?</p>
+			<ul class="m-0 flex list-disc flex-col gap-1.5 ps-4 text-[0.84rem] leading-snug text-pretty text-muted">
+				<li>When you press Write, Review or Ask, this browser sends the chart, what you told Bindu, and your question to the provider you connect. Nothing goes before you press.</li>
+				<li>The provider bills your account, and keeps the text under its own terms.</li>
+				<li>Turn it off any time in More actions. Copying a prompt works either way.</li>
+			</ul>
+			<div class="flex items-center gap-2">
+				<Button size="sm" onclick={turnOnAi}>Turn on</Button>
+				<Button size="sm" variant="ghost" onclick={() => (helper.askingConsent = false)}>Not now</Button>
+			</div>
+		</section>
+	{:else if connected && helper.connection && !helper.aiEnabled}
+		<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
+			<span class="inline-flex items-center gap-1.5"><Icon name={connected.icon} size={14} />Your {connected.label} key is saved. AI is off.</span>
+			<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => (helper.askingConsent = true)}>Turn on</button>
+			<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => helper.connect(null)}>Disconnect</button>
+		</p>
+	{:else if connected && helper.connection}
 		<div class="flex flex-col gap-2">
 			<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
 				<span class="inline-flex items-center gap-1.5"><Icon name={connected.icon} size={14} />{connected.label} is connected on this device.</span>
@@ -354,7 +380,7 @@
 				</label>
 			{/if}
 		</div>
-	{:else if connecting}
+	{:else if connecting && helper.aiEnabled}
 		<form class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" onsubmit={saveKey}>
 			<p class="m-0 text-[0.95rem] leading-tight font-[620]">Connect an AI provider</p>
 			<SegmentedControl options={providerOptions} bind:value={choice} size="sm" label="AI provider" />
@@ -386,6 +412,6 @@
 			</div>
 		</form>
 	{:else}
-		<Button class="self-start" size="sm" variant="ghost" icon="sparkles" onclick={() => (connecting = true)}>Connect an AI provider</Button>
+		<Button class="self-start" size="sm" variant="ghost" icon="sparkles" onclick={() => (helper.aiEnabled ? (connecting = true) : (helper.askingConsent = true))}>Connect an AI provider</Button>
 	{/if}
 </div>

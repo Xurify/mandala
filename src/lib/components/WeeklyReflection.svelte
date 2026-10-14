@@ -2,6 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { weekInReview } from '$lib/chart/helper';
+	import { helper } from '$lib/chart/helper.svelte';
 	import { HUES, type ActionId } from '$lib/chart/model';
 	import DaySeal from './DaySeal.svelte';
 	import Icon from './Icon.svelte';
@@ -299,7 +300,9 @@
 							placeholder="What happened, and what you want next week to hold"
 							bind:value={note}
 						></textarea>
-						<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted">Bindu says it back to you when the new week starts.</p>
+						{#if helper.enabled}
+							<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted">Bindu says it back to you when the new week starts.</p>
+						{/if}
 					{/if}
 				</div>
 			{/if}

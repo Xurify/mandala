@@ -393,9 +393,10 @@ export const DEMOS: readonly Demo[] = [
 		title: 'Connect an AI provider',
 		group: 'Bindu',
 		steps: [
-			'Bindu opens on Fill the gaps. Press Connect an AI provider at the foot of the page. Pick OpenRouter, Gemini, Claude or OpenAI; Save key stays off until the key looks like one of theirs.',
+			'Bindu opens on Fill the gaps. Press Connect an AI provider at the foot of the page. The first time, it asks to turn AI on and says what would be sent. Then pick OpenRouter, Gemini, Claude or OpenAI; Save key stays off until the key looks like one of theirs.',
 			'Connect OpenRouter leaves for openrouter.ai and comes back connected, with Bindu open on this page. Its model field takes any OpenRouter model; openrouter/free costs nothing.',
-			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.'
+			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.',
+			'More actions holds Turn off AI provider, and Turn off Bindu, which takes the face and every door to it away until Turn on Bindu.'
 		]
 	}
 ];

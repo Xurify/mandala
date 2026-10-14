@@ -55,6 +55,8 @@ export const PROVIDERS: readonly Provider[] = [
 ];
 
 export const CONNECTION_KEY = 'mandala_ai_provider';
+/** Set only once the person has agreed to the app sending their chart to the provider they connect. */
+export const AI_CONSENT_KEY = 'mandala_ai_consent';
 export const OPENROUTER_VERIFIER_KEY = 'mandala_openrouter_verifier';
 
 export function providerOf(id: ProviderId): Provider {
@@ -97,6 +99,22 @@ export function saveConnection(connection: Connection | null): void {
 	try {
 		if (connection) localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection));
 		else localStorage.removeItem(CONNECTION_KEY);
+	} catch {
+	}
+}
+
+export function loadAiConsent(): boolean {
+	try {
+		return typeof localStorage !== 'undefined' && localStorage.getItem(AI_CONSENT_KEY) === 'on';
+	} catch {
+		return false;
+	}
+}
+
+export function saveAiConsent(on: boolean): void {
+	try {
+		if (on) localStorage.setItem(AI_CONSENT_KEY, 'on');
+		else localStorage.removeItem(AI_CONSENT_KEY);
 	} catch {
 	}
 }

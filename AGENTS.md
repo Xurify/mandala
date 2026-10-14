@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`. The one outside call is optional: a person who connects their own AI provider (OpenRouter, Gemini, Claude or OpenAI) can have Bindu send its prompt there from the browser (`provider.ts`).
+Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`. The one outside call is optional: a person who turns AI on and connects their own provider (OpenRouter, Gemini, Claude or OpenAI) can have Bindu send its prompt there from the browser (`provider.ts`). Nothing is sent without that consent, and Bindu as a whole can be turned off.
 
 **Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy. A new or restyled component also follows **Making a component** there: name the object it is in this app, give it one job, try several versions in the place it will sit, and let arrivals land while departures ease out.
 

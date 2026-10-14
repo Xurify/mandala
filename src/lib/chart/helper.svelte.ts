@@ -19,7 +19,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { loadConnection, saveConnection, sendPrompt, type Connection } from './provider.ts';
+import { loadAiConsent, loadConnection, saveAiConsent, saveConnection, sendPrompt, type Connection } from './provider.ts';
 import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
@@ -41,6 +41,15 @@ export type HelperTarget = {
 export type HelperPicks = { scope: 'today' | 'week'; picks: HelperPick[] };
 
 const CHAT_APP_KEY = 'mandala_chat_app';
+const BINDU_KEY = 'mandala_bindu';
+
+function loadBinduOn(): boolean {
+	try {
+		return typeof localStorage === 'undefined' || localStorage.getItem(BINDU_KEY) !== 'off';
+	} catch {
+		return true;
+	}
+}
 
 function loadChatApp(): ChatApp {
 	try {
@@ -73,6 +82,12 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
 	app = $state<ChatApp>(loadChatApp());
+	/** Off hides Bindu everywhere: the face, the panel, and the doors that open it. */
+	enabled = $state(loadBinduOn());
+	/** Nothing goes to a provider until the person turns this on, and they can turn it off again. */
+	aiEnabled = $state(loadAiConsent());
+	/** The write page is showing what turning it on means. */
+	askingConsent = $state(false);
 	connection = $state<Connection | null>(loadConnection());
 	/** The mode whose request to the provider is out. */
 	sending = $state<WriteMode | null>(null);
@@ -134,6 +149,7 @@ export class HelperStore {
 	 * for the reply. A finished moment does not wait for a reopen.
 	 */
 	show(page?: HelperPage, mode?: WriteMode): void {
+		if (!this.enabled) return;
 		const opening = !this.open;
 		this.open = true;
 		if (this.moment) this.reset();
@@ -246,7 +262,7 @@ export class HelperStore {
 	async send(): Promise<void> {
 		const mode = this.mode;
 		const connection = this.connection;
-		if (!connection || this.sending) return;
+		if (!connection || !this.aiEnabled || this.sending) return;
 		const request = new AbortController();
 		this.#request = request;
 		this.sending = mode;
@@ -266,6 +282,33 @@ export class HelperStore {
 			this.#providerReply = result.text;
 			this.reply = result.text;
 		}
+	}
+
+	setEnabled(on: boolean): void {
+		try {
+			if (on) localStorage.removeItem(BINDU_KEY);
+			else localStorage.setItem(BINDU_KEY, 'off');
+		} catch {
+		}
+		this.enabled = on;
+		if (!on) {
+			this.cancel();
+			this.hide();
+			this.reset();
+		}
+	}
+
+	setAiEnabled(on: boolean): void {
+		saveAiConsent(on);
+		this.aiEnabled = on;
+		this.askingConsent = false;
+		if (!on) this.cancel();
+	}
+
+	/** Opens the write page on what turning AI on means, for the menu and the command palette. */
+	offerAi(): void {
+		this.askingConsent = true;
+		this.show('write');
 	}
 
 	cancel(): void {
