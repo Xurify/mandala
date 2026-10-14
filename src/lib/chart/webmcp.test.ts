@@ -131,9 +131,29 @@ describe('agent tools', () => {
 		expect(calls.today).toHaveLength(0);
 	});
 
+	it('says a routine is on Today already, and refuses a line finished on another day', async () => {
+		const { data, calls, run } = sandbox();
+		data.meta = { [A.a0_0]: { kind: 'routine' }, [A.a1_0]: { kind: 'milestone', done: true, doneAt: '2026-10-01' } };
+		expect(await run('set_today', { ids: [A.a0_0] })).toMatch(/^Today was not changed\. “Easy runs session 1 on Monday” is a routine/);
+		expect(await run('set_today', { ids: [A.a1_0, A.a2_0] })).toBe('Today was not changed. “Speed session 1 on Monday” was finished on another day.');
+		expect(await run('set_today', { ids: [A.a0_0, A.a2_0] })).toBe(
+			"Today's focus is now: “Long run session 1 on Monday”. “Easy runs session 1 on Monday” is a routine, on Today every day as a habit."
+		);
+		expect(calls.today).toEqual([[A.a2_0]]);
+	});
+
+	it('says when a running stopwatch is left off the new list', async () => {
+		const { data, run } = sandbox();
+		data.timer = { action: A.a3_0, since: now.getTime() - 60_000 };
+		expect(await run('set_today', { ids: [A.a3_0] })).not.toMatch(/stopwatch/);
+		expect(await run('set_today', { ids: [A.a2_0] })).toMatch(/The stopwatch on “Strength session 1 on Monday” is still running/);
+	});
+
 	it('sets today without repeats, and logs whole minutes', async () => {
 		const { calls, run } = sandbox();
-		expect(await run('set_today', { ids: [A.a0_0, A.a2_1, A.a0_0] })).toBe('Today has 2 actions.');
+		expect(await run('set_today', { ids: [A.a0_0, A.a2_1, A.a0_0] })).toBe(
+			"Today's focus is now: “Easy runs session 1 on Monday”, “Long run session 2 on Monday”."
+		);
 		expect(calls.today).toEqual([[A.a0_0, A.a2_1]]);
 		expect(await run('log_time', { id: A.a0_0, minutes: 0 })).toMatch(/^Not logged/);
 		expect(await run('log_time', { id: A.a0_0, minutes: 25.5 })).toMatch(/^Not logged/);

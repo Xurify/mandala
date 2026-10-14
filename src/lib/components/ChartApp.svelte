@@ -23,7 +23,7 @@
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
-	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
+	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
@@ -261,6 +261,7 @@
 	}
 
 	function handleWindowPaste(event: ClipboardEvent): void {
+		if (fromOutside(event)) return;
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
 		const url = linkIn(event.clipboardData?.getData('text') ?? '');
@@ -309,6 +310,7 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (fromOutside(event)) return;
 		const inDialog =
 			(event.target instanceof Element && event.target.closest('dialog') !== null) ||
 			document.querySelector('dialog[open]') !== null;

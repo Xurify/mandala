@@ -66,6 +66,10 @@ function actionIn(data: ChartData, value: unknown): { id: ActionId; text: string
 	return text ? { id: value, text } : { error: `${value} is not a written action on this chart.` };
 }
 
+function quoted(texts: readonly string[]): string {
+	return texts.map((text) => `“${text}”`).join(', ');
+}
+
 function isDone(data: ChartData, id: ActionId, dateKey: string): boolean {
 	const meta = data.meta?.[id];
 	return isRoutine(meta) ? finishedOn(data, id, dateKey) : meta?.done === true;
@@ -308,7 +312,8 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'set_today',
 			title: "Set today's actions",
-			description: "Puts these actions on today's list, in this order, replacing what was there. Three from different pillars is the method's usual day. Ticks already made today stay.",
+			description:
+				"Puts these actions on today's list, in this order, replacing what was there. Three from different pillars is the method's usual day. A routine is on Today every day already, as a habit, so pick one-time actions. Ticks already made today stay. The reply names what Today now shows; tell the person that, not what you asked for.",
 			inputSchema: {
 				type: 'object',
 				properties: { ids: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'string' }, description: 'Action ids from read_chart or suggest_today' } },
@@ -317,15 +322,31 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			annotations: {},
 			execute: async (input) => {
 				const data = target.data();
-				const ids: ActionId[] = [];
+				const dateKey = dateKeyOf(target.now());
+				const picked: { id: ActionId; text: string }[] = [];
+				const habits: string[] = [];
 				for (const value of idsIn(input.ids)) {
 					const found = actionIn(data, value);
 					if ('error' in found) return `Today was not changed. ${found.error}`;
-					if (!ids.includes(found.id)) ids.push(found.id);
+					if (picked.some((entry) => entry.id === found.id) || habits.includes(found.text)) continue;
+					const meta = data.meta?.[found.id];
+					if (isRoutine(meta)) habits.push(found.text);
+					else if (meta?.done && !finishedOn(data, found.id, dateKey)) return `Today was not changed. “${found.text}” was finished on another day.`;
+					else picked.push(found);
 				}
-				if (ids.length === 0 || ids.length > 8) return 'Today was not changed. Give 1 to 8 action ids.';
-				target.setToday(ids);
-				return `Today has ${ids.length} ${ids.length === 1 ? 'action' : 'actions'}.`;
+				if (picked.length + habits.length === 0 || picked.length + habits.length > 8) return 'Today was not changed. Give 1 to 8 action ids.';
+				if (picked.length === 0) return `Today was not changed. ${quoted(habits)} ${habits.length === 1 ? 'is a routine' : 'are routines'}, on Today every day already. Pick one-time actions.`;
+				target.setToday(picked.map((entry) => entry.id));
+				const timed = data.timer?.action;
+				const said = [
+					`Today's focus is now: ${quoted(picked.map((entry) => entry.text))}.`,
+					habits.length ? `${quoted(habits)} ${habits.length === 1 ? 'is a routine' : 'are routines'}, on Today every day as a habit.` : '',
+					// A stopwatch belongs to its action, not to the list, so it keeps the person's time when the list changes.
+					timed && !picked.some((entry) => entry.id === timed) && written(data, timed)
+						? `The stopwatch on “${written(data, timed)}” is still running, though that action is off today's list. Tell the person; they can stop it from the slip on the dock.`
+						: ''
+				];
+				return said.filter(Boolean).join(' ');
 			}
 		},
 		{

@@ -6,6 +6,7 @@ import type { Attachment } from 'svelte/attachments';
  * its outro.
  */
 export const toBody: Attachment<HTMLElement> = (node) => {
+	node.dataset.app = '';
 	document.body.append(node);
 	return () => node.remove();
 };
