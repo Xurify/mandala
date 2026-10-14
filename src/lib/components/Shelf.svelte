@@ -3,7 +3,7 @@
 	import { clipboardPicture, pastedPicture, readIcon } from '$lib/chart/site-icon';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import { tick } from 'svelte';
-	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, upNext } from '$lib/chart/tools';
+	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, toolDetail, upNext } from '$lib/chart/tools';
 	import { idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
@@ -37,6 +37,7 @@
 		{ value: 'repeat', label: 'Repeat', title: 'Comes round until you press Know this' },
 		{ value: 'once', label: 'Once', title: 'Put away after the first open' }
 	];
+	const elsewhere = $derived(Object.entries(chart.data.tools ?? {}).reduce((sum, [key, list]) => (key === `p${pillarIndex}` ? sum : sum + list.length), 0));
 	const asked = $derived(new Set(nearKnown(chart.data).filter((entry) => entry.pillarIndex === pillarIndex).map((entry) => entry.tool.id)));
 
 	let draft = $state('');
@@ -57,16 +58,6 @@
 	function keptAt(tool: Tool): number | null {
 		const kept = keptFor(chart.data, tool);
 		return kept ? (slotOf(chart.data, kept)?.slot ?? null) : null;
-	}
-
-	function who(tool: Tool): string {
-		const slot = keptAt(tool);
-		if (slot !== null) return `for action ${slot + 1}`;
-		return routines.length ? 'any routine' : 'no routine yet';
-	}
-
-	function detailOf(tool: Tool): string {
-		return [tool.known ? 'known' : who(tool), !tool.known && tool.kind === 'once' ? 'once' : null].filter(Boolean).join(' · ');
 	}
 
 	function chooseIcon(host: string): void {
@@ -194,7 +185,7 @@
 				title={nextFor === undefined ? undefined : `Today hands this out for action ${nextFor + 1}`}
 				onclick={() => chart.openTool(pillarIndex, tool.id)}
 			>
-				<ToolFace {tool} detail={detailOf(tool)} tag={nextFor === undefined ? undefined : 'Up next'} class="min-w-0 flex-1" />
+				<ToolFace {tool} detail={toolDetail(chart.data, pillarIndex, tool)} tag={nextFor === undefined ? undefined : 'Up next'} class="min-w-0 flex-1" />
 			</a>
 			<IconButton
 				icon="chevron-down"
@@ -345,5 +336,11 @@
 				</ul>
 			{/if}
 		</div>
+	{/if}
+
+	{#if elsewhere > 0}
+		<Button size="sm" variant="ghost" icon="shelf" class="self-start" onclick={() => (chart.browsingShelves = true)}>
+			See all shelves · {elsewhere} more
+		</Button>
 	{/if}
 </section>

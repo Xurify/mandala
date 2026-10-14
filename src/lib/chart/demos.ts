@@ -333,6 +333,7 @@ export const DEMOS: readonly Demo[] = [
 			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
 			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
 			'On pillar 5, Reading, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'At the foot of any shelf, See all shelves opens every pillar\'s shelf at once, known ones last. Open on a plank turns that pillar\'s block to its shelf. The more-actions menu has it too.',
 			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
 		]
 	},

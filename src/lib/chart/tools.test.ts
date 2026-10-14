@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealOrder, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, upNext, videoId } from './tools.ts';
+import { dealOrder, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -50,6 +50,14 @@ describe('the shelf', () => {
 		expect(toolsFor(data, A.a1_0).map((entry) => entry.id)).toEqual(['a', 'c']);
 		expect(toolsFor(data, A.a1_1).map((entry) => entry.id)).toEqual(['b']);
 		expect(toolsFor(data, A.a2_0)).toEqual([]);
+	});
+
+	it('says under a tool who hands it out, how often, or that it is known', () => {
+		const data = chart();
+		expect(toolDetail(data, 1, tool('a'))).toBe('any routine');
+		expect(toolDetail(data, 1, tool('b', { action: A.a1_1, kind: 'once' }))).toBe('for action 2 · once');
+		expect(toolDetail(data, 1, tool('c', { known: true, kind: 'once' }))).toBe('known');
+		expect(toolDetail(data, 2, tool('d'))).toBe('no routine yet');
 	});
 
 	it('rotates: never opened first, then the one that waited longest, holding still within a day', () => {

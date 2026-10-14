@@ -339,6 +339,7 @@ export class ChartStore {
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
   reflecting = $state(false);
   selecting = $state(false);
+  browsingShelves = $state(false);
 
   landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
     null,
@@ -1377,7 +1378,7 @@ export class ChartStore {
   openShelf(pillarIndex: number): void {
     this.selectPillar(pillarIndex);
     this.face = "shelf";
-    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
       this.setViewMode("edit");
     }
   }

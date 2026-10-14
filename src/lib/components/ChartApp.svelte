@@ -44,6 +44,7 @@
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
+	import Shelves from './Shelves.svelte';
 	import LogTimeDialog from './LogTimeDialog.svelte';
 	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
@@ -501,6 +502,8 @@
 			: undefined
 	);
 
+	const shelvedCount = $derived(Object.values(chart.data.tools ?? {}).reduce((sum, list) => sum + list.length, 0));
+
 	const paletteCommands = $derived.by((): CommandItem[] => {
 		const items: CommandItem[] = [
 			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'sun', run: () => chart.setViewMode('today') },
@@ -508,6 +511,7 @@
 			{ id: 'calendar', label: 'Go to Calendar', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('calendar') },
 			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
+			{ id: 'shelves', label: 'See all shelves', section: 'Actions', icon: 'shelf', hint: shelvedCount ? `${shelvedCount} on the shelves` : undefined, run: () => (chart.browsingShelves = true) },
 			{ id: 'edit', label: 'Go to Editor', section: 'Actions', icon: 'edit', run: () => chart.setViewMode('edit') }
 		];
 		if (!isMobile) {
@@ -706,6 +710,7 @@
 				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
+				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
 				<MenuItem icon="info" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
 				{#if supportsDirectoryPicker()}
@@ -853,6 +858,7 @@
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
 		<ShelfSheet />
+		<Shelves />
 		<LogTimeDialog />
 	</header>
 
