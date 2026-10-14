@@ -517,6 +517,11 @@ export const agentTarget: AgentTarget = {
 	addLink: (pillarIndex, url, title, kind) => {
 		chart.addTool(pillarIndex, url, title, kind);
 		chart.say(`Your assistant saved a link to ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}.`);
+	},
+	updateLink: (pillarIndex, id, patch) => {
+		chart.updateTool(pillarIndex, id, patch);
+		const title = chart.data.tools?.[`p${pillarIndex}`]?.find((tool) => tool.id === id)?.title;
+		chart.say(`Your assistant changed “${title}” on ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}'s shelf.`);
 	}
 };
 

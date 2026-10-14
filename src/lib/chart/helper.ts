@@ -1,7 +1,7 @@
 import { briefLines } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { formatMinutes, minutesByPillar } from './timer.ts';
-import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref } from './model.ts';
+import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref, type ToolKind } from './model.ts';
 
 /** Letters and digits in any script, so a reply in Japanese or Russian still compares to its chart. */
 export function norm(value: string): string {
@@ -44,7 +44,7 @@ export type HelperPick = {
 	text: string;
 	pillarIndex: number;
 	why: string;
-	tool?: { id: string; title: string; url: string; kind: 'once' | 'repeat' };
+	tool?: { id: string; title: string; url: string; kind: ToolKind };
 };
 
 function actionKey(pillarIndex: number, actionIndex: number): string {

@@ -8,17 +8,21 @@ import {
 	getDayLog,
 	isActionId,
 	isRoutine,
+	idAt,
 	isUrl,
 	pillarOfAction,
 	slotOf,
 	TEXT_MAX,
+	TOOL_KINDS,
 	weekStartKey,
 	wordsOf,
 	type ActionId,
 	type ActionKind,
 	type ChartData,
+	type Tool,
 	type ToolKind
 } from './model.ts';
+import { keptFor, openedLately, shelfOf, upNext } from './tools.ts';
 
 /**
  * Tools an agent in the browser can call, through WebMCP (`document.modelContext`). The agent reads, proposes what
@@ -30,7 +34,6 @@ import {
 export type AgentTarget = {
 	data(): ChartData;
 	now(): Date;
-	/** The week the weekly reflection is for. */
 	reflectionWeek(): string;
 	/** False while Bindu is turned off on this device. */
 	offer(offer: HelperOffer): boolean;
@@ -44,7 +47,10 @@ export type AgentTarget = {
 	startTimer(id: ActionId, minutes?: number): void;
 	stopTimer(): void;
 	addLink(pillarIndex: number, url: string, title: string, kind: ToolKind): void;
+	updateLink(pillarIndex: number, id: string, patch: LinkPatch): void;
 };
+
+export type LinkPatch = Partial<Pick<Tool, 'kind' | 'known' | 'action'>>;
 
 export type AgentToolAnnotations = {
 	readOnlyHint?: boolean;
@@ -75,6 +81,11 @@ const TESTS =
 const CELLS = 'Cells: "p0" to "p7" are the pillars; "a{pillar}_{slot}" is an action, both 0 to 7, so "a2_5" is the sixth action of the third pillar.';
 const KINDS =
 	'Kinds: a "routine" is a habit done again and again ("Play Spanish audio at breakfast"); it shows on Today every day and is ticked each day, never finished. A "milestone" happens once and is then done for good ("Book a trial lesson"). A "standard" action is done on some days, picked when it fits.';
+
+const LINK_KINDS =
+	'Kinds: "repeat" comes round until the person marks it known; "once" is put away after its first open; "staple" stays for good and is never asked about, like a dictionary or a course the person always goes back to.';
+
+const KIND_WORDS: Record<ToolKind, string> = { repeat: 'a repeat link', once: 'a one-time link', staple: 'a staple' };
 
 const BINDU_OFF = 'Not shown: Bindu is turned off on this device, so there is nowhere to show it. The person can turn it on in More actions.';
 
@@ -132,7 +143,7 @@ export function chartForAgent(data: ChartData, now: Date): unknown {
 		pillars: data.pillars.map((name, pillarIndex) => ({
 			cell: `p${pillarIndex}`,
 			name: name.trim(),
-			shelf: (data.tools?.[`p${pillarIndex}`] ?? []).map((tool) => ({ title: tool.title, url: tool.url })),
+			shelf: shelfOf(data, pillarIndex).map((tool) => ({ id: tool.id, title: tool.title, url: tool.url })),
 			actions: (data.actions[pillarIndex] ?? []).map((text, slot) => {
 				const id = data.actionIds[pillarIndex]![slot]!;
 				const meta = data.meta?.[id];
@@ -261,6 +272,43 @@ export function weekForAgent(data: ChartData, now: Date, weeksAgo: number, refle
 	};
 }
 
+export function shelvesForAgent(data: ChartData, now: Date): unknown {
+	return data.pillars.flatMap((name, pillarIndex) => {
+		const tools = shelfOf(data, pillarIndex);
+		if (tools.length === 0) return [];
+		const next = upNext(data, pillarIndex, now);
+		const routine = (data.actions[pillarIndex] ?? []).some((text, slot) => text.trim() && isRoutine(data.meta?.[idAt(data, pillarIndex, slot)]));
+		return [
+			{
+				pillar: pillarIndex,
+				name: name.trim(),
+				links: tools.map((tool) => {
+					const kept = keptFor(data, tool);
+					const dealt = next.get(tool.id);
+					return {
+						id: tool.id,
+						title: tool.title,
+						url: tool.url,
+						kind: tool.kind,
+						...(tool.known ? { known: true } : {}),
+						handedOutBy: kept ?? (routine ? 'any routine' : null),
+						...(dealt === undefined ? {} : { upNextFor: idAt(data, pillarIndex, dealt) }),
+						openedDaysOfLast14: openedLately(tool, now)
+					};
+				})
+			}
+		];
+	});
+}
+
+function shelvedLink(data: ChartData, value: unknown): { pillarIndex: number; tool: Tool } | null {
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const tool = shelfOf(data, pillarIndex).find((each) => each.id === value);
+		if (tool) return { pillarIndex, tool };
+	}
+	return null;
+}
+
 export function agentTools(target: AgentTarget): AgentTool[] {
 	function dayList(input: Record<string, unknown>, dateKey: string, apply: (ids: ActionId[]) => void, day: 'Today' | 'Tomorrow'): string {
 		const data = target.data();
@@ -373,6 +421,14 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				if (!Number.isInteger(back) || back < 0 || back > WEEKS_BACK) return `weeksAgo must be a whole number from 0 to ${WEEKS_BACK}.`;
 				return json(weekForAgent(target.data(), target.now(), back, target.reflectionWeek()));
 			}
+		},
+		{
+			name: 'read_shelves',
+			title: "Read the pillars' shelves",
+			description: `Each pillar's shelf: the links (videos, texts, sites) its actions use. For each link: its id, title, url, kind, whether it is known, which action hands it out (an action id, "any routine" in its pillar, or null when nothing does yet), the action Today hands it out for, and on how many of the last 14 days it was opened. Known links wait on the shelf and are not handed out. Pillars with an empty shelf are left out. ${LINK_KINDS}`,
+			inputSchema: { type: 'object', properties: {} },
+			annotations: READ,
+			execute: async () => json(shelvesForAgent(target.data(), target.now()))
 		},
 		{
 			name: 'propose_lines',
@@ -637,14 +693,14 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			name: 'add_link',
 			title: "Save a link to a pillar's shelf",
 			description:
-				"Saves a link (a video, an article, a course) to a pillar's shelf, where Bindu hands it out with that pillar's actions. Use the page the person is on when they say \"save this\". once true is for something to open a single time, like an article; leave it out for something to come back to, like a course or a playlist.",
+				`Saves a link (a video, an article, a course) to a pillar's shelf, where Bindu hands it out with that pillar's actions. Use the page the person is on when they say "save this". ${LINK_KINDS} Leave kind out for "repeat".`,
 			inputSchema: {
 				type: 'object',
 				properties: {
 					pillar: { type: 'integer', minimum: 0, maximum: 7, description: 'The pillar, 0 to 7, as in read_chart' },
 					url: { type: 'string', description: 'An http or https link' },
 					title: { type: 'string', maxLength: TEXT_MAX },
-					once: { type: 'boolean' }
+					kind: { type: 'string', enum: [...TOOL_KINDS] }
 				},
 				required: ['pillar', 'url']
 			},
@@ -658,8 +714,60 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				const name = pillarName(data, pillarIndex);
 				if ((data.tools?.[`p${pillarIndex}`] ?? []).some((tool) => tool.url === url)) return `That link is already on ${name}'s shelf.`;
 				const title = typeof input.title === 'string' ? input.title.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : '';
-				target.addLink(pillarIndex, url, title, input.once === true ? 'once' : 'repeat');
+				const kind = input.kind === undefined ? 'repeat' : TOOL_KINDS.find((each) => each === input.kind);
+				if (!kind) return `Not saved. Kind must be one of ${TOOL_KINDS.join(', ')}.`;
+				target.addLink(pillarIndex, url, title, kind);
 				return `Saved to ${name}'s shelf.`;
+			}
+		},
+		{
+			name: 'update_link',
+			title: 'Change a link on a shelf',
+			description: `Changes how a link on a shelf comes round: its kind, whether it is known (a known link waits on the shelf and is not handed out), or which action hands it out (an action id from the same pillar, or "any" for any routine there). A staple is never known. Link ids come from read_shelves. ${LINK_KINDS}`,
+			inputSchema: {
+				type: 'object',
+				properties: {
+					id: { type: 'string', description: 'A link id from read_shelves' },
+					kind: { type: 'string', enum: [...TOOL_KINDS] },
+					known: { type: 'boolean' },
+					action: { type: 'string', description: 'An action id from read_chart in the same pillar, or "any"' }
+				},
+				required: ['id']
+			},
+			annotations: {},
+			execute: async (input) => {
+				const data = target.data();
+				const found = shelvedLink(data, input.id);
+				if (!found) return `"${String(input.id)}" is not a link on this chart. Read the shelves for ids.`;
+				const { pillarIndex, tool } = found;
+				const patch: LinkPatch = {};
+				if (input.kind !== undefined) {
+					const kind = TOOL_KINDS.find((each) => each === input.kind);
+					if (!kind) return `Not changed. Kind must be one of ${TOOL_KINDS.join(', ')}.`;
+					if (kind !== tool.kind) patch.kind = kind;
+				}
+				const kind = patch.kind ?? tool.kind;
+				if (input.known !== undefined) {
+					if (typeof input.known !== 'boolean') return 'Not changed. Known must be true or false.';
+					if (input.known && kind === 'staple') return `Not changed. “${tool.title}” is a staple, which stays in rotation and is never known.`;
+					if (input.known !== Boolean(tool.known)) patch.known = input.known || undefined;
+				}
+				if (input.action !== undefined) {
+					if (input.action === 'any') {
+						if (keptFor(data, tool)) patch.action = undefined;
+					} else {
+						const action = actionIn(data, input.action);
+						if ('error' in action) return `Not changed. ${action.error}`;
+						if (slotOf(data, action.id)?.pillarIndex !== pillarIndex) return `Not changed. “${action.text}” is not in ${pillarName(data, pillarIndex)}, so it cannot hand out this link.`;
+						if (action.id !== keptFor(data, tool)) patch.action = action.id;
+					}
+				}
+				if (Object.keys(patch).length === 0) return `“${tool.title}” already comes round that way. Nothing changed.`;
+				target.updateLink(pillarIndex, tool.id, patch);
+				const after = shelfOf(target.data(), pillarIndex).find((each) => each.id === tool.id) ?? { ...tool, ...patch };
+				const kept = keptFor(target.data(), after);
+				const by = kept ? `handed out by “${written(target.data(), kept)}”` : 'handed out by any routine in its pillar';
+				return `“${after.title}” on ${pillarName(data, pillarIndex)}'s shelf is now ${KIND_WORDS[after.kind]}, ${after.known ? 'known and waiting on the shelf' : by}.`;
 			}
 		}
 	];

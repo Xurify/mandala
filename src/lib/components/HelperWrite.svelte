@@ -39,7 +39,6 @@
 	let modelDraft = $state('');
 	let leaving = $state(false);
 	const connected = $derived(helper.connection ? providerOf(helper.connection.provider) : null);
-	/** The provider Bindu may send to: connected, and the person turned AI on. */
 	const live = $derived(helper.aiEnabled ? connected : null);
 	const chosen = $derived(providerOf(choice));
 	const providerOptions = PROVIDERS.map((provider) => ({ value: provider.id, label: provider.label }));

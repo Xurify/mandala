@@ -3,8 +3,8 @@
 	import { clipboardPicture, pastedPicture, readIcon } from '$lib/chart/site-icon';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import { tick } from 'svelte';
-	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, upNext } from '$lib/chart/tools';
-	import { idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
+	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, toolDetail, upNext } from '$lib/chart/tools';
+	import { TOOL_KINDS, idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
@@ -35,8 +35,10 @@
 	]);
 	const kinds = [
 		{ value: 'repeat', label: 'Repeat', title: 'Comes round until you press Know this' },
-		{ value: 'once', label: 'Once', title: 'Put away after the first open' }
+		{ value: 'once', label: 'Once', title: 'Put away after the first open' },
+		{ value: 'staple', label: 'Staple', title: 'Stays for good, and is never asked if known' }
 	];
+	const elsewhere = $derived(Object.entries(chart.data.tools ?? {}).reduce((sum, [key, list]) => (key === `p${pillarIndex}` ? sum : sum + list.length), 0));
 	const asked = $derived(new Set(nearKnown(chart.data).filter((entry) => entry.pillarIndex === pillarIndex).map((entry) => entry.tool.id)));
 
 	let draft = $state('');
@@ -57,16 +59,6 @@
 	function keptAt(tool: Tool): number | null {
 		const kept = keptFor(chart.data, tool);
 		return kept ? (slotOf(chart.data, kept)?.slot ?? null) : null;
-	}
-
-	function who(tool: Tool): string {
-		const slot = keptAt(tool);
-		if (slot !== null) return `for action ${slot + 1}`;
-		return routines.length ? 'any routine' : 'no routine yet';
-	}
-
-	function detailOf(tool: Tool): string {
-		return [tool.known ? 'known' : who(tool), !tool.known && tool.kind === 'once' ? 'once' : null].filter(Boolean).join(' · ');
 	}
 
 	function chooseIcon(host: string): void {
@@ -166,6 +158,12 @@
 	function setKnown(tool: Tool, value: boolean): void {
 		void leave(tool, () => chart.updateTool(pillarIndex, tool.id, { known: value || undefined }));
 	}
+
+	function setKind(tool: Tool, value: string): void {
+		const kind = TOOL_KINDS.find((each) => each === value) ?? 'repeat';
+		if (kind === 'staple' && tool.known) void leave(tool, () => chart.updateTool(pillarIndex, tool.id, { kind }));
+		else chart.updateTool(pillarIndex, tool.id, { kind });
+	}
 </script>
 
 {#snippet row(tool: Tool)}
@@ -194,7 +192,7 @@
 				title={nextFor === undefined ? undefined : `Today hands this out for action ${nextFor + 1}`}
 				onclick={() => chart.openTool(pillarIndex, tool.id)}
 			>
-				<ToolFace {tool} detail={detailOf(tool)} tag={nextFor === undefined ? undefined : 'Up next'} class="min-w-0 flex-1" />
+				<ToolFace {tool} detail={toolDetail(chart.data, pillarIndex, tool)} tag={nextFor === undefined ? undefined : 'Up next'} class="min-w-0 flex-1" />
 			</a>
 			<IconButton
 				icon="chevron-down"
@@ -230,13 +228,15 @@
 						label="How often {tool.title} comes round"
 						options={kinds}
 						value={tool.kind}
-						onchange={(value) => chart.updateTool(pillarIndex, tool.id, { kind: value === 'once' ? 'once' : 'repeat' })}
+						onchange={(value) => setKind(tool, value)}
 					/>
 				</div>
 				<div class="flex flex-wrap items-center gap-1.5">
-					<Button size="sm" variant="soft" icon={tool.known ? 'undo' : 'check'} onclick={() => setKnown(tool, !tool.known)}>
-						{tool.known ? 'Back in rotation' : 'Know this'}
-					</Button>
+					{#if tool.kind !== 'staple'}
+						<Button size="sm" variant="soft" icon={tool.known ? 'undo' : 'check'} onclick={() => setKnown(tool, !tool.known)}>
+							{tool.known ? 'Back in rotation' : 'Know this'}
+						</Button>
+					{/if}
 					{#if keptAt(tool) !== null}
 						{@const slot = keptAt(tool)!}
 						<Button size="sm" variant="ghost" icon="arrow-left" onclick={() => chart.jumpToKey(`a${pillarIndex}_${slot}`)}>See action {slot + 1}</Button>
@@ -345,5 +345,11 @@
 				</ul>
 			{/if}
 		</div>
+	{/if}
+
+	{#if elsewhere > 0}
+		<Button size="sm" variant="ghost" icon="shelf" class="self-start" onclick={() => (chart.browsingShelves = true)}>
+			See all shelves · {elsewhere} more
+		</Button>
 	{/if}
 </section>

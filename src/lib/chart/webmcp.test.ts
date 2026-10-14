@@ -3,7 +3,7 @@ import type { Lane } from './board.ts';
 import { A, slotted } from './fixtures.ts';
 import type { HelperOffer } from './helper.ts';
 import { dateKeyOf, emptyChart, weekStartKey, type ActionId, type ActionMeta, type ChartData, type ToolKind } from './model.ts';
-import { agentTools, chartForAgent, kindsToChanges, linesToEdits, modelContext, registerAgentTools, type AgentTarget, type AgentTool } from './webmcp.ts';
+import { agentTools, chartForAgent, kindsToChanges, linesToEdits, modelContext, registerAgentTools, type AgentTarget, type AgentTool, type LinkPatch } from './webmcp.ts';
 
 const now = new Date(2026, 9, 14, 9);
 const today = dateKeyOf(now);
@@ -28,7 +28,8 @@ function sandbox(data = chartData(), binduOn = true) {
 		time: [] as [ActionId, number][],
 		timers: [] as [ActionId, number | undefined][],
 		stopped: 0,
-		links: [] as [number, string, string, ToolKind][]
+		links: [] as [number, string, string, ToolKind][],
+		changed: [] as [number, string, LinkPatch][]
 	};
 	const target: AgentTarget = {
 		data: () => data,
@@ -50,7 +51,12 @@ function sandbox(data = chartData(), binduOn = true) {
 			calls.stopped += 1;
 			delete data.timer;
 		},
-		addLink: (pillarIndex, url, title, kind) => calls.links.push([pillarIndex, url, title, kind])
+		addLink: (pillarIndex, url, title, kind) => calls.links.push([pillarIndex, url, title, kind]),
+		updateLink: (pillarIndex, id, patch) => {
+			calls.changed.push([pillarIndex, id, patch]);
+			const key = `p${pillarIndex}`;
+			data.tools = { ...data.tools, [key]: (data.tools?.[key] ?? []).map((tool) => (tool.id === id ? { ...tool, ...patch } : tool)) };
+		}
 	};
 	const tools = agentTools(target);
 	const run = async (name: string, input: Record<string, unknown> = {}) => (tools.find((tool) => tool.name === name) as AgentTool).execute(input);
@@ -66,6 +72,7 @@ describe('agent tools', () => {
 			'suggest_today',
 			'progress',
 			'week_history',
+			'read_shelves',
 			'propose_lines',
 			'propose_chart',
 			'propose_kinds',
@@ -79,10 +86,11 @@ describe('agent tools', () => {
 			'log_time',
 			'start_timer',
 			'stop_timer',
-			'add_link'
+			'add_link',
+			'update_link'
 		]);
-		for (const tool of tools.slice(0, 5)) expect(tool.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
-		for (const tool of tools.slice(5)) expect(tool.annotations.readOnlyHint).toBeUndefined();
+		for (const tool of tools.slice(0, 6)) expect(tool.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
+		for (const tool of tools.slice(6)) expect(tool.annotations.readOnlyHint).toBeUndefined();
 		for (const tool of tools) expect(tool.name).not.toMatch(/share|sync|export|delete|clear/);
 	});
 
@@ -103,7 +111,7 @@ describe('agent tools', () => {
 		expect(read.pillars[0]!.actions[0]).toEqual({ cell: 'a0_0', id: A.a0_0, text: 'Easy runs session 1 on Monday', kind: 'routine', lane: 'doing', done: true });
 		expect(read.pillars[0]!.actions[1]).toMatchObject({ kind: 'standard', lane: 'open' });
 		expect(read.pillars[1]!.actions[2]).toEqual({ cell: 'a1_2', id: A.a1_2, text: '' });
-		expect(read.pillars[1]!.shelf).toEqual([{ title: 'Drills', url: 'https://example.com/drills' }]);
+		expect(read.pillars[1]!.shelf).toEqual([{ id: 'tool_1', title: 'Drills', url: 'https://example.com/drills' }]);
 		expect(read.today).toEqual({ date: today, picked: [A.a0_0], ticked: [A.a0_0] });
 		expect(read.timer).toEqual({ action: A.a2_0, blockMinutes: 25, minutesSoFar: 12 });
 	});
@@ -294,8 +302,53 @@ describe('agent tools', () => {
 		expect(await run('add_link', { pillar: 9, url: 'https://example.com' })).toMatch(/^Not saved. Pillar/);
 		expect(await run('add_link', { pillar: 1, url: 'javascript:alert(1)' })).toMatch(/^Not saved. Give an http/);
 		expect(await run('add_link', { pillar: 1, url: 'https://example.com/drills' })).toBe("That link is already on Speed's shelf.");
-		expect(await run('add_link', { pillar: 1, url: ' https://example.com/intervals ', title: ' Interval  guide ', once: true })).toBe("Saved to Speed's shelf.");
-		expect(calls.links).toEqual([[1, 'https://example.com/intervals', 'Interval guide', 'once']]);
+		expect(await run('add_link', { pillar: 1, url: ' https://example.com/intervals ', title: ' Interval  guide ', kind: 'once' })).toBe("Saved to Speed's shelf.");
+		expect(await run('add_link', { pillar: 1, url: 'https://example.com/forever', kind: 'always' })).toMatch(/^Not saved. Kind must be/);
+		expect(await run('add_link', { pillar: 2, url: 'https://example.com/dictionary', kind: 'staple' })).toBe("Saved to Long run's shelf.");
+		expect(calls.links).toEqual([
+			[1, 'https://example.com/intervals', 'Interval guide', 'once'],
+			[2, 'https://example.com/dictionary', '', 'staple']
+		]);
+	});
+
+	it('reads each shelf: kind, known, who hands a link out, and what Today hands out', async () => {
+		const { data, run } = sandbox();
+		data.meta = { [A.a1_0]: { kind: 'routine' } };
+		data.tools = {
+			p1: [
+				{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat', opened: [today] },
+				{ id: 'tool_2', url: 'https://example.com/pace', title: 'Pace chart', kind: 'staple', action: A.a1_3 },
+				{ id: 'tool_3', url: 'https://example.com/old', title: 'Old plan', kind: 'once', known: true }
+			],
+			p4: [{ id: 'tool_4', url: 'https://example.com/sleep', title: 'Sleep talk', kind: 'repeat' }]
+		};
+		const shelves = JSON.parse(await run('read_shelves')) as { pillar: number; links: Record<string, unknown>[] }[];
+		expect(shelves.map((shelf) => shelf.pillar)).toEqual([1, 4]);
+		expect(shelves[0]!.links).toEqual([
+			{ id: 'tool_1', title: 'Drills', url: 'https://example.com/drills', kind: 'repeat', handedOutBy: 'any routine', upNextFor: A.a1_0, openedDaysOfLast14: 1 },
+			{ id: 'tool_2', title: 'Pace chart', url: 'https://example.com/pace', kind: 'staple', handedOutBy: A.a1_3, upNextFor: A.a1_3, openedDaysOfLast14: 0 },
+			{ id: 'tool_3', title: 'Old plan', url: 'https://example.com/old', kind: 'once', known: true, handedOutBy: 'any routine', openedDaysOfLast14: 0 }
+		]);
+		expect(shelves[1]!.links[0]).toMatchObject({ handedOutBy: null });
+	});
+
+	it('changes how a link comes round, and refuses a known staple or an action from another pillar', async () => {
+		const { data, calls, run } = sandbox();
+		data.tools = { p1: [{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat', known: true }] };
+		expect(await run('update_link', { id: 'tool_9', kind: 'staple' })).toMatch(/is not a link on this chart/);
+		expect(await run('update_link', { id: 'tool_1', kind: 'forever' })).toMatch(/^Not changed. Kind must be/);
+		expect(await run('update_link', { id: 'tool_1', kind: 'staple', known: true })).toMatch(/is a staple, which stays in rotation/);
+		expect(await run('update_link', { id: 'tool_1', action: A.a2_0 })).toMatch(/is not in Speed/);
+		expect(await run('update_link', { id: 'tool_1', known: true, action: 'any' })).toBe('“Drills” already comes round that way. Nothing changed.');
+		expect(calls.changed).toEqual([]);
+		expect(await run('update_link', { id: 'tool_1', known: false, action: A.a1_2 })).toBe(
+			"“Drills” on Speed's shelf is now a repeat link, handed out by “Speed session 3 on Monday”."
+		);
+		expect(await run('update_link', { id: 'tool_1', kind: 'staple', action: 'any' })).toBe("“Drills” on Speed's shelf is now a staple, handed out by any routine in its pillar.");
+		expect(calls.changed).toEqual([
+			[1, 'tool_1', { known: undefined, action: A.a1_2 }],
+			[1, 'tool_1', { kind: 'staple', action: undefined }]
+		]);
 	});
 });
 
