@@ -15,7 +15,7 @@ Mandala keeps everything in the browser today. This page is the contract that ke
 
 It also says which part of the chart each field is. `plan` is the chart and how it is set up; `history` is what happened while it was worked. Copy without history keeps only `plan` (`withoutHistory` in `library.ts`). History is never `shared`: a person you send a chart to gets the plan, not your days.
 
-It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one cloud sync replaces. The rest belong to the device: theme, accent, the view, the chat app, share secrets, the prototype's sync state.
+It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one cloud sync replaces. The rest belong to the device: theme, accent, the view, where prompts go, share secrets, the prototype's sync state.
 
 Two checks keep it honest:
 

@@ -13,7 +13,6 @@
 		shortcut?: string;
 		tone?: 'default' | 'danger';
 		active?: boolean;
-		/** The remembered choice among siblings: a check at the end. */
 		checked?: boolean;
 		id?: string;
 		class?: string;

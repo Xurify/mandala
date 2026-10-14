@@ -840,7 +840,7 @@
 				</MenuItem>
 			</div>
 			<div class="flex flex-wrap items-center gap-3">
-				<SplitButton size="sm" icon="claude" more="Other ways to send the prompt" onclick={() => chart.say('Opened in Claude')}>
+				<SplitButton size="sm" icon="claude" menuLabel="Other ways to send the prompt" onclick={() => chart.say('Opened in Claude')}>
 					{#snippet label()}Open in Claude{/snippet}
 					<Eyebrow class="px-3 pt-2 pb-1">One click</Eyebrow>
 					<MenuItem icon="claude" checked>Claude</MenuItem>

@@ -15,7 +15,7 @@
 		label?: string;
 		class?: string;
 		open?: boolean;
-		/** Pins the panel to the viewport, so a scrolling panel it opens from cannot clip it. Closes when the page scrolls. */
+		/** A scrolling panel clips an absolute menu, so this pins it to the viewport instead, and closes it on scroll. */
 		float?: boolean;
 		onopenchange?: (open: boolean) => void;
 	};
@@ -33,13 +33,13 @@
 
 	let root = $state<HTMLDivElement | null>(null);
 	let up = $state(false);
-	let fixed = $state(false);
+	let pinnedToViewport = $state(false);
 	const styles = $derived(menu({ align }));
 	/** The dock floats over the bottom of the page: 18px off the edge, a 54px bar, and a gap above it. */
 	const DOCK_ROOM = 96;
 
 	/** An ancestor that is a containing block for fixed boxes (a transform, a filter) would pin the panel to itself. */
-	function pinned(): boolean {
+	function insideFixedContainer(): boolean {
 		for (let node = root?.parentElement; node; node = node.parentElement) {
 			const style = getComputedStyle(node);
 			if (style.transform !== 'none' || style.filter !== 'none' || style.backdropFilter !== 'none' || style.perspective !== 'none' || style.willChange.includes('transform')) return true;
@@ -48,13 +48,13 @@
 		return false;
 	}
 
-	function pin(panel: HTMLElement): boolean {
+	function pinToViewport(panel: HTMLElement): boolean {
 		const trigger = root?.getBoundingClientRect();
-		if (!trigger || pinned()) return false;
+		if (!trigger || insideFixedContainer()) return false;
 		const height = panel.offsetHeight;
 		const width = panel.offsetWidth;
-		const lift = height + 8 > window.innerHeight - trigger.bottom - DOCK_ROOM && trigger.top - height - 8 > 8;
-		const top = lift ? trigger.top - 8 - height : trigger.bottom + 8;
+		const opensUp = height + 8 > window.innerHeight - trigger.bottom - DOCK_ROOM && trigger.top - height - 8 > 8;
+		const top = opensUp ? trigger.top - 8 - height : trigger.bottom + 8;
 		const left = align === 'start' ? trigger.left : trigger.right - width;
 		Object.assign(panel.style, {
 			position: 'fixed',
@@ -62,30 +62,30 @@
 			bottom: 'auto',
 			left: `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`,
 			right: 'auto',
-			maxHeight: lift ? '' : `${Math.max(160, window.innerHeight - top - 8)}px`
+			maxHeight: opensUp ? '' : `${Math.max(160, window.innerHeight - top - 8)}px`
 		});
-		up = lift;
-		fixed = true;
+		up = opensUp;
+		pinnedToViewport = true;
 		return true;
 	}
 
 	$effect(() => {
 		if (!float || !expanded) return;
-		const away = (event?: Event): void => {
+		const closeUnlessInside = (event?: Event): void => {
 			if (event?.target instanceof Node && root?.querySelector('[role="menu"]')?.contains(event.target)) return;
 			close();
 		};
-		window.addEventListener('scroll', away, true);
-		window.addEventListener('resize', away);
+		window.addEventListener('scroll', closeUnlessInside, true);
+		window.addEventListener('resize', closeUnlessInside);
 		return () => {
-			window.removeEventListener('scroll', away, true);
-			window.removeEventListener('resize', away);
+			window.removeEventListener('scroll', closeUnlessInside, true);
+			window.removeEventListener('resize', closeUnlessInside);
 		};
 	});
 
 	function place(panel: HTMLElement): void {
-		fixed = float && pin(panel);
-		if (fixed) return;
+		pinnedToViewport = float && pinToViewport(panel);
+		if (pinnedToViewport) return;
 		const below = panel.getBoundingClientRect();
 		const trigger = root?.getBoundingClientRect();
 		if (!trigger) return;
@@ -188,7 +188,7 @@
 	{#if expanded}
 		<div class={styles.backdrop()} aria-hidden="true" onclick={close}></div>
 		<div
-			class={cn(styles.panel(), up && !fixed && 'top-auto bottom-[calc(100%+8px)]', up && (align === 'start' ? 'origin-bottom-left' : 'origin-bottom-right'))}
+			class={cn(styles.panel(), up && !pinnedToViewport && 'top-auto bottom-[calc(100%+8px)]', up && (align === 'start' ? 'origin-bottom-left' : 'origin-bottom-right'))}
 			role="menu"
 			aria-label={label}
 			{@attach place}

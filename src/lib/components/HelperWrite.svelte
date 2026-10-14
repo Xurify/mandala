@@ -27,7 +27,7 @@
 		{ value: 'ask', label: 'Ask' }
 	]);
 	const app = $derived(CHAT_APPS.find((entry) => entry.id === helper.app) ?? CHAT_APPS[0]!);
-	const way = $derived(helper.way === 'prompt' ? null : (CHAT_APPS.find((entry) => entry.id === helper.way) ?? null));
+	const targetApp = $derived(CHAT_APPS.find((entry) => entry.id === helper.promptTarget) ?? null);
 	const outcome = $derived(helper.outcome);
 
 	const copied = $derived(helper.copied === helper.mode);
@@ -97,16 +97,16 @@
 	});
 	const APPS = Object.fromEntries(CHAT_APPS.map((entry) => [entry.id, entry.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
 
-	function handOff(): void {
-		if (way) {
+	function sendPrompt(): void {
+		if (targetApp) {
 			link = null;
-			helper.openIn(way.id);
+			helper.openIn(targetApp.id);
 		} else void copy();
 	}
 
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
-		helper.useWay('prompt');
+		helper.setPromptTarget('clipboard');
 		try {
 			await navigator.clipboard.writeText(helper.prompt(mode));
 			failed = false;
@@ -169,7 +169,7 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or send the prompt` : way ? 'Send the prompt' : 'Copy the prompt'}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or send the prompt` : targetApp ? 'Send the prompt' : 'Copy the prompt'}</p>
 				{#if helper.mode === 'new'}
 					<input
 						class={textField}
@@ -210,18 +210,18 @@
 					{/if}
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
-					<SplitButton size="sm" icon={way ? way.icon : copied && !opened && !linked ? 'check' : 'copy'} more="Other ways to send the prompt" onclick={handOff}>
-						{#snippet label()}{way ? `Open in ${way.label}` : copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}{/snippet}
-						<div role="group" aria-labelledby="handoff-open">
-							<Eyebrow class="px-3 pt-2 pb-1"><span id="handoff-open">One click</span></Eyebrow>
+					<SplitButton size="sm" icon={targetApp ? targetApp.icon : copied && !opened && !linked ? 'check' : 'copy'} menuLabel="Other ways to send the prompt" onclick={sendPrompt}>
+						{#snippet label()}{targetApp ? `Open in ${targetApp.label}` : copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}{/snippet}
+						<div role="group" aria-labelledby="send-open">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-open">One click</span></Eyebrow>
 							{#each CHAT_APPS as entry (entry.id)}
-								<MenuItem icon={entry.icon} checked={helper.way === entry.id} onclick={() => ((link = null), helper.openIn(entry.id))}>{entry.label}</MenuItem>
+								<MenuItem icon={entry.icon} checked={helper.promptTarget === entry.id} onclick={() => ((link = null), helper.openIn(entry.id))}>{entry.label}</MenuItem>
 							{/each}
 						</div>
 						<MenuDivider />
-						<div role="group" aria-labelledby="handoff-paste">
-							<Eyebrow class="px-3 pt-2 pb-1"><span id="handoff-paste">Copy and paste</span></Eyebrow>
-							<MenuItem icon="copy" badge="Any chat app" checked={helper.way === 'prompt'} onclick={copy}>Copy prompt</MenuItem>
+						<div role="group" aria-labelledby="send-paste">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-paste">Copy and paste</span></Eyebrow>
+							<MenuItem icon="copy" badge="Any chat app" checked={helper.promptTarget === 'clipboard'} onclick={copy}>Copy prompt</MenuItem>
 							<MenuItem icon="link" badge="Opens {app.label}" onclick={copyLink}>Copy link</MenuItem>
 						</div>
 					</SplitButton>

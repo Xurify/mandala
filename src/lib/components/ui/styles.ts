@@ -33,12 +33,12 @@ export const splitButton = tv({
 	slots: {
 		wrap: 'inline-flex items-stretch gap-px',
 		main: 'rounded-e-[6px]',
-		more: 'rounded-s-[6px] px-0'
+		toggle: 'rounded-s-[6px] px-0'
 	},
 	variants: {
 		size: {
-			md: { more: 'w-[38px]' },
-			sm: { more: 'w-8' }
+			md: { toggle: 'w-[38px]' },
+			sm: { toggle: 'w-8' }
 		}
 	},
 	defaultVariants: { size: 'md' }

@@ -47,7 +47,7 @@ export type HelperTarget = {
 
 export type HelperPicks = { scope: 'today' | 'week'; picks: HelperPick[] };
 
-const CHAT_APP_KEY = 'mandala_chat_app';
+const PROMPT_TARGET_KEY = 'mandala_prompt_target';
 const BINDU_KEY = 'mandala_bindu';
 
 function loadBinduOn(): boolean {
@@ -58,15 +58,14 @@ function loadBinduOn(): boolean {
 	}
 }
 
-/** How the prompt leaves the page: copied, or opened in a chat app. */
-export type Handoff = ChatApp | 'prompt';
+export type PromptTarget = ChatApp | 'clipboard';
 
-function loadHandoff(): Handoff {
+function loadPromptTarget(): PromptTarget {
 	try {
-		const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem(CHAT_APP_KEY);
-		return stored === 'prompt' || isChatApp(stored) ? stored : 'prompt';
+		const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem(PROMPT_TARGET_KEY);
+		return stored === 'clipboard' || isChatApp(stored) ? stored : 'clipboard';
 	} catch {
-		return 'prompt';
+		return 'clipboard';
 	}
 }
 
@@ -92,8 +91,8 @@ export class HelperStore {
 	reply = $state('');
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
-	way = $state<Handoff>(loadHandoff());
-	app = $state<ChatApp>(isChatApp(this.way) ? this.way : 'claude');
+	promptTarget = $state<PromptTarget>(loadPromptTarget());
+	app = $state<ChatApp>(isChatApp(this.promptTarget) ? this.promptTarget : 'claude');
 	/** Off hides Bindu everywhere: the face, the panel, and the doors that open it. */
 	enabled = $state(loadBinduOn());
 	/** Nothing goes to a provider until the person turns this on, and they can turn it off again. */
@@ -294,7 +293,7 @@ export class HelperStore {
 	}
 
 	openIn(app: ChatApp = this.app): void {
-		this.useWay(app);
+		this.setPromptTarget(app);
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
 		this.copied = this.mode;
 		this.sent = app;
@@ -365,11 +364,11 @@ export class HelperStore {
 		this.sending = null;
 	}
 
-	useWay(way: Handoff): void {
-		this.way = way;
-		if (isChatApp(way)) this.app = way;
+	setPromptTarget(target: PromptTarget): void {
+		this.promptTarget = target;
+		if (isChatApp(target)) this.app = target;
 		try {
-			localStorage.setItem(CHAT_APP_KEY, way);
+			localStorage.setItem(PROMPT_TARGET_KEY, target);
 		} catch {
 		}
 	}
