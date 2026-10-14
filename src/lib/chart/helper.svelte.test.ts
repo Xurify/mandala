@@ -41,7 +41,7 @@ function chartData(goal: string): ChartData {
 
 function sandbox() {
 	const charts: Record<string, ChartData> = { one: chartData('Run a half marathon'), two: chartData('Learn Spanish') };
-	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][] };
+	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][], notes: [] as [string, string][] };
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
@@ -57,6 +57,10 @@ function sandbox() {
 		pinWeek: (keys) => {
 			for (const key of keys) setMeta(charts[active]!, key, { pinned: true });
 		},
+		setKinds: (changes) => {
+			for (const change of changes) setMeta(charts[active]!, change.id, { kind: change.after });
+		},
+		saveNote: (weekKey, note) => calls.notes.push([weekKey, note]),
 		showCell: () => {},
 		decline: (keys) => calls.declined.push(keys),
 		noteShown: (signature) => {
@@ -363,5 +367,95 @@ describe('HelperStore turned off', () => {
 		helper.setEnabled(true);
 		helper.show();
 		expect(helper.open).toBe(true);
+	});
+});
+
+describe('HelperStore offers', () => {
+	it('holds lines from an agent on their own page until they are kept', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[2]![3] = '';
+		helper.propose({ kind: 'cells', edits: [{ key: 'a2_3', before: '', after: 'Run 20 km on Sunday morning' }] });
+		expect(helper.open).toBe(true);
+		expect(helper.page).toBe('offer');
+		expect(helper.mood).toBe('offering');
+		expect(charts.one!.actions[2]![3]).toBe('');
+		helper.keepOffer();
+		expect(charts.one!.actions[2]![3]).toBe('Run 20 km on Sunday morning');
+		expect(helper.offer).toBeNull();
+		expect(helper.moment?.title).toBe('Every line is written');
+	});
+
+	it('leaves a line the person changed while the offer waited', () => {
+		const { helper, charts } = sandbox();
+		helper.propose({
+			kind: 'cells',
+			edits: [
+				{ key: 'a0_0', before: 'Easy runs step 1', after: 'Run 5 km easy on Tuesday' },
+				{ key: 'a0_1', before: 'Easy runs step 2', after: 'Run 5 km easy on Thursday' }
+			]
+		});
+		charts.one!.actions[0]![1] = 'Mine now';
+		helper.keepOffer();
+		expect(charts.one!.actions[0]).toEqual(expect.arrayContaining(['Run 5 km easy on Tuesday', 'Mine now']));
+		expect(helper.moment?.title).toBe('Rewrote 1 action');
+	});
+
+	it('holds nothing while Bindu is off', () => {
+		const { helper } = sandbox();
+		helper.setEnabled(false);
+		expect(helper.propose({ kind: 'note', weekKey: '2026-10-12', before: '', after: 'A good week.' })).toBe(false);
+		expect(helper.open).toBe(false);
+		expect(helper.offer).toBeNull();
+		helper.setEnabled(true);
+	});
+
+	it('drops the offer on Not now, or when the chart changes', () => {
+		const { helper, charts, switchTo } = sandbox();
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		helper.back();
+		expect(helper.offer).toBeNull();
+		expect(charts.one!.pillars[0]).toBe('Easy runs');
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		switchTo('two');
+		expect(helper.offer).toBeNull();
+		expect(helper.page).toBe('home');
+	});
+
+	it('keeps kinds from an agent, except where the line or its kind changed meanwhile', () => {
+		const { helper, charts } = sandbox();
+		const data = charts.one!;
+		helper.propose({
+			kind: 'kinds',
+			changes: [
+				{ id: A.a0_0, text: 'Easy runs step 1', pillarIndex: 0, before: undefined, after: 'routine' },
+				{ id: A.a3_1, text: 'Strength step 2', pillarIndex: 3, before: undefined, after: 'milestone' },
+				{ id: A.a4_0, text: 'Sleep step 1', pillarIndex: 4, before: undefined, after: 'routine' }
+			]
+		});
+		expect(helper.page).toBe('offer');
+		data.actions[3]![1] = 'Lift on Fridays';
+		setMeta(data, A.a4_0, { kind: 'milestone' });
+		helper.keepOffer();
+		expect(data.meta?.[A.a0_0]?.kind).toBe('routine');
+		expect(data.meta?.[A.a3_1]?.kind).toBeUndefined();
+		expect(data.meta?.[A.a4_0]?.kind).toBe('milestone');
+		expect(helper.moment).toMatchObject({ title: 'Sorted 1 action', pillars: [0] });
+	});
+
+	it("saves the week's note from an agent", () => {
+		const { helper, calls } = sandbox();
+		helper.propose({ kind: 'note', weekKey: '2026-10-12', before: '', after: 'Two easy runs held.' });
+		helper.keepOffer();
+		expect(calls.notes).toEqual([['2026-10-12', 'Two easy runs held.']]);
+		expect(helper.moment?.title).toBe('Week saved');
+	});
+
+	it('opens a whole chart from an agent beside this one', () => {
+		const { helper, charts } = sandbox();
+		const next = chartData('Learn the cello');
+		helper.propose({ kind: 'chart', data: next });
+		helper.keepOffer();
+		expect(charts.three?.goal).toBe('Learn the cello');
+		expect(helper.moment?.title).toBe('Your chart is ready');
 	});
 });

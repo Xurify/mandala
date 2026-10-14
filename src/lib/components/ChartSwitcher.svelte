@@ -14,6 +14,7 @@
 		type DeletedSummary
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import { fromOutside } from '$lib/chart/shortcuts';
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
@@ -336,7 +337,7 @@
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
 		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		if (isTypingTarget(event.target)) return;
+		if (fromOutside(event) || isTypingTarget(event.target)) return;
 		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 		if (document.querySelector('dialog[open]')) return;
 

@@ -136,6 +136,45 @@ describe('chart time', () => {
 		expect(logged()).toEqual([40]);
 	});
 
+	it('stops the stopwatch on an action taken off today, and keeps its minutes', () => {
+		const today = todayKey();
+		chart.setFocus(today, [ids().a0_0, ids().a3_2]);
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 7 * MINUTE;
+		expect(chart.setFocus(today, [ids().a0_0])).toBeNull();
+		expect(chart.timer).not.toBeNull();
+		chart.setFocus('2099-01-01', [ids().a0_0]);
+		chart.setFocus('2099-01-01', []);
+		expect(chart.timer).not.toBeNull();
+		expect(chart.setFocus(today, [ids().a3_2])).toBe('Logged 7 min on Scales before work.');
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([7]);
+	});
+
+	it('leaves a stopwatch alone when its action was never on today, and drops one left on for hours', () => {
+		const today = todayKey();
+		chart.startTimer(ids().a0_0);
+		chart.setFocus(today, [ids().a3_2]);
+		expect(chart.timer).not.toBeNull();
+		chart.setFocus(today, [ids().a0_0]);
+		chart.data.timer!.since -= 9 * 60 * MINUTE;
+		expect(chart.setFocus(today, [])).toBe('The stopwatch on Scales before work ran for hours, so it was not logged.');
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([]);
+	});
+
+	it("stops the stopwatch when its card moves off today's list on the board", () => {
+		chart.data.actionIds = slotted(emptyChart()).actionIds;
+		chart.setFocus(todayKey(), [A.a0_0, A.a3_2]);
+		chart.startTimer(A.a0_0);
+		chart.data.timer!.since -= 4 * MINUTE;
+		chart.moveCard(A.a3_2, 'todo', 0);
+		expect(chart.timer).not.toBeNull();
+		chart.moveCard(A.a0_0, 'todo', 0);
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([4]);
+	});
+
 	it('logs nothing for under a minute', () => {
 		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 50_000;

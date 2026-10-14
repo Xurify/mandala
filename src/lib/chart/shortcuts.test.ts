@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isApplePlatform, modifierLabel, visibleShortcuts } from './shortcuts.ts';
+import { fromOutside, isApplePlatform, modifierLabel, visibleShortcuts } from './shortcuts.ts';
 
 describe('shortcuts', () => {
 	it('detects Apple platforms', () => {
@@ -33,5 +33,18 @@ describe('shortcuts', () => {
 		const groups = visibleShortcuts('Ctrl', false);
 		expect(groups.flatMap((group) => group.items).find((item) => item.label === 'Board')?.keys).toEqual(['B']);
 		expect(groups.find((group) => group.title === 'On the board')?.items.map((item) => item.keys[0])).toEqual(['Space', '←', '↑', 'Esc']);
+	});
+
+	it("leaves keys from outside the app, such as an extension's panel, to whoever started them", () => {
+		const page = { body: {}, documentElement: {} };
+		const inApp = { ownerDocument: page, closest: (selector: string) => (selector === '[data-app]' ? {} : null) };
+		const host = { ownerDocument: page, closest: () => null };
+		const field = {} as EventTarget;
+		const key = (target: unknown, path: unknown[] = [target]) => ({ target: target as EventTarget, composedPath: () => path as EventTarget[] });
+		expect(fromOutside(key(host, [field, host]))).toBe(true);
+		expect(fromOutside(key(host))).toBe(true);
+		expect(fromOutside(key(inApp))).toBe(false);
+		expect(fromOutside(key(page.body))).toBe(false);
+		expect(fromOutside(key(null, []))).toBe(false);
 	});
 });

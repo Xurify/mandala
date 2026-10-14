@@ -4,7 +4,8 @@
 	import { page } from '$app/state';
 	import { DEMOS, demoSetup, isDemoId, type DemoId } from '$lib/chart/demos';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { helper } from '$lib/chart/helper.svelte';
+	import { agentTarget, helper } from '$lib/chart/helper.svelte';
+	import { agentTools, registerAgentTools } from '$lib/chart/webmcp';
 	import {
 		blockOfKey,
 		getByKey,
@@ -22,7 +23,7 @@
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
-	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
+	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
@@ -139,6 +140,7 @@
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
+			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === open.agent.tool)?.execute(open.agent.input(chart.data));
 			else if (open.bindu === 'home') helper.show();
 			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : open.bindu === 'write-review' ? 'review' : 'new');
 		}, 500);
@@ -206,7 +208,11 @@
 		handleShareHash();
 		window.addEventListener('hashchange', handleShareHash);
 
+		const agents = new AbortController();
+		registerAgentTools(agentTarget, agents.signal);
+
 		return () => {
+			agents.abort();
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
 			window.removeEventListener('hashchange', handleShareHash);
@@ -268,6 +274,7 @@
 	}
 
 	function handleWindowPaste(event: ClipboardEvent): void {
+		if (fromOutside(event)) return;
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
 		const url = linkIn(event.clipboardData?.getData('text') ?? '');
@@ -316,6 +323,7 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (fromOutside(event)) return;
 		const inDialog =
 			(event.target instanceof Element && event.target.closest('dialog') !== null) ||
 			document.querySelector('dialog[open]') !== null;
