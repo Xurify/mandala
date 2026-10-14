@@ -341,9 +341,9 @@
 		<section class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" aria-labelledby="ai-consent-title">
 			<p id="ai-consent-title" class="m-0 text-[0.95rem] leading-tight font-[620]">Let Mandala send your chart to an AI?</p>
 			<ul class="m-0 flex list-disc flex-col gap-1.5 ps-4 text-[0.84rem] leading-snug text-pretty text-muted">
-				<li>When you press Write, Review or Ask, this browser sends the chart, what you told Bindu, and your question to the provider you connect. Nothing goes before you press.</li>
-				<li>The provider bills your account, and keeps the text under its own terms.</li>
-				<li>Turn it off any time in More actions. Copying a prompt works either way.</li>
+				<li>When you press Write, Review or Ask, this browser sends the chart, what you told Bindu, and your question to the connected provider. Nothing goes before you press.</li>
+				<li>The provider (ex. Claude <b>Anthropic</b>) bills your account, and keeps the text under its own terms.</li>
+				<li>Turn it off any time in the "more actions" menu. Copying a prompt will always be available.</li>
 			</ul>
 			<div class="flex items-center gap-2">
 				<Button size="sm" onclick={turnOnAi}>Turn on</Button>
