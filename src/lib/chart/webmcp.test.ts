@@ -16,7 +16,7 @@ function chartData(): ChartData {
 	return data;
 }
 
-function sandbox(data = chartData()) {
+function sandbox(data = chartData(), binduOn = true) {
 	const calls = {
 		offers: [] as HelperOffer[],
 		finished: [] as ActionId[],
@@ -34,7 +34,7 @@ function sandbox(data = chartData()) {
 		data: () => data,
 		now: () => now,
 		reflectionWeek: () => weekStartKey(now),
-		offer: (offer) => calls.offers.push(offer),
+		offer: (offer) => (calls.offers.push(offer), binduOn),
 		finish: (id) => {
 			calls.finished.push(id);
 			data.meta = { ...data.meta, [id]: { kind: 'milestone', done: true, doneAt: today } };
@@ -144,6 +144,12 @@ describe('agent tools', () => {
 		const blank = sandbox(slotted(emptyChart()));
 		expect(await blank.run('propose_lines', { lines: [{ cell: 'p0', text: 'Easy runs' }] })).toMatch(/propose_chart/);
 		expect(calls.offers).toHaveLength(0);
+	});
+
+	it('says so when Bindu is off, instead of claiming it showed anything', async () => {
+		const { run } = sandbox(chartData(), false);
+		expect(await run('propose_lines', { lines: [{ cell: 'a0_0', text: 'Run 5 km on Tuesday' }] })).toMatch(/^Not shown: Bindu is turned off/);
+		expect(await run('propose_reflection', { note: 'A good week.' })).toMatch(/^Not shown: Bindu is turned off/);
 	});
 
 	it('proposes a whole chart only when it is whole', async () => {

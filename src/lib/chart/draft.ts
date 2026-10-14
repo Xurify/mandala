@@ -59,16 +59,16 @@ const PROMPT_METHOD = [
 const BRIEF_RULE =
 	'- Add "brief" to the JSON with what I told you, a few words each: {"timeline":"...","situation":"...","focus":"...","constraint":"..."}. Leave out a field I did not answer.';
 
-/** `direct` is a single request with no back and forth, so it writes at once instead of asking first. */
-export function newChartPrompt(goal = '', direct = false): string {
+/** `oneShot` is a single request with no back and forth, so it writes at once instead of asking first. */
+export function newChartPrompt(goal = '', { oneShot = false }: { oneShot?: boolean } = {}): string {
 	const aim = goal.replace(/\s+/g, ' ').trim().slice(0, 200);
-	const before = direct
+	const before = oneShot
 		? [`My goal: ${aim}`, 'Do not ask me anything. Make reasonable assumptions for my situation and write the chart now.']
 		: [
 				aim ? `My goal: ${aim}` : 'I have not said my goal yet. Ask for it first.',
 				'Then ask me up to three short questions in one message: how much time I have on a normal day, whether there is a date, where I stand now, and anything to work around. Wait for my answers. If I say "just write it", make reasonable assumptions.'
 			];
-	return [...PROMPT_INTRO, 'Help me make my chart.', '', '[Before you write]', ...before, ...PROMPT_METHOD, ...(direct ? [] : [BRIEF_RULE])].join('\n');
+	return [...PROMPT_INTRO, 'Help me make my chart.', '', '[Before you write]', ...before, ...PROMPT_METHOD, ...(oneShot ? [] : [BRIEF_RULE])].join('\n');
 }
 
 export function fillPrompt(data: ChartData): string {

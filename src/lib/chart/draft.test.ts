@@ -72,8 +72,8 @@ describe('newChartPrompt', () => {
 		expect(prompt).not.toContain('Ask for it first');
 	});
 
-	it('writes at once when it goes straight to Claude, with no questions and no brief', () => {
-		const prompt = newChartPrompt('Learn Slovak', true);
+	it('writes at once in a single request, with no questions and no brief', () => {
+		const prompt = newChartPrompt('Learn Slovak', { oneShot: true });
 		expect(prompt).toContain('My goal: Learn Slovak');
 		expect(prompt).toContain('Do not ask me anything');
 		expect(prompt).not.toContain('up to three short questions');

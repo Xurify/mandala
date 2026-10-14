@@ -1,5 +1,4 @@
 import { chart } from './chart.svelte';
-import { askClaude, loadClaudeKey, saveClaudeKey } from './claude.ts';
 import { chatLink, fillPrompt, isChatApp, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
@@ -9,8 +8,8 @@ import {
 	greetingInsight,
 	insightSignature,
 	moodFor,
-	progressOf,
 	norm,
+	progressOf,
 	reviseEdits,
 	suggestToday,
 	suggestWeek,
@@ -23,6 +22,7 @@ import {
 	type KindChange,
 	type WriteMode
 } from './helper.ts';
+import { loadAiConsent, loadConnection, saveAiConsent, saveConnection, sendPrompt, type Connection } from './provider.ts';
 import { blockOfK, getByKey, hasContent, todayKey, wholeness, wordsOf, type ActionId, type ChartData, type Ref } from './model.ts';
 import { LANE_NAMES, tomorrowOf } from './board.ts';
 import type { AgentTarget } from './webmcp.ts';
@@ -48,6 +48,15 @@ export type HelperTarget = {
 export type HelperPicks = { scope: 'today' | 'week'; picks: HelperPick[] };
 
 const CHAT_APP_KEY = 'mandala_chat_app';
+const BINDU_KEY = 'mandala_bindu';
+
+function loadBinduOn(): boolean {
+	try {
+		return typeof localStorage === 'undefined' || localStorage.getItem(BINDU_KEY) !== 'off';
+	} catch {
+		return true;
+	}
+}
 
 function loadChatApp(): ChatApp {
 	try {
@@ -81,14 +90,21 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
 	app = $state<ChatApp>(loadChatApp());
-	claudeKey = $state(loadClaudeKey());
-	/** The mode a request to Claude is out for. */
-	writing = $state<WriteMode | null>(null);
-	failure = $state('');
-	answer = $state('');
-	/** The mode whose reply came from Claude, not a paste. */
-	wrote = $state<WriteMode | null>(null);
+	/** Off hides Bindu everywhere: the face, the panel, and the doors that open it. */
+	enabled = $state(loadBinduOn());
+	/** Nothing goes to a provider until the person turns this on, and they can turn it off again. */
+	aiEnabled = $state(loadAiConsent());
+	/** The write page is showing what turning it on means. */
+	askingConsent = $state(false);
+	connection = $state<Connection | null>(loadConnection());
+	/** The mode whose request to the provider is out. */
+	sending = $state<WriteMode | null>(null);
+	sendError = $state('');
+	askAnswer = $state('');
+	#providerReply = $state('');
 	#request: AbortController | null = null;
+
+	repliedBy: 'paste' | 'provider' = $derived(this.reply.trim() !== '' && this.reply === this.#providerReply ? 'provider' : 'paste');
 	/** Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -116,7 +132,7 @@ export class HelperStore {
 			cheer: this.#cheer,
 			listening: this.listening,
 			offering: ((this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null) || (this.page === 'offer' && this.offer !== null),
-			waiting: this.writing !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
+			waiting: this.sending !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
 		})
 	);
 
@@ -141,6 +157,7 @@ export class HelperStore {
 	 * for the reply. A finished moment does not wait for a reopen.
 	 */
 	show(page?: HelperPage, mode?: WriteMode): void {
+		if (!this.enabled) return;
 		const opening = !this.open;
 		this.open = true;
 		if (this.moment) this.reset();
@@ -172,11 +189,13 @@ export class HelperStore {
 		this.offer = null;
 	}
 
-	/** Replaces any offer still waiting: the agent's latest is the one it means. */
-	propose(offer: HelperOffer): void {
+	/** Replaces any offer still waiting: the agent's latest is the one it means. False while Bindu is off, with nowhere to show it. */
+	propose(offer: HelperOffer): boolean {
+		if (!this.enabled) return false;
 		this.show();
 		this.offer = offer;
 		this.go('offer');
+		return true;
 	}
 
 	/** A line, or a kind, the person changed while the offer waited stays theirs. */
@@ -257,9 +276,9 @@ export class HelperStore {
 		this.hide();
 	}
 
-	prompt(mode: WriteMode = this.mode, direct = false): string {
+	prompt(mode: WriteMode = this.mode, { oneShot = false }: { oneShot?: boolean } = {}): string {
 		const data = this.#target.data();
-		if (mode === 'new') return newChartPrompt(this.goal, direct);
+		if (mode === 'new') return newChartPrompt(this.goal, { oneShot });
 		if (mode === 'fill') return fillPrompt(data);
 		if (mode === 'review') return reviewPrompt(data);
 		return askPrompt(data, this.question);
@@ -277,40 +296,69 @@ export class HelperStore {
 		this.sent = app;
 	}
 
-	setClaudeKey(key: string): void {
-		saveClaudeKey(key);
-		this.claudeKey = loadClaudeKey();
-		this.failure = '';
+	connect(connection: Connection | null): void {
+		saveConnection(connection);
+		this.connection = loadConnection();
+		this.sendError = '';
 	}
 
 	/** Sends the same prompt a chat app would get, and treats the reply as if it had been pasted. */
-	async askClaude(): Promise<void> {
+	async send(): Promise<void> {
 		const mode = this.mode;
-		if (!this.claudeKey || this.writing) return;
+		const connection = this.connection;
+		if (!connection || !this.aiEnabled || this.sending) return;
 		const request = new AbortController();
 		this.#request = request;
-		this.writing = mode;
-		this.failure = '';
-		this.answer = '';
+		this.sending = mode;
+		this.sendError = '';
+		this.askAnswer = '';
 		this.reply = '';
-		this.wrote = null;
-		const result = await askClaude(this.claudeKey, this.prompt(mode, true), request.signal);
+		const result = await sendPrompt(connection, this.prompt(mode, { oneShot: true }), request.signal);
 		if (this.#request !== request) return;
-		this.writing = null;
+		this.sending = null;
 		this.#request = null;
 		if (!result.ok) {
-			if (!('aborted' in result)) this.failure = result.reason;
+			if (!('aborted' in result)) this.sendError = result.reason;
 			return;
 		}
-		if (mode === 'ask') this.answer = result.text;
-		else this.reply = result.text;
-		this.wrote = mode;
+		if (mode === 'ask') this.askAnswer = result.text;
+		else {
+			this.#providerReply = result.text;
+			this.reply = result.text;
+		}
 	}
 
-	stopClaude(): void {
+	setEnabled(on: boolean): void {
+		try {
+			if (on) localStorage.removeItem(BINDU_KEY);
+			else localStorage.setItem(BINDU_KEY, 'off');
+		} catch {
+		}
+		this.enabled = on;
+		if (!on) {
+			this.cancel();
+			this.hide();
+			this.reset();
+		}
+	}
+
+	setAiEnabled(on: boolean): void {
+		saveAiConsent(on);
+		this.aiEnabled = on;
+		this.askingConsent = false;
+		if (!on) this.cancel();
+	}
+
+	/** Opens the write page on what turning AI on means, for the menu and the command palette. */
+	offerAi(): void {
+		this.askingConsent = true;
+		this.show('write');
+	}
+
+	cancel(): void {
 		this.#request?.abort();
 		this.#request = null;
-		this.writing = null;
+		this.sending = null;
 	}
 
 	useApp(app: ChatApp): void {
@@ -337,8 +385,7 @@ export class HelperStore {
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
-		this.failure = '';
-		this.wrote = null;
+		this.sendError = '';
 	}
 
 	#keep(outcome: Extract<HelperOffer, { kind: 'chart' | 'cells' }>, rewriting: boolean): boolean {
@@ -388,10 +435,9 @@ export class HelperStore {
 	}
 
 	reset(): void {
-		this.stopClaude();
-		this.failure = '';
-		this.answer = '';
-		this.wrote = null;
+		this.cancel();
+		this.sendError = '';
+		this.askAnswer = '';
 		this.page = 'home';
 		this.direction = -1;
 		this.picks = null;

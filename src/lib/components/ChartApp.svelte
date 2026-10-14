@@ -48,6 +48,7 @@
 	import LogTimeDialog from './LogTimeDialog.svelte';
 	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
+	import { finishOpenRouterSignIn, openRouterSignInPending } from '$lib/chart/provider';
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
@@ -149,6 +150,18 @@
 		const params = new URL(location.href).searchParams;
 		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
+		const signInCode = params.get('code');
+		if (signInCode && openRouterSignInPending()) {
+			requestAnimationFrame(async () => {
+				replaceState(location.pathname, page.state);
+				const result = await finishOpenRouterSignIn(signInCode);
+				if (result.ok) {
+					helper.connect({ provider: 'openrouter', key: result.key });
+					chart.say('Connected OpenRouter');
+				} else chart.say(result.reason);
+				helper.show('write');
+			});
+		}
 		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
 		// After the router is up, which replaceState needs.
 		if (shared) {
@@ -376,6 +389,21 @@
 		}
 	}
 
+	function turnOffBindu(): void {
+		helper.setEnabled(false);
+		chart.say('Turned off Bindu. More actions turns it back on.');
+	}
+
+	function turnOnBindu(): void {
+		helper.setEnabled(true);
+		chart.say('Turned on Bindu');
+	}
+
+	function turnOffAi(): void {
+		helper.setAiEnabled(false);
+		chart.say('Turned off the AI provider. Your key stays on this device until you disconnect it.');
+	}
+
 	function isTheme(value: string): value is AppTheme {
 		return value === 'system' || value === 'light' || value === 'dark';
 	}
@@ -499,7 +527,6 @@
 			{ id: 'duplicate-fresh', label: 'Copy without history', section: 'Actions', icon: 'sparkles', run: () => chart.duplicateChart(true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
 			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
-			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
@@ -511,6 +538,15 @@
 				hint: '?',
 				run: () => (shortcutsOpen = true)
 			},
+			...(helper.enabled
+				? [
+						{ id: 'helper', label: 'Open Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: () => helper.show() },
+						{ id: 'bindu-off', label: 'Turn off Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOffBindu },
+						helper.aiEnabled
+							? { id: 'ai-off', label: 'Turn off AI provider', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOffAi }
+							: { id: 'ai-on', label: 'Turn on AI provider', section: 'Actions' as const, icon: 'sparkles' as const, run: () => helper.offerAi() }
+					]
+				: [{ id: 'bindu-on', label: 'Turn on Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOnBindu }]),
 			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
 			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
 			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
@@ -652,7 +688,7 @@
 				</div>
 			{/if}
 
-			{#if !showStartSheet}
+			{#if !showStartSheet && helper.enabled}
 				<button
 					type="button"
 					data-bindu-launcher
@@ -688,6 +724,17 @@
 							{chart.backupState === 'needs-permission' ? 'Resume backups' : 'Keep a backup folder'}
 						</MenuItem>
 					{/if}
+				{/if}
+				<MenuDivider />
+				{#if helper.enabled}
+					<MenuItem icon="sparkles" onclick={turnOffBindu}>Turn off Bindu</MenuItem>
+					{#if helper.aiEnabled}
+						<MenuItem icon="sparkles" onclick={turnOffAi}>Turn off AI provider</MenuItem>
+					{:else}
+						<MenuItem icon="sparkles" onclick={() => helper.offerAi()}>Turn on AI provider</MenuItem>
+					{/if}
+				{:else}
+					<MenuItem icon="sparkles" onclick={turnOnBindu}>Turn on Bindu</MenuItem>
 				{/if}
 				<MenuDivider />
 				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
@@ -750,7 +797,9 @@
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
+								{#if helper.enabled}
+									<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -891,7 +940,7 @@
 							showGuideLink={hideHero}
 							class={hideHero ? 'mt-8 max-[900px]:mt-5' : undefined}
 							onopenguide={() => (guideOpen = true)}
-							ondraftinchat={() => helper.show('write', 'new')}
+							ondraftinchat={helper.enabled ? () => helper.show('write', 'new') : undefined}
 						/>
 					{/key}
 				{:else if effectiveViewMode === 'view'}
@@ -965,7 +1014,9 @@
 		</div>
 	{/if}
 
-	<Helper {helper} hideLauncher={showStartSheet} />
+	{#if helper.enabled}
+		<Helper {helper} hideLauncher={showStartSheet} />
+	{/if}
 
 	<Dock label="Layout view mode" hideTabs={showStartSheet}>
 		{#snippet above()}

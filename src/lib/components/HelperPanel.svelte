@@ -36,7 +36,7 @@
 		if (view === 'today') return { title: "Today's three", sub: 'From different pillars' };
 		if (view === 'week') return { title: 'This week', sub: 'One per pillar, quiet ones first' };
 		if (view === 'progress') return { title: 'How it is going', sub: 'The last 7 days, from your log' };
-		if (view === 'write') return { title: 'Fill chart using a prompt', sub: helper.claudeKey ? 'I write the prompt, Claude writes the lines' : 'I write the prompt, a chat app writes the lines' };
+		if (view === 'write') return { title: 'Fill chart using a prompt', sub: helper.connection && helper.aiEnabled ? 'I write the prompt, your provider writes' : 'I write the prompt, a chat app writes the lines' };
 		if (view === 'offer') return { title: OFFER_TITLES[helper.offer?.kind ?? 'cells'], sub: 'From the assistant in your browser' };
 		return { title: 'Bindu', sub: goal ? `Reading “${goal}”` : 'Your chart helper, on this device' };
 	});

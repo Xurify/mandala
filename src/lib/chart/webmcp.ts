@@ -32,7 +32,8 @@ export type AgentTarget = {
 	now(): Date;
 	/** The week the weekly reflection is for. */
 	reflectionWeek(): string;
-	offer(offer: HelperOffer): void;
+	/** False while Bindu is turned off on this device. */
+	offer(offer: HelperOffer): boolean;
 	finish(id: ActionId): void;
 	reopen(id: ActionId): void;
 	setToday(ids: ActionId[]): void;
@@ -74,6 +75,8 @@ const TESTS =
 const CELLS = 'Cells: "p0" to "p7" are the pillars; "a{pillar}_{slot}" is an action, both 0 to 7, so "a2_5" is the sixth action of the third pillar.';
 const KINDS =
 	'Kinds: a "routine" is a habit done again and again ("Play Spanish audio at breakfast"); it shows on Today every day and is ticked each day, never finished. A "milestone" happens once and is then done for good ("Book a trial lesson"). A "standard" action is done on some days, picked when it fits.';
+
+const BINDU_OFF = 'Not shown: Bindu is turned off on this device, so there is nowhere to show it. The person can turn it on in More actions.';
 
 const READ: AgentToolAnnotations = { readOnlyHint: true, untrustedContentHint: true };
 const ID_LIST = { type: 'array', minItems: 1, maxItems: 8, items: { type: 'string' }, description: 'Action ids from read_chart or suggest_today' };
@@ -400,7 +403,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				if (!data.goal.trim()) return 'This chart has no goal yet. Use propose_chart to propose a whole chart.';
 				const { edits, refused } = linesToEdits(data, input.lines);
 				if (edits.length === 0) return json({ shown: false, message: 'Nothing new: every line given is already written that way, or was refused.', refused });
-				target.offer({ kind: 'cells', edits });
+				if (!target.offer({ kind: 'cells', edits })) return BINDU_OFF;
 				return json({ shown: true, message: `Shown in Bindu: ${plural(edits.length, 'line')}. Nothing is written until the person presses Keep.`, refused });
 			}
 		},
@@ -432,7 +435,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			execute: async (input) => {
 				const chart = chartFromDraft(input);
 				if (!chart) return 'Not shown: a chart needs a goal, exactly 8 pillars, and 8 written actions under each.';
-				target.offer({ kind: 'chart', data: chart });
+				if (!target.offer({ kind: 'chart', data: chart })) return BINDU_OFF;
 				return 'Shown in Bindu. Nothing is written until the person keeps it.';
 			}
 		},
@@ -460,7 +463,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			execute: async (input) => {
 				const { changes, refused } = kindsToChanges(target.data(), input.kinds);
 				if (changes.length === 0) return json({ shown: false, message: 'Nothing new: every action given is already that kind, or was refused.', refused });
-				target.offer({ kind: 'kinds', changes });
+				if (!target.offer({ kind: 'kinds', changes })) return BINDU_OFF;
 				return json({ shown: true, message: `Shown in Bindu: ${plural(changes.length, 'action')}. Nothing changes until the person presses Keep.`, refused });
 			}
 		},
@@ -477,7 +480,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				const weekKey = target.reflectionWeek();
 				const before = target.data().weeks?.[weekKey]?.note?.trim() ?? '';
 				if (before === after) return 'Not shown: that is already the note for this week.';
-				target.offer({ kind: 'note', weekKey, before, after });
+				if (!target.offer({ kind: 'note', weekKey, before, after })) return BINDU_OFF;
 				return 'Shown in Bindu. Nothing is saved until the person keeps it.';
 			}
 		},
