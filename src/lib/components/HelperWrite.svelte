@@ -8,8 +8,11 @@
 	import Icon from './Icon.svelte';
 	import BouncingDots from './ui/BouncingDots.svelte';
 	import Button from './ui/Button.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
+	import MenuDivider from './ui/MenuDivider.svelte';
+	import MenuItem from './ui/MenuItem.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
-	import Select from './ui/Select.svelte';
+	import SplitButton from './ui/SplitButton.svelte';
 	import { cn } from './ui/cn';
 	import { textArea, textField } from './ui/styles';
 
@@ -23,8 +26,8 @@
 		...(written ? [{ value: 'review', label: 'Review' }] : []),
 		{ value: 'ask', label: 'Ask' }
 	]);
-	const appOptions = CHAT_APPS.map((app) => ({ value: app.id, label: app.label, icon: app.icon }));
 	const app = $derived(CHAT_APPS.find((entry) => entry.id === helper.app) ?? CHAT_APPS[0]!);
+	const targetApp = $derived(CHAT_APPS.find((entry) => entry.id === helper.promptTarget) ?? null);
 	const outcome = $derived(helper.outcome);
 
 	const copied = $derived(helper.copied === helper.mode);
@@ -94,8 +97,16 @@
 	});
 	const APPS = Object.fromEntries(CHAT_APPS.map((entry) => [entry.id, entry.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
 
+	function sendPrompt(): void {
+		if (targetApp) {
+			link = null;
+			helper.openIn(targetApp.id);
+		} else void copy();
+	}
+
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
+		helper.setPromptTarget('clipboard');
 		try {
 			await navigator.clipboard.writeText(helper.prompt(mode));
 			failed = false;
@@ -158,7 +169,7 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or copy the prompt` : 'Copy the prompt'}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or send the prompt` : targetApp ? 'Send the prompt' : 'Copy the prompt'}</p>
 				{#if helper.mode === 'new'}
 					<input
 						class={textField}
@@ -199,19 +210,21 @@
 					{/if}
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
-					<Button size="sm" variant="soft" icon={copied && !opened && !linked ? 'check' : 'copy'} onclick={copy}>{copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}</Button>
-					<Button size="sm" variant="soft" icon={app.icon} onclick={() => ((link = null), helper.openIn())}>Open in {app.label}</Button>
-					<Button size="sm" variant="soft" icon={linked ? 'check' : 'link'} onclick={copyLink}>{linked ? 'Link copied' : 'Copy link'}</Button>
-					<Select
-						size="sm"
-						class="w-[9.5rem]"
-						label="Which chat app to open"
-						options={appOptions}
-						value={helper.app}
-						onchange={(value) => {
-							if (CHAT_APPS.some((entry) => entry.id === value)) helper.useApp(value as (typeof CHAT_APPS)[number]['id']);
-						}}
-					/>
+					<SplitButton size="sm" icon={targetApp ? targetApp.icon : copied && !opened && !linked ? 'check' : 'copy'} menuLabel="Other ways to send the prompt" onclick={sendPrompt}>
+						{#snippet label()}{targetApp ? `Open in ${targetApp.label}` : copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}{/snippet}
+						<div role="group" aria-labelledby="send-open">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-open">One click</span></Eyebrow>
+							{#each CHAT_APPS as entry (entry.id)}
+								<MenuItem icon={entry.icon} checked={helper.promptTarget === entry.id} onclick={() => ((link = null), helper.openIn(entry.id))}>{entry.label}</MenuItem>
+							{/each}
+						</div>
+						<MenuDivider />
+						<div role="group" aria-labelledby="send-paste">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-paste">Copy and paste</span></Eyebrow>
+							<MenuItem icon="copy" badge="Any chat app" checked={helper.promptTarget === 'clipboard'} onclick={copy}>Copy prompt</MenuItem>
+							<MenuItem icon="link" badge="Opens {app.label}" onclick={copyLink}>Copy link</MenuItem>
+						</div>
+					</SplitButton>
 					{#if failed}
 						<span class="basis-full text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
 					{/if}

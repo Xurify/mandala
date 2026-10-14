@@ -15,6 +15,8 @@
 		label?: string;
 		class?: string;
 		open?: boolean;
+		/** A scrolling panel clips an absolute menu, so this pins it to the viewport instead, and closes it on scroll. */
+		float?: boolean;
 		onopenchange?: (open: boolean) => void;
 	};
 
@@ -25,16 +27,65 @@
 		label = 'More actions',
 		class: className,
 		open: expanded = $bindable(false),
+		float = false,
 		onopenchange
 	}: Props = $props();
 
 	let root = $state<HTMLDivElement | null>(null);
 	let up = $state(false);
+	let pinnedToViewport = $state(false);
 	const styles = $derived(menu({ align }));
 	/** The dock floats over the bottom of the page: 18px off the edge, a 54px bar, and a gap above it. */
 	const DOCK_ROOM = 96;
 
+	/** An ancestor that is a containing block for fixed boxes (a transform, a filter) would pin the panel to itself. */
+	function insideFixedContainer(): boolean {
+		for (let node = root?.parentElement; node; node = node.parentElement) {
+			const style = getComputedStyle(node);
+			if (style.transform !== 'none' || style.filter !== 'none' || style.backdropFilter !== 'none' || style.perspective !== 'none' || style.willChange.includes('transform')) return true;
+			if (/paint|layout|strict|content/.test(style.contain)) return true;
+		}
+		return false;
+	}
+
+	function pinToViewport(panel: HTMLElement): boolean {
+		const trigger = root?.getBoundingClientRect();
+		if (!trigger || insideFixedContainer()) return false;
+		const height = panel.offsetHeight;
+		const width = panel.offsetWidth;
+		const opensUp = height + 8 > window.innerHeight - trigger.bottom - DOCK_ROOM && trigger.top - height - 8 > 8;
+		const top = opensUp ? trigger.top - 8 - height : trigger.bottom + 8;
+		const left = align === 'start' ? trigger.left : trigger.right - width;
+		Object.assign(panel.style, {
+			position: 'fixed',
+			top: `${top}px`,
+			bottom: 'auto',
+			left: `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`,
+			right: 'auto',
+			maxHeight: opensUp ? '' : `${Math.max(160, window.innerHeight - top - 8)}px`
+		});
+		up = opensUp;
+		pinnedToViewport = true;
+		return true;
+	}
+
+	$effect(() => {
+		if (!float || !expanded) return;
+		const closeUnlessInside = (event?: Event): void => {
+			if (event?.target instanceof Node && root?.querySelector('[role="menu"]')?.contains(event.target)) return;
+			close();
+		};
+		window.addEventListener('scroll', closeUnlessInside, true);
+		window.addEventListener('resize', closeUnlessInside);
+		return () => {
+			window.removeEventListener('scroll', closeUnlessInside, true);
+			window.removeEventListener('resize', closeUnlessInside);
+		};
+	});
+
 	function place(panel: HTMLElement): void {
+		pinnedToViewport = float && pinToViewport(panel);
+		if (pinnedToViewport) return;
 		const below = panel.getBoundingClientRect();
 		const trigger = root?.getBoundingClientRect();
 		if (!trigger) return;
@@ -137,7 +188,7 @@
 	{#if expanded}
 		<div class={styles.backdrop()} aria-hidden="true" onclick={close}></div>
 		<div
-			class={cn(styles.panel(), up && 'top-auto bottom-[calc(100%+8px)]', up && (align === 'start' ? 'origin-bottom-left' : 'origin-bottom-right'))}
+			class={cn(styles.panel(), up && !pinnedToViewport && 'top-auto bottom-[calc(100%+8px)]', up && (align === 'start' ? 'origin-bottom-left' : 'origin-bottom-right'))}
 			role="menu"
 			aria-label={label}
 			{@attach place}

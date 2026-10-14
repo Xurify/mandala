@@ -149,6 +149,7 @@ Tailwind preflight is off. A raw `<input>`, `<textarea>`, or `<select>` keeps th
 | `Button` `variant="ghost"` | Tertiary ("Write it myself") |
 | `Button` `variant="danger"` | Throw away, or kill a link. Danger text and wash only, never a fill. A recoverable confirm stays `primary` |
 | `size="sm"` | Dense contexts (notice rows, toolbars, inside dialogs) |
+| `SplitButton` | One action and its alternatives: the main half does the remembered choice, the chevron opens a menu of the others, grouped under eyebrows, the remembered one checked. Picking a row does it and makes it the main half. Bindu's prompt hand-off: Copy prompt, or Open in a chat app |
 | `IconButton` | 42px round, icon only. Must have `aria-label`. Close buttons, the overflow menu |
 
 Order in a row: primary first on the left in content; in a dialog footer cancel left, primary right. Icon sizes: 16 in `sm`, 18 in the default button and `IconButton`.

@@ -380,7 +380,7 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Bindu',
 		steps: [
 			'Bindu opens on Review, on a chart with five lines that cannot be ticked or are not yours to do.',
-			'Copy the prompt, or open it in a chat app. It checks every line in the language the chart is written in.',
+			'Copy the prompt, or open the arrow beside it and pick a chat app. The button remembers the pick. It checks every line in the language the chart is written in.',
 			'Use "Copy a sample reply" on this card and paste it into the reply box. Only the failing lines change.'
 		],
 		reply: () => JSON.stringify(preset('health'))
