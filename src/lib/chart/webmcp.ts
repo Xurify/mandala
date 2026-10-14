@@ -690,7 +690,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			}
 		},
 		{
-			name: 'add_link',
+			name: 'add_shelf_link',
 			title: "Save a link to a pillar's shelf",
 			description:
 				`Saves a link (a video, an article, a course) to a pillar's shelf, where Bindu hands it out with that pillar's actions. Use the page the person is on when they say "save this". ${LINK_KINDS} Leave kind out for "repeat".`,
@@ -721,7 +721,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			}
 		},
 		{
-			name: 'update_link',
+			name: 'update_shelf_link',
 			title: 'Change a link on a shelf',
 			description: `Changes how a link on a shelf comes round: its kind, whether it is known (a known link waits on the shelf and is not handed out), or which action hands it out (an action id from the same pillar, or "any" for any routine there). A staple is never known. Link ids come from read_shelves. ${LINK_KINDS}`,
 			inputSchema: {

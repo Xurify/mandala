@@ -86,8 +86,8 @@ describe('agent tools', () => {
 			'log_time',
 			'start_timer',
 			'stop_timer',
-			'add_link',
-			'update_link'
+			'add_shelf_link',
+			'update_shelf_link'
 		]);
 		for (const tool of tools.slice(0, 6)) expect(tool.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
 		for (const tool of tools.slice(6)) expect(tool.annotations.readOnlyHint).toBeUndefined();
@@ -299,12 +299,12 @@ describe('agent tools', () => {
 	it("saves a link to a pillar's shelf once, and only a web link", async () => {
 		const { data, calls, run } = sandbox();
 		data.tools = { p1: [{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat' }] };
-		expect(await run('add_link', { pillar: 9, url: 'https://example.com' })).toMatch(/^Not saved. Pillar/);
-		expect(await run('add_link', { pillar: 1, url: 'javascript:alert(1)' })).toMatch(/^Not saved. Give an http/);
-		expect(await run('add_link', { pillar: 1, url: 'https://example.com/drills' })).toBe("That link is already on Speed's shelf.");
-		expect(await run('add_link', { pillar: 1, url: ' https://example.com/intervals ', title: ' Interval  guide ', kind: 'once' })).toBe("Saved to Speed's shelf.");
-		expect(await run('add_link', { pillar: 1, url: 'https://example.com/forever', kind: 'always' })).toMatch(/^Not saved. Kind must be/);
-		expect(await run('add_link', { pillar: 2, url: 'https://example.com/dictionary', kind: 'staple' })).toBe("Saved to Long run's shelf.");
+		expect(await run('add_shelf_link', { pillar: 9, url: 'https://example.com' })).toMatch(/^Not saved. Pillar/);
+		expect(await run('add_shelf_link', { pillar: 1, url: 'javascript:alert(1)' })).toMatch(/^Not saved. Give an http/);
+		expect(await run('add_shelf_link', { pillar: 1, url: 'https://example.com/drills' })).toBe("That link is already on Speed's shelf.");
+		expect(await run('add_shelf_link', { pillar: 1, url: ' https://example.com/intervals ', title: ' Interval  guide ', kind: 'once' })).toBe("Saved to Speed's shelf.");
+		expect(await run('add_shelf_link', { pillar: 1, url: 'https://example.com/forever', kind: 'always' })).toMatch(/^Not saved. Kind must be/);
+		expect(await run('add_shelf_link', { pillar: 2, url: 'https://example.com/dictionary', kind: 'staple' })).toBe("Saved to Long run's shelf.");
 		expect(calls.links).toEqual([
 			[1, 'https://example.com/intervals', 'Interval guide', 'once'],
 			[2, 'https://example.com/dictionary', '', 'staple']
@@ -335,16 +335,16 @@ describe('agent tools', () => {
 	it('changes how a link comes round, and refuses a known staple or an action from another pillar', async () => {
 		const { data, calls, run } = sandbox();
 		data.tools = { p1: [{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat', known: true }] };
-		expect(await run('update_link', { id: 'tool_9', kind: 'staple' })).toMatch(/is not a link on this chart/);
-		expect(await run('update_link', { id: 'tool_1', kind: 'forever' })).toMatch(/^Not changed. Kind must be/);
-		expect(await run('update_link', { id: 'tool_1', kind: 'staple', known: true })).toMatch(/is a staple, which stays in rotation/);
-		expect(await run('update_link', { id: 'tool_1', action: A.a2_0 })).toMatch(/is not in Speed/);
-		expect(await run('update_link', { id: 'tool_1', known: true, action: 'any' })).toBe('“Drills” already comes round that way. Nothing changed.');
+		expect(await run('update_shelf_link', { id: 'tool_9', kind: 'staple' })).toMatch(/is not a link on this chart/);
+		expect(await run('update_shelf_link', { id: 'tool_1', kind: 'forever' })).toMatch(/^Not changed. Kind must be/);
+		expect(await run('update_shelf_link', { id: 'tool_1', kind: 'staple', known: true })).toMatch(/is a staple, which stays in rotation/);
+		expect(await run('update_shelf_link', { id: 'tool_1', action: A.a2_0 })).toMatch(/is not in Speed/);
+		expect(await run('update_shelf_link', { id: 'tool_1', known: true, action: 'any' })).toBe('“Drills” already comes round that way. Nothing changed.');
 		expect(calls.changed).toEqual([]);
-		expect(await run('update_link', { id: 'tool_1', known: false, action: A.a1_2 })).toBe(
+		expect(await run('update_shelf_link', { id: 'tool_1', known: false, action: A.a1_2 })).toBe(
 			"“Drills” on Speed's shelf is now a repeat link, handed out by “Speed session 3 on Monday”."
 		);
-		expect(await run('update_link', { id: 'tool_1', kind: 'staple', action: 'any' })).toBe("“Drills” on Speed's shelf is now a staple, handed out by any routine in its pillar.");
+		expect(await run('update_shelf_link', { id: 'tool_1', kind: 'staple', action: 'any' })).toBe("“Drills” on Speed's shelf is now a staple, handed out by any routine in its pillar.");
 		expect(calls.changed).toEqual([
 			[1, 'tool_1', { known: undefined, action: A.a1_2 }],
 			[1, 'tool_1', { kind: 'staple', action: undefined }]
