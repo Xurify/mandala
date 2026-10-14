@@ -350,7 +350,7 @@ export const DEMOS: readonly Demo[] = [
 		title: 'A staple from an agent',
 		group: 'Tools',
 		steps: [
-			'The demo calls update_link, as an agent would after read_shelves: Comprehensible Russian on Listening becomes a staple. The slip says your assistant changed it.',
+			'The demo calls update_shelf_link, as an agent would after read_shelves: Comprehensible Russian on Listening becomes a staple. The slip says your assistant changed it.',
 			'Open the Listening shelf from its row in Today: under the title it says staple, and its settings have no Know this.',
 			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask it what is on your shelves, or to keep a link for good.'
 		]
@@ -486,7 +486,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'agent-shelf') {
 		const { data } = demoSetup('tools', now);
 		const input = (opened: ChartData) => ({ id: opened.tools?.p1?.find((tool) => tool.url === 'https://comprehensiblerussian.com/#/home')?.id, kind: 'staple' });
-		return { data, view: 'today', open: { agent: { tool: 'update_link', input } } };
+		return { data, view: 'today', open: { agent: { tool: 'update_shelf_link', input } } };
 	}
 	if (id === 'time-stopwatch') return { data: timed(now, 'a2_0', 12 * MINUTE), view: 'today' };
 	if (id === 'time-block') return { data: timed(now, 'a4_0', 25 * MINUTE - 40_000, 25), view: 'today' };

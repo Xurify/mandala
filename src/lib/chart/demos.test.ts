@@ -136,7 +136,7 @@ describe('demos', () => {
 		expect(changes).toHaveLength(6);
 		const shelf = demoSetup('agent-shelf', now);
 		const link = (shelf.open as { agent: AgentCall }).agent;
-		expect(link.tool).toBe('update_link');
+		expect(link.tool).toBe('update_shelf_link');
 		expect(link.input(shelf.data!)).toEqual({ id: 't-site', kind: 'staple' });
 		expect(shelf.data!.tools?.p1?.find((tool) => tool.id === 't-site')?.kind).toBe('repeat');
 		const week = demoSetup('agent-week', now);
