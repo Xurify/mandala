@@ -165,7 +165,8 @@ export const BROWSER_KEYS: Record<string, string> = {
 	mandala_view_scale: 'Fit or Large',
 	mandala_goal_fit: 'Measured goal text sizes, so the goal does not resize after paint',
 	mandala_chat_app: 'The chat app prompts open in',
-	mandala_claude_key: 'The person\'s own Anthropic API key, for writing with Claude. Never synced, shared, or exported',
+	mandala_ai_provider: 'The AI provider the person connected, its key, and a model. Never synced, shared, or exported',
+	mandala_openrouter_verifier: 'Session only: the one-time secret for an OpenRouter sign-in in progress',
 	theme: 'Light, dark, or the system',
 	accent: 'The accent, when not the default'
 };

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { HelperStore, WriteMode } from '$lib/chart/helper.svelte';
-	import { looksLikeClaudeKey } from '$lib/chart/claude';
 	import { CHAT_APPS, chatLink, type ChatApp } from '$lib/chart/draft';
+	import { looksLikeKey, openRouterSignInUrl, PROVIDERS, providerOf, type ProviderId } from '$lib/chart/provider';
 	import { draftButton, editWords, gapsOf, groupEdits } from '$lib/chart/helper';
 	import { hasContent } from '$lib/chart/model';
 	import { HUES, setByKey } from '$lib/chart/model';
@@ -39,19 +39,41 @@
 	const linked = $derived(copied && link?.mode === helper.mode ? link.app : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
-	let adding = $state(false);
-	let draftKey = $state('');
-	const fromClaude = $derived(helper.wrote !== null && helper.wrote === helper.mode && helper.reply.trim() !== '');
-	const writingHere = $derived(helper.writing !== null && helper.writing === helper.mode);
+	let connecting = $state(false);
+	let choice = $state<ProviderId>('openrouter');
+	let keyDraft = $state('');
+	let modelDraft = $state('');
+	let leaving = $state(false);
+	const connected = $derived(helper.connection ? providerOf(helper.connection.provider) : null);
+	const chosen = $derived(providerOf(choice));
+	const providerOptions = PROVIDERS.map((provider) => ({ value: provider.id, label: provider.label }));
+	const replyFromProvider = $derived(helper.repliedBy === 'provider');
+	const sendingThisMode = $derived(helper.sending !== null && helper.sending === helper.mode);
 	const ready = $derived(helper.mode === 'new' ? helper.goal.trim() !== '' : helper.mode === 'ask' ? helper.question.trim() !== '' : true);
-	const claudeLabel = $derived(helper.mode === 'ask' ? 'Ask Claude' : helper.mode === 'review' ? 'Review with Claude' : 'Write with Claude');
+	const sendLabel = $derived(
+		connected ? (helper.mode === 'ask' ? `Ask ${connected.label}` : helper.mode === 'review' ? `Review with ${connected.label}` : `Write with ${connected.label}`) : ''
+	);
 
 	function saveKey(event: SubmitEvent): void {
 		event.preventDefault();
-		if (!looksLikeClaudeKey(draftKey)) return;
-		helper.setClaudeKey(draftKey);
-		draftKey = '';
-		adding = false;
+		if (!looksLikeKey(choice, keyDraft)) return;
+		const model = choice === 'openrouter' ? modelDraft.trim() : '';
+		helper.connect({ provider: choice, key: keyDraft.trim(), ...(model ? { model } : {}) });
+		keyDraft = '';
+		modelDraft = '';
+		connecting = false;
+	}
+
+	async function signInWithOpenRouter(): Promise<void> {
+		leaving = true;
+		location.assign(await openRouterSignInUrl(`${location.origin}${location.pathname}`));
+	}
+
+	function setModel(value: string): void {
+		const connection = helper.connection;
+		if (!connection) return;
+		const model = value.trim();
+		helper.connect({ provider: connection.provider, key: connection.key, ...(model ? { model } : {}) });
 	}
 
 	$effect(() => {
@@ -136,7 +158,7 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{helper.claudeKey ? 'Write it with Claude, or copy the prompt' : 'Copy the prompt'}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{connected ? `Write it with ${connected.label}, or copy the prompt` : 'Copy the prompt'}</p>
 				{#if helper.mode === 'review'}
 					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
 				{:else if helper.mode === 'new'}
@@ -163,19 +185,19 @@
 						onblur={() => (helper.listening = false)}
 					></textarea>
 				{/if}
-				{#if helper.claudeKey}
+				{#if connected}
 					<div class="flex flex-wrap items-center gap-2">
-						<Button size="sm" variant={answered || helper.answer ? 'soft' : 'primary'} icon="claude" disabled={!ready || helper.writing !== null} onclick={() => helper.askClaude()}>
-							{#if writingHere}<span class="inline-flex items-center">Writing<BouncingDots /></span>{:else}{claudeLabel}{/if}
+						<Button size="sm" variant={answered || helper.askAnswer ? 'soft' : 'primary'} icon={connected.icon} disabled={!ready || helper.sending !== null} onclick={() => helper.send()}>
+							{#if sendingThisMode}<span class="inline-flex items-center">Writing<BouncingDots /></span>{:else}{sendLabel}{/if}
 						</Button>
-						{#if writingHere}
-							<Button size="sm" variant="ghost" onclick={() => helper.stopClaude()}>Stop</Button>
+						{#if sendingThisMode}
+							<Button size="sm" variant="ghost" onclick={() => helper.cancel()}>Stop</Button>
 						{:else if !ready}
 							<span class="text-[0.8rem] text-muted">{helper.mode === 'new' ? 'Type your goal first.' : 'Type your question first.'}</span>
 						{/if}
 					</div>
-					{#if helper.failure}
-						<p class="m-0 text-[0.82rem] leading-snug text-pretty text-danger motion-safe:animate-pop-in" role="alert">{helper.failure}</p>
+					{#if helper.sendError}
+						<p class="m-0 text-[0.82rem] leading-snug text-pretty text-danger motion-safe:animate-pop-in" role="alert">{helper.sendError}</p>
 					{/if}
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
@@ -205,19 +227,19 @@
 				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{writingHere
-						? 'Claude is writing. It can take a minute.'
-						: helper.answer && helper.mode === 'ask'
-							? 'Claude answered'
-							: fromClaude
-								? 'Claude wrote it'
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{sendingThisMode && connected
+						? `${connected.label} is writing. It can take a minute.`
+						: helper.askAnswer && helper.mode === 'ask' && connected
+							? `${connected.label} answered`
+							: replyFromProvider && connected
+								? `${connected.label} wrote it`
 								: opened
 						? `It is in ${APPS[opened]}'s box. Send it there.`
 						: linked
 							? `Paste the link into any browser. ${APPS[linked]} opens with it.`
 							: 'Paste it into any chat app'}</p>
-				{#if helper.answer && helper.mode === 'ask'}
-					<p class="m-0 mt-1.5 rounded-[20px] bg-bg p-3.5 text-[0.92rem] leading-[1.5] text-pretty whitespace-pre-line motion-safe:animate-pop-in">{helper.answer}</p>
+				{#if helper.askAnswer && helper.mode === 'ask'}
+					<p class="m-0 mt-1.5 rounded-[20px] bg-bg p-3.5 text-[0.92rem] leading-[1.5] text-pretty whitespace-pre-line motion-safe:animate-pop-in">{helper.askAnswer}</p>
 				{:else}
 					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
 				{/if}
@@ -230,7 +252,7 @@
 					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}{@render check()}{:else}3{/if}
 				</span>
 				<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{fromClaude ? "Claude's reply" : 'Paste the reply here'}</p>
+					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{replyFromProvider && connected ? `${connected.label}'s reply` : 'Paste the reply here'}</p>
 					{#if outcome?.kind === 'chart'}
 						{@const data = outcome.data}
 						<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
@@ -310,39 +332,60 @@
 		{/if}
 	</ol>
 
-	{#if helper.claudeKey}
-		<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
-			<span class="inline-flex items-center gap-1.5"><Icon name="claude" size={14} />Your Claude key is on this device.</span>
-			<button
-				type="button"
-				class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-				onclick={() => helper.setClaudeKey('')}
-			>
-				Remove it
-			</button>
-		</p>
-	{:else if adding}
+	{#if connected && helper.connection}
+		<div class="flex flex-col gap-2">
+			<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
+				<span class="inline-flex items-center gap-1.5"><Icon name={connected.icon} size={14} />{connected.label} is connected on this device.</span>
+				<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => helper.connect(null)}>Disconnect</button>
+			</p>
+			{#if connected.id === 'openrouter'}
+				<label class="flex flex-col gap-1">
+					<span class="text-[0.8rem] font-[600] text-muted">Model</span>
+					<input
+						class={cn(textField, 'h-9 text-[0.86rem]')}
+						type="text"
+						autocomplete="off"
+						spellcheck="false"
+						placeholder={connected.defaultModel}
+						value={helper.connection.model ?? ''}
+						onchange={(event) => setModel(event.currentTarget.value)}
+					/>
+					<span class="text-[0.76rem] leading-snug text-pretty text-muted">Any model on openrouter.ai. openrouter/free costs nothing, with a daily limit.</span>
+				</label>
+			{/if}
+		</div>
+	{:else if connecting}
 		<form class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" onsubmit={saveKey}>
-			<p class="m-0 text-[0.95rem] leading-tight font-[620]">Write with your own Claude key</p>
+			<p class="m-0 text-[0.95rem] leading-tight font-[620]">Connect an AI provider</p>
+			<SegmentedControl options={providerOptions} bind:value={choice} size="sm" label="AI provider" />
+			{#if choice === 'openrouter'}
+				<Button class="self-start" size="sm" icon="sparkles" disabled={leaving} onclick={signInWithOpenRouter}>
+					{#if leaving}<span class="inline-flex items-center">Opening OpenRouter<BouncingDots /></span>{:else}Connect OpenRouter{/if}
+				</Button>
+				<p class="m-0 text-[0.8rem] leading-snug text-muted">Or paste a key you already have:</p>
+			{/if}
 			<input
 				class={textField}
 				type="password"
 				autocomplete="off"
 				spellcheck="false"
-				aria-label="Your Claude API key"
-				placeholder="sk-ant-…"
-				bind:value={draftKey}
+				aria-label="Your {chosen.label} API key"
+				placeholder="Your {chosen.label} key"
+				bind:value={keyDraft}
 			/>
+			{#if choice === 'openrouter'}
+				<input class={textField} type="text" autocomplete="off" spellcheck="false" aria-label="Model" placeholder="Model: {chosen.defaultModel}" bind:value={modelDraft} />
+			{/if}
 			<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted">
-				It stays on this device and never syncs. Requests go from this browser straight to Anthropic, billed to your account.
-				<a class="font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key</a>
+				Billed by {chosen.label}, separately from a ChatGPT, Claude or Gemini subscription. Copying the prompt costs nothing extra. The key stays on this device and never syncs.
+				<a class="font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text" href={chosen.keyUrl} target="_blank" rel="noopener noreferrer">Get a key</a>
 			</p>
 			<div class="flex items-center gap-2">
-				<Button size="sm" variant="soft" type="submit" disabled={!looksLikeClaudeKey(draftKey)}>Save key</Button>
-				<Button size="sm" variant="ghost" onclick={() => ((adding = false), (draftKey = ''))}>Cancel</Button>
+				<Button size="sm" variant="soft" type="submit" disabled={!looksLikeKey(choice, keyDraft)}>Save key</Button>
+				<Button size="sm" variant="ghost" onclick={() => ((connecting = false), (keyDraft = ''), (modelDraft = ''))}>Cancel</Button>
 			</div>
 		</form>
 	{:else}
-		<Button class="self-start" size="sm" variant="ghost" icon="claude" onclick={() => (adding = true)}>Use your own Claude key</Button>
+		<Button class="self-start" size="sm" variant="ghost" icon="sparkles" onclick={() => (connecting = true)}>Connect an AI provider</Button>
 	{/if}
 </div>

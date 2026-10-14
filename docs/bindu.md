@@ -3,7 +3,7 @@
 **Date:** 2026-10-14
 **Status:** Describes the code. "Order" at the bottom is what is still planned.
 
-Bindu is the helper in the corner of the chart. It reads three things: the chart, the log of what was picked and ticked, and the method. Picks, notes and progress run on rules, instantly, on the device. Writing and reviewing lines are jobs rules can't do, so Bindu writes a prompt for whatever chat app the person already uses, and reads the reply they paste back. A person who adds their own Claude key can send that prompt from the panel instead. The name and its face come from the center dot of a mandala; see `DESIGN.md` → Voice and copy.
+Bindu is the helper in the corner of the chart. It reads three things: the chart, the log of what was picked and ticked, and the method. Picks, notes and progress run on rules, instantly, on the device. Writing and reviewing lines are jobs rules can't do, so Bindu writes a prompt for whatever chat app the person already uses, and reads the reply they paste back. A person who connects their own AI provider can send that prompt from the panel instead. The name and its face come from the center dot of a mandala; see `DESIGN.md` → Voice and copy.
 
 ## Where it lives
 
@@ -12,7 +12,7 @@ Bindu is the helper in the corner of the chart. It reads three things: the chart
 | `src/lib/chart/helper.ts` | Pure rules: picks, insights, progress, the first page (`noteFor`, `nextMove`, `doorsFor`), `fillEdits`, `reviseEdits`, `askPrompt` |
 | `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: the page in view, the picks on the table, the write round trip, a finished moment |
 | `src/lib/chart/draft.ts` | The new-chart, fill and review prompts, and `parseDraftText`, which reads a pasted reply |
-| `src/lib/chart/claude.ts` | The person's own Anthropic key (device only) and `askClaude`, one request from the browser |
+| `src/lib/chart/provider.ts` | The person's own AI provider (device only): `sendPrompt`, one request from the browser, and OpenRouter's sign-in |
 | `src/lib/components/Helper.svelte` | The launcher and the floating panel |
 | `src/lib/components/HelperPanel.svelte` | The header, the page turns, the height that eases between pages, Escape and paste |
 | `src/lib/components/HelperHome.svelte`, `HelperPicks.svelte`, `HelperProgress.svelte`, `HelperWrite.svelte`, `HelperMoment.svelte` | One page each |
@@ -29,7 +29,7 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 | Today's three | Three picks, one per pillar, each saying why. A pick whose pillar has a shelf shows the tool it would use | Swap one, open the tool, put them on today, or "Not now" |
 | This week | About six picks, one per pillar | Swap one, pin them, or "Not now" |
 | How it is going | The last 7 days as a column per day and a pip per tick in the pillar's hue, then ticks, pillars and days in a row, then up to three insights | "Open it" on an insight about one action |
-| Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude, ChatGPT, Gemini, Mistral, Perplexity or Grok with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, review, or ask. "Review my chart" on the first page opens it on Review. With a Claude key saved, step one also has Write with Claude (or Review, or Ask), and the reply lands in step three by itself | Copy, or send to Claude. See what the reply would add or rewrite, and keep it |
+| Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude, ChatGPT, Gemini, Mistral, Perplexity or Grok with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, review, or ask. "Review my chart" on the first page opens it on Review. With a provider connected, step one also has Write with (the provider), or Review, or Ask, and the reply lands in step three by itself | Copy, or send to the provider. See what the reply would add or rewrite, and keep it |
 
 The next move is: start a chart when there is no goal, fill the gaps while any line is empty, pick today's three when today has no picks, and otherwise see how it is going.
 
@@ -44,13 +44,24 @@ The panel opens where it was left, so a person who went to paste a prompt comes 
 - **Review.** The prompt carries the whole chart and the two tests, and asks for the chart back with only the failing lines rewritten, in the chart's own language. The reply shows each rewrite under the line it replaces; **Keep** writes them in.
 - **Ask.** The prompt carries the chart in plain text, the brief, and the question if one was typed. The answer stays in the chat app.
 
-### With the person's own Claude key
+### With the person's own AI provider
 
-"Use your own Claude key" at the foot of the page takes an Anthropic API key. It is kept in `localStorage` under `mandala_claude_key` and goes nowhere else: not into sync, a share, a backup, or an export. A request goes from the browser straight to Anthropic (`dangerouslyAllowBrowser`, the documented browser path), billed to the person's account. The SDK is its own chunk, imported on first use, so it stays out of the page's startup. The service worker still precaches it with the rest of the build.
+**Connect an AI provider** at the foot of the page offers four:
 
-The request is the same prompt a chat app would get, with one change: a new chart is one request with no back and forth, so the prompt says to write at once from reasonable assumptions instead of asking three questions first (`newChartPrompt(goal, true)`), and a goal must be typed. The reply goes into the reply box as if it had been pasted, so the rest of the page is the same. An answer to Ask shows in step two. Stop drops a reply that comes back late. A refused request, a reply that ran out of room, a bad key, no credit and a busy service each get one plain sentence.
+| Provider | Connects by | Default model | Called with |
+| --- | --- | --- | --- |
+| OpenRouter | **Connect OpenRouter** (its sign-in, below), or a pasted key | `openrouter/auto`; the model field takes any OpenRouter model, and `openrouter/free` costs nothing | `fetch`, OpenAI's chat format |
+| Gemini | A key from AI Studio. Google's API has a free tier | `gemini-3.8-flash` | `fetch`, Gemini's OpenAI-format endpoint |
+| Claude | A key from the Claude Console | `claude-opus-5-5`, medium effort, server-side refusal fallback on | Anthropic's SDK, its own chunk, imported on first use |
+| OpenAI | A key from the OpenAI platform | `gpt-6.1-sol` | `fetch`, OpenAI's chat format |
 
-The model is `claude-opus-5-5`, at medium effort, with the server-side refusal fallback on.
+All four accept requests from a browser (checked with a preflight, 2026-10-14), so a request goes from the browser straight to the provider, billed to the person's account. The form says so, and that this is separate from a ChatGPT, Claude or Gemini subscription: copying the prompt costs nothing extra. The connection (`{ provider, key, model }`) is kept in `localStorage` under `mandala_ai_provider` and goes nowhere else: not into sync, a share, a backup, or an export. Save key stays off until the key looks like one of that provider's.
+
+**OpenRouter's sign-in** needs no server (PKCE). The page keeps a one-time verifier in `sessionStorage`, sends the person to openrouter.ai to approve, and comes back with `?code=`. `ChartApp` trades the code and the verifier for a key, takes the code off the address, and opens Bindu on this page. A code this tab did not start is refused.
+
+The request is the same prompt a chat app would get, with one change: a new chart is one request with no back and forth, so the prompt says to write at once from reasonable assumptions instead of asking three questions first (`newChartPrompt(goal, { oneShot: true })`), and a goal must be typed. The reply goes into the reply box as if it had been pasted (`repliedBy` tells the two apart), so the rest of the page is the same. An answer to Ask shows in step two. Stop drops a reply that comes back late. A bad key, no credit, a busy service or a spent free tier, a refusal, and a reply that ran out of room each get one plain sentence.
+
+Others did it this way too: OpenCode connects a provider and stores its key on the machine, and Obsidian Copilot recommends OpenRouter. Signing in with a ChatGPT or Claude subscription is only open to apps the provider has registered, and Anthropic forbids it for Claude, so the prompt hand-off is how a subscription gets used here.
 
 A pasted reply is read by `parseDraftText`, from the reply box or pasted anywhere in the panel. The length caps in the prompt are a request: a reply is read up to the cell limit, so a line returned word for word in a longer language is not clipped into a rewrite, and an empty line stays empty. For this chart's goal it offers only the cells that are empty here (`fillEdits`); a written cell is never replaced. Any other goal opens as a new chart beside this one, or fills this one when it is empty. The brief is kept on the chart, syncs, and stays out of share links.
 

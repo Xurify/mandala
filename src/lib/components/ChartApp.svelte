@@ -47,6 +47,7 @@
 	import LogTimeDialog from './LogTimeDialog.svelte';
 	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
+	import { finishOpenRouterSignIn, openRouterSignInPending } from '$lib/chart/provider';
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
@@ -147,6 +148,18 @@
 		const params = new URL(location.href).searchParams;
 		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
+		const signInCode = params.get('code');
+		if (signInCode && openRouterSignInPending()) {
+			requestAnimationFrame(async () => {
+				replaceState(location.pathname, page.state);
+				const result = await finishOpenRouterSignIn(signInCode);
+				if (result.ok) {
+					helper.connect({ provider: 'openrouter', key: result.key });
+					chart.say('Connected OpenRouter');
+				} else chart.say(result.reason);
+				helper.show('write');
+			});
+		}
 		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
 		// After the router is up, which replaceState needs.
 		if (shared) {

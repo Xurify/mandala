@@ -17,7 +17,7 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
-	| 'bindu-claude'
+	| 'bindu-provider'
 	| 'tools'
 	| 'select'
 	| 'time-stopwatch'
@@ -389,13 +389,13 @@ export const DEMOS: readonly Demo[] = [
 		reply: () => JSON.stringify(preset('music'))
 	},
 	{
-		id: 'bindu-claude',
-		title: 'Write with your own Claude key',
+		id: 'bindu-provider',
+		title: 'Connect an AI provider',
 		group: 'Bindu',
 		steps: [
-			'Bindu opens on Fill the gaps. Press Use your own Claude key at the foot of the page and paste a key from the Claude Console. Save key stays off until it looks like one.',
-			'Write with Claude sends the prompt from this browser. Stop drops the reply; a bad key or no credit says so in one line.',
-			'The reply lands in step three by itself. Add it to the chart. Remove it, beside the key line, forgets the key.'
+			'Bindu opens on Fill the gaps. Press Connect an AI provider at the foot of the page. Pick OpenRouter, Gemini, Claude or OpenAI; Save key stays off until the key looks like one of theirs.',
+			'Connect OpenRouter leaves for openrouter.ai and comes back connected, with Bindu open on this page. Its model field takes any OpenRouter model; openrouter/free costs nothing.',
+			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.'
 		]
 	}
 ];
@@ -450,7 +450,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.pillars[6] = 'Motivation';
 		return { data, view: 'view', open: { bindu: 'write-review' } };
 	}
-	if (id === 'bindu-fill' || id === 'bindu-claude') {
+	if (id === 'bindu-fill' || id === 'bindu-provider') {
 		const data = preset('fitness');
 		data.pillars[6] = '';
 		data.actions[6] = data.actions[6]!.map(() => '');

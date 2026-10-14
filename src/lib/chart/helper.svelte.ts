@@ -1,5 +1,4 @@
 import { chart } from './chart.svelte';
-import { askClaude, loadClaudeKey, saveClaudeKey } from './claude.ts';
 import { chatLink, fillPrompt, isChatApp, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
@@ -20,6 +19,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
+import { loadConnection, saveConnection, sendPrompt, type Connection } from './provider.ts';
 import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
@@ -73,14 +73,15 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
 	app = $state<ChatApp>(loadChatApp());
-	claudeKey = $state(loadClaudeKey());
-	/** The mode a request to Claude is out for. */
-	writing = $state<WriteMode | null>(null);
-	failure = $state('');
-	answer = $state('');
-	/** The mode whose reply came from Claude, not a paste. */
-	wrote = $state<WriteMode | null>(null);
+	connection = $state<Connection | null>(loadConnection());
+	/** The mode whose request to the provider is out. */
+	sending = $state<WriteMode | null>(null);
+	sendError = $state('');
+	askAnswer = $state('');
+	#providerReply = $state('');
 	#request: AbortController | null = null;
+
+	repliedBy: 'paste' | 'provider' = $derived(this.reply.trim() !== '' && this.reply === this.#providerReply ? 'provider' : 'paste');
 	/** Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -108,7 +109,7 @@ export class HelperStore {
 			cheer: this.#cheer,
 			listening: this.listening,
 			offering: (this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null,
-			waiting: this.writing !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
+			waiting: this.sending !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
 		})
 	);
 
@@ -215,9 +216,9 @@ export class HelperStore {
 		this.hide();
 	}
 
-	prompt(mode: WriteMode = this.mode, direct = false): string {
+	prompt(mode: WriteMode = this.mode, { oneShot = false }: { oneShot?: boolean } = {}): string {
 		const data = this.#target.data();
-		if (mode === 'new') return newChartPrompt(this.goal, direct);
+		if (mode === 'new') return newChartPrompt(this.goal, { oneShot });
 		if (mode === 'fill') return fillPrompt(data);
 		if (mode === 'review') return reviewPrompt(data);
 		return askPrompt(data, this.question);
@@ -235,40 +236,42 @@ export class HelperStore {
 		this.sent = app;
 	}
 
-	setClaudeKey(key: string): void {
-		saveClaudeKey(key);
-		this.claudeKey = loadClaudeKey();
-		this.failure = '';
+	connect(connection: Connection | null): void {
+		saveConnection(connection);
+		this.connection = loadConnection();
+		this.sendError = '';
 	}
 
 	/** Sends the same prompt a chat app would get, and treats the reply as if it had been pasted. */
-	async askClaude(): Promise<void> {
+	async send(): Promise<void> {
 		const mode = this.mode;
-		if (!this.claudeKey || this.writing) return;
+		const connection = this.connection;
+		if (!connection || this.sending) return;
 		const request = new AbortController();
 		this.#request = request;
-		this.writing = mode;
-		this.failure = '';
-		this.answer = '';
+		this.sending = mode;
+		this.sendError = '';
+		this.askAnswer = '';
 		this.reply = '';
-		this.wrote = null;
-		const result = await askClaude(this.claudeKey, this.prompt(mode, true), request.signal);
+		const result = await sendPrompt(connection, this.prompt(mode, { oneShot: true }), request.signal);
 		if (this.#request !== request) return;
-		this.writing = null;
+		this.sending = null;
 		this.#request = null;
 		if (!result.ok) {
-			if (!('aborted' in result)) this.failure = result.reason;
+			if (!('aborted' in result)) this.sendError = result.reason;
 			return;
 		}
-		if (mode === 'ask') this.answer = result.text;
-		else this.reply = result.text;
-		this.wrote = mode;
+		if (mode === 'ask') this.askAnswer = result.text;
+		else {
+			this.#providerReply = result.text;
+			this.reply = result.text;
+		}
 	}
 
-	stopClaude(): void {
+	cancel(): void {
 		this.#request?.abort();
 		this.#request = null;
-		this.writing = null;
+		this.sending = null;
 	}
 
 	useApp(app: ChatApp): void {
@@ -307,8 +310,7 @@ export class HelperStore {
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
-		this.failure = '';
-		this.wrote = null;
+		this.sendError = '';
 	}
 
 	#defaultMode(): WriteMode {
@@ -340,10 +342,9 @@ export class HelperStore {
 	}
 
 	reset(): void {
-		this.stopClaude();
-		this.failure = '';
-		this.answer = '';
-		this.wrote = null;
+		this.cancel();
+		this.sendError = '';
+		this.askAnswer = '';
 		this.page = 'home';
 		this.direction = -1;
 		this.picks = null;
