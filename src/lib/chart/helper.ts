@@ -676,7 +676,7 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 			detail: progress.everTicked ? `${plural(progress.ticks, 'tick')} in 7 days` : 'Nothing ticked yet'
 		});
 	}
-	if (hasActions) doors.push({ page: 'write', mode: 'review', label: 'Review my chart', detail: 'Every line checked, in any language' });
+	if (hasActions) doors.push({ page: 'write', mode: 'review', label: 'Review my chart', detail: "Rewrite the lines you can't tick off" });
 	doors.push({ page: 'write', label: 'Fill chart using a prompt', detail: 'Start a chart, fill it, or ask' });
 	return doors.filter((door) => door.page === 'write' || door.page !== lead.page);
 }

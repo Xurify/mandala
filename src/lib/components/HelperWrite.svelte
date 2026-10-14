@@ -95,7 +95,7 @@
 				: mode === 'fill'
 					? `It keeps your lines and writes only the ${gaps === 1 ? 'one that is' : `${gaps} that are`} empty.`
 					: mode === 'review'
-						? 'It runs the two tests on every line, in any language, and rewrites the ones that fail.'
+						? "It rewrites only the lines you can't tick off, or that aren't up to you."
 						: 'It reads your chart with the question. The answer stays there.';
 		return { there };
 	});
@@ -166,9 +166,7 @@
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
 				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or copy the prompt` : 'Copy the prompt'}</p>
-				{#if helper.mode === 'review'}
-					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
-				{:else if helper.mode === 'new'}
+				{#if helper.mode === 'new'}
 					<input
 						class={textField}
 						type="text"
