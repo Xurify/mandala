@@ -38,13 +38,6 @@ describe('chart day log', () => {
 		expect(log?.declined).toEqual([A.a0_0, A.a1_0]);
 		expect(log?.shown).toEqual([`stuck:${A.a3_0}`]);
 	});
-
-	it('drops an empty brief', () => {
-		chart.setBrief({ timeline: 'October' });
-		expect(chart.data.brief).toEqual({ timeline: 'October' });
-		chart.setBrief({ timeline: '  ' });
-		expect(chart.data.brief).toBeUndefined();
-	});
 });
 
 describe('chart board', () => {
@@ -168,6 +161,18 @@ describe('chart time', () => {
 		expect(chart.setFocus(today, [])).toBe('The stopwatch on Scales before work ran for hours, so it was not logged.');
 		expect(chart.timer).toBeNull();
 		expect(logged()).toEqual([]);
+	});
+
+	it("stops the stopwatch when its card moves off today's list on the board", () => {
+		chart.data.actionIds = slotted(emptyChart()).actionIds;
+		chart.setFocus(todayKey(), [A.a0_0, A.a3_2]);
+		chart.startTimer(A.a0_0);
+		chart.data.timer!.since -= 4 * MINUTE;
+		chart.moveCard(A.a3_2, 'todo', 0);
+		expect(chart.timer).not.toBeNull();
+		chart.moveCard(A.a0_0, 'todo', 0);
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([4]);
 	});
 
 	it('logs nothing for under a minute', () => {

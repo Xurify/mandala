@@ -9,13 +9,11 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"lint": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
 		"gen:icons": "bun scripts/generate-pwa-icons.ts"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-vercel": "^6.3.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -28,6 +26,7 @@
 		"vitest": "^5.0.1"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.133.0",
 		"@fontsource-variable/source-sans-3": "^5.3.0",
 		"@fontsource-variable/source-serif-4": "^5.3.1",
 		"@libsql/client": "^0.18.0",

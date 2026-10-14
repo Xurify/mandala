@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type { HelperStore, WriteMode } from '$lib/chart/helper.svelte';
+	import { looksLikeClaudeKey } from '$lib/chart/claude';
 	import { CHAT_APPS, chatLink, type ChatApp } from '$lib/chart/draft';
 	import { gapsOf } from '$lib/chart/helper';
 	import { hasContent } from '$lib/chart/model';
 	import HelperDraft from './HelperDraft.svelte';
 	import Icon from './Icon.svelte';
+	import BouncingDots from './ui/BouncingDots.svelte';
 	import Button from './ui/Button.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
 	import Select from './ui/Select.svelte';
@@ -30,6 +32,20 @@
 	const linked = $derived(copied && link?.mode === helper.mode ? link.app : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
+	let adding = $state(false);
+	let draftKey = $state('');
+	const fromClaude = $derived(helper.wrote !== null && helper.wrote === helper.mode && helper.reply.trim() !== '');
+	const writingHere = $derived(helper.writing !== null && helper.writing === helper.mode);
+	const ready = $derived(helper.mode === 'new' ? helper.goal.trim() !== '' : helper.mode === 'ask' ? helper.question.trim() !== '' : true);
+	const claudeLabel = $derived(helper.mode === 'ask' ? 'Ask Claude' : helper.mode === 'review' ? 'Review with Claude' : 'Write with Claude');
+
+	function saveKey(event: SubmitEvent): void {
+		event.preventDefault();
+		if (!looksLikeClaudeKey(draftKey)) return;
+		helper.setClaudeKey(draftKey);
+		draftKey = '';
+		adding = false;
+	}
 
 	$effect(() => {
 		if (helper.mode === 'fill' && gaps === 0) helper.mode = 'ask';
@@ -113,7 +129,7 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">Copy the prompt</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{helper.claudeKey ? 'Write it with Claude, or copy the prompt' : 'Copy the prompt'}</p>
 				{#if helper.mode === 'review'}
 					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
 				{:else if helper.mode === 'new'}
@@ -139,6 +155,21 @@
 						onfocus={() => (helper.listening = true)}
 						onblur={() => (helper.listening = false)}
 					></textarea>
+				{/if}
+				{#if helper.claudeKey}
+					<div class="flex flex-wrap items-center gap-2">
+						<Button size="sm" variant={answered || helper.answer ? 'soft' : 'primary'} icon="claude" disabled={!ready || helper.writing !== null} onclick={() => helper.askClaude()}>
+							{#if writingHere}<span class="inline-flex items-center">Writing<BouncingDots /></span>{:else}{claudeLabel}{/if}
+						</Button>
+						{#if writingHere}
+							<Button size="sm" variant="ghost" onclick={() => helper.stopClaude()}>Stop</Button>
+						{:else if !ready}
+							<span class="text-[0.8rem] text-muted">{helper.mode === 'new' ? 'Type your goal first.' : 'Type your question first.'}</span>
+						{/if}
+					</div>
+					{#if helper.failure}
+						<p class="m-0 text-[0.82rem] leading-snug text-pretty text-danger motion-safe:animate-pop-in" role="alert">{helper.failure}</p>
+					{/if}
 				{/if}
 				<div class="flex flex-wrap items-center gap-2">
 					<Button size="sm" variant="soft" icon={copied && !opened && !linked ? 'check' : 'copy'} onclick={copy}>{copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}</Button>
@@ -167,12 +198,22 @@
 				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{opened
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{writingHere
+						? 'Claude is writing. It can take a minute.'
+						: helper.answer && helper.mode === 'ask'
+							? 'Claude answered'
+							: fromClaude
+								? 'Claude wrote it'
+								: opened
 						? `It is in ${APPS[opened]}'s box. Send it there.`
 						: linked
 							? `Paste the link into any browser. ${APPS[linked]} opens with it.`
 							: 'Paste it into any chat app'}</p>
-				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
+				{#if helper.answer && helper.mode === 'ask'}
+					<p class="m-0 mt-1.5 rounded-[20px] bg-bg p-3.5 text-[0.92rem] leading-[1.5] text-pretty whitespace-pre-line motion-safe:animate-pop-in">{helper.answer}</p>
+				{:else}
+					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
+				{/if}
 			</div>
 		</li>
 
@@ -182,7 +223,7 @@
 					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}{@render check()}{:else}3{/if}
 				</span>
 				<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-					<p class="m-0 text-[0.95rem] leading-tight font-[620]">Paste the reply here</p>
+					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{fromClaude ? "Claude's reply" : 'Paste the reply here'}</p>
 					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}
 						<HelperDraft data={helper.data} draft={outcome} onkeep={() => helper.applyReply()} aside="Paste another" onaside={() => (helper.reply = '')} />
 					{:else}
@@ -211,4 +252,40 @@
 			</li>
 		{/if}
 	</ol>
+
+	{#if helper.claudeKey}
+		<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
+			<span class="inline-flex items-center gap-1.5"><Icon name="claude" size={14} />Your Claude key is on this device.</span>
+			<button
+				type="button"
+				class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+				onclick={() => helper.setClaudeKey('')}
+			>
+				Remove it
+			</button>
+		</p>
+	{:else if adding}
+		<form class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" onsubmit={saveKey}>
+			<p class="m-0 text-[0.95rem] leading-tight font-[620]">Write with your own Claude key</p>
+			<input
+				class={textField}
+				type="password"
+				autocomplete="off"
+				spellcheck="false"
+				aria-label="Your Claude API key"
+				placeholder="sk-ant-…"
+				bind:value={draftKey}
+			/>
+			<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted">
+				It stays on this device and never syncs. Requests go from this browser straight to Anthropic, billed to your account.
+				<a class="font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key</a>
+			</p>
+			<div class="flex items-center gap-2">
+				<Button size="sm" variant="soft" type="submit" disabled={!looksLikeClaudeKey(draftKey)}>Save key</Button>
+				<Button size="sm" variant="ghost" onclick={() => ((adding = false), (draftKey = ''))}>Cancel</Button>
+			</div>
+		</form>
+	{:else}
+		<Button class="self-start" size="sm" variant="ghost" icon="claude" onclick={() => (adding = true)}>Use your own Claude key</Button>
+	{/if}
 </div>

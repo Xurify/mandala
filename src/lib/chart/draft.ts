@@ -17,8 +17,8 @@ const PROMPT_INTRO = [
 	'',
 ];
 
-const PROMPT_METHOD = [
-	'',
+/** How to fill and test a chart, without the reply format: the prompts and the tools an agent calls share it. */
+export const METHOD = [
 	'[How to fill it]',
 	'Use the same question twice.',
 	'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
@@ -40,7 +40,12 @@ const PROMPT_METHOD = [
 	'- Do not restate a pillar as its eight actions.',
 	'- Do not merge two named aims into one pillar.',
 	'- Do not use "work hard", "be successful", or "stay positive".',
-	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
+	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.'
+];
+
+const PROMPT_METHOD = [
+	'',
+	...METHOD,
 	'',
 	'[Rules]',
 	'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',
@@ -54,18 +59,16 @@ const PROMPT_METHOD = [
 const BRIEF_RULE =
 	'- Add "brief" to the JSON with what I told you, a few words each: {"timeline":"...","situation":"...","focus":"...","constraint":"..."}. Leave out a field I did not answer.';
 
-export function newChartPrompt(goal = ''): string {
+/** `direct` is a single request with no back and forth, so it writes at once instead of asking first. */
+export function newChartPrompt(goal = '', direct = false): string {
 	const aim = goal.replace(/\s+/g, ' ').trim().slice(0, 200);
-	return [
-		...PROMPT_INTRO,
-		'Help me make my chart.',
-		'',
-		'[Before you write]',
-		aim ? `My goal: ${aim}` : 'I have not said my goal yet. Ask for it first.',
-		'Then ask me up to three short questions in one message: how much time I have on a normal day, whether there is a date, where I stand now, and anything to work around. Wait for my answers. If I say "just write it", make reasonable assumptions.',
-		...PROMPT_METHOD,
-		BRIEF_RULE
-	].join('\n');
+	const before = direct
+		? [`My goal: ${aim}`, 'Do not ask me anything. Make reasonable assumptions for my situation and write the chart now.']
+		: [
+				aim ? `My goal: ${aim}` : 'I have not said my goal yet. Ask for it first.',
+				'Then ask me up to three short questions in one message: how much time I have on a normal day, whether there is a date, where I stand now, and anything to work around. Wait for my answers. If I say "just write it", make reasonable assumptions.'
+			];
+	return [...PROMPT_INTRO, 'Help me make my chart.', '', '[Before you write]', ...before, ...PROMPT_METHOD, ...(direct ? [] : [BRIEF_RULE])].join('\n');
 }
 
 export function fillPrompt(data: ChartData): string {
@@ -92,24 +95,27 @@ export function briefLines(brief: ChartBrief | undefined): string[] {
 	return said.length ? ['', '[What they told you before]', ...said] : [];
 }
 
-function asStringList(value: unknown, count: number, max: number): string[] | null {
+/**
+ * The caps in the prompt are a request. A reply is read up to the cell limit, so a line returned word for
+ * word in a longer language is not clipped into a fake rewrite. Empty lines stay empty: a review or a fill
+ * of a part-written chart sends them back that way.
+ */
+function asStringList(value: unknown, count: number): string[] | null {
 	if (!Array.isArray(value) || value.length < count) return null;
-	const items = value.slice(0, count).map((item) => clip(item, Math.min(max, TEXT_MAX)));
-	if (items.some((item) => item === '')) return null;
-	return items;
+	return value.slice(0, count).map((item) => clip(item, TEXT_MAX));
 }
 
 export function chartFromDraft(value: unknown): ChartData | null {
 	if (!value || typeof value !== 'object') return null;
 	const record = value as Record<string, unknown>;
-	const goal = clip(record.goal, Math.min(GOAL_MAX, TEXT_MAX));
+	const goal = clip(record.goal, TEXT_MAX);
 	if (!goal) return null;
-	const pillars = asStringList(record.pillars, 8, PILLAR_MAX);
-	if (!pillars) return null;
+	const pillars = asStringList(record.pillars, 8);
+	if (!pillars?.some(Boolean)) return null;
 	if (!Array.isArray(record.actions) || record.actions.length < 8) return null;
 	const actions: string[][] = [];
 	for (let index = 0; index < 8; index++) {
-		const row = asStringList(record.actions[index], 8, ACTION_MAX);
+		const row = asStringList(record.actions[index], 8);
 		if (!row) return null;
 		actions.push(row);
 	}

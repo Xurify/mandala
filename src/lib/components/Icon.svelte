@@ -6,12 +6,10 @@
 		| 'chevron-left'
 		| 'chevron-right'
 		| 'arrow-right'
-		| 'arrow-up-right'
 		| 'arrow-left'
 		| 'target'
 		| 'grid'
 		| 'edit'
-		| 'type'
 		| 'printer'
 		| 'image'
 		| 'download'
@@ -113,9 +111,6 @@
 		<path fill="currentColor" stroke="none" d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z" />
 	{:else if name === 'grok'}
 		<path fill="currentColor" stroke="none" d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z" />
-	{:else if name === 'arrow-up-right'}
-		<line x1="7" y1="17" x2="17" y2="7" />
-		<polyline points="8 7 17 7 17 16" />
 	{:else if name === 'arrow-left'}
 		<line x1="19" y1="12" x2="5" y2="12" />
 		<polyline points="12 19 5 12 12 5" />
@@ -136,10 +131,6 @@
 	{:else if name === 'edit'}
 		<path d="M12 20h9" />
 		<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-	{:else if name === 'type'}
-		<polyline points="4 7 4 4 20 4 20 7" />
-		<line x1="12" y1="4" x2="12" y2="20" />
-		<line x1="9" y1="20" x2="15" y2="20" />
 	{:else if name === 'printer'}
 		<polyline points="6 9 6 2 18 2 18 9" />
 		<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />

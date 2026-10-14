@@ -1,7 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ClaudeReply } from './claude.ts';
 import { HelperStore, type HelperTarget } from './helper.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { dateKeyOf, emptyChart, setByKey, setMeta, type ActionId, type ChartData } from './model.ts';
+
+const claude = vi.hoisted(() => ({
+	key: '',
+	prompts: [] as string[],
+	next: [] as ((signal?: AbortSignal) => Promise<ClaudeReply>)[]
+}));
+
+vi.mock('./claude.ts', () => ({
+	loadClaudeKey: () => claude.key,
+	saveClaudeKey: (key: string) => (claude.key = key.trim()),
+	askClaude: (_key: string, prompt: string, signal?: AbortSignal) => {
+		claude.prompts.push(prompt);
+		return claude.next.shift()!(signal);
+	}
+}));
+
+beforeEach(() => {
+	claude.key = '';
+	claude.prompts = [];
+	claude.next = [];
+});
 
 function chartData(goal: string): ChartData {
 	const data = slotted(emptyChart());
@@ -13,7 +35,7 @@ function chartData(goal: string): ChartData {
 
 function sandbox() {
 	const charts: Record<string, ChartData> = { one: chartData('Run a half marathon'), two: chartData('Learn Spanish') };
-	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][] };
+	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][], notes: [] as [string, string][] };
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
@@ -29,6 +51,10 @@ function sandbox() {
 		pinWeek: (keys) => {
 			for (const key of keys) setMeta(charts[active]!, key, { pinned: true });
 		},
+		setKinds: (changes) => {
+			for (const change of changes) setMeta(charts[active]!, change.id, { kind: change.after });
+		},
+		saveNote: (weekKey, note) => calls.notes.push([weekKey, note]),
 		showCell: () => {},
 		decline: (keys) => calls.declined.push(keys),
 		noteShown: (signature) => {
@@ -73,8 +99,8 @@ describe('HelperStore pages', () => {
 	it('turns to a page and back, and remembers the direction', () => {
 		const { helper } = sandbox();
 		helper.show();
-		helper.go('review');
-		expect(helper.page).toBe('review');
+		helper.go('progress');
+		expect(helper.page).toBe('progress');
 		expect(helper.direction).toBe(1);
 		expect(helper.mood).toBe('idle');
 		helper.back();
@@ -98,13 +124,6 @@ describe('HelperStore pages', () => {
 		switchTo('two');
 		expect(helper.page).toBe('home');
 		expect(helper.picks).toBeNull();
-	});
-
-	it('looks puzzled on a review with lines to tighten', () => {
-		const { helper, charts } = sandbox();
-		charts.one!.actions[0]![0] = 'Be healthier';
-		helper.show('review');
-		expect(helper.mood).toBe('puzzled');
 	});
 });
 
@@ -280,6 +299,35 @@ describe('HelperStore offers', () => {
 		expect(helper.page).toBe('home');
 	});
 
+	it('keeps kinds from an agent, except where the line or its kind changed meanwhile', () => {
+		const { helper, charts } = sandbox();
+		const data = charts.one!;
+		helper.propose({
+			kind: 'kinds',
+			changes: [
+				{ id: A.a0_0, text: 'Easy runs step 1', pillarIndex: 0, before: undefined, after: 'routine' },
+				{ id: A.a3_1, text: 'Strength step 2', pillarIndex: 3, before: undefined, after: 'milestone' },
+				{ id: A.a4_0, text: 'Sleep step 1', pillarIndex: 4, before: undefined, after: 'routine' }
+			]
+		});
+		expect(helper.page).toBe('offer');
+		data.actions[3]![1] = 'Lift on Fridays';
+		setMeta(data, A.a4_0, { kind: 'milestone' });
+		helper.keepOffer();
+		expect(data.meta?.[A.a0_0]?.kind).toBe('routine');
+		expect(data.meta?.[A.a3_1]?.kind).toBeUndefined();
+		expect(data.meta?.[A.a4_0]?.kind).toBe('milestone');
+		expect(helper.moment).toMatchObject({ title: 'Sorted 1 action', pillars: [0] });
+	});
+
+	it("saves the week's note from an agent", () => {
+		const { helper, calls } = sandbox();
+		helper.propose({ kind: 'note', weekKey: '2026-10-12', before: '', after: 'Two easy runs held.' });
+		helper.keepOffer();
+		expect(calls.notes).toEqual([['2026-10-12', 'Two easy runs held.']]);
+		expect(helper.moment?.title).toBe('Week saved');
+	});
+
 	it('opens a whole chart from an agent beside this one', () => {
 		const { helper, charts } = sandbox();
 		const next = chartData('Learn the cello');
@@ -287,5 +335,73 @@ describe('HelperStore offers', () => {
 		helper.keepOffer();
 		expect(charts.three?.goal).toBe('Learn the cello');
 		expect(helper.moment?.title).toBe('Your chart is ready');
+	});
+});
+
+describe('HelperStore with a Claude key', () => {
+	it('keeps the key on the device, and forgets it on request', () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('  sk-ant-test  ');
+		expect(helper.claudeKey).toBe('sk-ant-test');
+		helper.setClaudeKey('');
+		expect(helper.claudeKey).toBe('');
+	});
+
+	it('sends the prompt a chat app would get, and reads the reply as if it were pasted', async () => {
+		const { helper, charts } = sandbox();
+		const full = structuredClone(charts.one!);
+		charts.one!.actions[2]![5] = '';
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'fill');
+		claude.next.push(async () => ({ ok: true, text: reply(full) }));
+		const sent = helper.askClaude();
+		expect(helper.writing).toBe('fill');
+		expect(helper.mood).toBe('curious');
+		await sent;
+		expect(claude.prompts[0]).toContain('Fill every empty string');
+		expect(helper.writing).toBeNull();
+		expect(helper.outcome).toMatchObject({ kind: 'cells', edits: [{ key: 'a2_5', before: '' }] });
+		expect(helper.wrote).toBe('fill');
+	});
+
+	it('writes a new chart without asking questions first', async () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'new');
+		helper.goal = 'Learn Spanish';
+		claude.next.push(async () => ({ ok: true, text: reply(chartData('Speak Spanish at work')) }));
+		await helper.askClaude();
+		expect(claude.prompts[0]).toContain('Do not ask me anything');
+		expect(helper.outcome?.kind).toBe('chart');
+	});
+
+	it('shows an answer for a question, and says why a request failed', async () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'ask');
+		helper.question = 'Which pillar first?';
+		claude.next.push(async () => ({ ok: true, text: 'Start with Sleep.' }));
+		await helper.askClaude();
+		expect(helper.answer).toBe('Start with Sleep.');
+		expect(helper.reply).toBe('');
+		claude.next.push(async () => ({ ok: false, reason: 'Claude is busy. Try again in a minute.' }));
+		await helper.askClaude();
+		expect(helper.failure).toBe('Claude is busy. Try again in a minute.');
+		expect(helper.answer).toBe('');
+	});
+
+	it('drops a reply that comes back after Stop', async () => {
+		const { helper, charts } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'review');
+		let finish: (value: ClaudeReply) => void = () => {};
+		claude.next.push(() => new Promise((resolve) => (finish = resolve)));
+		const sent = helper.askClaude();
+		helper.stopClaude();
+		expect(helper.writing).toBeNull();
+		finish({ ok: true, text: reply(charts.one!) });
+		await sent;
+		expect(helper.reply).toBe('');
+		expect(helper.failure).toBe('');
 	});
 });

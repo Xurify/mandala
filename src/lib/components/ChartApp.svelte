@@ -138,10 +138,9 @@
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
-			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === 'propose_lines')?.execute({ lines: open.agent });
+			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === open.agent.tool)?.execute(open.agent.input(chart.data));
 			else if (open.bindu === 'home') helper.show();
-			else if (open.bindu === 'review') helper.show('review');
-			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
+			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : open.bindu === 'write-review' ? 'review' : 'new');
 		}, 500);
 	}
 

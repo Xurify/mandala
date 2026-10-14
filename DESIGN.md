@@ -95,7 +95,7 @@ Reuse a motion before adding one. Keyframes live in `src/app.css` as `--animate-
 | `deal-in` | A hand of cards arriving, 70ms apart. Overshoots |
 | `flip-in` | One card replaced in place (a swap). The old face fades where it is; the new one swings in. A pillar's block turned over to its shelf does the same, and the block eases to the new face's height |
 | `stack-in` | Pips stacking into a column, staggered by column, then by row |
-| `scan` + `mark-in` | Reading a chart: cells light in reading order, then each flagged cell gets a ring that closes in |
+| `scan` | A chart arriving: its written cells light up, pillar by pillar |
 | `seal-in` + `seal-draw` | A moment: the ring arrives, its arcs draw in pillar order, the check is the last stroke |
 | `done-in` | The words of a moment, after the picture |
 | `note-in` / `noteOut` | A floating panel opening from its corner, and folding back |
@@ -305,7 +305,7 @@ While the sheet is up, the page holds only what can be used on it: no search fie
 
 Short, warm, plain. Sentence case everywhere. Say what happens, not what the feature is called ("Start from a preset", not "Presets"). Numbers as numerals ("3 of 8 actions"). No emoji in UI. An action is a sentence you could say, inside the character cap. A pillar is a short heading for one driver, like the presets' "Long runs" or "Practice tests".
 
-**Bindu** is the chart helper ("Open Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label. Bindu is a small notebook of pages, not a chat: a note and one next move on the first page, a door per job below it, and each job on a page of its own. Pages turn sideways and the panel eases to the new page's height. A thing that just became true (today set, a chart kept, lines added) takes the page as a moment: the ring draws the pillars it touched, then the words, then Done. Writing lines goes to the person's own chat app as a prompt, and the reply is pasted back. An agent in the browser can propose lines too, and they wait on their own page until the person keeps them. What Bindu does: [docs/bindu.md](docs/bindu.md).
+**Bindu** is the chart helper ("Open Bindu"). The name is Sanskrit *bindu*, the center dot of a mandala; our center cell is the goal, so the helper is a person at that center, not a generic "AI" or "Coach" label. Bindu is a small notebook of pages, not a chat: a note and one next move on the first page, a door per job below it, and each job on a page of its own. Pages turn sideways and the panel eases to the new page's height. A thing that just became true (today set, a chart kept, lines added) takes the page as a moment: the ring draws the pillars it touched, then the words, then Done. Writing and reviewing lines go to the person's own chat app as a prompt, and the reply is pasted back. A person who adds their own Claude key can send the same prompt from the panel and skip the paste. An agent in the browser can propose lines too, and they wait on their own page until the person keeps them. What Bindu does: [docs/bindu.md](docs/bindu.md).
 
 ## Accessibility
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { draftButton, editWords, groupEdits, type HelperOffer } from '$lib/chart/helper';
-	import { HUES, setByKey, type ChartData } from '$lib/chart/model';
+	import { draftButton, editWords, groupEdits, type HelperOffer, type KindChange } from '$lib/chart/helper';
+	import { HUES, setByKey, type ActionKind, type ChartData } from '$lib/chart/model';
 	import MiniChart from './MiniChart.svelte';
 	import Button from './ui/Button.svelte';
 
@@ -13,6 +13,22 @@
 	}
 
 	let { data, draft, onkeep, aside, onaside }: Props = $props();
+
+	const KIND_LABELS: Record<ActionKind | 'standard', string> = { standard: 'Standard', routine: 'Routine', milestone: 'Milestone' };
+
+	const kindGroups = $derived.by(() => {
+		if (draft.kind !== 'kinds') return [];
+		const groups: { pillarIndex: number; label: string; changes: KindChange[] }[] = [];
+		for (const change of draft.changes) {
+			let group = groups.find((entry) => entry.pillarIndex === change.pillarIndex);
+			if (!group) {
+				group = { pillarIndex: change.pillarIndex, label: data.pillars[change.pillarIndex]?.trim() || `Pillar ${change.pillarIndex + 1}`, changes: [] };
+				groups.push(group);
+			}
+			group.changes.push(change);
+		}
+		return groups.sort((a, b) => a.pillarIndex - b.pillarIndex);
+	});
 
 	const preview = $derived.by(() => {
 		if (draft.kind !== 'cells') return data;
@@ -39,6 +55,42 @@
 		</ol>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={onkeep}>{draftButton(data)}</Button>
+			<Button size="sm" variant="ghost" onclick={onaside}>{aside}</Button>
+		</div>
+	</div>
+{:else if draft.kind === 'kinds'}
+	<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
+		<div class="flex max-h-[220px] flex-col gap-3 overflow-y-auto overscroll-contain">
+			{#each kindGroups as group (group.pillarIndex)}
+				<section class="flex min-w-0 flex-col gap-1" aria-label={group.label}>
+					<p class="m-0 flex items-center gap-1.5 text-[0.76rem] font-[620]">
+						<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
+						<span class="pillar-ink" style:--h={HUES[group.pillarIndex]}>{group.label}</span>
+					</p>
+					<ul class="m-0 flex list-none flex-col gap-1.5 p-0 ps-3.5">
+						{#each group.changes as change (change.id)}
+							<li class="flex flex-col text-[0.88rem] leading-snug text-pretty">
+								<span>{change.text}</span>
+								<span class="text-[0.8rem] text-muted"><span class="line-through">{KIND_LABELS[change.before ?? 'standard']}</span> {KIND_LABELS[change.after ?? 'standard']}</span>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/each}
+		</div>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={onkeep}>{draft.changes.length === 1 ? 'Keep it' : `Keep all ${draft.changes.length}`}</Button>
+			<Button size="sm" variant="ghost" onclick={onaside}>{aside}</Button>
+		</div>
+	</div>
+{:else if draft.kind === 'note'}
+	<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
+		{#if draft.before}
+			<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted line-through">{draft.before}</p>
+		{/if}
+		<p class="m-0 font-serif text-[1.02rem] leading-snug tracking-[-0.005em] text-pretty">“{draft.after}”</p>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={onkeep}>Save the week</Button>
 			<Button size="sm" variant="ghost" onclick={onaside}>{aside}</Button>
 		</div>
 	</div>

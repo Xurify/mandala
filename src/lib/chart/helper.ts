@@ -1,64 +1,31 @@
-import { ACTION_MAX, briefLines, PILLAR_MAX } from './draft.ts';
+import { briefLines } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { formatMinutes, minutesByPillar } from './timer.ts';
-import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionMeta, type ChartData, type Ref } from './model.ts';
+import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref } from './model.ts';
 
-export const UNTICKABLE =
-	/\b(do better|ask more|more questions|work hard|be successful|stay positive|try harder|get better|be more|be better)\b/i;
-export const UNCONTROLLED = /\b(\d[\d,.]*\s*(million|billion)\s+views|followers|go viral|get famous|get rich)\b/i;
-
+/** Letters and digits in any script, so a reply in Japanese or Russian still compares to its chart. */
 export function norm(value: string): string {
-	return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+	return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-const COPY_STOP = new Set([
-	'a', 'an', 'the', 'after', 'before', 'every', 'my', 'and', 'or', 'to', 'of', 'on', 'for', 'with', 'in', 'at', 'by', 'from',
-	'apply', 'use', 'wear', 'do', 'keep', 'get'
-]);
-
-function contentTokens(value: string): string[] {
-	return norm(value)
-		.split(' ')
-		.filter((token) => token !== '' && !COPY_STOP.has(token))
-		.map((token) => (token.length > 3 && token.endsWith('s') ? token.slice(0, -1) : token));
-}
-
-export function nearCopy(left: string, right: string): boolean {
-	const a = contentTokens(left);
-	const b = contentTokens(right);
-	if (a.length < 2 || a.length !== b.length) return false;
-	const bag = new Map<string, number>();
-	for (const token of a) bag.set(token, (bag.get(token) ?? 0) + 1);
-	for (const token of b) {
-		const count = bag.get(token) ?? 0;
-		if (count === 0) return false;
-		bag.set(token, count - 1);
-	}
-	return true;
-}
-
-export function restated(pillar: string, action: string): boolean {
-	const base = norm(pillar);
-	const cell = norm(action);
-	if (!base || !cell) return false;
-	if (cell === base) return true;
-	const stripped = cell.replace(/^(do|practice|work on|keep doing|focus on)\s+/, '');
-	return stripped !== cell && stripped === base;
-}
-
-export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'review' | 'write' | 'offer';
+export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'write' | 'offer';
 export type WriteMode = 'new' | 'fill' | 'review' | 'ask';
 
 export type CellEdit = { key: string; before: string; after: string };
 
-/** Lines an agent in the browser wrote. They wait on their own page until the person keeps them. */
-export type HelperOffer = { kind: 'chart'; data: ChartData } | { kind: 'cells'; edits: CellEdit[] };
+export type KindChange = { id: ActionId; text: string; pillarIndex: number; before: ActionKind | undefined; after: ActionKind | undefined };
+
+/** What an agent in the browser wrote. It waits on its own page until the person keeps it. */
+export type HelperOffer =
+	| { kind: 'chart'; data: ChartData }
+	| { kind: 'cells'; edits: CellEdit[] }
+	| { kind: 'kinds'; changes: KindChange[] }
+	| { kind: 'note'; weekKey: string; before: string; after: string };
 
 export type HelperMood = 'idle' | 'listening' | 'happy' | 'puzzled' | 'offering' | 'curious';
 
 export type HelperMoodOptions = {
 	cheer?: boolean;
-	puzzled?: boolean;
 	listening?: boolean;
 	offering?: boolean;
 	waiting?: boolean;
@@ -66,19 +33,11 @@ export type HelperMoodOptions = {
 
 export function moodFor(options: HelperMoodOptions = {}): HelperMood {
 	if (options.cheer) return 'happy';
-	if (options.puzzled) return 'puzzled';
 	if (options.listening) return 'listening';
 	if (options.offering) return 'offering';
 	if (options.waiting) return 'curious';
 	return 'idle';
 }
-
-export type HelperFinding = {
-	key: string;
-	text: string;
-	reason: string;
-	code: 'untickable' | 'uncontrolled' | 'restated' | 'repeated' | 'long' | 'vague' | 'cut' | 'tool';
-};
 
 export type HelperPick = {
 	id: ActionId;
@@ -112,88 +71,6 @@ export function gapsOf(data: ChartData): { pillars: number[]; actions: { pillarI
 }
 
 
-// A number, a length, a day, or a moment makes "more" and "be" lines tickable.
-const ANCHOR =
-	/\d|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty|thirty|forty|fifty|hundred|once|twice|daily|weekly|monthly|every|each|minutes?|mins?|hours?|pages?|times?|mornings?|evenings?|nights?|tonight|today|tomorrow|noon|lunch|breakfast|dinner|bed|bedtime|weekends?|after|before|when|until|during|mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b/i;
-/**
- * Words no line ends on. Prepositions are left out: "someone would pay for" and "follow through" are whole.
- * "Then with" is a short form, not a cut.
- */
-const CUT_OFF = /(?<!\bthen)\s(?:a|an|the|and|or|but|your|my|their|our)$/i;
-/** A pillar is a skill or a habit. The app or the medium goes in its actions. */
-const TOOL = /\b(?:apps?|podcasts?|videos?|flashcards?|youtube|duolingo|anki)\b/i;
-/** Pillars that would sit on any chart. The method keeps nice-to-haves out. */
-const CATCH_ALL =
-	/\b(?:consisten(?:t|cy)|motivat(?:ed|ion)|mindset|discipline|patien(?:t|ce)|positivity|track(?:ing)?\s+progress|progress\s+tracking|goal\s+setting|set(?:ting)?\s+(?:\w+\s+)?goals?)\b/i;
-
-const OPEN_ENDED = /\b(?:more|less|fewer|better|healthier|harder|faster|stronger|regularly|consistently|properly)\b/i;
-const STATE = /^(?:be|become|stay|feel|remain|have\s+(?:a|an|more)|improve|master|get\s+(?:good|better)|work\s+on|focus\s+on)\b/i;
-const RESULT =
-	/^(?:lose|gain|drop)\s+\d[\d.,]*\s*(?:kg|kgs|kilos?|lbs?|pounds|stone)\b|\bget\s+(?:promoted|hired|a\s+raise|a\s+promotion|a\s+six[-\s]?pack|abs|fit|rich|famous|noticed)\b|^win\b|\b(?:become|be)\s+fluent\b|\bmake\s+\$?\d[\d,.]*k?\s+(?:sales|dollars|in\s+sales)\b|\b(?:hit|reach)\s+\d[\d,.]*k?\s+(?:followers|subscribers|views|sales|users|customers)\b/i;
-
-export function lineFault(
-	text: string,
-	options: { max: number; kind: 'pillar' | 'action'; pillar?: string; siblings?: readonly string[] }
-): { code: HelperFinding['code']; reason: string } | null {
-	const value = text.trim();
-	if (!value) return null;
-	if (UNCONTROLLED.test(value) || RESULT.test(value)) {
-		return { code: 'uncontrolled', reason: 'A result you cannot do. Write the step that gets you there.' };
-	}
-	if (UNTICKABLE.test(value)) {
-		return options.kind === 'pillar'
-			? { code: 'untickable', reason: 'This is a wish. Name the part of the goal it works on.' }
-			: { code: 'untickable', reason: 'This cannot be marked done. Write the session, not the wish.' };
-	}
-	if ((OPEN_ENDED.test(value) || STATE.test(value)) && !ANCHOR.test(value)) {
-		return options.kind === 'pillar'
-			? { code: 'untickable', reason: 'This has no end. Name the part of the goal it works on.' }
-			: { code: 'untickable', reason: 'This has no end. Say how much, or when.' };
-	}
-	if (options.kind === 'pillar' && TOOL.test(value)) return { code: 'tool', reason: 'This names a tool. Name the habit it serves.' };
-	if (options.kind === 'pillar' && CATCH_ALL.test(value)) return { code: 'vague', reason: 'This fits any goal. Name what drives this one.' };
-	if (options.kind === 'action' && options.pillar && restated(options.pillar, value)) return { code: 'restated', reason: 'This repeats the pillar. Write what makes it happen.' };
-	if (options.siblings?.some((seen) => norm(seen) === norm(value) || nearCopy(seen, value))) {
-		return { code: 'repeated', reason: options.kind === 'pillar' ? 'Same as a pillar you already have.' : 'Same afternoon as another action on the chart.' };
-	}
-	if (CUT_OFF.test(value.replace(/[.!?]+$/, ''))) return { code: 'cut', reason: 'This stops mid-phrase. Finish the thought.' };
-	if (options.kind === 'action' && !/\s/.test(value)) return { code: 'vague', reason: 'Too thin. Say what you do, and when.' };
-	if (value.length > options.max) {
-		return options.kind === 'pillar'
-			? { code: 'long', reason: 'Too long for a pillar.' }
-			: { code: 'long', reason: 'Too long for one action.' };
-	}
-	return null;
-}
-
-export function reviewChart(data: ChartData, limit = 6): HelperFinding[] {
-	const findings: HelperFinding[] = [];
-	const add = (finding: HelperFinding) => {
-		if (!findings.some((seen) => seen.key === finding.key)) findings.push(finding);
-	};
-	const namedPillars: string[] = [];
-	data.pillars.forEach((pillar, pillarIndex) => {
-		const key = `p${pillarIndex}`;
-		const text = pillar.trim();
-		if (!text) return;
-		const fault = lineFault(text, { max: PILLAR_MAX, kind: 'pillar', siblings: namedPillars });
-		if (fault) add({ key, text, ...fault });
-		namedPillars.push(text);
-	});
-	const seenActions: string[] = [];
-	data.actions.forEach((row, pillarIndex) => {
-		const pillar = data.pillars[pillarIndex] ?? '';
-		row.forEach((action, actionIndex) => {
-			const key = actionKey(pillarIndex, actionIndex);
-			const text = action.trim();
-			if (!text) return;
-			const fault = lineFault(text, { max: ACTION_MAX, kind: 'action', pillar, siblings: seenActions });
-			if (fault) add({ key, text, ...fault });
-			seenActions.push(text);
-		});
-	});
-	return findings.slice(0, limit);
-}
 const DAY_MS = 86_400_000;
 const STUCK_PICKS = 3;
 const STUCK_WINDOW = 14;
@@ -809,25 +686,9 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 			detail: progress.everTicked ? `${plural(progress.ticks, 'tick')} in 7 days` : 'Nothing ticked yet'
 		});
 	}
-	const findings = reviewChart(data).length;
-	doors.push({
-		page: 'review',
-		label: 'Find weak lines',
-		detail: findings === 0 ? 'Every line passes the two tests' : findings === 1 ? 'One line to tighten' : `${findings} lines to tighten`
-	});
+	if (hasActions) doors.push({ page: 'write', mode: 'review', label: 'Review my chart', detail: 'Every line checked, in any language' });
 	doors.push({ page: 'write', label: 'Fill chart using a prompt', detail: 'Start a chart, fill it, or ask' });
 	return doors.filter((door) => door.page === 'write' || door.page !== lead.page);
-}
-
-/**
- * The review's rules read English; a chart in another language gets a note that says so rather than a
- * clean pass it did not earn.
- */
-export function foreignShare(data: ChartData): number {
-	const lines = [...data.pillars, ...data.actions.flat()].map((line) => line.trim()).filter(Boolean);
-	if (lines.length === 0) return 0;
-	const foreign = lines.filter((line) => /[^\u0000-\u007F\u2018-\u201F\u2013\u2014\u2026]/.test(line)).length;
-	return foreign / lines.length;
 }
 
 function knownByNow(data: ChartData, now: Date): HelperInsight[] {

@@ -1,4 +1,5 @@
 import { chart } from './chart.svelte';
+import { askClaude, loadClaudeKey, saveClaudeKey } from './claude.ts';
 import { chatLink, fillPrompt, isChatApp, newChartPrompt, parseDraftText, reviewPrompt, type ChatApp } from './draft.ts';
 import {
 	askPrompt,
@@ -8,8 +9,8 @@ import {
 	greetingInsight,
 	insightSignature,
 	moodFor,
+	progressOf,
 	norm,
-	reviewChart,
 	reviseEdits,
 	suggestToday,
 	suggestWeek,
@@ -19,9 +20,11 @@ import {
 	type HelperOffer,
 	type HelperPage,
 	type HelperPick,
+	type KindChange,
 	type WriteMode
 } from './helper.ts';
 import { blockOfK, getByKey, hasContent, todayKey, wholeness, wordsOf, type ActionId, type ChartData, type Ref } from './model.ts';
+import { LANE_NAMES, tomorrowOf } from './board.ts';
 import type { AgentTarget } from './webmcp.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperOffer, HelperPage, HelperPick, WriteMode };
@@ -32,6 +35,8 @@ export type HelperTarget = {
 	setCells(edits: CellEdit[]): void;
 	setToday(ids: ActionId[]): void;
 	pinWeek(ids: ActionId[]): void;
+	setKinds?(changes: KindChange[]): void;
+	saveNote?(weekKey: string, note: string): void;
 	showCell(ref: Ref): void;
 	decline?(ids: ActionId[]): void;
 	noteShown?(signature: string): void;
@@ -76,6 +81,14 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
 	app = $state<ChatApp>(loadChatApp());
+	claudeKey = $state(loadClaudeKey());
+	/** The mode a request to Claude is out for. */
+	writing = $state<WriteMode | null>(null);
+	failure = $state('');
+	answer = $state('');
+	/** The mode whose reply came from Claude, not a paste. */
+	wrote = $state<WriteMode | null>(null);
+	#request: AbortController | null = null;
 	/** Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -89,7 +102,7 @@ export class HelperStore {
 		const reply = parseDraftText(this.reply);
 		if (!reply) return { kind: 'unread' };
 		const data = this.#target.data();
-		// A reply for this chart's goal fills its gaps, or, after a review, rewrites its weak lines. Anything else
+		// A reply for this chart's goal fills its gaps, or, after a review, rewrites the lines that failed. Anything else
 		// is a chart of its own.
 		if (hasContent(data) && norm(reply.goal) === norm(data.goal)) {
 			const edits = this.mode === 'review' ? reviseEdits(data, reply) : fillEdits(data, reply);
@@ -101,10 +114,9 @@ export class HelperStore {
 	mood: HelperMood = $derived.by(() =>
 		moodFor({
 			cheer: this.#cheer,
-			puzzled: this.page === 'review' && reviewChart(this.#target.data()).length > 0,
 			listening: this.listening,
 			offering: ((this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null) || (this.page === 'offer' && this.offer !== null),
-			waiting: this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim()
+			waiting: this.writing !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
 		})
 	);
 
@@ -167,14 +179,29 @@ export class HelperStore {
 		this.go('offer');
 	}
 
-	/** A line the person changed while the offer waited stays theirs. */
+	/** A line, or a kind, the person changed while the offer waited stays theirs. */
 	keepOffer(): void {
 		const offer = this.offer;
 		if (!offer) return;
 		const data = this.#target.data();
-		const kept: HelperOffer = offer.kind === 'cells' ? { kind: 'cells', edits: offer.edits.filter((edit) => getByKey(data, edit.key).trim() === edit.before) } : offer;
-		if (kept.kind === 'cells' && kept.edits.length === 0) return this.back();
-		if (!this.#keep(kept, kept.kind === 'cells' && kept.edits.every((edit) => edit.before))) return;
+		if (offer.kind === 'kinds') {
+			const changes = offer.changes.filter((change) => wordsOf(data, change.id) === change.text && data.meta?.[change.id]?.kind === change.before);
+			if (changes.length === 0) return this.back();
+			this.#target.setKinds?.(changes);
+			const routines = changes.filter((change) => change.after === 'routine').length;
+			this.#land({
+				title: `Sorted ${changes.length} ${changes.length === 1 ? 'action' : 'actions'}`,
+				detail: routines ? 'Routines show on Today every day, as habits.' : 'Milestones close once they are done.',
+				pillars: [...new Set(changes.map((change) => change.pillarIndex))].sort((a, b) => a - b)
+			});
+		} else if (offer.kind === 'note') {
+			this.#target.saveNote?.(offer.weekKey, offer.after);
+			this.#land({ title: 'Week saved', detail: 'Bindu says it back to you when the new week starts.', pillars: progressOf(data).pillars });
+		} else {
+			const kept: HelperOffer = offer.kind === 'cells' ? { kind: 'cells', edits: offer.edits.filter((edit) => getByKey(data, edit.key).trim() === edit.before) } : offer;
+			if (kept.kind === 'cells' && kept.edits.length === 0) return this.back();
+			if (!this.#keep(kept, kept.kind === 'cells' && kept.edits.every((edit) => edit.before))) return;
+		}
 		this.offer = null;
 	}
 
@@ -230,9 +257,9 @@ export class HelperStore {
 		this.hide();
 	}
 
-	prompt(mode: WriteMode = this.mode): string {
+	prompt(mode: WriteMode = this.mode, direct = false): string {
 		const data = this.#target.data();
-		if (mode === 'new') return newChartPrompt(this.goal);
+		if (mode === 'new') return newChartPrompt(this.goal, direct);
 		if (mode === 'fill') return fillPrompt(data);
 		if (mode === 'review') return reviewPrompt(data);
 		return askPrompt(data, this.question);
@@ -248,6 +275,42 @@ export class HelperStore {
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
 		this.copied = this.mode;
 		this.sent = app;
+	}
+
+	setClaudeKey(key: string): void {
+		saveClaudeKey(key);
+		this.claudeKey = loadClaudeKey();
+		this.failure = '';
+	}
+
+	/** Sends the same prompt a chat app would get, and treats the reply as if it had been pasted. */
+	async askClaude(): Promise<void> {
+		const mode = this.mode;
+		if (!this.claudeKey || this.writing) return;
+		const request = new AbortController();
+		this.#request = request;
+		this.writing = mode;
+		this.failure = '';
+		this.answer = '';
+		this.reply = '';
+		this.wrote = null;
+		const result = await askClaude(this.claudeKey, this.prompt(mode, true), request.signal);
+		if (this.#request !== request) return;
+		this.writing = null;
+		this.#request = null;
+		if (!result.ok) {
+			if (!('aborted' in result)) this.failure = result.reason;
+			return;
+		}
+		if (mode === 'ask') this.answer = result.text;
+		else this.reply = result.text;
+		this.wrote = mode;
+	}
+
+	stopClaude(): void {
+		this.#request?.abort();
+		this.#request = null;
+		this.writing = null;
 	}
 
 	useApp(app: ChatApp): void {
@@ -274,9 +337,11 @@ export class HelperStore {
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
+		this.failure = '';
+		this.wrote = null;
 	}
 
-	#keep(outcome: HelperOffer, rewriting: boolean): boolean {
+	#keep(outcome: Extract<HelperOffer, { kind: 'chart' | 'cells' }>, rewriting: boolean): boolean {
 		if (outcome.kind === 'chart') {
 			if (!this.#target.applyDraft(outcome.data)) return false;
 			const next = this.#target.chartId?.();
@@ -323,6 +388,10 @@ export class HelperStore {
 	}
 
 	reset(): void {
+		this.stopClaude();
+		this.failure = '';
+		this.answer = '';
+		this.wrote = null;
 		this.page = 'home';
 		this.direction = -1;
 		this.picks = null;
@@ -352,6 +421,10 @@ export const helper = new HelperStore({
 	pinWeek: (keys) => {
 		for (const key of keys) chart.setActionMeta(key, { pinned: true });
 	},
+	setKinds: (changes) => {
+		for (const change of changes) chart.setActionMeta(change.id, { kind: change.after });
+	},
+	saveNote: (weekKey, note) => chart.saveWeekReflection(weekKey, { note }),
 	showCell: (key) => chart.jumpToKey(key),
 	openTool: (pillarIndex, id) => chart.openTool(pillarIndex, id),
 	openCalendar: () => chart.setViewMode('calendar'),
@@ -364,6 +437,7 @@ export const helper = new HelperStore({
 export const agentTarget: AgentTarget = {
 	data: () => chart.data,
 	now: () => new Date(),
+	reflectionWeek: () => chart.reflectionWeek,
 	offer: (offer) => helper.propose(offer),
 	finish: (id) => {
 		chart.finish(id);
@@ -375,8 +449,31 @@ export const agentTarget: AgentTarget = {
 	},
 	setToday: (ids) => {
 		const stopped = chart.setFocus(todayKey(), ids, true);
-		const set = `Your assistant set today: ${ids.length} ${ids.length === 1 ? 'action' : 'actions'}.`;
+		const set = `Your assistant set today: ${plural(ids.length, 'action')}.`;
 		chart.say(stopped ? `${set} ${stopped}` : set);
 	},
-	logTime: (id, minutes) => chart.logTime(id, minutes)
+	planTomorrow: (ids) => {
+		chart.setFocus(tomorrowOf(chart.today), ids, true);
+		chart.say(`Your assistant planned tomorrow: ${plural(ids.length, 'action')}.`);
+	},
+	pin: (ids, pinned) => {
+		for (const id of ids) chart.setActionMeta(id, { pinned: pinned || undefined });
+		chart.say(`Your assistant ${pinned ? 'pinned' : 'unpinned'} ${ids.length === 1 ? `“${wordsOf(chart.data, ids[0]!)}”` : plural(ids.length, 'action')}.`);
+	},
+	moveCard: (id, lane, index) => {
+		const moved = chart.moveCard(id, lane, index);
+		if (moved) chart.say(`Your assistant moved “${wordsOf(chart.data, id)}” to ${LANE_NAMES[lane]}.`);
+		return moved;
+	},
+	logTime: (id, minutes) => chart.logTime(id, minutes),
+	startTimer: (id, minutes) => chart.startTimer(id, minutes),
+	stopTimer: () => chart.stopTimer(),
+	addLink: (pillarIndex, url, title, kind) => {
+		chart.addTool(pillarIndex, url, title, kind);
+		chart.say(`Your assistant saved a link to ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}.`);
+	}
 };
+
+function plural(count: number, one: string): string {
+	return `${count} ${count === 1 ? one : `${one}s`}`;
+}

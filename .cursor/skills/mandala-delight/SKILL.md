@@ -19,8 +19,8 @@ Read the closest one before building:
 - `src/lib/components/FocusPicker.svelte` for a choice
 - `src/lib/components/DaySeal.svelte` and the closed branch of `TodayView.svelte` for a moment that just became true
 - `src/lib/components/HelperPanel.svelte` for a panel of pages that turn, and `HelperMoment.svelte` for a moment inside one
-- `HelperPicks.svelte` for a dealt hand with a swap, `HelperReview.svelte` for a sweep that marks and a live list, `HelperWrite.svelte` for steps on a thread
-- [recipes.md](recipes.md) for pointer drag, page turns, swaps, sweeps, and threads
+- `HelperPicks.svelte` for a dealt hand with a swap, `HelperWrite.svelte` for steps on a thread
+- [recipes.md](recipes.md) for pointer drag, page turns, swaps, and threads
 
 ## 1. Change the concept, not the polish
 

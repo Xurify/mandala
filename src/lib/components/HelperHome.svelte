@@ -25,7 +25,6 @@
 		today: 'calendar',
 		week: 'pin',
 		progress: 'clock',
-		review: 'eye',
 		write: 'copy'
 	};
 </script>
@@ -49,11 +48,11 @@
 
 	{#if doors.length}
 		<ul class="-mx-1.5 m-0 flex list-none flex-col p-0">
-			{#each doors as door, index (door.page)}
+			{#each doors as door, index (`${door.page}:${door.mode ?? ''}`)}
 				<li class="motion-safe:animate-pop-in" style:animation-delay="{110 + index * 40}ms">
 					<button
 						type="button"
-						data-door={door.page}
+						data-door={door.mode === 'review' ? 'review' : door.page}
 						class="group/door flex min-h-[56px] w-full cursor-pointer items-center gap-3 rounded-[18px] border-0 bg-transparent px-1.5 py-1.5 text-start font-sans text-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink active:scale-[0.985] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui"
 						onclick={() => helper.go(door.page, door.mode)}
 					>
@@ -75,7 +74,7 @@
 									{/each}
 								</svg>
 							{:else}
-								<Icon name={ICONS[door.page]} size={18} />
+								<Icon name={door.mode === 'review' ? 'eye' : ICONS[door.page]} size={18} />
 							{/if}
 						</span>
 						<span class="flex min-w-0 flex-1 flex-col gap-0.5">

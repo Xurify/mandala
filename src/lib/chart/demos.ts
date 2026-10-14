@@ -17,7 +17,10 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
+	| 'bindu-claude'
 	| 'bindu-agent'
+	| 'agent-kinds'
+	| 'agent-week'
 	| 'tools'
 	| 'select'
 	| 'time-stopwatch'
@@ -35,8 +38,11 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: { cell: string; text: string }[] };
+	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: AgentCall };
 };
+
+/** A tool an agent would call once the demo's chart is open; ids are read from that chart, since opening it may give new ones. */
+export type AgentCall = { tool: string; input: (data: ChartData) => Record<string, unknown> };
 
 export type Demo = {
 	id: DemoId;
@@ -357,13 +363,14 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'bindu-review',
-		title: 'Bindu finds weak lines',
+		title: 'Review a chart with a prompt',
 		group: 'Bindu',
 		steps: [
-			'Weak lines opens on a chart with lines that fail the two tests. The chart sweeps, then the weak cells get a ring.',
-			'Click a line to open it in the editor and fix it. It folds out of the list.',
-			'Or press Review with a prompt instead: the chat app rewrites the failing lines, in any language, and Keep writes them in.'
-		]
+			'Bindu opens on Review, on a chart with five lines that cannot be ticked or are not yours to do.',
+			'Copy the prompt, or open it in a chat app. It checks every line in the language the chart is written in.',
+			'Use "Copy a sample reply" on this card and paste it into the reply box. Only the failing lines change.'
+		],
+		reply: () => JSON.stringify(preset('health'))
 	},
 	{
 		id: 'bindu-fill',
@@ -388,6 +395,16 @@ export const DEMOS: readonly Demo[] = [
 		reply: () => JSON.stringify(preset('music'))
 	},
 	{
+		id: 'bindu-claude',
+		title: 'Write with your own Claude key',
+		group: 'Bindu',
+		steps: [
+			'Bindu opens on Fill the gaps. Press Use your own Claude key at the foot of the page and paste a key from the Claude Console. Save key stays off until it looks like one.',
+			'Write with Claude sends the prompt from this browser. Stop drops the reply; a bad key or no credit says so in one line.',
+			'The reply lands in step three by itself. Add it to the chart. Remove it, beside the key line, forgets the key.'
+		]
+	},
+	{
 		id: 'bindu-agent',
 		title: 'Lines from an agent in the browser',
 		group: 'Bindu',
@@ -395,6 +412,26 @@ export const DEMOS: readonly Demo[] = [
 			'A chart with an empty pillar and a weak line. The demo calls the propose_lines tool, as an agent in the browser would, and Bindu opens on Lines to look over.',
 			'The rewrite shows the line it replaces. Nothing is written until Keep, which lands the moment. Not now drops the offer.',
 			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask the agent to fill the gaps.'
+		]
+	},
+	{
+		id: 'agent-kinds',
+		title: 'Routines and milestones from an agent',
+		group: 'Bindu',
+		steps: [
+			'The demo calls propose_kinds, as an agent would after reading the chart: six actions, each with the kind it would be. Bindu opens on How each one repeats.',
+			'Keep sorts them, and the routines show on Today every day as habits. Not now leaves every action as it was.',
+			'With a real agent: ask it which of your actions are habits.'
+		]
+	},
+	{
+		id: 'agent-week',
+		title: "The week's note from an agent",
+		group: 'Bindu',
+		steps: [
+			"A week of ticks behind the chart. The demo calls propose_reflection, as an agent would after week_history, and Bindu opens on A line for next week.",
+			'Save the week keeps it as the note for the week, the same one the weekly reflection writes.',
+			"With a real agent: ask it how your week went, and to write the week's note."
 		]
 	}
 ];
@@ -447,9 +484,9 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[3]![1] = 'Get 10k followers';
 		data.actions[5]![4] = 'Work hard every day';
 		data.pillars[6] = 'Motivation';
-		return { data, view: 'view', open: { bindu: 'review' } };
+		return { data, view: 'view', open: { bindu: 'write-review' } };
 	}
-	if (id === 'bindu-fill') {
+	if (id === 'bindu-fill' || id === 'bindu-claude') {
 		const data = preset('fitness');
 		data.pillars[6] = '';
 		data.actions[6] = data.actions[6]!.map(() => '');
@@ -467,7 +504,23 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 			{ cell: 'p6', text: whole.pillars[6]! },
 			...whole.actions[6]!.map((text, slot) => ({ cell: `a6_${slot}`, text }))
 		];
-		return { data, view: 'view', open: { agent: lines } };
+		return { data, view: 'view', open: { agent: { tool: 'propose_lines', input: () => ({ lines }) } } };
+	}
+	if (id === 'agent-kinds') {
+		const kinds: [string, string][] = [
+			['a0_0', 'routine'],
+			['a0_3', 'milestone'],
+			['a1_0', 'routine'],
+			['a1_3', 'milestone'],
+			['a6_0', 'routine'],
+			['a6_1', 'milestone']
+		];
+		const input = (data: ChartData) => ({ kinds: kinds.map(([key, kind]) => ({ id: idIn(data, key), kind })) });
+		return { data: preset('language'), view: 'view', open: { agent: { tool: 'propose_kinds', input } } };
+	}
+	if (id === 'agent-week') {
+		const note = 'Most mornings held, Speaking twice. Next week, one graded reader before Friday.';
+		return { data: livedIn(now), view: 'today', open: { agent: { tool: 'propose_reflection', input: () => ({ note }) } } };
 	}
 	return { data: null, view: 'view', open: { bindu: 'write-new' } };
 }
