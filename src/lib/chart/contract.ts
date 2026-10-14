@@ -164,7 +164,7 @@ export const BROWSER_KEYS: Record<string, string> = {
 	mandala_view_mode: 'The view last open',
 	mandala_view_scale: 'Fit or Large',
 	mandala_goal_fit: 'Measured goal text sizes, so the goal does not resize after paint',
-	mandala_chat_app: 'The chat app prompts open in',
+	mandala_chat_app: 'How Bindu hands a prompt over: copied, or opened in a chat app',
 	mandala_bindu: 'Off when the person turned Bindu off',
 	mandala_ai_consent: 'Whether the person agreed to the app sending their chart to the AI provider they connect',
 	mandala_ai_provider: 'The AI provider the person connected, its key, and a model. Never synced, shared, or exported',

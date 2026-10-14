@@ -29,6 +29,21 @@ export const button = tv({
 	defaultVariants: { variant: 'primary', size: 'md' }
 });
 
+export const splitButton = tv({
+	slots: {
+		wrap: 'inline-flex items-stretch gap-px',
+		main: 'rounded-e-[6px]',
+		more: 'rounded-s-[6px] px-0'
+	},
+	variants: {
+		size: {
+			md: { more: 'w-[38px]' },
+			sm: { more: 'w-8' }
+		}
+	},
+	defaultVariants: { size: 'md' }
+});
+
 export const iconButton = tv({
 	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 ${focus}`
 });

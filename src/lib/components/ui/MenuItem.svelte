@@ -13,6 +13,8 @@
 		shortcut?: string;
 		tone?: 'default' | 'danger';
 		active?: boolean;
+		/** The remembered choice among siblings: a check at the end. */
+		checked?: boolean;
 		id?: string;
 		class?: string;
 		onclick?: (event: MouseEvent) => void;
@@ -26,6 +28,7 @@
 		shortcut,
 		tone = 'default',
 		active = false,
+		checked = false,
 		id,
 		class: className,
 		onclick
@@ -45,7 +48,7 @@
 	role="menuitem"
 	{id}
 	class={cn(styles.base(), className)}
-	aria-current={active ? 'true' : undefined}
+	aria-current={active || checked ? 'true' : undefined}
 	onclick={onClick}
 >
 	<span class={styles.main()}>
@@ -62,5 +65,8 @@
 	{/if}
 	{#if shortcut}
 		<kbd class={cn(styles.badge(), 'coarse:hidden')}>{shortcut}</kbd>
+	{/if}
+	{#if checked}
+		<Icon name="check" size={16} class="shrink-0 text-text" />
 	{/if}
 </button>

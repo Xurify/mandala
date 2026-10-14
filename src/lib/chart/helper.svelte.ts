@@ -58,12 +58,15 @@ function loadBinduOn(): boolean {
 	}
 }
 
-function loadChatApp(): ChatApp {
+/** How the prompt leaves the page: copied, or opened in a chat app. */
+export type Handoff = ChatApp | 'prompt';
+
+function loadHandoff(): Handoff {
 	try {
 		const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem(CHAT_APP_KEY);
-		return isChatApp(stored) ? stored : 'claude';
+		return stored === 'prompt' || isChatApp(stored) ? stored : 'prompt';
 	} catch {
-		return 'claude';
+		return 'prompt';
 	}
 }
 
@@ -89,7 +92,8 @@ export class HelperStore {
 	reply = $state('');
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
-	app = $state<ChatApp>(loadChatApp());
+	way = $state<Handoff>(loadHandoff());
+	app = $state<ChatApp>(isChatApp(this.way) ? this.way : 'claude');
 	/** Off hides Bindu everywhere: the face, the panel, and the doors that open it. */
 	enabled = $state(loadBinduOn());
 	/** Nothing goes to a provider until the person turns this on, and they can turn it off again. */
@@ -290,7 +294,7 @@ export class HelperStore {
 	}
 
 	openIn(app: ChatApp = this.app): void {
-		this.useApp(app);
+		this.useWay(app);
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
 		this.copied = this.mode;
 		this.sent = app;
@@ -361,10 +365,11 @@ export class HelperStore {
 		this.sending = null;
 	}
 
-	useApp(app: ChatApp): void {
-		this.app = app;
+	useWay(way: Handoff): void {
+		this.way = way;
+		if (isChatApp(way)) this.app = way;
 		try {
-			localStorage.setItem(CHAT_APP_KEY, app);
+			localStorage.setItem(CHAT_APP_KEY, way);
 		} catch {
 		}
 	}
