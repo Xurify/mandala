@@ -4,7 +4,7 @@ export const language: Preset = {
 	id: 'language',
 	title: 'Language',
 	variant: 'General',
-	goal: 'Reach B1 in the language within 12 months',
+	goal: 'Reach B1 in your target language within 12 months',
 	pillars: [
 		'Speaking',
 		'Listening',
