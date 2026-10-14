@@ -17,6 +17,7 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
+	| 'bindu-claude'
 	| 'tools'
 	| 'select'
 	| 'time-stopwatch'
@@ -34,7 +35,7 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
+	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
 };
 
 export type Demo = {
@@ -356,13 +357,14 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'bindu-review',
-		title: 'Bindu finds weak lines',
+		title: 'Review a chart with a prompt',
 		group: 'Bindu',
 		steps: [
-			'Weak lines opens on a chart with lines that fail the two tests. The chart sweeps, then the weak cells get a ring.',
-			'Click a line to open it in the editor and fix it. It folds out of the list.',
-			'Or press Review with a prompt instead: the chat app rewrites the failing lines, in any language, and Keep writes them in.'
-		]
+			'Bindu opens on Review, on a chart with five lines that cannot be ticked or are not yours to do.',
+			'Copy the prompt, or open it in a chat app. It checks every line in the language the chart is written in.',
+			'Use "Copy a sample reply" on this card and paste it into the reply box. Only the failing lines change.'
+		],
+		reply: () => JSON.stringify(preset('health'))
 	},
 	{
 		id: 'bindu-fill',
@@ -385,6 +387,16 @@ export const DEMOS: readonly Demo[] = [
 			'Start this chart to see it open, with the moment in Bindu.'
 		],
 		reply: () => JSON.stringify(preset('music'))
+	},
+	{
+		id: 'bindu-claude',
+		title: 'Write with your own Claude key',
+		group: 'Bindu',
+		steps: [
+			'Bindu opens on Fill the gaps. Press Use your own Claude key at the foot of the page and paste a key from the Claude Console. Save key stays off until it looks like one.',
+			'Write with Claude sends the prompt from this browser. Stop drops the reply; a bad key or no credit says so in one line.',
+			'The reply lands in step three by itself. Add it to the chart. Remove it, beside the key line, forgets the key.'
+		]
 	}
 ];
 
@@ -436,9 +448,9 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[3]![1] = 'Get 10k followers';
 		data.actions[5]![4] = 'Work hard every day';
 		data.pillars[6] = 'Motivation';
-		return { data, view: 'view', open: { bindu: 'review' } };
+		return { data, view: 'view', open: { bindu: 'write-review' } };
 	}
-	if (id === 'bindu-fill') {
+	if (id === 'bindu-fill' || id === 'bindu-claude') {
 		const data = preset('fitness');
 		data.pillars[6] = '';
 		data.actions[6] = data.actions[6]!.map(() => '');

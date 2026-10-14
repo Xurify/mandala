@@ -9,13 +9,12 @@ import {
 	gapsOf,
 	groupEdits,
 	insightsFor,
-	lineFault,
 	moodFor,
+	norm,
 	nextMove,
 	noteFor,
 	pickHistory,
 	progressOf,
-	reviewChart,
 	suggestToday,
 	suggestWeek,
 	unseenInsights,
@@ -24,8 +23,6 @@ import {
 } from './helper.ts';
 import { A, slotted, type Cell } from './fixtures.ts';
 import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ActionId, type ChartData } from './model.ts';
-import { exampleChart } from './example.ts';
-import { buildChart, PRESETS } from './presets/index.ts';
 
 function sample(): ChartData {
 	const data = slotted(emptyChart());
@@ -36,51 +33,6 @@ function sample(): ChartData {
 	);
 	return data;
 }
-
-describe('facts, faults, and the prompts', () => {
-	it('rejects a long line, a result, and an echo of the pillar', () => {
-		expect(lineFault('Track expenses using an app to stay aware of spending', { max: 48, kind: 'action' })?.code).toBe('long');
-		expect(lineFault('Get 1 million views', { max: 48, kind: 'action' })?.code).toBe('uncontrolled');
-		expect(lineFault('Easy runs', { max: 48, kind: 'action', pillar: 'Easy runs' })?.code).toBe('restated');
-		expect(lineFault('Shoes by the door', { max: 48, kind: 'action', pillar: 'Easy runs' })).toBeNull();
-	});
-
-});
-
-describe('reviewChart', () => {
-	it('flags cells that fail the tests', () => {
-		const data = sample();
-		data.actions[0]![0] = 'Work hard';
-		data.actions[0]![1] = 'Easy runs';
-		data.actions[0]![2] = 'Get 1 million views';
-		data.actions[0]![3] = 'Hydrate';
-		data.actions[0]![4] = 'Easy runs step 6';
-		const codes = reviewChart(data, 10).map((finding) => [finding.key, finding.code]);
-		expect(codes).toEqual([
-			['a0_0', 'untickable'],
-			['a0_1', 'restated'],
-			['a0_2', 'uncontrolled'],
-			['a0_3', 'vague'],
-			['a0_5', 'repeated']
-		]);
-	});
-
-	it('is quiet on a clean chart', () => {
-		expect(reviewChart(sample())).toEqual([]);
-	});
-
-	it('flags a near copy on another pillar and keeps distinct actions', () => {
-		const copied = sample();
-		copied.actions[0]![0] = 'Knee brace';
-		copied.actions[1]![0] = 'Apply a knee brace';
-		expect(reviewChart(copied, 10).some((finding) => finding.key === 'a1_0' && finding.code === 'repeated')).toBe(true);
-
-		const distinct = sample();
-		distinct.actions[0]![0] = 'Shoes by the door';
-		distinct.actions[0]![1] = 'On the calendar every Sunday';
-		expect(reviewChart(distinct).some((finding) => finding.code === 'repeated')).toBe(false);
-	});
-});
 
 describe('suggestWeek and suggestToday', () => {
 	it('spreads the week across pillars, quietest first', () => {
@@ -118,54 +70,6 @@ describe('suggestWeek and suggestToday', () => {
 function chipJob(chip: { act: { kind: string; job?: string } }): string {
 	return chip.act.kind === 'job' ? (chip.act.job ?? '') : chip.act.kind;
 }
-
-describe('lineFault, open-ended lines', () => {
-	const weak = [
-		'Eat healthier',
-		'Read more books',
-		'Exercise regularly',
-		'Sleep better',
-		'Drink more water',
-		'Be a better listener',
-		'Stay motivated',
-		'Improve my Spanish',
-		'Have a positive mindset',
-		'Lose 10 kg',
-		'Get promoted',
-		'Get fit',
-		'Win the race',
-		'Become fluent',
-		'Make 1000 sales'
-	];
-	const fine = [
-		'Run 30 minutes on Tuesday',
-		'Read 20 pages before bed',
-		'Drink more water at lunch',
-		'Be in bed by 10:30',
-		'Stay off the phone after 9',
-		'Ask one question when stuck',
-		'Book the driving test',
-		'Learn three chords'
-	];
-
-	it.each(weak)('flags "%s"', (text) => {
-		expect(lineFault(text, { max: 48, kind: 'action' })).not.toBeNull();
-	});
-
-	it.each(fine)('passes "%s"', (text) => {
-		expect(lineFault(text, { max: 48, kind: 'action' })).toBeNull();
-	});
-
-	it('flags nothing in the presets', () => {
-		for (const preset of PRESETS) expect(reviewChart(buildChart(preset), 99)).toEqual([]);
-	});
-
-	it('flags the example chart lines that cannot be ticked', () => {
-		const texts = reviewChart(exampleChart(), 99).map((finding) => finding.text);
-		expect(texts).toContain('Be present');
-		expect(texts).toContain('Listen more');
-	});
-});
 
 describe('model context', () => {
 	it('keeps the brief through save and load, and drops junk', () => {
@@ -436,26 +340,18 @@ describe('the cells card', () => {
 	});
 });
 
-describe('lines cut short', () => {
-	it('flags a line that ends mid-phrase', () => {
-		for (const line of ['Learn words for the', 'Practice with your', 'Review notes and', 'Read a']) {
-			expect(lineFault(line, { max: 32, kind: 'pillar' })?.code).toBe('cut');
-		}
-		for (const line of ['Walk to work', 'Check in with Mom on Sunday', 'Follow through', 'List 3 skills someone would pay for', 'Listen once without subtitles, then with']) {
-			expect(lineFault(line, { max: 48, kind: 'action' })?.code ?? null).not.toBe('cut');
-		}
-	});
-
-	it('passes every preset pillar', () => {
-		const flagged = PRESETS.flatMap((preset) => buildChart(preset).pillars.filter((pillar) => lineFault(pillar, { max: 32, kind: 'pillar' })));
-		expect(flagged).toEqual([]);
+describe('norm', () => {
+	it('keeps letters in every script, so two goals in Japanese still differ', () => {
+		expect(norm('  Speak, Slovak! ')).toBe('speak slovak');
+		expect(norm('Hovoriť po slovensky')).toBe('hovoriť po slovensky');
+		expect(norm('日本語を話す')).not.toBe(norm('毎朝走る'));
+		expect(norm('日本語を話す。')).toBe(norm('日本語を話す'));
 	});
 });
 
 describe('moodFor', () => {
-	it('puts a landed moment first, then a puzzle, then listening, then picks, then waiting', () => {
-		expect(moodFor({ cheer: true, puzzled: true, listening: true })).toBe('happy');
-		expect(moodFor({ puzzled: true, listening: true })).toBe('puzzled');
+	it('puts a landed moment first, then listening, then picks, then waiting', () => {
+		expect(moodFor({ cheer: true, listening: true })).toBe('happy');
 		expect(moodFor({ listening: true, offering: true })).toBe('listening');
 		expect(moodFor({ offering: true, waiting: true })).toBe('offering');
 		expect(moodFor({ waiting: true })).toBe('curious');
@@ -484,7 +380,7 @@ describe('the home page', () => {
 	it("leads a full chart with today's three, then with how it is going once today is set", () => {
 		const data = sample();
 		expect(nextMove(data, now).page).toBe('today');
-		expect(doorsFor(data, now).map((door) => door.page)).toEqual(['week', 'progress', 'review', 'write']);
+		expect(doorsFor(data, now).map((door) => door.mode ?? door.page)).toEqual(['week', 'progress', 'review', 'write']);
 		data.days = { [dateKeyOf(now)]: { focus: [A.a0_0, A.a1_0], checked: [A.a0_0] } };
 		expect(nextMove(data, now).page).toBe('progress');
 		expect(noteFor(data, now, null).text).toBe('1 of 2 done today. One at a time.');
@@ -493,9 +389,7 @@ describe('the home page', () => {
 
 	it('says on each door what it would find', () => {
 		const data = sample();
-		data.actions[0]![0] = 'Be healthier';
 		const doors = doorsFor(data, now);
-		expect(doors.find((door) => door.page === 'review')?.detail).toBe('One line to tighten');
 		expect(doors.find((door) => door.page === 'week')?.detail).toBe('6 actions, one per pillar');
 		expect(doors.find((door) => door.page === 'progress')?.detail).toBe('Nothing ticked yet');
 	});
@@ -570,23 +464,5 @@ describe('weekInReview', () => {
 		expect(review.quiet[0]?.rest).toHaveLength(7);
 		expect(review.moved).toEqual([0, 1, 2, 3, 4, 5]);
 		expect(review.ticks).toBe(6);
-	});
-});
-
-describe('foreignShare', () => {
-	it('tells a chart written in another alphabet from an English one', async () => {
-		const { foreignShare } = await import('./helper.ts');
-		const { emptyChart } = await import('./model.ts');
-		const english = emptyChart();
-		english.goal = 'Speak Slovak';
-		english.pillars[0] = 'Listening';
-		english.actions[0]![0] = 'Play 15 minutes of audio at breakfast';
-		expect(foreignShare(english)).toBe(0);
-		const slovak = emptyChart();
-		slovak.pillars[0] = 'Počúvanie';
-		slovak.actions[0]![0] = 'Pozerať jedno video denne';
-		slovak.actions[0]![1] = 'Смотреть одно видео';
-		slovak.actions[0]![2] = 'Read one page';
-		expect(foreignShare(slovak)).toBe(0.75);
 	});
 });

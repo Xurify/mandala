@@ -1,7 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ClaudeReply } from './claude.ts';
 import { HelperStore, type HelperTarget } from './helper.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { dateKeyOf, emptyChart, setByKey, setMeta, type ActionId, type ChartData } from './model.ts';
+
+const claude = vi.hoisted(() => ({
+	key: '',
+	prompts: [] as string[],
+	next: [] as ((signal?: AbortSignal) => Promise<ClaudeReply>)[]
+}));
+
+vi.mock('./claude.ts', () => ({
+	loadClaudeKey: () => claude.key,
+	saveClaudeKey: (key: string) => (claude.key = key.trim()),
+	askClaude: (_key: string, prompt: string, signal?: AbortSignal) => {
+		claude.prompts.push(prompt);
+		return claude.next.shift()!(signal);
+	}
+}));
+
+beforeEach(() => {
+	claude.key = '';
+	claude.prompts = [];
+	claude.next = [];
+});
 
 function chartData(goal: string): ChartData {
 	const data = slotted(emptyChart());
@@ -73,8 +95,8 @@ describe('HelperStore pages', () => {
 	it('turns to a page and back, and remembers the direction', () => {
 		const { helper } = sandbox();
 		helper.show();
-		helper.go('review');
-		expect(helper.page).toBe('review');
+		helper.go('progress');
+		expect(helper.page).toBe('progress');
 		expect(helper.direction).toBe(1);
 		expect(helper.mood).toBe('idle');
 		helper.back();
@@ -98,13 +120,6 @@ describe('HelperStore pages', () => {
 		switchTo('two');
 		expect(helper.page).toBe('home');
 		expect(helper.picks).toBeNull();
-	});
-
-	it('looks puzzled on a review with lines to tighten', () => {
-		const { helper, charts } = sandbox();
-		charts.one!.actions[0]![0] = 'Be healthier';
-		helper.show('review');
-		expect(helper.mood).toBe('puzzled');
 	});
 });
 
@@ -235,5 +250,73 @@ describe('HelperStore hands writing to a chat app', () => {
 		expect(helper.page).toBe('write');
 		expect(helper.mode).toBe('new');
 		expect(helper.outcome?.kind).toBe('chart');
+	});
+});
+
+describe('HelperStore with a Claude key', () => {
+	it('keeps the key on the device, and forgets it on request', () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('  sk-ant-test  ');
+		expect(helper.claudeKey).toBe('sk-ant-test');
+		helper.setClaudeKey('');
+		expect(helper.claudeKey).toBe('');
+	});
+
+	it('sends the prompt a chat app would get, and reads the reply as if it were pasted', async () => {
+		const { helper, charts } = sandbox();
+		const full = structuredClone(charts.one!);
+		charts.one!.actions[2]![5] = '';
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'fill');
+		claude.next.push(async () => ({ ok: true, text: reply(full) }));
+		const sent = helper.askClaude();
+		expect(helper.writing).toBe('fill');
+		expect(helper.mood).toBe('curious');
+		await sent;
+		expect(claude.prompts[0]).toContain('Fill every empty string');
+		expect(helper.writing).toBeNull();
+		expect(helper.outcome).toMatchObject({ kind: 'cells', edits: [{ key: 'a2_5', before: '' }] });
+		expect(helper.wrote).toBe('fill');
+	});
+
+	it('writes a new chart without asking questions first', async () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'new');
+		helper.goal = 'Learn Spanish';
+		claude.next.push(async () => ({ ok: true, text: reply(chartData('Speak Spanish at work')) }));
+		await helper.askClaude();
+		expect(claude.prompts[0]).toContain('Do not ask me anything');
+		expect(helper.outcome?.kind).toBe('chart');
+	});
+
+	it('shows an answer for a question, and says why a request failed', async () => {
+		const { helper } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'ask');
+		helper.question = 'Which pillar first?';
+		claude.next.push(async () => ({ ok: true, text: 'Start with Sleep.' }));
+		await helper.askClaude();
+		expect(helper.answer).toBe('Start with Sleep.');
+		expect(helper.reply).toBe('');
+		claude.next.push(async () => ({ ok: false, reason: 'Claude is busy. Try again in a minute.' }));
+		await helper.askClaude();
+		expect(helper.failure).toBe('Claude is busy. Try again in a minute.');
+		expect(helper.answer).toBe('');
+	});
+
+	it('drops a reply that comes back after Stop', async () => {
+		const { helper, charts } = sandbox();
+		helper.setClaudeKey('sk-ant-test');
+		helper.show('write', 'review');
+		let finish: (value: ClaudeReply) => void = () => {};
+		claude.next.push(() => new Promise((resolve) => (finish = resolve)));
+		const sent = helper.askClaude();
+		helper.stopClaude();
+		expect(helper.writing).toBeNull();
+		finish({ ok: true, text: reply(charts.one!) });
+		await sent;
+		expect(helper.reply).toBe('');
+		expect(helper.failure).toBe('');
 	});
 });

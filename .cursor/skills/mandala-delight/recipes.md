@@ -1,6 +1,6 @@
 # Recipes
 
-Working versions of the drag recipes live in `src/lib/components/FocusPicker.svelte`. The page, swap, sweep, and thread recipes live in the `Helper*.svelte` components.
+Working versions of the drag recipes live in `src/lib/components/FocusPicker.svelte`. The page, swap, and thread recipes live in the `Helper*.svelte` components.
 
 ## Pointer drag as an attachment
 
@@ -185,18 +185,6 @@ The store keeps `page` and `direction` (1 going in, -1 going back). The panel st
 ```
 
 Only cards that came from a swap get `flip-in`; the first hand is dealt. After the swap, `await tick()` and focus the new card's button by its label (`CSS.escape` the label).
-
-## Sweep, then mark
-
-`MiniChart.svelte` with `play="read"`: every written cell plays `scan` with a delay of `block * 42 + cell * 7` ms, so the light moves in reading order. Flagged cells carry an outline and play `mark-in` after the sweep ends:
-
-```css
-@keyframes mark-in {
-	from { outline-color: transparent; outline-offset: 7px; }
-}
-```
-
-Turn `play` off about a second after the page opens, so later changes to the data show without replaying the sweep.
 
 ## A live list
 

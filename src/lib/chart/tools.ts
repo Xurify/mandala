@@ -48,10 +48,6 @@ export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {
 	return data.tools?.[`p${pillarIndex}`] ?? [];
 }
 
-export function toolCount(data: ChartData): number {
-	return Object.values(data.tools ?? {}).reduce((sum, list) => sum + list.length, 0);
-}
-
 export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
 	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
 }

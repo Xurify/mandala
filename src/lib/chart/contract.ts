@@ -165,6 +165,7 @@ export const BROWSER_KEYS: Record<string, string> = {
 	mandala_view_scale: 'Fit or Large',
 	mandala_goal_fit: 'Measured goal text sizes, so the goal does not resize after paint',
 	mandala_chat_app: 'The chat app prompts open in',
+	mandala_claude_key: 'The person\'s own Anthropic API key, for writing with Claude. Never synced, shared, or exported',
 	theme: 'Light, dark, or the system',
 	accent: 'The accent, when not the default'
 };

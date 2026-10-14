@@ -25,8 +25,6 @@ import {
 	weekStartKey,
 	reflectionWeekOf,
 	weekHadTicks,
-	yearActivity,
-	yearStats,
 	completedBy,
 	idAt,
 	getByKey,
@@ -231,6 +229,9 @@ describe('exportJson and exportFilename', () => {
 
 		data.goal = 'Run a half marathon in under 2 hours!';
 		expect(exportFilename(data)).toBe('mandala-run-a-half-marathon-in-under-2-hours.json');
+
+		data.goal = 'Café français · 日本語を話す';
+		expect(exportFilename(data)).toBe('mandala-café-français-日本語を話す.json');
 	});
 });
 
@@ -342,39 +343,6 @@ describe('companion helpers', () => {
 		expect(isUrl('http://readline.app')).toBe(true);
 		expect(isUrl('chapter 3 to 5')).toBe(false);
 		expect(isUrl('')).toBe(false);
-	});
-
-	it('summarizes year activity per day', () => {
-		const chartData = slotted(emptyChart());
-		chartData.days = {
-			'2026-01-02': { focus: [A.a0_0], checked: [A.a0_0, A.a1_0] },
-			'2025-12-31': { focus: [A.a2_0], checked: [] }
-		};
-		const activity = yearActivity(chartData, 2026);
-		expect(activity.size).toBe(1);
-		expect(activity.get('2026-01-02')).toEqual({ focusCount: 1, checkedCount: 2 });
-		expect(yearActivity(chartData, 2025).get('2025-12-31')).toEqual({
-			focusCount: 1,
-			checkedCount: 0
-		});
-	});
-
-	it('computes year stats including best streak', () => {
-		const chartData = slotted(emptyChart());
-		chartData.days = {
-			'2026-03-01': { focus: [A.a0_0], checked: [A.a0_0] },
-			'2026-03-02': { focus: [A.a0_0], checked: [] },
-			'2026-03-04': { focus: [], checked: [A.a1_0] }
-		};
-		const stats = yearStats(chartData, 2026);
-		expect(stats.daysWithFocus).toBe(2);
-		expect(stats.checkedActions).toBe(2);
-		expect(stats.bestStreak).toBe(2);
-	});
-
-	it('handles empty years', () => {
-		const stats = yearStats(emptyChart(), 2026);
-		expect(stats).toEqual({ daysWithFocus: 0, checkedActions: 0, bestStreak: 0 });
 	});
 });
 

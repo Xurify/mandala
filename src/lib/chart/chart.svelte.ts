@@ -30,7 +30,6 @@ import {
   withNewIds,
   type ActionId,
   type ActionMeta,
-  type ChartBrief,
   type ChartData,
   type DayLog,
   type Milestones,
@@ -70,7 +69,6 @@ import {
 } from "./library.ts";
 import {
   batchSubject,
-  burstToast,
   placeSlip,
   SLIP_MS,
   type Slip,
@@ -248,10 +246,6 @@ export class ChartStore {
   chartLayout: ChartLayout = $state(isLayout(this.viewMode) ? this.viewMode : "view");
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
-  status = $state("");
-  statusKicker = $state("");
-  statusSubject = $state("");
-  statusCount = $state(0);
   slips: Slip[] = $state([]);
   exportFallback = $state("");
   saveWarned = $state(false);
@@ -712,25 +706,7 @@ export class ChartStore {
     const placed = placeSlip(this.slips, Date.now(), this.#slipSeq, input);
     this.slips = placed.pile;
     this.#slipSeq = placed.nextId;
-    this.#syncFront();
     this.#armToastTimer();
-  }
-
-  #syncFront(): void {
-    const front = this.slips.at(-1);
-    if (!front) {
-      this.status = "";
-      this.statusKicker = "";
-      this.statusSubject = "";
-      this.statusCount = 0;
-      return;
-    }
-    this.statusKicker = front.kicker;
-    this.statusSubject = front.kicker ? front.subject : "";
-    this.statusCount = front.count;
-    this.status = front.kicker
-      ? burstToast(front.kicker, front.subject, front.count, front.mixed)
-      : front.subject;
   }
 
   #armToastTimer(): void {
@@ -750,7 +726,6 @@ export class ChartStore {
     if (this.#toastsHeld) return;
     const now = Date.now();
     this.slips = this.slips.filter((slip) => slip.until > now);
-    this.#syncFront();
     this.#armToastTimer();
   }
 
@@ -1113,12 +1088,6 @@ export class ChartStore {
       ...this.data,
       tools: { ...this.data.tools, [key]: list.map((tool) => (tool.id === id ? change(tool) : tool)) },
     };
-    this.save();
-  }
-
-  setBrief(brief: ChartBrief | undefined): void {
-    const next = brief && Object.values(brief).some((value) => value?.trim()) ? brief : undefined;
-    this.data = { ...this.data, brief: next };
     this.save();
   }
 
@@ -1611,10 +1580,6 @@ export class ChartStore {
     this.#applyNote(held, "Deleted", batch.subject, doomed.length, batch.mixed, doomed.map((item) => item.id));
   }
 
-  restoreChart(id: string): void {
-    this.restoreCharts([id]);
-  }
-
   restoreCharts(ids: string[]): void {
     if (ids.length === 0) return;
     this.#flush();
@@ -1634,10 +1599,6 @@ export class ChartStore {
     this.#applySavedGoalFit();
     this.saveNow();
     this.#applyNote(held, "Restored", batch.subject, titles.length, batch.mixed);
-  }
-
-  forgetChart(id: string): void {
-    this.forgetCharts([id]);
   }
 
   forgetCharts(ids: string[]): void {

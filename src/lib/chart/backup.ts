@@ -121,13 +121,3 @@ export async function writeBackupFile(
 		await writable.close();
 	}
 }
-
-export function downloadText(filename: string, text: string, mime = 'application/json'): void {
-	const blob = new Blob([text], { type: mime });
-	const downloadUrl = URL.createObjectURL(blob);
-	const downloadLink = document.createElement('a');
-	downloadLink.href = downloadUrl;
-	downloadLink.download = filename;
-	downloadLink.click();
-	URL.revokeObjectURL(downloadUrl);
-}

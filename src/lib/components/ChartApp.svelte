@@ -138,8 +138,7 @@
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
 			else if (open.bindu === 'home') helper.show();
-			else if (open.bindu === 'review') helper.show('review');
-			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
+			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : open.bindu === 'write-review' ? 'review' : 'new');
 		}, 500);
 	}
 
