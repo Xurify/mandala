@@ -18,6 +18,9 @@ export type DemoId =
 	| 'bindu-fill'
 	| 'bindu-new'
 	| 'bindu-provider'
+	| 'bindu-agent'
+	| 'agent-kinds'
+	| 'agent-week'
 	| 'tools'
 	| 'select'
 	| 'time-stopwatch'
@@ -35,8 +38,11 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
+	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: AgentCall };
 };
+
+/** A tool an agent would call once the demo's chart is open; ids are read from that chart, since opening it may give new ones. */
+export type AgentCall = { tool: string; input: (data: ChartData) => Record<string, unknown> };
 
 export type Demo = {
 	id: DemoId;
@@ -398,6 +404,36 @@ export const DEMOS: readonly Demo[] = [
 			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.',
 			'More actions holds Turn off AI provider, and Turn off Bindu, which takes the face and every door to it away until Turn on Bindu.'
 		]
+	},
+	{
+		id: 'bindu-agent',
+		title: 'Lines from an agent in the browser',
+		group: 'Bindu',
+		steps: [
+			'A chart with an empty pillar and a weak line. The demo calls the propose_lines tool, as an agent in the browser would, and Bindu opens on Lines to look over.',
+			'The rewrite shows the line it replaces. Nothing is written until Keep, which lands the moment. Not now drops the offer.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask the agent to fill the gaps.'
+		]
+	},
+	{
+		id: 'agent-kinds',
+		title: 'Routines and milestones from an agent',
+		group: 'Bindu',
+		steps: [
+			'The demo calls propose_kinds, as an agent would after reading the chart: six actions, each with the kind it would be. Bindu opens on How each one repeats.',
+			'Keep sorts them, and the routines show on Today every day as habits. Not now leaves every action as it was.',
+			'With a real agent: ask it which of your actions are habits.'
+		]
+	},
+	{
+		id: 'agent-week',
+		title: "The week's note from an agent",
+		group: 'Bindu',
+		steps: [
+			'A week of ticks behind the chart. The demo calls propose_reflection, as an agent would after week_history, and Bindu opens on A line for next week.',
+			'Save the week keeps it as the note for the week, the same one the weekly reflection writes.',
+			"With a real agent: ask it how your week went, and to write the week's note."
+		]
 	}
 ];
 
@@ -457,6 +493,35 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[6] = data.actions[6]!.map(() => '');
 		data.actions[2] = data.actions[2]!.map((action, index) => (index < 3 ? action : ''));
 		return { data, view: 'view', open: { bindu: 'write-fill' } };
+	}
+	if (id === 'bindu-agent') {
+		const whole = preset('fitness');
+		const data = preset('fitness');
+		data.pillars[6] = '';
+		data.actions[6] = data.actions[6]!.map(() => '');
+		data.actions[1]![2] = 'Run more';
+		const lines = [
+			{ cell: 'a1_2', text: whole.actions[1]![2]! },
+			{ cell: 'p6', text: whole.pillars[6]! },
+			...whole.actions[6]!.map((text, slot) => ({ cell: `a6_${slot}`, text }))
+		];
+		return { data, view: 'view', open: { agent: { tool: 'propose_lines', input: () => ({ lines }) } } };
+	}
+	if (id === 'agent-kinds') {
+		const kinds: [string, string][] = [
+			['a0_0', 'routine'],
+			['a0_3', 'milestone'],
+			['a1_0', 'routine'],
+			['a1_3', 'milestone'],
+			['a6_0', 'routine'],
+			['a6_1', 'milestone']
+		];
+		const input = (data: ChartData) => ({ kinds: kinds.map(([key, kind]) => ({ id: idIn(data, key), kind })) });
+		return { data: preset('language'), view: 'view', open: { agent: { tool: 'propose_kinds', input } } };
+	}
+	if (id === 'agent-week') {
+		const note = 'Most mornings held, Speaking twice. Next week, one graded reader before Friday.';
+		return { data: livedIn(now), view: 'today', open: { agent: { tool: 'propose_reflection', input: () => ({ note }) } } };
 	}
 	return { data: null, view: 'view', open: { bindu: 'write-new' } };
 }

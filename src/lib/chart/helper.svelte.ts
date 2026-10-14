@@ -9,20 +9,25 @@ import {
 	insightSignature,
 	moodFor,
 	norm,
+	progressOf,
 	reviseEdits,
 	suggestToday,
 	suggestWeek,
 	type CellEdit,
 	type HelperInsight,
 	type HelperMood,
+	type HelperOffer,
 	type HelperPage,
 	type HelperPick,
+	type KindChange,
 	type WriteMode
 } from './helper.ts';
 import { loadAiConsent, loadConnection, saveAiConsent, saveConnection, sendPrompt, type Connection } from './provider.ts';
-import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
+import { blockOfK, getByKey, hasContent, todayKey, wholeness, wordsOf, type ActionId, type ChartData, type Ref } from './model.ts';
+import { LANE_NAMES, tomorrowOf } from './board.ts';
+import type { AgentTarget } from './webmcp.ts';
 
-export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
+export type { CellEdit, ChatApp, HelperMood, HelperOffer, HelperPage, HelperPick, WriteMode };
 
 export type HelperTarget = {
 	data(): ChartData;
@@ -30,6 +35,8 @@ export type HelperTarget = {
 	setCells(edits: CellEdit[]): void;
 	setToday(ids: ActionId[]): void;
 	pinWeek(ids: ActionId[]): void;
+	setKinds?(changes: KindChange[]): void;
+	saveNote?(weekKey: string, note: string): void;
 	showCell(ref: Ref): void;
 	decline?(ids: ActionId[]): void;
 	noteShown?(signature: string): void;
@@ -75,6 +82,7 @@ export class HelperStore {
 	listening = $state(false);
 	picks = $state<HelperPicks | null>(null);
 	moment = $state<HelperMoment | null>(null);
+	offer = $state<HelperOffer | null>(null);
 	mode = $state<WriteMode>('new');
 	goal = $state('');
 	question = $state('');
@@ -123,7 +131,7 @@ export class HelperStore {
 		moodFor({
 			cheer: this.#cheer,
 			listening: this.listening,
-			offering: (this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null,
+			offering: ((this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null) || (this.page === 'offer' && this.offer !== null),
 			waiting: this.sending !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
 		})
 	);
@@ -178,6 +186,42 @@ export class HelperStore {
 	back(): void {
 		this.go('home');
 		this.picks = null;
+		this.offer = null;
+	}
+
+	/** Replaces any offer still waiting: the agent's latest is the one it means. False while Bindu is off, with nowhere to show it. */
+	propose(offer: HelperOffer): boolean {
+		if (!this.enabled) return false;
+		this.show();
+		this.offer = offer;
+		this.go('offer');
+		return true;
+	}
+
+	/** A line, or a kind, the person changed while the offer waited stays theirs. */
+	keepOffer(): void {
+		const offer = this.offer;
+		if (!offer) return;
+		const data = this.#target.data();
+		if (offer.kind === 'kinds') {
+			const changes = offer.changes.filter((change) => wordsOf(data, change.id) === change.text && data.meta?.[change.id]?.kind === change.before);
+			if (changes.length === 0) return this.back();
+			this.#target.setKinds?.(changes);
+			const routines = changes.filter((change) => change.after === 'routine').length;
+			this.#land({
+				title: `Sorted ${changes.length} ${changes.length === 1 ? 'action' : 'actions'}`,
+				detail: routines ? 'Routines show on Today every day, as habits.' : 'Milestones close once they are done.',
+				pillars: [...new Set(changes.map((change) => change.pillarIndex))].sort((a, b) => a - b)
+			});
+		} else if (offer.kind === 'note') {
+			this.#target.saveNote?.(offer.weekKey, offer.after);
+			this.#land({ title: 'Week saved', detail: 'Bindu says it back to you when the new week starts.', pillars: progressOf(data).pillars });
+		} else {
+			const kept: HelperOffer = offer.kind === 'cells' ? { kind: 'cells', edits: offer.edits.filter((edit) => getByKey(data, edit.key).trim() === edit.before) } : offer;
+			if (kept.kind === 'cells' && kept.edits.length === 0) return this.back();
+			if (!this.#keep(kept, kept.kind === 'cells' && kept.edits.every((edit) => edit.before))) return;
+		}
+		this.offer = null;
 	}
 
 	finish(): void {
@@ -335,25 +379,31 @@ export class HelperStore {
 
 	applyReply(): void {
 		const outcome = this.outcome;
-		if (outcome?.kind === 'chart') {
-			if (!this.#target.applyDraft(outcome.data)) return;
-			const next = this.#target.chartId?.();
-			if (next) this.#chartId = next;
-			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
-			this.#land({ title: 'Your chart is ready', detail: `8 pillars and ${written} actions for “${outcome.data.goal}”.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
-		} else if (outcome?.kind === 'cells') {
-			const words = editWords(this.#target.data(), outcome.edits);
-			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
-			this.#target.setCells(outcome.edits);
-			if (this.mode !== 'review' && wholeness(this.#target.data()).chart) {
-				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
-			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
-		} else return;
+		if (outcome?.kind !== 'chart' && outcome?.kind !== 'cells') return;
+		if (!this.#keep(outcome, this.mode === 'review')) return;
 		this.reply = '';
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
 		this.sendError = '';
+	}
+
+	#keep(outcome: Extract<HelperOffer, { kind: 'chart' | 'cells' }>, rewriting: boolean): boolean {
+		if (outcome.kind === 'chart') {
+			if (!this.#target.applyDraft(outcome.data)) return false;
+			const next = this.#target.chartId?.();
+			if (next) this.#chartId = next;
+			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
+			this.#land({ title: 'Your chart is ready', detail: `8 pillars and ${written} actions for “${outcome.data.goal}”.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
+			return true;
+		}
+		const words = editWords(this.#target.data(), outcome.edits);
+		const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
+		this.#target.setCells(outcome.edits);
+		if (!rewriting && wholeness(this.#target.data()).chart) {
+			this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
+		} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
+		return true;
 	}
 
 	#defaultMode(): WriteMode {
@@ -392,6 +442,7 @@ export class HelperStore {
 		this.direction = -1;
 		this.picks = null;
 		this.moment = null;
+		this.offer = null;
 		this.reply = '';
 		this.copied = null;
 		this.sent = null;
@@ -416,6 +467,10 @@ export const helper = new HelperStore({
 	pinWeek: (keys) => {
 		for (const key of keys) chart.setActionMeta(key, { pinned: true });
 	},
+	setKinds: (changes) => {
+		for (const change of changes) chart.setActionMeta(change.id, { kind: change.after });
+	},
+	saveNote: (weekKey, note) => chart.saveWeekReflection(weekKey, { note }),
 	showCell: (key) => chart.jumpToKey(key),
 	openTool: (pillarIndex, id) => chart.openTool(pillarIndex, id),
 	openCalendar: () => chart.setViewMode('calendar'),
@@ -423,3 +478,48 @@ export const helper = new HelperStore({
 	noteShown: (signature) => chart.noteShown(signature),
 	chartId: () => chart.activeId
 });
+
+/** What an agent in the browser acts on. A change it makes says so in a slip, since the person did not tap it. */
+export const agentTarget: AgentTarget = {
+	data: () => chart.data,
+	now: () => new Date(),
+	reflectionWeek: () => chart.reflectionWeek,
+	offer: (offer) => helper.propose(offer),
+	finish: (id) => {
+		chart.finish(id);
+		chart.say(`Your assistant finished “${wordsOf(chart.data, id)}”.`);
+	},
+	reopen: (id) => {
+		chart.reopen(id);
+		chart.say(`Your assistant reopened “${wordsOf(chart.data, id)}”.`);
+	},
+	setToday: (ids) => {
+		const stopped = chart.setFocus(todayKey(), ids, true);
+		const set = `Your assistant set today: ${plural(ids.length, 'action')}.`;
+		chart.say(stopped ? `${set} ${stopped}` : set);
+	},
+	planTomorrow: (ids) => {
+		chart.setFocus(tomorrowOf(chart.today), ids, true);
+		chart.say(`Your assistant planned tomorrow: ${plural(ids.length, 'action')}.`);
+	},
+	pin: (ids, pinned) => {
+		for (const id of ids) chart.setActionMeta(id, { pinned: pinned || undefined });
+		chart.say(`Your assistant ${pinned ? 'pinned' : 'unpinned'} ${ids.length === 1 ? `“${wordsOf(chart.data, ids[0]!)}”` : plural(ids.length, 'action')}.`);
+	},
+	moveCard: (id, lane, index) => {
+		const moved = chart.moveCard(id, lane, index);
+		if (moved) chart.say(`Your assistant moved “${wordsOf(chart.data, id)}” to ${LANE_NAMES[lane]}.`);
+		return moved;
+	},
+	logTime: (id, minutes) => chart.logTime(id, minutes),
+	startTimer: (id, minutes) => chart.startTimer(id, minutes),
+	stopTimer: () => chart.stopTimer(),
+	addLink: (pillarIndex, url, title, kind) => {
+		chart.addTool(pillarIndex, url, title, kind);
+		chart.say(`Your assistant saved a link to ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}.`);
+	}
+};
+
+function plural(count: number, one: string): string {
+	return `${count} ${count === 1 ? one : `${one}s`}`;
+}

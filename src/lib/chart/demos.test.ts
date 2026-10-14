@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEMOS, demoSetup, isDemoId } from './demos.ts';
+import { DEMOS, demoSetup, isDemoId, type AgentCall } from './demos.ts';
 import { parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviseEdits, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
@@ -9,6 +9,7 @@ import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
 import { getPreset } from './presets/index.ts';
 import { countCompletedBlocks, resumeStep, presetActionsToLend } from './start.ts';
+import { kindsToChanges, linesToEdits } from './webmcp.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -114,5 +115,26 @@ describe('demos', () => {
 		const total = minutes.reduce((sum, value) => sum + value, 0);
 		expect(minutes[1]! / total).toBeGreaterThanOrEqual(0.5);
 		expect(greetingInsight(demoSetup('time-week', now).data!, now)?.id).toBe('time');
+	});
+
+	it('hands Bindu a weak line rewritten and an empty pillar filled, as an agent would', () => {
+		const setup = demoSetup('bindu-agent', now);
+		const open = setup.open as { agent: AgentCall };
+		expect(open.agent.tool).toBe('propose_lines');
+		const { edits, refused } = linesToEdits(setup.data!, open.agent.input(setup.data!).lines);
+		expect(refused).toEqual([]);
+		expect(edits).toHaveLength(10);
+		expect(edits.filter((edit) => edit.before)).toEqual([{ key: 'a1_2', before: 'Run more', after: 'Add 5 minutes to one easy run each week' }]);
+	});
+
+	it('asks an agent tool for kinds and a note that would change something, with ids from the chart that opened', () => {
+		const kinds = demoSetup('agent-kinds', now);
+		const call = (kinds.open as { agent: AgentCall }).agent;
+		expect(call.tool).toBe('propose_kinds');
+		const { changes, refused } = kindsToChanges(kinds.data!, call.input(kinds.data!).kinds);
+		expect(refused).toEqual([]);
+		expect(changes).toHaveLength(6);
+		const week = demoSetup('agent-week', now);
+		expect((week.open as { agent: AgentCall }).agent.tool).toBe('propose_reflection');
 	});
 });

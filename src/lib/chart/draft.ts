@@ -17,8 +17,8 @@ const PROMPT_INTRO = [
 	'',
 ];
 
-const PROMPT_METHOD = [
-	'',
+/** How to fill and test a chart, without the reply format: the prompts and the tools an agent calls share it. */
+export const METHOD = [
 	'[How to fill it]',
 	'Use the same question twice.',
 	'1. Pillars. Ask what actually has to happen for the direction to come true. List more than eight, then keep the eight that would make a real difference. If fewer than eight aims are named, add the missing drivers. Drop nice-to-haves. "Study 30 minutes a day" and "study 5 hours a week" are the same driver, so keep one.',
@@ -40,7 +40,12 @@ const PROMPT_METHOD = [
 	'- Do not restate a pillar as its eight actions.',
 	'- Do not merge two named aims into one pillar.',
 	'- Do not use "work hard", "be successful", or "stay positive".',
-	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.',
+	'- Do not return only the first week. The first week uses five to eight actions, chosen after this chart exists. The chart itself still holds all 64. Do not add a ranking or a starter list.'
+];
+
+const PROMPT_METHOD = [
+	'',
+	...METHOD,
 	'',
 	'[Rules]',
 	'- Fill all 64 actions. The chart is the map. The person will not start them all in one week.',

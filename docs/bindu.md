@@ -17,9 +17,11 @@ Bindu is the helper in the corner of the chart. It reads three things: the chart
 | `src/lib/chart/helper.svelte.ts` | `HelperStore` and the `helper` singleton: the page in view, the picks on the table, the write round trip, a finished moment |
 | `src/lib/chart/draft.ts` | The new-chart, fill and review prompts, and `parseDraftText`, which reads a pasted reply |
 | `src/lib/chart/provider.ts` | The person's own AI provider (device only): `sendPrompt`, one request from the browser, and OpenRouter's sign-in |
+| `src/lib/chart/webmcp.ts` | The tools an agent in the browser can call (`agentTools`), and registering them with WebMCP (`registerAgentTools`) |
 | `src/lib/components/Helper.svelte` | The launcher and the floating panel |
 | `src/lib/components/HelperPanel.svelte` | The header, the page turns, the height that eases between pages, Escape and paste |
 | `src/lib/components/HelperHome.svelte`, `HelperPicks.svelte`, `HelperProgress.svelte`, `HelperWrite.svelte`, `HelperMoment.svelte` | One page each |
+| `src/lib/components/HelperDraft.svelte`, `HelperOffer.svelte` | What waits to be kept, from a reply or an agent; the page an agent's offer waits on |
 | `src/lib/components/HelperFace.svelte`, `MiniChart.svelte` | The face and its moods, and the 9×9 chart drawn small |
 | `src/routes/dev/ai/+page.svelte` | The lab: the panel against a sandbox chart, the rules, the parser, the faces |
 
@@ -33,6 +35,7 @@ Bindu is a few pages, not a chat. Nothing is typed to it except a goal, a questi
 | Today's three | Three picks, one per pillar, each saying why. A pick whose pillar has a shelf shows the tool it would use | Swap one, open the tool, put them on today, or "Not now" |
 | This week | About six picks, one per pillar | Swap one, pin them, or "Not now" |
 | How it is going | The last 7 days as a column per day and a pip per tick in the pillar's hue, then ticks, pillars and days in a row, then up to three insights | "Open it" on an insight about one action |
+| Lines to look over, How each one repeats, A line for next week | What an agent in the browser proposed: lines under the ones they replace, or a whole chart; a kind for each action; the week's note | Keep it, or "Not now" |
 | Fill chart using a prompt | Three steps on a thread: copy the prompt (or open it in Claude, ChatGPT, Gemini, Mistral, Perplexity or Grok with one tap), paste it into any chat app, paste the reply here. Modes: a new chart, fill the gaps, review, or ask. "Review my chart" on the first page opens it on Review. With a provider connected, step one also has Write with (the provider), or Review, or Ask, and the reply lands in step three by itself | Copy, or send to the provider. See what the reply would add or rewrite, and keep it |
 
 The next move is: start a chart when there is no goal, fill the gaps while any line is empty, pick today's three when today has no picks, and otherwise see how it is going.
@@ -70,6 +73,40 @@ The request is the same prompt a chat app would get, with one change: a new char
 Others did it this way too: OpenCode connects a provider and stores its key on the machine, and Obsidian Copilot recommends OpenRouter. Signing in with a ChatGPT or Claude subscription is only open to apps the provider has registered, and Anthropic forbids it for Claude, so the prompt hand-off is how a subscription gets used here.
 
 A pasted reply is read by `parseDraftText`, from the reply box or pasted anywhere in the panel. The length caps in the prompt are a request: a reply is read up to the cell limit, so a line returned word for word in a longer language is not clipped into a rewrite, and an empty line stays empty. For this chart's goal it offers only the cells that are empty here (`fillEdits`); a written cell is never replaced. Any other goal opens as a new chart beside this one, or fills this one when it is empty. The brief is kept on the chart, syncs, and stays out of share links.
+
+## Agents in the browser
+
+A browser with an agent in it can call tools a page registers through [WebMCP](https://developer.chrome.com/docs/ai/webmcp). Mandala registers nineteen when `document.modelContext` is there, and nothing changes where it is not. Chrome has it behind an origin trial from 149; to try it locally, turn on `chrome://flags/#enable-webmcp-testing`. The `/dev/demo` cards under Bindu call the same tools an agent would, without one.
+
+The agent is the model Bindu does not have. What needs judgment about the person's words (writing lines, reviewing them, telling a habit from a one-off, a note for the week) is the agent's, in whatever language the chart is in; nothing on the page reads meaning from words. What rules do well stays rules: picks, progress, the week in numbers.
+
+| Tool | What it does |
+| --- | --- |
+| `read_chart` | The open chart: goal, brief, each pillar's shelf, each line with its cell, id, kind, board lane and done state, today's and tomorrow's lists, a running timer |
+| `review_chart` | The chart's lines with the method's tests (`METHOD` in `draft.ts`, the same words the prompts use), for the agent to judge |
+| `suggest_today` | Today's three, each with why |
+| `progress` | The last 7 days, as on How it is going |
+| `week_history` | One week: ticks by day, milestones finished, minutes per pillar, and its note |
+| `propose_lines` | Pillars or actions for Bindu to show on Lines to look over |
+| `propose_chart` | A whole chart for Bindu to show; keeping it opens it beside this one |
+| `propose_kinds` | Routine, milestone or standard for each action, shown on How each one repeats |
+| `propose_reflection` | A draft of the week's note, shown on A line for next week |
+| `finish_action`, `reopen_action` | A tick, or taking one back, by action id |
+| `set_today`, `plan_tomorrow` | Today's or tomorrow's list, by action id |
+| `pin_actions` | Pin or unpin actions, which lead Bindu's picks |
+| `move_card` | Move an action between the board's lists |
+| `log_time`, `start_timer`, `stop_timer` | Time on an action: logged afterwards, a stopwatch or a focus block, and stopping it |
+| `add_link` | A link to a pillar's shelf, such as the page the person is on |
+
+The rules they keep:
+
+- **The agent proposes, the person keeps.** An agent can press the page's buttons, so its own press is not the person's say-so. Lines, kinds and the week's note wait in Bindu, each beside what it replaces, until the person presses Keep. A line or kind the person changed while the offer waited stays theirs. The goal is not a cell an agent can propose.
+- **Small daily things apply at once, and say so.** Ticks, lists, pins, board moves, time and links go through the same store methods a tap does, and a slip names the assistant ("Your assistant finished …"), since the person did not tap it. A timer leaves on its own (its slip on the dock), and its stopping says what it logged.
+- **Replies say what is now true.** `set_today` names what Today shows, not what was asked; a routine is on Today already, and an action finished on another day is refused.
+- **Nothing leaves.** No tool shares, syncs, exports, backs up, or deletes. Day logs are the person's own; an agent that read a hostile page in another tab could otherwise send them out through this one.
+- **Read tools are marked** `readOnlyHint` and `untrustedContentHint`: line text and shelf titles came from people and pasted links, so they are data, not instructions.
+- **Bindu off means no proposals.** With Bindu turned off there is nowhere for a proposal to wait, so the propose tools say so and show nothing. The other tools work as before.
+- **Limits are the cell's, not the prompt's.** As with a pasted reply, the prompt asks for 32 characters a pillar and 48 an action, and a line is refused only past 120, so a longer language is not cut.
 
 ## Why there is no model on the device
 

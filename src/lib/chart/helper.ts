@@ -1,17 +1,26 @@
 import { briefLines } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { formatMinutes, minutesByPillar } from './timer.ts';
-import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionMeta, type ChartData, type Ref } from './model.ts';
+import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref } from './model.ts';
 
 /** Letters and digits in any script, so a reply in Japanese or Russian still compares to its chart. */
 export function norm(value: string): string {
 	return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'write';
+export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'write' | 'offer';
 export type WriteMode = 'new' | 'fill' | 'review' | 'ask';
 
 export type CellEdit = { key: string; before: string; after: string };
+
+export type KindChange = { id: ActionId; text: string; pillarIndex: number; before: ActionKind | undefined; after: ActionKind | undefined };
+
+/** What an agent in the browser wrote. It waits on its own page until the person keeps it. */
+export type HelperOffer =
+	| { kind: 'chart'; data: ChartData }
+	| { kind: 'cells'; edits: CellEdit[] }
+	| { kind: 'kinds'; changes: KindChange[] }
+	| { kind: 'note'; weekKey: string; before: string; after: string };
 
 export type HelperMood = 'idle' | 'listening' | 'happy' | 'puzzled' | 'offering' | 'curious';
 
@@ -345,8 +354,9 @@ export function editWords(data: ChartData, edits: readonly CellEdit[]): { button
 	const counted = [pillarCount ? plural(pillarCount, 'pillar') : '', count - pillarCount ? plural(count - pillarCount, 'action') : '']
 		.filter(Boolean)
 		.join(' and ');
-	const replacing = edits.some((edit) => edit.before.trim());
-	if (replacing) return { button: count === 1 ? 'Keep the rewrite' : `Keep ${count} rewrites`, done: `Rewrote ${counted}.` };
+	const rewrites = edits.filter((edit) => edit.before.trim()).length;
+	if (rewrites > 0 && rewrites < count) return { button: `Keep ${count} lines`, done: `Added ${plural(count - rewrites, 'line')} and rewrote ${rewrites}.` };
+	if (rewrites > 0) return { button: count === 1 ? 'Keep the rewrite' : `Keep ${count} rewrites`, done: `Rewrote ${counted}.` };
 	const groups = groupEdits(data, edits);
 	const where = !pillars && groups.length === 1 ? ` to ${groups[0]!.label}` : '';
 	return { button: 'Add to chart', done: `Added ${counted}${where}.` };
@@ -642,7 +652,7 @@ export function noteFor(
 	return { text: 'The chart is full. Three for today is a good next step.', insight: null };
 }
 
-export type HelperDoor = { page: HelperPage; mode?: WriteMode; label: string; detail: string };
+export type HelperDoor = { page: Exclude<HelperPage, 'offer'>; mode?: WriteMode; label: string; detail: string };
 
 export function nextMove(data: ChartData, now: Date = new Date()): HelperDoor {
 	if (!filled(data.goal)) return { page: 'write', mode: 'new', label: 'Start a chart', detail: '' };
