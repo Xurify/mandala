@@ -52,14 +52,13 @@ export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
 	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
 }
 
-/** Under a tool's title: who hands it out and how often, or that it is known. */
 export function toolDetail(data: ChartData, pillarIndex: number, tool: Tool): string {
 	if (tool.known) return 'known';
 	const kept = keptFor(data, tool);
 	const slot = kept ? slotOf(data, kept)?.slot : undefined;
 	const routine = (data.actions[pillarIndex] ?? []).some((text, index) => text.trim() && isRoutine(data.meta?.[idAt(data, pillarIndex, index)]));
 	const who = slot !== undefined ? `for action ${slot + 1}` : routine ? 'any routine' : 'no routine yet';
-	return tool.kind === 'once' ? `${who} · once` : who;
+	return tool.kind === 'repeat' ? who : `${who} · ${tool.kind}`;
 }
 
 export function toolsFor(data: ChartData, id: ActionId): Tool[] {

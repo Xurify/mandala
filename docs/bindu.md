@@ -76,7 +76,7 @@ A pasted reply is read by `parseDraftText`, from the reply box or pasted anywher
 
 ## Agents in the browser
 
-A browser with an agent in it can call tools a page registers through [WebMCP](https://developer.chrome.com/docs/ai/webmcp). Mandala registers nineteen when `document.modelContext` is there, and nothing changes where it is not. Chrome has it behind an origin trial from 149; to try it locally, turn on `chrome://flags/#enable-webmcp-testing`. The `/dev/demo` cards under Bindu call the same tools an agent would, without one.
+A browser with an agent in it can call tools a page registers through [WebMCP](https://developer.chrome.com/docs/ai/webmcp). Mandala registers twenty-one when `document.modelContext` is there, and nothing changes where it is not. Chrome has it behind an origin trial from 149; to try it locally, turn on `chrome://flags/#enable-webmcp-testing`. The `/dev/demo` cards under Bindu call the same tools an agent would, without one.
 
 The agent is the model Bindu does not have. What needs judgment about the person's words (writing lines, reviewing them, telling a habit from a one-off, a note for the week) is the agent's, in whatever language the chart is in; nothing on the page reads meaning from words. What rules do well stays rules: picks, progress, the week in numbers.
 
@@ -96,12 +96,14 @@ The agent is the model Bindu does not have. What needs judgment about the person
 | `pin_actions` | Pin or unpin actions, which lead Bindu's picks |
 | `move_card` | Move an action between the board's lists |
 | `log_time`, `start_timer`, `stop_timer` | Time on an action: logged afterwards, a stopwatch or a focus block, and stopping it |
-| `add_link` | A link to a pillar's shelf, such as the page the person is on |
+| `read_shelves` | Each pillar's shelf: every link's id, kind, whether it is known, which action hands it out, what Today hands out, and how often it was opened lately |
+| `add_link` | A link to a pillar's shelf, such as the page the person is on, as repeat, once or staple |
+| `update_link` | How a link comes round: its kind, known or back in rotation, and which action hands it out. Never removes one |
 
 The rules they keep:
 
 - **The agent proposes, the person keeps.** An agent can press the page's buttons, so its own press is not the person's say-so. Lines, kinds and the week's note wait in Bindu, each beside what it replaces, until the person presses Keep. A line or kind the person changed while the offer waited stays theirs. The goal is not a cell an agent can propose.
-- **Small daily things apply at once, and say so.** Ticks, lists, pins, board moves, time and links go through the same store methods a tap does, and a slip names the assistant ("Your assistant finished …"), since the person did not tap it. A timer leaves on its own (its slip on the dock), and its stopping says what it logged.
+- **Small daily things apply at once, and say so.** Ticks, lists, pins, board moves, time, links and how a link comes round go through the same store methods a tap does, and a slip names the assistant ("Your assistant finished …"), since the person did not tap it. A timer leaves on its own (its slip on the dock), and its stopping says what it logged.
 - **Replies say what is now true.** `set_today` names what Today shows, not what was asked; a routine is on Today already, and an action finished on another day is refused.
 - **Nothing leaves.** No tool shares, syncs, exports, backs up, or deletes. Day logs are the person's own; an agent that read a hostile page in another tab could otherwise send them out through this one.
 - **Read tools are marked** `readOnlyHint` and `untrustedContentHint`: line text and shelf titles came from people and pasted links, so they are data, not instructions.

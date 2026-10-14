@@ -44,6 +44,17 @@ describe('links', () => {
 });
 
 describe('the shelf', () => {
+	it('keeps a staple for good: opening never puts it away, and Bindu never asks if it is known', () => {
+		const data = chart();
+		const days = Array.from({ length: 14 }, (_, index) => day(-index));
+		data.tools = { p1: [tool('a', { kind: 'staple', opened: days }), tool('b', { opened: days })] };
+		expect(opened(data.tools.p1![0]!, now).known).toBeUndefined();
+		expect(nearKnown(data, now).map((entry) => entry.tool.id)).toEqual(['b']);
+		const parsed = parseChart(JSON.stringify({ ...data, tools: { p1: [{ ...tool('c', { kind: 'staple' }), known: true }] } }))?.tools?.p1?.[0];
+		expect(parsed?.kind).toBe('staple');
+		expect(parsed?.known).toBeUndefined();
+	});
+
 	it('hands unassigned tools to routines, and named ones to their action', () => {
 		const data = chart();
 		data.tools = { p1: [tool('a'), tool('b', { action: A.a1_1 }), tool('c', { action: A.a1_0 })] };
@@ -58,6 +69,7 @@ describe('the shelf', () => {
 		expect(toolDetail(data, 1, tool('b', { action: A.a1_1, kind: 'once' }))).toBe('for action 2 · once');
 		expect(toolDetail(data, 1, tool('c', { known: true, kind: 'once' }))).toBe('known');
 		expect(toolDetail(data, 2, tool('d'))).toBe('no routine yet');
+		expect(toolDetail(data, 1, tool('e', { kind: 'staple' }))).toBe('any routine · staple');
 	});
 
 	it('rotates: never opened first, then the one that waited longest, holding still within a day', () => {

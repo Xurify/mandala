@@ -21,7 +21,7 @@
 	const short = $derived(/\/shorts\//.test(tool.url));
 	// Built as one string: Svelte trims the space at the start of a block, so pieces would run together.
 	const caption = $derived(
-		[videoId(tool.url) ? (short ? 'YouTube short' : 'YouTube') : host, detail ?? (tool.known ? 'known' : tool.kind === 'once' ? 'once' : null)].filter(Boolean).join(' · ')
+		[videoId(tool.url) ? (short ? 'YouTube short' : 'YouTube') : host, detail ?? (tool.known ? 'known' : tool.kind === 'repeat' ? null : tool.kind)].filter(Boolean).join(' · ')
 	);
 </script>
 

@@ -22,6 +22,7 @@ export type DemoId =
 	| 'agent-kinds'
 	| 'agent-week'
 	| 'tools'
+	| 'agent-shelf'
 	| 'select'
 	| 'time-stopwatch'
 	| 'time-block'
@@ -175,7 +176,7 @@ function shelves(data: ChartData, now: Date): NonNullable<ChartData['tools']> {
 			tool('t-test', 'https://youtu.be/1FWYOawIJNA', 'Are you really A2 level? Take this vocabulary test', { kind: 'once', known: true, opened: days(1) })
 		],
 		p4: [
-			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: idAt(data, 4, 0) }),
+			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { kind: 'staple', action: idAt(data, 4, 0) }),
 			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: idAt(data, 4, 0) })
 		]
 	};
@@ -336,11 +337,22 @@ export const DEMOS: readonly Demo[] = [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, the arrows for another, or the shelf button to open that pillar\'s shelf.',
 			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. The arrow opens its settings. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
 			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Reading, a link\'s See action 1 turns back to that cell.',
+			'On Reading, LingQ reader is a staple: it comes round for good, is never asked if known, and has no Know this. In any link\'s settings, Comes round turns it into one; a known link made a staple comes back into rotation.',
 			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
 			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
 			'On pillar 5, Reading, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
 			'At the foot of any shelf, See all shelves opens every pillar\'s shelf at once, known ones last. Open on a plank turns that pillar\'s block to its shelf. The more-actions menu has it too.',
 			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
+		]
+	},
+	{
+		id: 'agent-shelf',
+		title: 'A staple from an agent',
+		group: 'Tools',
+		steps: [
+			'The demo calls update_link, as an agent would after read_shelves: Comprehensible Russian on Listening becomes a staple. The slip says your assistant changed it.',
+			'Open the Listening shelf from its row in Today: under the title it says staple, and its settings have no Know this.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask it what is on your shelves, or to keep a link for good.'
 		]
 	},
 	{
@@ -470,6 +482,11 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.meta = { ...data.meta, ...metaFor(data, { a1_0: { kind: 'routine' }, a1_1: { kind: 'routine' }, a2_1: { kind: 'routine' }, a4_0: { kind: 'milestone', pinned: true } }) };
 		data.tools = shelves(data, now);
 		return { data, view: 'today' };
+	}
+	if (id === 'agent-shelf') {
+		const { data } = demoSetup('tools', now);
+		const input = (opened: ChartData) => ({ id: opened.tools?.p1?.find((tool) => tool.url === 'https://comprehensiblerussian.com/#/home')?.id, kind: 'staple' });
+		return { data, view: 'today', open: { agent: { tool: 'update_link', input } } };
 	}
 	if (id === 'time-stopwatch') return { data: timed(now, 'a2_0', 12 * MINUTE), view: 'today' };
 	if (id === 'time-block') return { data: timed(now, 'a4_0', 25 * MINUTE - 40_000, 25), view: 'today' };

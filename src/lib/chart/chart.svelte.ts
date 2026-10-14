@@ -1060,6 +1060,7 @@ export class ChartStore {
   updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
     this.#patchTool(pillarIndex, id, (tool) => {
       const next = { ...tool, ...patch };
+      if (next.kind === "staple") delete next.known;
       for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
       return next;
     });

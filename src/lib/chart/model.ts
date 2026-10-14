@@ -92,13 +92,14 @@ export function parseBrief(value: unknown): ChartBrief | undefined {
 	return Object.keys(brief).length > 0 ? brief : undefined;
 }
 
-export type ToolKind = 'once' | 'repeat';
+export type ToolKind = 'once' | 'repeat' | 'staple';
+export const TOOL_KINDS: readonly ToolKind[] = ['repeat', 'once', 'staple'];
 
 export type Tool = {
 	id: string;
 	url: string;
 	title: string;
-	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. */
+	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. `staple` is never known. */
 	kind: ToolKind;
 	/** Without one, or while its action is cleared, any routine in the pillar may hand it out. */
 	action?: ActionId;
@@ -154,10 +155,10 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 				id: record.id,
 				url: record.url.trim(),
 				title: typeof record.title === 'string' ? record.title.trim().slice(0, TEXT_MAX * 2) : '',
-				kind: record.kind === 'once' ? 'once' : 'repeat'
+				kind: TOOL_KINDS.find((kind) => kind === record.kind) ?? 'repeat'
 			};
 			if (isId('action', record.action)) tool.action = record.action;
-			if (record.known === true) tool.known = true;
+			if (record.known === true && tool.kind !== 'staple') tool.known = true;
 			if (Array.isArray(record.opened)) tool.opened = record.opened.filter((day): day is string => typeof day === 'string').slice(-60);
 			return [tool];
 		});
