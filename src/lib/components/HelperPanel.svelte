@@ -7,7 +7,6 @@
 	import HelperMoment from './HelperMoment.svelte';
 	import HelperPicks from './HelperPicks.svelte';
 	import HelperProgress from './HelperProgress.svelte';
-	import HelperReview from './HelperReview.svelte';
 	import HelperWrite from './HelperWrite.svelte';
 	import IconButton from './ui/IconButton.svelte';
 	import { cn } from './ui/cn';
@@ -29,8 +28,7 @@
 		if (view === 'today') return { title: "Today's three", sub: 'From different pillars' };
 		if (view === 'week') return { title: 'This week', sub: 'One per pillar, quiet ones first' };
 		if (view === 'progress') return { title: 'How it is going', sub: 'The last 7 days, from your log' };
-		if (view === 'review') return { title: 'Weak lines', sub: 'Lines that cannot be ticked, or are not yours to do' };
-		if (view === 'write') return { title: 'Fill chart using a prompt', sub: 'I write the prompt, a chat app writes the lines' };
+		if (view === 'write') return { title: 'Fill chart using a prompt', sub: helper.connection && helper.aiEnabled ? 'I write the prompt, your provider writes' : 'I write the prompt, a chat app writes the lines' };
 		return { title: 'Bindu', sub: goal ? `Reading “${goal}”` : 'Your chart helper, on this device' };
 	});
 
@@ -126,8 +124,6 @@
 				<HelperPicks {helper} />
 			{:else if current === 'progress'}
 				<HelperProgress {helper} {reveal} />
-			{:else if current === 'review'}
-				<HelperReview {helper} {reveal} />
 			{:else if current === 'write'}
 				<HelperWrite {helper} />
 			{:else}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEMOS, demoSetup, isDemoId } from './demos.ts';
 import { parseDraftText } from './draft.ts';
-import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
+import { fillEdits, greetingInsight, reviseEdits, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } from './timer.ts';
 import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
@@ -62,7 +62,8 @@ describe('demos', () => {
 
 	it('gives Bindu something to say, something to review, and gaps a reply fills', () => {
 		expect(greetingInsight(demoSetup('bindu-week', now).data!, now)).not.toBeNull();
-		expect(reviewChart(demoSetup('bindu-review', now).data!).length).toBeGreaterThanOrEqual(4);
+		const review = DEMOS.find((demo) => demo.id === 'bindu-review')!;
+		expect(reviseEdits(demoSetup('bindu-review', now).data!, parseDraftText(review.reply!())!)).toHaveLength(5);
 		const fill = DEMOS.find((demo) => demo.id === 'bindu-fill')!;
 		const edits = fillEdits(demoSetup('bindu-fill', now).data!, parseDraftText(fill.reply!())!);
 		expect(edits.length).toBe(1 + 8 + 5);

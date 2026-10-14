@@ -9,7 +9,6 @@ import {
 	insightSignature,
 	moodFor,
 	norm,
-	reviewChart,
 	reviseEdits,
 	suggestToday,
 	suggestWeek,
@@ -20,6 +19,7 @@ import {
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
+import { loadAiConsent, loadConnection, saveAiConsent, saveConnection, sendPrompt, type Connection } from './provider.ts';
 import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
 
 export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
@@ -41,6 +41,15 @@ export type HelperTarget = {
 export type HelperPicks = { scope: 'today' | 'week'; picks: HelperPick[] };
 
 const CHAT_APP_KEY = 'mandala_chat_app';
+const BINDU_KEY = 'mandala_bindu';
+
+function loadBinduOn(): boolean {
+	try {
+		return typeof localStorage === 'undefined' || localStorage.getItem(BINDU_KEY) !== 'off';
+	} catch {
+		return true;
+	}
+}
 
 function loadChatApp(): ChatApp {
 	try {
@@ -73,6 +82,21 @@ export class HelperStore {
 	copied = $state<WriteMode | null>(null);
 	sent = $state<ChatApp | null>(null);
 	app = $state<ChatApp>(loadChatApp());
+	/** Off hides Bindu everywhere: the face, the panel, and the doors that open it. */
+	enabled = $state(loadBinduOn());
+	/** Nothing goes to a provider until the person turns this on, and they can turn it off again. */
+	aiEnabled = $state(loadAiConsent());
+	/** The write page is showing what turning it on means. */
+	askingConsent = $state(false);
+	connection = $state<Connection | null>(loadConnection());
+	/** The mode whose request to the provider is out. */
+	sending = $state<WriteMode | null>(null);
+	sendError = $state('');
+	askAnswer = $state('');
+	#providerReply = $state('');
+	#request: AbortController | null = null;
+
+	repliedBy: 'paste' | 'provider' = $derived(this.reply.trim() !== '' && this.reply === this.#providerReply ? 'provider' : 'paste');
 	/** Held still, so marking it seen does not swap it out mid-read. */
 	lead = $state<HelperInsight | null>(null);
 	#cheer = $state(false);
@@ -86,7 +110,7 @@ export class HelperStore {
 		const reply = parseDraftText(this.reply);
 		if (!reply) return { kind: 'unread' };
 		const data = this.#target.data();
-		// A reply for this chart's goal fills its gaps, or, after a review, rewrites its weak lines. Anything else
+		// A reply for this chart's goal fills its gaps, or, after a review, rewrites the lines that failed. Anything else
 		// is a chart of its own.
 		if (hasContent(data) && norm(reply.goal) === norm(data.goal)) {
 			const edits = this.mode === 'review' ? reviseEdits(data, reply) : fillEdits(data, reply);
@@ -98,10 +122,9 @@ export class HelperStore {
 	mood: HelperMood = $derived.by(() =>
 		moodFor({
 			cheer: this.#cheer,
-			puzzled: this.page === 'review' && reviewChart(this.#target.data()).length > 0,
 			listening: this.listening,
 			offering: (this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null,
-			waiting: this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim()
+			waiting: this.sending !== null || (this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim())
 		})
 	);
 
@@ -126,6 +149,7 @@ export class HelperStore {
 	 * for the reply. A finished moment does not wait for a reopen.
 	 */
 	show(page?: HelperPage, mode?: WriteMode): void {
+		if (!this.enabled) return;
 		const opening = !this.open;
 		this.open = true;
 		if (this.moment) this.reset();
@@ -208,9 +232,9 @@ export class HelperStore {
 		this.hide();
 	}
 
-	prompt(mode: WriteMode = this.mode): string {
+	prompt(mode: WriteMode = this.mode, { oneShot = false }: { oneShot?: boolean } = {}): string {
 		const data = this.#target.data();
-		if (mode === 'new') return newChartPrompt(this.goal);
+		if (mode === 'new') return newChartPrompt(this.goal, { oneShot });
 		if (mode === 'fill') return fillPrompt(data);
 		if (mode === 'review') return reviewPrompt(data);
 		return askPrompt(data, this.question);
@@ -226,6 +250,71 @@ export class HelperStore {
 		window.open(chatLink(app, this.prompt()), '_blank', 'noopener');
 		this.copied = this.mode;
 		this.sent = app;
+	}
+
+	connect(connection: Connection | null): void {
+		saveConnection(connection);
+		this.connection = loadConnection();
+		this.sendError = '';
+	}
+
+	/** Sends the same prompt a chat app would get, and treats the reply as if it had been pasted. */
+	async send(): Promise<void> {
+		const mode = this.mode;
+		const connection = this.connection;
+		if (!connection || !this.aiEnabled || this.sending) return;
+		const request = new AbortController();
+		this.#request = request;
+		this.sending = mode;
+		this.sendError = '';
+		this.askAnswer = '';
+		this.reply = '';
+		const result = await sendPrompt(connection, this.prompt(mode, { oneShot: true }), request.signal);
+		if (this.#request !== request) return;
+		this.sending = null;
+		this.#request = null;
+		if (!result.ok) {
+			if (!('aborted' in result)) this.sendError = result.reason;
+			return;
+		}
+		if (mode === 'ask') this.askAnswer = result.text;
+		else {
+			this.#providerReply = result.text;
+			this.reply = result.text;
+		}
+	}
+
+	setEnabled(on: boolean): void {
+		try {
+			if (on) localStorage.removeItem(BINDU_KEY);
+			else localStorage.setItem(BINDU_KEY, 'off');
+		} catch {
+		}
+		this.enabled = on;
+		if (!on) {
+			this.cancel();
+			this.hide();
+			this.reset();
+		}
+	}
+
+	setAiEnabled(on: boolean): void {
+		saveAiConsent(on);
+		this.aiEnabled = on;
+		this.askingConsent = false;
+		if (!on) this.cancel();
+	}
+
+	/** Opens the write page on what turning AI on means, for the menu and the command palette. */
+	offerAi(): void {
+		this.askingConsent = true;
+		this.show('write');
+	}
+
+	cancel(): void {
+		this.#request?.abort();
+		this.#request = null;
+		this.sending = null;
 	}
 
 	useApp(app: ChatApp): void {
@@ -264,6 +353,7 @@ export class HelperStore {
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
+		this.sendError = '';
 	}
 
 	#defaultMode(): WriteMode {
@@ -295,6 +385,9 @@ export class HelperStore {
 	}
 
 	reset(): void {
+		this.cancel();
+		this.sendError = '';
+		this.askAnswer = '';
 		this.page = 'home';
 		this.direction = -1;
 		this.picks = null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batchSubject, burstToast, nextSlipBurst, placeSlip, SLIP_MS, SLIP_UNDO_MS, type SlipBurst } from './toast.ts';
+import { batchSubject, nextSlipBurst, placeSlip, SLIP_MS, SLIP_UNDO_MS, type SlipBurst } from './toast.ts';
 
 function step(previous: SlipBurst | null, key: string, subject: string, amount = 1, mixedBatch = false) {
 	return nextSlipBurst(previous, key, subject, amount, mixedBatch);
@@ -14,10 +14,6 @@ describe('toast burst', () => {
 			count: 1,
 			mixed: false
 		});
-		expect(burstToast(burst.key, burst.subject, burst.count, burst.mixed)).toBe(
-			'Deleted “More organized life”.'
-		);
-		expect(burstToast('Cleared', '  ', 1)).toBe('Cleared “Untitled”.');
 	});
 
 	it('counts repeats of the same chart while the slip is up', () => {
@@ -27,17 +23,11 @@ describe('toast burst', () => {
 		burst = step(burst, 'Duplicated', 'More organized life');
 		expect(burst.count).toBe(4);
 		expect(burst.subject).toBe('More organized life');
-		expect(burstToast(burst.key, burst.subject, burst.count, burst.mixed)).toBe(
-			'Duplicated “More organized life” ×4.'
-		);
 	});
 
 	it('a batch lands on its count', () => {
 		const burst = step(null, 'Removed', 'More organized life', 4);
 		expect(burst.count).toBe(4);
-		expect(burstToast(burst.key, burst.subject, burst.count)).toBe(
-			'Removed “More organized life” ×4.'
-		);
 	});
 
 	it('adds a later batch onto the open slip', () => {
@@ -53,7 +43,6 @@ describe('toast burst', () => {
 		expect(burst.count).toBe(2);
 		expect(burst.mixed).toBe(true);
 		expect(burst.subject).toBe('Charts');
-		expect(burstToast(burst.key, burst.subject, burst.count, burst.mixed)).toBe('Deleted 2 charts.');
 	});
 
 	it('a mixed batch starts as charts', () => {
@@ -61,7 +50,6 @@ describe('toast burst', () => {
 		const burst = step(null, 'Restored', titles.subject, 3, titles.mixed);
 		expect(titles.mixed).toBe(true);
 		expect(burst.subject).toBe('Charts');
-		expect(burstToast(burst.key, burst.subject, burst.count, burst.mixed)).toBe('Restored 3 charts.');
 	});
 
 	it('a different action starts over', () => {

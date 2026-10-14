@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`.
+Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`. The one outside call is optional: a person who turns AI on and connects their own provider (OpenRouter, Gemini, Claude or OpenAI) can have Bindu send its prompt there from the browser (`provider.ts`). Nothing is sent without that consent, and Bindu as a whole can be turned off.
 
 **Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy. A new or restyled component also follows **Making a component** there: name the object it is in this app, give it one job, try several versions in the place it will sit, and let arrivals land while departures ease out.
 
@@ -40,8 +40,9 @@ src/
     library.ts                multiple saved charts
     presets/                  starter charts
     draft.ts                  prompts for a chat app, and reading the pasted reply
+    provider.ts               the same prompts sent to the person's own AI provider from the browser, and OpenRouter's sign-in; the key stays on the device
     start.ts                  writing a chart from the center: where it resumes, the next block, what a preset lends (pure, tested)
-    helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
+    helper.ts                 Bindu's rules: picks, insights, progress (pure, tested)
     helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
     morph.ts                  view transitions for view, theme and accent changes
     theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
@@ -95,6 +96,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - New animations use `motion-safe:` so reduced motion skips them.
 - Icon-only buttons need `aria-label`. Toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
 - Copy: sentence case, short, warm, no emoji, toasts in past tense ("Copied as text").
+- Nothing on the device guesses meaning from English words. People write charts in any language, so a check that reads words (a regex over English phrases, an `[a-z]` normalizer, whitespace as the only word break) goes to a model through a prompt instead. Normalize with `\p{L}\p{N}`, and break text with `Intl.Segmenter`.
 - Don't edit generated files (`static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/favicon.svg`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.
 - Comments only for constraints the code can't show: a why, a browser or platform quirk, where a magic number comes from. No comment that restates the code, names the element, or repeats the commit message. When in doubt, leave it out.
 

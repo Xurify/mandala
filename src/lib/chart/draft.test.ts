@@ -34,6 +34,16 @@ describe('chartFromDraft', () => {
 		};
 		expect(chartFromDraft(broken)).toBeNull();
 	});
+
+	it('keeps empty lines empty, and reads a long line in full', () => {
+		const long = 'Lerne jeden Morgen zehn neue Vokabeln mit Karteikarten';
+		const partial = { ...sample, pillars: sample.pillars.map((pillar, index) => (index === 7 ? '' : pillar)), actions: sample.actions.map((row) => row.map((action, index) => (index === 0 ? long : index === 7 ? '' : action))) };
+		const chart = chartFromDraft(partial);
+		expect(chart?.pillars[7]).toBe('');
+		expect(chart?.actions[0]![7]).toBe('');
+		expect(chart?.actions[0]![0]).toBe(long);
+		expect(chartFromDraft({ ...sample, pillars: Array(8).fill('') })).toBeNull();
+	});
 });
 
 describe('parseDraftText', () => {
@@ -60,6 +70,15 @@ describe('newChartPrompt', () => {
 		const prompt = newChartPrompt('  Learn   Slovak ');
 		expect(prompt).toContain('My goal: Learn Slovak');
 		expect(prompt).not.toContain('Ask for it first');
+	});
+
+	it('writes at once in a single request, with no questions and no brief', () => {
+		const prompt = newChartPrompt('Learn Slovak', { oneShot: true });
+		expect(prompt).toContain('My goal: Learn Slovak');
+		expect(prompt).toContain('Do not ask me anything');
+		expect(prompt).not.toContain('up to three short questions');
+		expect(prompt).not.toContain('"brief"');
+		expect(prompt).toContain('"pillars"');
 	});
 });
 

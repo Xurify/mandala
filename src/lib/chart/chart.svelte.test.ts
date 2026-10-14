@@ -38,13 +38,6 @@ describe('chart day log', () => {
 		expect(log?.declined).toEqual([A.a0_0, A.a1_0]);
 		expect(log?.shown).toEqual([`stuck:${A.a3_0}`]);
 	});
-
-	it('drops an empty brief', () => {
-		chart.setBrief({ timeline: 'October' });
-		expect(chart.data.brief).toEqual({ timeline: 'October' });
-		chart.setBrief({ timeline: '  ' });
-		expect(chart.data.brief).toBeUndefined();
-	});
 });
 
 describe('chart board', () => {

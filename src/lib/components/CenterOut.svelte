@@ -24,7 +24,8 @@
 	import { textField } from './ui/styles';
 
 	type Props = {
-		ondraftinchat: () => void;
+		/** Left out when Bindu is off, which takes the chat app door with it. */
+		ondraftinchat?: () => void;
 		onopenguide: () => void;
 		showGuideLink?: boolean;
 		class?: string;
@@ -475,7 +476,9 @@
 			</Button>
 		{:else}
 			{#if step === 'goal'}
-				<Button variant="ghost" icon="sparkles" class="-ms-2" onclick={ondraftinchat}>Have a chat app draft it</Button>
+				{#if ondraftinchat}
+					<Button variant="ghost" icon="sparkles" class="-ms-2" onclick={ondraftinchat}>Have a chat app draft it</Button>
+				{/if}
 			{:else}
 				<Button variant="ghost" icon="arrow-left" class="-ms-2 max-[900px]:px-3" onclick={goBack}>
 					<span class="max-[900px]:sr-only">{step === 'actions' ? 'All pillars' : 'Back'}</span>
