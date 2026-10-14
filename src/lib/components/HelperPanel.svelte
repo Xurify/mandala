@@ -5,6 +5,7 @@
 	import HelperFace from './HelperFace.svelte';
 	import HelperHome from './HelperHome.svelte';
 	import HelperMoment from './HelperMoment.svelte';
+	import HelperOffer from './HelperOffer.svelte';
 	import HelperPicks from './HelperPicks.svelte';
 	import HelperProgress from './HelperProgress.svelte';
 	import HelperReview from './HelperReview.svelte';
@@ -31,6 +32,7 @@
 		if (view === 'progress') return { title: 'How it is going', sub: 'The last 7 days, from your log' };
 		if (view === 'review') return { title: 'Weak lines', sub: 'Lines that cannot be ticked, or are not yours to do' };
 		if (view === 'write') return { title: 'Fill chart using a prompt', sub: 'I write the prompt, a chat app writes the lines' };
+		if (view === 'offer') return { title: helper.offer?.kind === 'chart' ? 'A chart to look over' : 'Lines to look over', sub: 'From the assistant in your browser' };
 		return { title: 'Bindu', sub: goal ? `Reading “${goal}”` : 'Your chart helper, on this device' };
 	});
 
@@ -130,6 +132,8 @@
 				<HelperReview {helper} {reveal} />
 			{:else if current === 'write'}
 				<HelperWrite {helper} />
+			{:else if current === 'offer'}
+				<HelperOffer {helper} />
 			{:else}
 				<HelperHome {helper} {reveal} />
 			{/if}

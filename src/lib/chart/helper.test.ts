@@ -433,6 +433,7 @@ describe('the cells card', () => {
 		expect(editWords(data, [{ key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Keep the rewrite', done: 'Rewrote 1 action.' });
 		expect(editWords(data, adds.map((edit) => ({ ...edit, before: 'Old' }))).button).toBe('Keep 8 rewrites');
 		expect(editWords(data, [{ key: 'p0', before: 'Old', after: 'New' }, { key: 'a0_0', before: 'Old', after: 'New' }]).done).toBe('Rewrote 1 pillar and 1 action.');
+		expect(editWords(data, [...adds, { key: 'a0_0', before: 'Eat better', after: 'Cook dinner on Sunday' }])).toEqual({ button: 'Keep 9 lines', done: 'Added 8 lines and rewrote 1.' });
 	});
 });
 

@@ -46,10 +46,13 @@ export function restated(pillar: string, action: string): boolean {
 	return stripped !== cell && stripped === base;
 }
 
-export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'review' | 'write';
+export type HelperPage = 'home' | 'today' | 'week' | 'progress' | 'review' | 'write' | 'offer';
 export type WriteMode = 'new' | 'fill' | 'review' | 'ask';
 
 export type CellEdit = { key: string; before: string; after: string };
+
+/** Lines an agent in the browser wrote. They wait on their own page until the person keeps them. */
+export type HelperOffer = { kind: 'chart'; data: ChartData } | { kind: 'cells'; edits: CellEdit[] };
 
 export type HelperMood = 'idle' | 'listening' | 'happy' | 'puzzled' | 'offering' | 'curious';
 
@@ -474,8 +477,9 @@ export function editWords(data: ChartData, edits: readonly CellEdit[]): { button
 	const counted = [pillarCount ? plural(pillarCount, 'pillar') : '', count - pillarCount ? plural(count - pillarCount, 'action') : '']
 		.filter(Boolean)
 		.join(' and ');
-	const replacing = edits.some((edit) => edit.before.trim());
-	if (replacing) return { button: count === 1 ? 'Keep the rewrite' : `Keep ${count} rewrites`, done: `Rewrote ${counted}.` };
+	const rewrites = edits.filter((edit) => edit.before.trim()).length;
+	if (rewrites > 0 && rewrites < count) return { button: `Keep ${count} lines`, done: `Added ${plural(count - rewrites, 'line')} and rewrote ${rewrites}.` };
+	if (rewrites > 0) return { button: count === 1 ? 'Keep the rewrite' : `Keep ${count} rewrites`, done: `Rewrote ${counted}.` };
 	const groups = groupEdits(data, edits);
 	const where = !pillars && groups.length === 1 ? ` to ${groups[0]!.label}` : '';
 	return { button: 'Add to chart', done: `Added ${counted}${where}.` };
@@ -771,7 +775,7 @@ export function noteFor(
 	return { text: 'The chart is full. Three for today is a good next step.', insight: null };
 }
 
-export type HelperDoor = { page: HelperPage; mode?: WriteMode; label: string; detail: string };
+export type HelperDoor = { page: Exclude<HelperPage, 'offer'>; mode?: WriteMode; label: string; detail: string };
 
 export function nextMove(data: ChartData, now: Date = new Date()): HelperDoor {
 	if (!filled(data.goal)) return { page: 'write', mode: 'new', label: 'Start a chart', detail: '' };

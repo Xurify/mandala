@@ -9,6 +9,7 @@ import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
 import { getPreset } from './presets/index.ts';
 import { countCompletedBlocks, resumeStep, presetActionsToLend } from './start.ts';
+import { linesToEdits } from './webmcp.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -113,5 +114,15 @@ describe('demos', () => {
 		const total = minutes.reduce((sum, value) => sum + value, 0);
 		expect(minutes[1]! / total).toBeGreaterThanOrEqual(0.5);
 		expect(greetingInsight(demoSetup('time-week', now).data!, now)?.id).toBe('time');
+	});
+
+	it('hands Bindu a weak line rewritten and an empty pillar filled, as an agent would', () => {
+		const setup = demoSetup('bindu-agent', now);
+		const open = setup.open as { agent: { cell: string; text: string }[] };
+		expect(reviewChart(setup.data!).map((finding) => finding.key)).toContain('a1_2');
+		const { edits, refused } = linesToEdits(setup.data!, open.agent);
+		expect(refused).toEqual([]);
+		expect(edits).toHaveLength(10);
+		expect(edits.filter((edit) => edit.before)).toEqual([{ key: 'a1_2', before: 'Run more', after: 'Add 5 minutes to one easy run each week' }]);
 	});
 });

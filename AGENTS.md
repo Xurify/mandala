@@ -42,7 +42,8 @@ src/
     draft.ts                  prompts for a chat app, and reading the pasted reply
     start.ts                  writing a chart from the center: where it resumes, the next block, what a preset lends (pure, tested)
     helper.ts                 Bindu's rules: review, picks, insights, progress (pure, tested)
-    helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip
+    helper.svelte.ts          Bindu's store `helper`: the page in view, picks, the write round trip, an agent's offer
+    webmcp.ts                 tools an agent in the browser can call through WebMCP: read, propose to Bindu, tick (pure, tested)
     morph.ts                  view transitions for view, theme and accent changes
     theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
     contract.ts               where each saved field may travel (shared, yours, device), and every browser storage key

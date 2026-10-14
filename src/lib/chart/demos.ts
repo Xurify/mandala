@@ -17,6 +17,7 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
+	| 'bindu-agent'
 	| 'tools'
 	| 'select'
 	| 'time-stopwatch'
@@ -34,7 +35,7 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
+	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: { cell: string; text: string }[] };
 };
 
 export type Demo = {
@@ -385,6 +386,16 @@ export const DEMOS: readonly Demo[] = [
 			'Start this chart to see it open, with the moment in Bindu.'
 		],
 		reply: () => JSON.stringify(preset('music'))
+	},
+	{
+		id: 'bindu-agent',
+		title: 'Lines from an agent in the browser',
+		group: 'Bindu',
+		steps: [
+			'A chart with an empty pillar and a weak line. The demo calls the propose_lines tool, as an agent in the browser would, and Bindu opens on Lines to look over.',
+			'The rewrite shows the line it replaces. Nothing is written until Keep, which lands the moment. Not now drops the offer.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask the agent to fill the gaps.'
+		]
 	}
 ];
 
@@ -444,6 +455,19 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[6] = data.actions[6]!.map(() => '');
 		data.actions[2] = data.actions[2]!.map((action, index) => (index < 3 ? action : ''));
 		return { data, view: 'view', open: { bindu: 'write-fill' } };
+	}
+	if (id === 'bindu-agent') {
+		const whole = preset('fitness');
+		const data = preset('fitness');
+		data.pillars[6] = '';
+		data.actions[6] = data.actions[6]!.map(() => '');
+		data.actions[1]![2] = 'Run more';
+		const lines = [
+			{ cell: 'a1_2', text: whole.actions[1]![2]! },
+			{ cell: 'p6', text: whole.pillars[6]! },
+			...whole.actions[6]!.map((text, slot) => ({ cell: `a6_${slot}`, text }))
+		];
+		return { data, view: 'view', open: { agent: lines } };
 	}
 	return { data: null, view: 'view', open: { bindu: 'write-new' } };
 }

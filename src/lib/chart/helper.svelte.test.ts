@@ -237,3 +237,55 @@ describe('HelperStore hands writing to a chat app', () => {
 		expect(helper.outcome?.kind).toBe('chart');
 	});
 });
+
+describe('HelperStore offers', () => {
+	it('holds lines from an agent on their own page until they are kept', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[2]![3] = '';
+		helper.propose({ kind: 'cells', edits: [{ key: 'a2_3', before: '', after: 'Run 20 km on Sunday morning' }] });
+		expect(helper.open).toBe(true);
+		expect(helper.page).toBe('offer');
+		expect(helper.mood).toBe('offering');
+		expect(charts.one!.actions[2]![3]).toBe('');
+		helper.keepOffer();
+		expect(charts.one!.actions[2]![3]).toBe('Run 20 km on Sunday morning');
+		expect(helper.offer).toBeNull();
+		expect(helper.moment?.title).toBe('Every line is written');
+	});
+
+	it('leaves a line the person changed while the offer waited', () => {
+		const { helper, charts } = sandbox();
+		helper.propose({
+			kind: 'cells',
+			edits: [
+				{ key: 'a0_0', before: 'Easy runs step 1', after: 'Run 5 km easy on Tuesday' },
+				{ key: 'a0_1', before: 'Easy runs step 2', after: 'Run 5 km easy on Thursday' }
+			]
+		});
+		charts.one!.actions[0]![1] = 'Mine now';
+		helper.keepOffer();
+		expect(charts.one!.actions[0]).toEqual(expect.arrayContaining(['Run 5 km easy on Tuesday', 'Mine now']));
+		expect(helper.moment?.title).toBe('Rewrote 1 action');
+	});
+
+	it('drops the offer on Not now, or when the chart changes', () => {
+		const { helper, charts, switchTo } = sandbox();
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		helper.back();
+		expect(helper.offer).toBeNull();
+		expect(charts.one!.pillars[0]).toBe('Easy runs');
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		switchTo('two');
+		expect(helper.offer).toBeNull();
+		expect(helper.page).toBe('home');
+	});
+
+	it('opens a whole chart from an agent beside this one', () => {
+		const { helper, charts } = sandbox();
+		const next = chartData('Learn the cello');
+		helper.propose({ kind: 'chart', data: next });
+		helper.keepOffer();
+		expect(charts.three?.goal).toBe('Learn the cello');
+		expect(helper.moment?.title).toBe('Your chart is ready');
+	});
+});

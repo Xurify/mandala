@@ -16,13 +16,15 @@ import {
 	type CellEdit,
 	type HelperInsight,
 	type HelperMood,
+	type HelperOffer,
 	type HelperPage,
 	type HelperPick,
 	type WriteMode
 } from './helper.ts';
-import { blockOfK, hasContent, todayKey, wholeness, type ActionId, type ChartData, type Ref } from './model.ts';
+import { blockOfK, getByKey, hasContent, todayKey, wholeness, wordsOf, type ActionId, type ChartData, type Ref } from './model.ts';
+import type { AgentTarget } from './webmcp.ts';
 
-export type { CellEdit, ChatApp, HelperMood, HelperPage, HelperPick, WriteMode };
+export type { CellEdit, ChatApp, HelperMood, HelperOffer, HelperPage, HelperPick, WriteMode };
 
 export type HelperTarget = {
 	data(): ChartData;
@@ -66,6 +68,7 @@ export class HelperStore {
 	listening = $state(false);
 	picks = $state<HelperPicks | null>(null);
 	moment = $state<HelperMoment | null>(null);
+	offer = $state<HelperOffer | null>(null);
 	mode = $state<WriteMode>('new');
 	goal = $state('');
 	question = $state('');
@@ -100,7 +103,7 @@ export class HelperStore {
 			cheer: this.#cheer,
 			puzzled: this.page === 'review' && reviewChart(this.#target.data()).length > 0,
 			listening: this.listening,
-			offering: (this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null,
+			offering: ((this.page === 'today' || this.page === 'week') && this.picks !== null && this.moment === null) || (this.page === 'offer' && this.offer !== null),
 			waiting: this.page === 'write' && this.copied !== null && this.copied !== 'ask' && !this.reply.trim()
 		})
 	);
@@ -154,6 +157,25 @@ export class HelperStore {
 	back(): void {
 		this.go('home');
 		this.picks = null;
+		this.offer = null;
+	}
+
+	/** Replaces any offer still waiting: the agent's latest is the one it means. */
+	propose(offer: HelperOffer): void {
+		this.show();
+		this.offer = offer;
+		this.go('offer');
+	}
+
+	/** A line the person changed while the offer waited stays theirs. */
+	keepOffer(): void {
+		const offer = this.offer;
+		if (!offer) return;
+		const data = this.#target.data();
+		const kept: HelperOffer = offer.kind === 'cells' ? { kind: 'cells', edits: offer.edits.filter((edit) => getByKey(data, edit.key).trim() === edit.before) } : offer;
+		if (kept.kind === 'cells' && kept.edits.length === 0) return this.back();
+		if (!this.#keep(kept, kept.kind === 'cells' && kept.edits.every((edit) => edit.before))) return;
+		this.offer = null;
 	}
 
 	finish(): void {
@@ -246,24 +268,30 @@ export class HelperStore {
 
 	applyReply(): void {
 		const outcome = this.outcome;
-		if (outcome?.kind === 'chart') {
-			if (!this.#target.applyDraft(outcome.data)) return;
-			const next = this.#target.chartId?.();
-			if (next) this.#chartId = next;
-			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
-			this.#land({ title: 'Your chart is ready', detail: `8 pillars and ${written} actions for “${outcome.data.goal}”.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
-		} else if (outcome?.kind === 'cells') {
-			const words = editWords(this.#target.data(), outcome.edits);
-			const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
-			this.#target.setCells(outcome.edits);
-			if (this.mode !== 'review' && wholeness(this.#target.data()).chart) {
-				this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
-			} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
-		} else return;
+		if (outcome?.kind !== 'chart' && outcome?.kind !== 'cells') return;
+		if (!this.#keep(outcome, this.mode === 'review')) return;
 		this.reply = '';
 		this.copied = null;
 		this.sent = null;
 		this.goal = '';
+	}
+
+	#keep(outcome: HelperOffer, rewriting: boolean): boolean {
+		if (outcome.kind === 'chart') {
+			if (!this.#target.applyDraft(outcome.data)) return false;
+			const next = this.#target.chartId?.();
+			if (next) this.#chartId = next;
+			const written = outcome.data.actions.flat().filter((action) => action.trim()).length;
+			this.#land({ title: 'Your chart is ready', detail: `8 pillars and ${written} actions for “${outcome.data.goal}”.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
+			return true;
+		}
+		const words = editWords(this.#target.data(), outcome.edits);
+		const pillars = [...new Set(outcome.edits.map((edit) => (edit.key.startsWith('p') ? Number(edit.key.slice(1)) : Number(edit.key.slice(1).split('_')[0]))))];
+		this.#target.setCells(outcome.edits);
+		if (!rewriting && wholeness(this.#target.data()).chart) {
+			this.#land({ title: 'Every line is written', detail: `${words.done} Your own lines stayed as they were.`, pillars: [0, 1, 2, 3, 4, 5, 6, 7] });
+		} else this.#land({ title: words.done.replace(/\.$/, ''), detail: 'Your lines stayed as they were.', pillars });
+		return true;
 	}
 
 	#defaultMode(): WriteMode {
@@ -299,6 +327,7 @@ export class HelperStore {
 		this.direction = -1;
 		this.picks = null;
 		this.moment = null;
+		this.offer = null;
 		this.reply = '';
 		this.copied = null;
 		this.sent = null;
@@ -330,3 +359,23 @@ export const helper = new HelperStore({
 	noteShown: (signature) => chart.noteShown(signature),
 	chartId: () => chart.activeId
 });
+
+/** What an agent in the browser acts on. A change it makes says so in a slip, since the person did not tap it. */
+export const agentTarget: AgentTarget = {
+	data: () => chart.data,
+	now: () => new Date(),
+	offer: (offer) => helper.propose(offer),
+	finish: (id) => {
+		chart.finish(id);
+		chart.say(`Your assistant finished “${wordsOf(chart.data, id)}”.`);
+	},
+	reopen: (id) => {
+		chart.reopen(id);
+		chart.say(`Your assistant reopened “${wordsOf(chart.data, id)}”.`);
+	},
+	setToday: (ids) => {
+		chart.setFocus(todayKey(), ids, true);
+		chart.say(`Your assistant set today: ${ids.length} ${ids.length === 1 ? 'action' : 'actions'}.`);
+	},
+	logTime: (id, minutes) => chart.logTime(id, minutes)
+};

@@ -4,7 +4,8 @@
 	import { page } from '$app/state';
 	import { DEMOS, demoSetup, isDemoId, type DemoId } from '$lib/chart/demos';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { helper } from '$lib/chart/helper.svelte';
+	import { agentTarget, helper } from '$lib/chart/helper.svelte';
+	import { agentTools, registerAgentTools } from '$lib/chart/webmcp';
 	import {
 		blockOfKey,
 		getByKey,
@@ -137,6 +138,7 @@
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
+			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === 'propose_lines')?.execute({ lines: open.agent });
 			else if (open.bindu === 'home') helper.show();
 			else if (open.bindu === 'review') helper.show('review');
 			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
@@ -193,7 +195,11 @@
 		handleShareHash();
 		window.addEventListener('hashchange', handleShareHash);
 
+		const agents = new AbortController();
+		registerAgentTools(agentTarget, agents.signal);
+
 		return () => {
+			agents.abort();
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
 			window.removeEventListener('hashchange', handleShareHash);
