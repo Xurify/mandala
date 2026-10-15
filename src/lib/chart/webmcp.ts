@@ -749,7 +749,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				type: 'object',
 				properties: {
 					pillar: { type: 'integer', minimum: 0, maximum: 7, description: 'The pillar, 0 to 7, as in read_chart' },
-					url: {
+					path: {
 						type: 'string',
 						format: 'uri',
 						pattern: '^https?://',
@@ -759,14 +759,14 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 					title: { type: 'string', maxLength: TEXT_MAX, description: 'A short name for the link, as the page titles itself' },
 					kind: { type: 'string', enum: [...TOOL_KINDS], description: 'How it comes round. Leave out for repeat.' }
 				},
-				required: ['pillar', 'url']
+				required: ['pillar', 'path']
 			},
 			annotations: {},
 			execute: async (input) => {
 				const data = target.data();
 				const pillarIndex = Number(input.pillar);
 				if (!Number.isInteger(pillarIndex) || pillarIndex < 0 || pillarIndex > 7) return 'Not saved. Pillar must be 0 to 7.';
-				const url = typeof input.url === 'string' ? input.url.trim() : '';
+				const url = typeof input.path === 'string' ? input.path.trim() : '';
 				if (!isUrl(url) || url.length > URL_MAX) return 'Not saved. Give an http or https link.';
 				const name = pillarName(data, pillarIndex);
 				if ((data.tools?.[`p${pillarIndex}`] ?? []).some((tool) => tool.url === url)) return `That link is already on ${name}'s shelf.`;

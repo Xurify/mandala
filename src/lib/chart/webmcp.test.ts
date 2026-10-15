@@ -321,12 +321,12 @@ describe('agent tools', () => {
 	it("saves a link to a pillar's shelf once, and only a web link", async () => {
 		const { data, calls, run } = sandbox();
 		data.tools = { p1: [{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat' }] };
-		expect(await run('add_shelf_link', { pillar: 9, url: 'https://example.com' })).toMatch(/^Not saved. Pillar/);
-		expect(await run('add_shelf_link', { pillar: 1, url: 'javascript:alert(1)' })).toMatch(/^Not saved. Give an http/);
-		expect(await run('add_shelf_link', { pillar: 1, url: 'https://example.com/drills' })).toBe("That link is already on Speed's shelf.");
-		expect(await run('add_shelf_link', { pillar: 1, url: ' https://example.com/intervals ', title: ' Interval  guide ', kind: 'once' })).toBe("Saved to Speed's shelf.");
-		expect(await run('add_shelf_link', { pillar: 1, url: 'https://example.com/forever', kind: 'always' })).toMatch(/^Not saved. Kind must be/);
-		expect(await run('add_shelf_link', { pillar: 2, url: 'https://example.com/dictionary', kind: 'staple' })).toBe("Saved to Long run's shelf.");
+		expect(await run('add_shelf_link', { pillar: 9, path: 'https://example.com' })).toMatch(/^Not saved. Pillar/);
+		expect(await run('add_shelf_link', { pillar: 1, path: 'javascript:alert(1)' })).toMatch(/^Not saved. Give an http/);
+		expect(await run('add_shelf_link', { pillar: 1, path: 'https://example.com/drills' })).toBe("That link is already on Speed's shelf.");
+		expect(await run('add_shelf_link', { pillar: 1, path: ' https://example.com/intervals ', title: ' Interval  guide ', kind: 'once' })).toBe("Saved to Speed's shelf.");
+		expect(await run('add_shelf_link', { pillar: 1, path: 'https://example.com/forever', kind: 'always' })).toMatch(/^Not saved. Kind must be/);
+		expect(await run('add_shelf_link', { pillar: 2, path: 'https://example.com/dictionary', kind: 'staple' })).toBe("Saved to Long run's shelf.");
 		expect(calls.links).toEqual([
 			[1, 'https://example.com/intervals', 'Interval guide', 'once'],
 			[2, 'https://example.com/dictionary', '', 'staple']
