@@ -32,13 +32,13 @@ export function isForgotten(timer: Timer, now: number): boolean {
 export function sessionOf(timer: Timer, now: number, minutes = minutesRun(timer, now)): { dateKey: string; session: Session } | null {
 	if (!timer.action || minutes < 1) return null;
 	const start = new Date(timer.since);
-	return { dateKey: dateKeyOf(start), session: { action: timer.action, at: clockOf(start), minutes } };
+	return { dateKey: dateKeyOf(start), session: { action: timer.action, at: clockOf(start), minutes, ...(timer.link ? { link: timer.link } : {}) } };
 }
 
-export function sessionEndingAt(action: ActionId, minutes: number, now: Date): { dateKey: string; session: Session } {
+export function sessionEndingAt(action: ActionId, minutes: number, now: Date, link?: string): { dateKey: string; session: Session } {
 	const start = new Date(now.getTime() - minutes * MINUTE);
 	const sameDay = dateKeyOf(start) === dateKeyOf(now);
-	return { dateKey: dateKeyOf(now), session: { action, at: sameDay ? clockOf(start) : '00:00', minutes } };
+	return { dateKey: dateKeyOf(now), session: { action, at: sameDay ? clockOf(start) : '00:00', minutes, ...(link ? { link } : {}) } };
 }
 
 export function addSession(data: ChartData, dateKey: string, session: Session): void {

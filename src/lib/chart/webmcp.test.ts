@@ -25,8 +25,8 @@ function sandbox(data = chartData(), binduOn = true) {
 		tomorrow: [] as ActionId[][],
 		pinned: [] as [ActionId[], boolean][],
 		moved: [] as [ActionId, Lane, number][],
-		time: [] as [ActionId, number][],
-		timers: [] as [ActionId, number | undefined][],
+		time: [] as ([ActionId, number] | [ActionId, number, string])[],
+		timers: [] as ([ActionId, number | undefined] | [ActionId, number | undefined, string])[],
 		stopped: 0,
 		links: [] as [number, string, string, ToolKind][],
 		changed: [] as [number, string, LinkPatch][]
@@ -45,8 +45,8 @@ function sandbox(data = chartData(), binduOn = true) {
 		planTomorrow: (ids) => calls.tomorrow.push(ids),
 		pin: (ids, pinned) => calls.pinned.push([ids, pinned]),
 		moveCard: (id, lane, index) => (calls.moved.push([id, lane, index]), true),
-		logTime: (id, minutes) => calls.time.push([id, minutes]),
-		startTimer: (id, minutes) => calls.timers.push([id, minutes]),
+		logTime: (id, minutes, link) => calls.time.push(link ? [id, minutes, link] : [id, minutes]),
+		startTimer: (id, minutes, link) => calls.timers.push(link ? [id, minutes, link] : [id, minutes]),
 		stopTimer: () => {
 			calls.stopped += 1;
 			delete data.timer;
@@ -211,7 +211,7 @@ describe('agent tools', () => {
 	});
 
 	it('sets today without repeats, and logs whole minutes', async () => {
-		const { calls, run } = sandbox();
+		const { calls, run, data } = sandbox();
 		expect(await run('set_today', { ids: [A.a0_0, A.a2_1, A.a0_0] })).toBe(
 			"Today's focus is now: “Easy runs session 1 on Monday”, “Long run session 2 on Monday”."
 		);
@@ -220,6 +220,14 @@ describe('agent tools', () => {
 		expect(await run('log_time', { id: A.a0_0, minutes: 25.5 })).toMatch(/^Not logged/);
 		expect(await run('log_time', { id: A.a0_0, minutes: 25 })).toMatch(/^Logged 25 min/);
 		expect(calls.time).toEqual([[A.a0_0, 25]]);
+
+		data.tools = {
+			p1: [{ id: 'tool_1', url: 'https://example.com/drills', title: 'Drills', kind: 'repeat' }]
+		};
+		expect(await run('log_time', { id: A.a1_0, minutes: 30, link: 'tool_missing' })).toBe('“tool_missing” is not a link on this chart\'s shelves.');
+		expect(await run('log_time', { id: A.a0_0, minutes: 30, link: 'tool_1' })).toBe('“Drills” is on Speed\'s shelf, not Easy runs.');
+		expect(await run('log_time', { id: A.a1_0, minutes: 30, link: 'tool_1' })).toBe('Logged 30 min on “Speed session 1 on Monday” (Drills).');
+		expect(calls.time[1]).toEqual([A.a1_0, 30, 'tool_1']);
 	});
 
 	it("suggests today's three, hands the review to the agent with the method, and reports progress as JSON", async () => {

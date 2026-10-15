@@ -92,6 +92,7 @@ describe('the log', () => {
 	it('adds time spent before it was logged, ending now', () => {
 		const now = new Date(2026, 9, 12, 19, 0);
 		expect(sessionEndingAt(A.a3_2, 45, now)).toEqual({ dateKey: today, session: { action: A.a3_2, at: '18:15', minutes: 45 } });
+		expect(sessionEndingAt(A.a3_2, 45, now, 'tool_1')).toEqual({ dateKey: today, session: { action: A.a3_2, at: '18:15', minutes: 45, link: 'tool_1' } });
 		const justAfterMidnight = new Date(2026, 9, 13, 0, 20);
 		expect(sessionEndingAt(A.a3_2, 60, justAfterMidnight).session.at).toBe('00:00');
 	});
@@ -111,11 +112,11 @@ describe('the log', () => {
 
 	it('travels through a save and keeps a running timer', () => {
 		const data = chart();
-		addSession(data, today, { action: A.a0_0, at: '07:10', minutes: 15 });
-		data.timer = { action: A.a3_2, since: start, length: 25 };
+		addSession(data, today, { action: A.a0_0, at: '07:10', minutes: 15, link: 'tool_1' });
+		data.timer = { action: A.a3_2, since: start, length: 25, link: 'tool_1' };
 		const again = parseChart(JSON.stringify(data))!;
-		expect(again.days?.[today]?.sessions).toEqual([{ action: A.a0_0, at: '07:10', minutes: 15 }]);
-		expect(again.timer).toEqual({ action: A.a3_2, since: start, length: 25 });
+		expect(again.days?.[today]?.sessions).toEqual([{ action: A.a0_0, at: '07:10', minutes: 15, link: 'tool_1' }]);
+		expect(again.timer).toEqual({ action: A.a3_2, since: start, length: 25, link: 'tool_1' });
 	});
 
 	it('drops a timer it cannot read', () => {

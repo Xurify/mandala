@@ -22,7 +22,7 @@ import {
 	type Tool,
 	type ToolKind
 } from './model.ts';
-import { keptFor, openedLately, shelfOf, upNext } from './tools.ts';
+import { keptFor, openedLately, shelfOf, toolInChart, upNext } from './tools.ts';
 
 /**
  * Tools an agent in the browser can call, through WebMCP (`document.modelContext`). The agent reads, proposes what
@@ -43,8 +43,8 @@ export type AgentTarget = {
 	planTomorrow(ids: ActionId[]): void;
 	pin(ids: ActionId[], pinned: boolean): void;
 	moveCard(id: ActionId, lane: Lane, index: number): boolean;
-	logTime(id: ActionId, minutes: number): void;
-	startTimer(id: ActionId, minutes?: number): void;
+	logTime(id: ActionId, minutes: number, link?: string): void;
+	startTimer(id: ActionId, minutes?: number, link?: string): void;
 	stopTimer(): void;
 	addLink(pillarIndex: number, url: string, title: string, kind: ToolKind): void;
 	updateLink(pillarIndex: number, id: string, patch: LinkPatch): void;
@@ -633,18 +633,39 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'log_time',
 			title: 'Log time on an action',
-			description: `Logs minutes spent on an action, ending now, as if a stopwatch had run. At most ${MAX_MINUTES} minutes.`,
+			description: `Logs minutes spent on an action, ending now, as if a stopwatch had run. At most ${MAX_MINUTES} minutes. An optional link id from read_shelves records which video or resource on the shelf was studied.`,
 			inputSchema: {
 				type: 'object',
-				properties: { id: { type: 'string', description: 'An action id from read_chart' }, minutes: { type: 'integer', minimum: 1, maximum: MAX_MINUTES } },
+				properties: {
+					id: { type: 'string', description: 'An action id from read_chart' },
+					minutes: { type: 'integer', minimum: 1, maximum: MAX_MINUTES },
+					link: { type: 'string', description: 'An optional link id from read_shelves' }
+				},
 				required: ['id', 'minutes']
 			},
 			annotations: {},
 			execute: async (input) => {
-				const found = actionIn(target.data(), input.id);
+				const data = target.data();
+				const found = actionIn(data, input.id);
 				if ('error' in found) return found.error;
 				const minutes = Number(input.minutes);
 				if (!Number.isInteger(minutes) || minutes < 1 || minutes > MAX_MINUTES) return `Not logged. Minutes must be a whole number from 1 to ${MAX_MINUTES}.`;
+				const linkId =
+					typeof input.link === 'string' && input.link.trim()
+						? input.link.trim()
+						: typeof input.link_id === 'string' && input.link_id.trim()
+							? input.link_id.trim()
+							: undefined;
+				if (linkId) {
+					const matched = toolInChart(data, linkId);
+					if (!matched) return `“${linkId}” is not a link on this chart's shelves.`;
+					const actionSlot = slotOf(data, found.id);
+					if (actionSlot && actionSlot.pillarIndex !== matched.pillarIndex) {
+						return `“${matched.tool.title}” is on ${pillarName(data, matched.pillarIndex)}'s shelf, not ${pillarName(data, actionSlot.pillarIndex)}.`;
+					}
+					target.logTime(found.id, minutes, linkId);
+					return `Logged ${minutes} min on “${found.text}” (${matched.tool.title}).`;
+				}
 				target.logTime(found.id, minutes);
 				return `Logged ${minutes} min on “${found.text}”.`;
 			}
@@ -652,10 +673,14 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'start_timer',
 			title: 'Start a timer on an action',
-			description: `Starts a stopwatch on an action, or a focus block when minutes is given (25 is the usual block, at most ${BLOCK_MAX}). Its time is logged when it stops. One timer runs at a time: starting one logs and stops the one running.`,
+			description: `Starts a stopwatch on an action, or a focus block when minutes is given (25 is the usual block, at most ${BLOCK_MAX}). Its time is logged when it stops. One timer runs at a time: starting one logs and stops the one running. An optional link id from read_shelves ties the time to that video or resource.`,
 			inputSchema: {
 				type: 'object',
-				properties: { id: { type: 'string', description: 'An action id from read_chart' }, minutes: { type: 'integer', minimum: 1, maximum: BLOCK_MAX } },
+				properties: {
+					id: { type: 'string', description: 'An action id from read_chart' },
+					minutes: { type: 'integer', minimum: 1, maximum: BLOCK_MAX },
+					link: { type: 'string', description: 'An optional link id from read_shelves' }
+				},
 				required: ['id']
 			},
 			annotations: {},
@@ -665,9 +690,25 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				if ('error' in found) return found.error;
 				const minutes = input.minutes === undefined ? undefined : Number(input.minutes);
 				if (minutes !== undefined && (!Number.isInteger(minutes) || minutes < 1 || minutes > BLOCK_MAX)) return `Not started. Minutes must be a whole number from 1 to ${BLOCK_MAX}.`;
+				const linkId =
+					typeof input.link === 'string' && input.link.trim()
+						? input.link.trim()
+						: typeof input.link_id === 'string' && input.link_id.trim()
+							? input.link_id.trim()
+							: undefined;
+				if (linkId) {
+					const matched = toolInChart(data, linkId);
+					if (!matched) return `“${linkId}” is not a link on this chart's shelves.`;
+					const actionSlot = slotOf(data, found.id);
+					if (actionSlot && actionSlot.pillarIndex !== matched.pillarIndex) {
+						return `“${matched.tool.title}” is on ${pillarName(data, matched.pillarIndex)}'s shelf, not ${pillarName(data, actionSlot.pillarIndex)}.`;
+					}
+				}
 				const running = data.timer?.action && data.timer.action !== found.id ? written(data, data.timer.action) : null;
-				target.startTimer(found.id, minutes);
-				return [minutes ? `Started a ${minutes}-minute block on “${found.text}”.` : `Started a stopwatch on “${found.text}”.`, running ? `The timer on “${running}” stopped, and its time was logged.` : '']
+				target.startTimer(found.id, minutes, linkId);
+				const toolTitle = linkId ? toolInChart(data, linkId)?.tool.title : null;
+				const withTool = toolTitle ? ` (${toolTitle})` : '';
+				return [minutes ? `Started a ${minutes}-minute block on “${found.text}”${withTool}.` : `Started a stopwatch on “${found.text}”${withTool}.`, running ? `The timer on “${running}” stopped, and its time was logged.` : '']
 					.filter(Boolean)
 					.join(' ');
 			}

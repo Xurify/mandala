@@ -515,8 +515,8 @@ export const agentTarget: AgentTarget = {
 		if (moved) chart.say(`Your assistant moved “${wordsOf(chart.data, id)}” to ${LANE_NAMES[lane]}.`);
 		return moved;
 	},
-	logTime: (id, minutes) => chart.logTime(id, minutes),
-	startTimer: (id, minutes) => chart.startTimer(id, minutes),
+	logTime: (id, minutes, link) => chart.logTime(id, minutes, link),
+	startTimer: (id, minutes, link) => chart.startTimer(id, minutes, link),
 	stopTimer: () => chart.stopTimer(),
 	addLink: (pillarIndex, url, title, kind) => {
 		chart.addTool(pillarIndex, url, title, kind);

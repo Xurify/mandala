@@ -201,8 +201,8 @@ describe('chart time', () => {
 	});
 
 	it('adds time spent away from the app', () => {
-		chart.logTime(ids().a3_2, 45);
-		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45 })]);
+		chart.logTime(ids().a3_2, 45, 'tool_1');
+		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45, link: 'tool_1' })]);
 	});
 });
 

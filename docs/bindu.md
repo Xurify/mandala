@@ -95,7 +95,7 @@ The agent is the model Bindu does not have. What needs judgment about the person
 | `set_today`, `plan_tomorrow` | Today's or tomorrow's list, by action id |
 | `pin_actions` | Pin or unpin actions, which lead Bindu's picks |
 | `move_card` | Move an action between the board's lists |
-| `log_time`, `start_timer`, `stop_timer` | Time on an action: logged afterwards, a stopwatch or a focus block, and stopping it |
+| `log_time`, `start_timer`, `stop_timer` | Time on an action: logged afterwards (optionally naming a shelf link from read_shelves), a stopwatch or a focus block, and stopping it |
 | `read_shelves` | Each pillar's shelf: every link's id, kind, whether it is known, which action hands it out, what Today hands out, and how often it was opened lately |
 | `add_shelf_link` | A link to a pillar's shelf, such as the page the person is on, as repeat, once or staple |
 | `update_shelf_link` | How a link comes round: its kind, known or back in rotation, and which action hands it out. Never removes one |
