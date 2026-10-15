@@ -1,7 +1,7 @@
 import { morph } from "./morph";
 import { applyChange, finish as finishAction, leftToday, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
 import type { Goal } from "./calendar.ts";
-import { newTool, opened } from "./tools";
+import { newTool, opened, toolInChart } from "./tools";
 import {
   blockOfK,
   blockOfKey,
@@ -923,7 +923,7 @@ export class ChartStore {
   loggingTime = $state<{ action: ActionId; forgotten?: Timer } | null>(null);
   #endSeq = 1;
 
-  startTimer(action: ActionId, length?: number): void {
+  startTimer(action: ActionId, length?: number, link?: string): void {
     const now = Date.now();
     const previous = this.data.timer;
     if (previous?.action) {
@@ -934,7 +934,7 @@ export class ChartStore {
         if (logged) this.say(`Logged ${formatMinutes(logged.minutes)} on ${actionLabel(this.data, previous.action)}.`);
       }
     }
-    this.data.timer = length ? { action, since: now, length } : { action, since: now };
+    this.data.timer = { action, since: now, ...(length ? { length } : {}), ...(link ? { link } : {}) };
     this.timerEnd = null;
     this.data = { ...this.data };
     this.save();
@@ -980,19 +980,21 @@ export class ChartStore {
     this.#clearTimer();
   }
 
-  logTime(action: ActionId, minutes: number): void {
+  logTime(action: ActionId, minutes: number, link?: string): void {
     const forgotten = this.loggingTime?.forgotten;
     if (forgotten && this.data.timer?.since === forgotten.since) {
-      this.#logTimer(forgotten, Date.now(), minutes);
+      this.#logTimer(forgotten, Date.now(), minutes, link ?? forgotten.link);
       this.#clearTimer();
     } else {
-      const { dateKey, session } = sessionEndingAt(action, minutes, new Date());
+      const { dateKey, session } = sessionEndingAt(action, minutes, new Date(), link);
       addSession(this.data, dateKey, session);
       this.data = { ...this.data };
       this.save();
     }
     this.loggingTime = null;
-    this.say(`Logged ${formatMinutes(minutes)} on ${actionLabel(this.data, action)}.`);
+    const tool = link ? toolInChart(this.data, link)?.tool : null;
+    const on = tool ? ` on “${tool.title}” (${actionLabel(this.data, action)})` : ` on ${actionLabel(this.data, action)}`;
+    this.say(`Logged ${formatMinutes(minutes)}${on}.`);
   }
 
   #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
@@ -1029,8 +1031,8 @@ export class ChartStore {
     this.save();
   }
 
-  #logTimer(timer: Timer, now: number, minutes?: number): { minutes: number } | null {
-    const logged = sessionOf(timer, now, minutes);
+  #logTimer(timer: Timer, now: number, minutes?: number, link?: string): { minutes: number } | null {
+    const logged = sessionOf(link ? { ...timer, link } : timer, now, minutes);
     if (!logged) return null;
     addSession(this.data, logged.dateKey, logged.session);
     return logged.session;

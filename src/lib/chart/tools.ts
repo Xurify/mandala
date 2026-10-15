@@ -48,6 +48,14 @@ export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {
 	return data.tools?.[`p${pillarIndex}`] ?? [];
 }
 
+export function toolInChart(data: ChartData, id: string): { pillarIndex: number; tool: Tool } | null {
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const tool = shelfOf(data, pillarIndex).find((each) => each.id === id);
+		if (tool) return { pillarIndex, tool };
+	}
+	return null;
+}
+
 export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
 	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
 }

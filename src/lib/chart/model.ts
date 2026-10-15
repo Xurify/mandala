@@ -53,6 +53,7 @@ export type Session = {
 	/** Local start, "HH:MM". */
 	at: string;
 	minutes: number;
+	link?: string;
 };
 
 /** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
@@ -60,6 +61,7 @@ export type Timer = {
 	action?: ActionId;
 	since: number;
 	length?: number;
+	link?: string;
 };
 
 export type WeekReflection = {
@@ -174,6 +176,7 @@ export function parseTimer(value: unknown): Timer | undefined {
 	const timer: Timer = { since: record.since };
 	if (isId('action', record.action)) timer.action = record.action;
 	if (typeof record.length === 'number' && record.length > 0 && record.length <= 24 * 60) timer.length = record.length;
+	if (typeof record.link === 'string' && record.link.trim()) timer.link = record.link.trim();
 	return timer.action || timer.length ? timer : undefined;
 }
 

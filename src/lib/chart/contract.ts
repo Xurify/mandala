@@ -86,13 +86,15 @@ export const DAY_LOG: Record<keyof DayLog, Reach> = {
 export const SESSION: Record<keyof Session, Reach> = {
 	action: 'yours',
 	at: 'yours',
-	minutes: 'yours'
+	minutes: 'yours',
+	link: 'yours'
 };
 
 export const TIMER: Record<keyof Timer, Reach> = {
 	action: 'yours',
 	since: 'yours',
-	length: 'yours'
+	length: 'yours',
+	link: 'yours'
 };
 
 export const WEEK: Record<keyof WeekReflection, Reach> = {

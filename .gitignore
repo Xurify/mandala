@@ -28,3 +28,4 @@ vite.config.ts.timestamp-*
 .vercel
 .freebuff/project-id
 .freebuff/
+pr_body.md
