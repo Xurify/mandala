@@ -64,6 +64,20 @@ function sandbox(data = chartData(), binduOn = true) {
 }
 
 describe('agent tools', () => {
+	it('describes every field it asks for', () => {
+		const undescribed: string[] = [];
+		const walk = (schema: Record<string, unknown>, path: string) => {
+			const properties = (schema.properties ?? {}) as Record<string, Record<string, unknown>>;
+			for (const [key, property] of Object.entries(properties)) {
+				if (typeof property.description !== 'string' || !property.description) undescribed.push(`${path}.${key}`);
+				walk(property, `${path}.${key}`);
+			}
+			if (schema.items && typeof schema.items === 'object') walk(schema.items as Record<string, unknown>, `${path}[]`);
+		};
+		for (const tool of sandbox().tools) walk(tool.inputSchema, tool.name);
+		expect(undescribed).toEqual([]);
+	});
+
 	it('reads only, or proposes, or does what a tap does: nothing shares, syncs, exports or deletes', () => {
 		const { tools } = sandbox();
 		expect(tools.map((tool) => tool.name)).toEqual([

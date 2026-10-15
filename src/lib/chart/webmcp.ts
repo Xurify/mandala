@@ -72,6 +72,7 @@ const MAX_MINUTES = 600;
 const BLOCK_MAX = 120;
 const NOTE_MAX = 600;
 const WEEKS_BACK = 12;
+const URL_MAX = 2048;
 const KIND_NAMES = ['standard', 'routine', 'milestone'] as const;
 
 const CHART_WORDS =
@@ -414,7 +415,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			name: 'week_history',
 			title: 'Read a week',
 			description: `What one week held, Monday to Sunday: what was ticked each day, the milestones finished, minutes per pillar, and the note the person kept for it. weeksAgo 0 is this week, up to ${WEEKS_BACK}. reflectionDue says the person has not written this week's note yet; propose_reflection can draft it.`,
-			inputSchema: { type: 'object', properties: { weeksAgo: { type: 'integer', minimum: 0, maximum: WEEKS_BACK } } },
+			inputSchema: { type: 'object', properties: { weeksAgo: { type: 'integer', minimum: 0, maximum: WEEKS_BACK, description: `How many weeks back: 0 is this week, 1 last week, up to ${WEEKS_BACK}. Leave out for this week.` } } },
 			annotations: READ,
 			execute: async (input) => {
 				const back = input.weeksAgo === undefined ? 0 : Number(input.weeksAgo);
@@ -441,6 +442,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 						type: 'array',
 						minItems: 1,
 						maxItems: 72,
+						description: 'The pillars and actions to change, each a cell and its new line',
 						items: {
 							type: 'object',
 							properties: {
@@ -470,8 +472,8 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			inputSchema: {
 				type: 'object',
 				properties: {
-					goal: { type: 'string', maxLength: GOAL_MAX },
-					pillars: { type: 'array', minItems: 8, maxItems: 8, items: { type: 'string', maxLength: TEXT_MAX } },
+					goal: { type: 'string', maxLength: GOAL_MAX, description: 'The goal in the center, in the person\'s words and language' },
+					pillars: { type: 'array', minItems: 8, maxItems: 8, description: 'Eight pillar headings, p0 to p7 in order', items: { type: 'string', maxLength: TEXT_MAX } },
 					actions: {
 						type: 'array',
 						minItems: 8,
@@ -482,7 +484,12 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 					brief: {
 						type: 'object',
 						description: 'What the person told you, a few words each. Leave out what they did not say.',
-						properties: { timeline: { type: 'string' }, situation: { type: 'string' }, focus: { type: 'string' }, constraint: { type: 'string' } }
+						properties: {
+							timeline: { type: 'string', description: 'By when, or for how long' },
+							situation: { type: 'string', description: 'Where they stand today' },
+							focus: { type: 'string', description: 'What matters most to them' },
+							constraint: { type: 'string', description: 'What limits them, such as time on a normal day' }
+						}
 					}
 				},
 				required: ['goal', 'pillars', 'actions']
@@ -506,9 +513,10 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 						type: 'array',
 						minItems: 1,
 						maxItems: 64,
+						description: 'The actions whose kind would change, each with its new kind',
 						items: {
 							type: 'object',
-							properties: { id: { type: 'string', description: 'An action id from read_chart' }, kind: { type: 'string', enum: [...KIND_NAMES] } },
+							properties: { id: { type: 'string', description: 'An action id from read_chart' }, kind: { type: 'string', enum: [...KIND_NAMES], description: 'The kind it would be' } },
 							required: ['id', 'kind']
 						}
 					}
@@ -527,7 +535,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			name: 'propose_reflection',
 			title: "Draft the week's note",
 			description: `Shows a draft of the person's note for the week in Bindu: one or two sentences on what happened and what they want next week to hold, in their voice and language. Bindu says it back to them when the new week starts. Nothing is saved until they press Keep. Read week_history first. At most ${NOTE_MAX} characters.`,
-			inputSchema: { type: 'object', properties: { note: { type: 'string', maxLength: NOTE_MAX } }, required: ['note'] },
+			inputSchema: { type: 'object', properties: { note: { type: 'string', maxLength: NOTE_MAX, description: 'One or two sentences in the person\'s voice and language' } }, required: ['note'] },
 			annotations: {},
 			execute: async (input) => {
 				const after = typeof input.note === 'string' ? input.note.trim() : '';
@@ -591,7 +599,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			name: 'pin_actions',
 			title: 'Pin actions for the week',
 			description: "Pins actions, or unpins them with pinned false. A pinned action leads Bindu's picks each day until it is unpinned.",
-			inputSchema: { type: 'object', properties: { ids: ID_LIST, pinned: { type: 'boolean', default: true } }, required: ['ids'] },
+			inputSchema: { type: 'object', properties: { ids: ID_LIST, pinned: { type: 'boolean', default: true, description: 'True to pin, false to unpin' } }, required: ['ids'] },
 			annotations: {},
 			execute: async (input) => {
 				const data = target.data();
@@ -613,7 +621,9 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			description: `Moves an action between the board's lists: ${LANES.map((lane) => `"${lane}" (${LANE_NAMES[lane]})`).join(', ')}. Doing puts it on today's list; Done finishes it, as a tick does. A routine never goes to Done. It goes to the end of the list unless index says where, from 0.`,
 			inputSchema: {
 				type: 'object',
-				properties: { id: { type: 'string', description: 'An action id from read_chart' }, lane: { type: 'string', enum: [...LANES] }, index: { type: 'integer', minimum: 0 } },
+				properties: { id: { type: 'string', description: 'An action id from read_chart' }, lane: { type: 'string', enum: [...LANES], description: 'The list to move it to' },
+					index: { type: 'integer', minimum: 0, description: 'Its place in that list, from 0. Leave out for the end.' }
+				},
 				required: ['id', 'lane']
 			},
 			annotations: {},
@@ -638,7 +648,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				type: 'object',
 				properties: {
 					id: { type: 'string', description: 'An action id from read_chart' },
-					minutes: { type: 'integer', minimum: 1, maximum: MAX_MINUTES },
+					minutes: { type: 'integer', minimum: 1, maximum: MAX_MINUTES, description: 'Whole minutes spent, ending now' },
 					link: { type: 'string', description: 'An optional link id from read_shelves' }
 				},
 				required: ['id', 'minutes']
@@ -678,7 +688,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				type: 'object',
 				properties: {
 					id: { type: 'string', description: 'An action id from read_chart' },
-					minutes: { type: 'integer', minimum: 1, maximum: BLOCK_MAX },
+					minutes: { type: 'integer', minimum: 1, maximum: BLOCK_MAX, description: 'Length of a focus block. Leave out for a stopwatch.' },
 					link: { type: 'string', description: 'An optional link id from read_shelves' }
 				},
 				required: ['id']
@@ -739,9 +749,15 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				type: 'object',
 				properties: {
 					pillar: { type: 'integer', minimum: 0, maximum: 7, description: 'The pillar, 0 to 7, as in read_chart' },
-					url: { type: 'string', description: 'An http or https link' },
-					title: { type: 'string', maxLength: TEXT_MAX },
-					kind: { type: 'string', enum: [...TOOL_KINDS] }
+					url: {
+						type: 'string',
+						format: 'uri',
+						pattern: '^https?://',
+						maxLength: URL_MAX,
+						description: 'An http or https link to save. It is stored on the shelf as text and opened only when the person taps it; nothing here fetches it.'
+					},
+					title: { type: 'string', maxLength: TEXT_MAX, description: 'A short name for the link, as the page titles itself' },
+					kind: { type: 'string', enum: [...TOOL_KINDS], description: 'How it comes round. Leave out for repeat.' }
 				},
 				required: ['pillar', 'url']
 			},
@@ -751,7 +767,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				const pillarIndex = Number(input.pillar);
 				if (!Number.isInteger(pillarIndex) || pillarIndex < 0 || pillarIndex > 7) return 'Not saved. Pillar must be 0 to 7.';
 				const url = typeof input.url === 'string' ? input.url.trim() : '';
-				if (!isUrl(url)) return 'Not saved. Give an http or https link.';
+				if (!isUrl(url) || url.length > URL_MAX) return 'Not saved. Give an http or https link.';
 				const name = pillarName(data, pillarIndex);
 				if ((data.tools?.[`p${pillarIndex}`] ?? []).some((tool) => tool.url === url)) return `That link is already on ${name}'s shelf.`;
 				const title = typeof input.title === 'string' ? input.title.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : '';
@@ -769,8 +785,8 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 				type: 'object',
 				properties: {
 					id: { type: 'string', description: 'A link id from read_shelves' },
-					kind: { type: 'string', enum: [...TOOL_KINDS] },
-					known: { type: 'boolean' },
+					kind: { type: 'string', enum: [...TOOL_KINDS], description: 'How it comes round' },
+					known: { type: 'boolean', description: 'True once the person knows it, so it waits on the shelf; false to hand it out again' },
 					action: { type: 'string', description: 'An action id from read_chart in the same pillar, or "any"' }
 				},
 				required: ['id']
