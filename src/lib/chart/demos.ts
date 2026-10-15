@@ -19,6 +19,7 @@ export type DemoId =
 	| 'bindu-new'
 	| 'bindu-provider'
 	| 'bindu-agent'
+	| 'agent-chart'
 	| 'agent-kinds'
 	| 'agent-week'
 	| 'tools'
@@ -429,6 +430,16 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'agent-chart',
+		title: 'A whole chart from an agent',
+		group: 'Bindu',
+		steps: [
+			'A new, empty chart. The demo calls propose_chart, as an agent would after new_chart_guide, and Bindu opens on the chart to keep.',
+			'Keep fills the empty chart and lands the moment. Not now leaves it empty.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then tell it your goal and ask for a chart straight away.'
+		]
+	},
+	{
 		id: 'agent-kinds',
 		title: 'Routines and milestones from an agent',
 		group: 'Bindu',
@@ -524,6 +535,11 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 			...whole.actions[6]!.map((text, slot) => ({ cell: `a6_${slot}`, text }))
 		];
 		return { data, view: 'view', open: { agent: { tool: 'propose_lines', input: () => ({ lines }) } } };
+	}
+	if (id === 'agent-chart') {
+		const whole = preset('fitness');
+		const input = () => ({ goal: whole.goal, pillars: whole.pillars, actions: whole.actions });
+		return { data: null, view: 'view', open: { agent: { tool: 'propose_chart', input } } };
 	}
 	if (id === 'agent-kinds') {
 		const kinds: [string, string][] = [

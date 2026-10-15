@@ -1,5 +1,5 @@
 import { boardOf, finishedOn, LANE_NAMES, LANES, tomorrowOf, type Lane } from './board.ts';
-import { ACTION_MAX, chartFromDraft, GOAL_MAX, METHOD, PILLAR_MAX } from './draft.ts';
+import { ACTION_MAX, chartFromDraft, GOAL_MAX, METHOD, newChartPrompt, PILLAR_MAX } from './draft.ts';
 import { gapsOf, progressOf, suggestToday, type CellEdit, type HelperOffer, type KindChange } from './helper.ts';
 import {
 	dateKeyOf,
@@ -372,6 +372,24 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 			}
 		},
 		{
+			name: 'new_chart_guide',
+			title: 'How to write a new chart',
+			description: `Returns the prompt the page hands a chat app to write a new chart, with the method and its tests, so you can write it here instead of the person copying it out. Follow it, then send the chart to propose_chart rather than showing the JSON. Leave out goal to use the open chart's goal. now writes at once on reasonable assumptions; leave it out to ask the person a few questions first.`,
+			inputSchema: {
+				type: 'object',
+				properties: {
+					goal: { type: 'string', maxLength: GOAL_MAX, description: "The person's goal, in their words and language" },
+					now: { type: 'boolean', description: 'True when the person asked for the chart straight away, without questions' }
+				}
+			},
+			annotations: READ,
+			execute: async (input) => {
+				const goal = typeof input.goal === 'string' && input.goal.trim() ? input.goal : target.data().goal;
+				const prompt = newChartPrompt(goal, { oneShot: input.now === true && Boolean(goal.trim()) });
+				return json({ prompt, then: 'Send the chart to propose_chart: goal, pillars, actions, and brief when the person told you about their situation.' });
+			}
+		},
+		{
 			name: 'suggest_today',
 			title: "Suggest today's three",
 			description:
@@ -468,7 +486,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'propose_chart',
 			title: 'Propose a whole chart',
-			description: `Shows a complete chart to the person in Bindu. Keeping it opens it as a new chart beside the one they have, or fills this one if it is empty. Nothing is written until they press Keep. Ask the person about their goal, their time on a normal day, any date, and where they stand before writing. ${TESTS} Goal at most ${GOAL_MAX} characters. Exactly 8 pillars and 8 actions for each, none empty.`,
+			description: `Shows a complete chart to the person in Bindu. Keeping it opens it as a new chart beside the one they have, or fills this one if it is empty. Nothing is written until they press Keep. Read new_chart_guide first for the method. Unless the person asked for it straight away, ask about their goal, their time on a normal day, any date, and where they stand before writing. ${TESTS} Goal at most ${GOAL_MAX} characters. Exactly 8 pillars and 8 actions for each, none empty.`,
 			inputSchema: {
 				type: 'object',
 				properties: {

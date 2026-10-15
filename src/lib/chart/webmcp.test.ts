@@ -83,6 +83,7 @@ describe('agent tools', () => {
 		expect(tools.map((tool) => tool.name)).toEqual([
 			'read_chart',
 			'review_chart',
+			'new_chart_guide',
 			'suggest_today',
 			'progress',
 			'week_history',
@@ -103,8 +104,8 @@ describe('agent tools', () => {
 			'add_shelf_link',
 			'update_shelf_link'
 		]);
-		for (const tool of tools.slice(0, 6)) expect(tool.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
-		for (const tool of tools.slice(6)) expect(tool.annotations.readOnlyHint).toBeUndefined();
+		for (const tool of tools.slice(0, 7)) expect(tool.annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true });
+		for (const tool of tools.slice(7)) expect(tool.annotations.readOnlyHint).toBeUndefined();
 		for (const tool of tools) expect(tool.name).not.toMatch(/share|sync|export|delete|clear/);
 	});
 
@@ -172,6 +173,18 @@ describe('agent tools', () => {
 		const { run } = sandbox(chartData(), false);
 		expect(await run('propose_lines', { lines: [{ cell: 'a0_0', text: 'Run 5 km on Tuesday' }] })).toMatch(/^Not shown: Bindu is turned off/);
 		expect(await run('propose_reflection', { note: 'A good week.' })).toMatch(/^Not shown: Bindu is turned off/);
+	});
+
+	it('hands over the new chart prompt, asking first unless told to write now, and only writing now with a goal', async () => {
+		const blank = sandbox(slotted(emptyChart()));
+		const read = async (input: Record<string, unknown>) => (JSON.parse(await blank.run('new_chart_guide', input)) as { prompt: string }).prompt;
+		const quick = await read({ goal: 'Learn the cello', now: true });
+		expect(quick).toContain('My goal: Learn the cello');
+		expect(quick).toContain('Do not ask me anything');
+		expect(await read({ goal: 'Learn the cello' })).toContain('ask me up to three short questions');
+		expect(await read({ now: true })).toContain('Ask for it first');
+		const { data, run } = sandbox();
+		expect((JSON.parse(await run('new_chart_guide', {})) as { prompt: string }).prompt).toContain(`My goal: ${data.goal}`);
 	});
 
 	it('proposes a whole chart only when it is whole', async () => {

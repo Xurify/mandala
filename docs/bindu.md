@@ -76,7 +76,7 @@ A pasted reply is read by `parseDraftText`, from the reply box or pasted anywher
 
 ## Agents in the browser
 
-A browser with an agent in it can call tools a page registers through [WebMCP](https://developer.chrome.com/docs/ai/webmcp). Mandala registers twenty-one when `document.modelContext` is there, and nothing changes where it is not. Chrome has it behind an origin trial from 149; to try it locally, turn on `chrome://flags/#enable-webmcp-testing`. The `/dev/demo` cards under Bindu call the same tools an agent would, without one.
+A browser with an agent in it can call tools a page registers through [WebMCP](https://developer.chrome.com/docs/ai/webmcp). Mandala registers twenty-two when `document.modelContext` is there, and nothing changes where it is not. Chrome has it behind an origin trial from 149; to try it locally, turn on `chrome://flags/#enable-webmcp-testing`. The `/dev/demo` cards under Bindu call the same tools an agent would, without one.
 
 The agent is the model Bindu does not have. What needs judgment about the person's words (writing lines, reviewing them, telling a habit from a one-off, a note for the week) is the agent's, in whatever language the chart is in; nothing on the page reads meaning from words. What rules do well stays rules: picks, progress, the week in numbers.
 
@@ -84,6 +84,7 @@ The agent is the model Bindu does not have. What needs judgment about the person
 | --- | --- |
 | `read_chart` | The open chart: goal, brief, each pillar's shelf, each line with its cell, id, kind, board lane and done state, today's and tomorrow's lists, a running timer |
 | `review_chart` | The chart's lines with the method's tests (`METHOD` in `draft.ts`, the same words the prompts use), for the agent to judge |
+| `new_chart_guide` | The prompt the page hands a chat app for a new chart (`newChartPrompt` in `draft.ts`), so the agent writes it and sends it to `propose_chart` with no copy and paste. `now` skips the questions |
 | `suggest_today` | Today's three, each with why |
 | `progress` | The last 7 days, as on How it is going |
 | `week_history` | One week: ticks by day, milestones finished, minutes per pillar, and its note |
