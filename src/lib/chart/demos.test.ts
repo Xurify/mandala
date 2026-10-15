@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEMOS, demoSetup, isDemoId, type AgentCall } from './demos.ts';
-import { parseDraftText } from './draft.ts';
+import { chartFromDraft, parseDraftText } from './draft.ts';
 import { fillEdits, greetingInsight, reviseEdits, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } from './timer.ts';
-import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
+import { completedBy, dateKeyOf, emptyChart, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
 import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
 import { getPreset } from './presets/index.ts';
@@ -141,5 +141,10 @@ describe('demos', () => {
 		expect(shelf.data!.tools?.p1?.find((tool) => tool.id === 't-site')?.kind).toBe('repeat');
 		const week = demoSetup('agent-week', now);
 		expect((week.open as { agent: AgentCall }).agent.tool).toBe('propose_reflection');
+		const whole = demoSetup('agent-chart', now);
+		const draft = (whole.open as { agent: AgentCall }).agent;
+		expect(whole.data).toBeNull();
+		expect(draft.tool).toBe('propose_chart');
+		expect(chartFromDraft(draft.input(emptyChart()))?.actions.flat().filter(Boolean)).toHaveLength(64);
 	});
 });
