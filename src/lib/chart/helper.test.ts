@@ -177,6 +177,18 @@ describe('insightsFor', () => {
 		expect(insightsFor(data, now)[1]?.text).toBe('First tick in 9 days. Good to see you.');
 	});
 
+	it('notices a pillar fed mostly by sound in the background', () => {
+		const data = sample();
+		data.days = {
+			[day(-1)]: { focus: [A.a0_0], checked: [A.a0_0], sessions: [{ action: A.a0_0, at: '08:00', minutes: 100, mode: 'passive' }, { action: A.a0_0, at: '20:00', minutes: 20 }] },
+			[day(-2)]: { focus: [A.a1_0], checked: [A.a1_0], sessions: [{ action: A.a1_0, at: '08:00', minutes: 50, mode: 'passive' }, { action: A.a1_0, at: '20:00', minutes: 40 }] }
+		};
+		const background = insightsFor(data, now).filter((insight) => insight.id === 'background');
+		expect(background).toHaveLength(1);
+		expect(background[0]?.ref).toBe('p0');
+		expect(background[0]?.text).toBe(`${data.pillars[0]} ran mostly in the background this week: 1 h 40 min with sound on, 20 min at the screen. One block in front of it would count for more.`);
+	});
+
 	it('reads the time of day from tick times', () => {
 		const data = sample();
 		data.days = {

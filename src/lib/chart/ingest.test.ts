@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
-import { actionForPillar, INGEST_REQUEST, INGEST_RESULT, ingest, ingestWords, isHello, isIngestRequest, ready, type IngestRequest } from './ingest.ts';
+import { actionForPillar, INGEST_REQUEST, INGEST_RESULT, ingest, ingestWords, isHello, isIngestRequest, minutesCoveredByPerson, ready, type IngestRequest } from './ingest.ts';
 import { emptyChart, type ChartData } from './model.ts';
 import { minutesOn, sessionsOn } from './timer.ts';
 
@@ -40,7 +40,7 @@ describe('time from a page', () => {
 		const data = chart();
 		const first = ingest(data, request([{ id: S1, pillar: 0, minutes: 25, startedAt: morning }]), now);
 		expect(first.changed).toBe(true);
-		expect(first.result).toEqual({ type: INGEST_RESULT, version: 1, requestId: 'req-1', logged: [S1], known: [], skipped: [] });
+		expect(first.result).toEqual({ type: INGEST_RESULT, version: 1, requestId: 'req-1', logged: [S1], known: [], trimmed: [], skipped: [] });
 		expect(sessionsOn(data, '2026-10-14')).toEqual([{ id: S1, action: A.a0_1, at: '09:30', minutes: 25, source: 'extension' }]);
 
 		const again = ingest(data, request([{ id: S1, pillar: 0, minutes: 25, startedAt: morning }]), now);
@@ -85,6 +85,35 @@ describe('time from a page', () => {
 		expect(result.skipped.map((skip) => skip.id)).toEqual(['nope', S1, S2, S3, 'session_01k7cdefghjkmnpqrstvwxyz04']);
 		expect(result.skipped[1]?.reason).toBe('the pillar has no actions written');
 		expect(result.skipped[4]?.reason).toContain('another pillar');
+	});
+
+	it('leaves the person\u2019s own timer as the record where the two overlap', () => {
+		const data = chart();
+		// A 30-minute block by hand, 09:40 to 10:10, and a stopwatch running since 11:00.
+		data.days = { '2026-10-14': { focus: [], checked: [], sessions: [{ action: A.a0_1, at: '09:40', minutes: 30 }] } };
+		data.timer = { action: A.a0_1, since: new Date(2026, 9, 14, 11, 0).getTime() };
+		expect(minutesCoveredByPerson(data, '2026-10-14', morning, 25, now)).toBe(15);
+		const { result } = ingest(
+			data,
+			request([
+				{ id: S1, action: A.a0_1, minutes: 25, startedAt: morning },
+				{ id: S2, action: A.a0_1, minutes: 20, startedAt: morning + 15 * MINUTE },
+				{ id: S3, action: A.a0_1, minutes: 30, startedAt: new Date(2026, 9, 14, 11, 10).getTime() }
+			]),
+			now
+		);
+		expect(result.logged).toEqual([S1]);
+		expect(result.trimmed).toEqual([{ id: S1, minutes: 10 }]);
+		expect(result.skipped.map((skip) => skip.id)).toEqual([S2, S3]);
+		expect(sessionsOn(data, '2026-10-14').map((session) => session.minutes)).toEqual([10, 30]);
+	});
+
+	it('lets sessions from pages sit side by side: their ids tell them apart', () => {
+		const data = chart();
+		ingest(data, request([{ id: S1, action: A.a0_1, minutes: 25, startedAt: morning }]), now);
+		const { result } = ingest(data, request([{ id: S2, action: A.a0_1, minutes: 25, mode: 'passive', startedAt: morning }]), now);
+		expect(result.logged).toEqual([S2]);
+		expect(result.trimmed).toEqual([]);
 	});
 
 	it('puts what came in into one line', () => {

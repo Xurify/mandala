@@ -54,6 +54,8 @@ export type IngestResult = {
 	logged: string[];
 	/** Ids the chart already had. */
 	known: string[];
+	/** Ids logged with fewer minutes: the rest fell inside a timer the person ran. */
+	trimmed: { id: string; minutes: number }[];
 	skipped: IngestSkip[];
 };
 
@@ -112,12 +114,39 @@ function resolveAction(data: ChartData, session: IngestSession): { action: Actio
 	return { reason: 'names no action, pillar, or link' };
 }
 
+function msOf(dateKey: string, at: string): number {
+	const [year, month, day] = dateKey.split('-').map(Number);
+	const [hours, minutes] = at.split(':').map(Number);
+	return new Date(year!, month! - 1, day!, hours ?? 0, minutes ?? 0).getTime();
+}
+
+function overlapMinutes(startA: number, endA: number, startB: number, endB: number): number {
+	return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB)) / 60_000;
+}
+
+/**
+ * The person's own timer and Log time are the record where they overlap a page's time: the same minutes
+ * would otherwise count twice. Sessions that came in from a page do not cover each other; their ids do.
+ */
+export function minutesCoveredByPerson(data: ChartData, dateKey: string, startedAt: number, minutes: number, now: Date): number {
+	const endedAt = startedAt + minutes * 60_000;
+	let covered = 0;
+	for (const session of data.days?.[dateKey]?.sessions ?? []) {
+		if (session.source) continue;
+		const from = msOf(dateKey, session.at);
+		covered += overlapMinutes(startedAt, endedAt, from, from + session.minutes * 60_000);
+	}
+	const timer = data.timer;
+	if (timer?.action) covered += overlapMinutes(startedAt, endedAt, timer.since, now.getTime());
+	return Math.min(minutes, Math.round(covered));
+}
+
 /**
  * Writes the sessions on the chart and says what happened to each. Mutates `data`; `changed` says whether
  * anything was written.
  */
 export function ingest(data: ChartData, request: IngestRequest, now: Date = new Date()): { changed: boolean; logged: IngestLogged[]; result: IngestResult } {
-	const result: IngestResult = { type: INGEST_RESULT, version: INGEST_VERSION, requestId: request.requestId, logged: [], known: [], skipped: [] };
+	const result: IngestResult = { type: INGEST_RESULT, version: INGEST_VERSION, requestId: request.requestId, logged: [], known: [], trimmed: [], skipped: [] };
 	const logged: IngestLogged[] = [];
 	const have = sessionIds(data);
 	const seen = new Set<string>();
@@ -155,7 +184,14 @@ export function ingest(data: ChartData, request: IngestRequest, now: Date = new 
 		}
 		const start = new Date(startedAt);
 		const dateKey = dateKeyOf(start);
-		const entry: Session = { id, action: found.action, at: clockOf(start), minutes, source: 'extension', ...(mode === 'passive' ? { mode } : {}), ...(link ? { link: link.tool.id } : {}) };
+		const covered = minutesCoveredByPerson(data, dateKey, startedAt, minutes, now);
+		const counted = minutes - covered;
+		if (counted < 1) {
+			result.skipped.push({ id, reason: 'a timer the person ran already covers this time' });
+			continue;
+		}
+		if (covered > 0) result.trimmed.push({ id, minutes: counted });
+		const entry: Session = { id, action: found.action, at: clockOf(start), minutes: counted, source: 'extension', ...(mode === 'passive' ? { mode } : {}), ...(link ? { link: link.tool.id } : {}) };
 		data.days ??= {};
 		const day = data.days[dateKey] ?? { focus: [], checked: [] };
 		data.days[dateKey] = { ...day, sessions: [...(day.sessions ?? []), entry] };
@@ -165,7 +201,7 @@ export function ingest(data: ChartData, request: IngestRequest, now: Date = new 
 		}
 		have.add(id);
 		result.logged.push(id);
-		logged.push({ id, action: found.action, minutes, mode, dateKey, ...(link ? { link: link.tool.id } : {}) });
+		logged.push({ id, action: found.action, minutes: counted, mode, dateKey, ...(link ? { link: link.tool.id } : {}) });
 	}
 	return { changed: logged.length > 0, logged, result };
 }

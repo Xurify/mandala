@@ -99,18 +99,22 @@ export function minutesByPillar(data: ChartData, now: Date = new Date(), days = 
 	return byPillar.map((sessions) => countedMinutes(data, sessions));
 }
 
-/** Passive minutes as they ran, per pillar, over the same days as `minutesByPillar`. */
-export function passiveMinutesByPillar(data: ChartData, now: Date = new Date(), days = 7): number[] {
+/** Minutes as they ran, per pillar, in one mode, over the same days as `minutesByPillar`. */
+export function ranMinutesByPillar(data: ChartData, mode: SessionMode, now: Date = new Date(), days = 7): number[] {
 	const out = Array.from({ length: 8 }, () => 0);
 	for (let back = 0; back < days; back++) {
 		const date = new Date(now);
 		date.setDate(now.getDate() - back);
 		for (const session of sessionsOn(data, dateKeyOf(date))) {
 			const pillar = pillarOfAction(data, session.action);
-			if (pillar !== null && isPassive(session)) out[pillar]! += session.minutes;
+			if (pillar !== null && isPassive(session) === (mode === 'passive')) out[pillar]! += session.minutes;
 		}
 	}
 	return out;
+}
+
+export function passiveMinutesByPillar(data: ChartData, now: Date = new Date(), days = 7): number[] {
+	return ranMinutesByPillar(data, 'passive', now, days);
 }
 
 /** Every session id on the chart, so one that arrives again is known. */

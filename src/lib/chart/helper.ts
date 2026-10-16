@@ -1,6 +1,6 @@
 import { briefLines } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
-import { formatMinutes, minutesByPillar, passiveMinutesByPillar } from './timer.ts';
+import { formatMinutes, minutesByPillar, passiveMinutesByPillar, ranMinutesByPillar } from './timer.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref, type ToolKind } from './model.ts';
 
 /** Letters and digits in any script, so a reply in Japanese or Russian still compares to its chart. */
@@ -396,7 +396,7 @@ function quietPillars(data: ChartData, history: PickHistory, days = 7): number[]
 }
 
 export type HelperInsight = {
-	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'time' | 'words' | 'follow' | 'retire' | 'tool';
+	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'time' | 'background' | 'words' | 'follow' | 'retire' | 'tool';
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
@@ -514,10 +514,30 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 	if (total >= 60 && minutes[most]! / total >= 0.5 && filled(pillarName(data, most))) {
 		insights.push({ id: 'time', ref: `p${most}`, text: `Most of your time this week went to ${pillarName(data, most)}: ${formatMinutes(minutes[most]!)}.`, weight: 32 });
 	}
+	insights.push(...inTheBackground(data, now));
 
 	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now), ...knownByNow(data, now));
 
 	return insights.sort((a, b) => b.weight - a.weight);
+}
+
+/** A pillar fed mostly by sound in the background: an hour or more, three quarters of what ran. */
+function inTheBackground(data: ChartData, now: Date): HelperInsight[] {
+	const passive = passiveMinutesByPillar(data, now);
+	const active = ranMinutesByPillar(data, 'active', now);
+	const out: HelperInsight[] = [];
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const ran = passive[pillarIndex]! + active[pillarIndex]!;
+		if (passive[pillarIndex]! < 60 || passive[pillarIndex]! / ran < 0.75 || !filled(pillarName(data, pillarIndex))) continue;
+		const atScreen = active[pillarIndex]! > 0 ? `${formatMinutes(active[pillarIndex]!)} at the screen` : 'none at the screen';
+		out.push({
+			id: 'background',
+			ref: `p${pillarIndex}`,
+			text: `${pillarName(data, pillarIndex)} ran mostly in the background this week: ${formatMinutes(passive[pillarIndex]!)} with sound on, ${atScreen}. One block in front of it would count for more.`,
+			weight: 30
+		});
+	}
+	return out.slice(0, 1);
 }
 
 function ownWords(data: ChartData, now: Date): HelperInsight[] {
