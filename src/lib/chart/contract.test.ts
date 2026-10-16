@@ -16,13 +16,14 @@ describe('the sync contract', () => {
 	const full = (): ChartData => ({
 		...slotted(emptyChart()),
 		meta: { [A.a0_0]: { ...meta } },
-		days: { '2026-10-01': { focus: [A.a0_0], checked: [A.a0_0], sessions: [{ action: A.a0_0, at: '07:00', minutes: 30 }] } },
+		days: { '2026-10-01': { focus: [A.a0_0], checked: [A.a0_0], sessions: [{ id: 'session_01k7cdefghjkmnpqrstvwxyz01', action: A.a0_0, at: '07:00', minutes: 30, mode: 'passive', source: 'extension' }] } },
 		weeks: { '2026-09-28': { note: 'A good week' } },
 		tools: { p0: [{ ...tool }] },
 		brief: { timeline: 'October' },
 		icons: { 'youtu.be': 'data:image/png;base64,AAAA' },
 		cleared: { [`action_${'0'.repeat(24)}99`]: { text: 'An old line', pillar: 0, slot: 1 } },
-		timer: { action: A.a0_0, since: 1_000, length: 25 }
+		timer: { action: A.a0_0, since: 1_000, length: 25 },
+		passiveWeight: 1
 	});
 
 	it('gives another person what is shared, and only that', () => {

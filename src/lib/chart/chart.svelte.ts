@@ -37,6 +37,9 @@ import {
   type Ref,
   type Session,
   type Timer,
+  PASSIVE_WEIGHT,
+  parsePassiveWeight,
+  type SessionMode,
   type Tool,
   type ToolKind,
   type WeekReflection,
@@ -80,6 +83,7 @@ import {
   unpublishChart,
 } from "./sync/publish.ts";
 import { overlayLocalEdits } from "./sync/sync.ts";
+import { ingest as ingestSessions, ingestWords, type IngestRequest, type IngestResult } from "./ingest.ts";
 import {
   addSession,
   BREAK_MINUTES,
@@ -980,13 +984,13 @@ export class ChartStore {
     this.#clearTimer();
   }
 
-  logTime(action: ActionId, minutes: number, link?: string): void {
+  logTime(action: ActionId, minutes: number, link?: string, mode?: SessionMode): void {
     const forgotten = this.loggingTime?.forgotten;
     if (forgotten && this.data.timer?.since === forgotten.since) {
       this.#logTimer(forgotten, Date.now(), minutes, link ?? forgotten.link);
       this.#clearTimer();
     } else {
-      const { dateKey, session } = sessionEndingAt(action, minutes, new Date(), link);
+      const { dateKey, session } = sessionEndingAt(action, minutes, new Date(), link, mode);
       addSession(this.data, dateKey, session);
       this.data = { ...this.data };
       this.save();
@@ -994,7 +998,7 @@ export class ChartStore {
     this.loggingTime = null;
     const tool = link ? toolInChart(this.data, link)?.tool : null;
     const on = tool ? ` on “${tool.title}” (${actionLabel(this.data, action)})` : ` on ${actionLabel(this.data, action)}`;
-    this.say(`Logged ${formatMinutes(minutes)}${on}.`);
+    this.say(`Logged ${formatMinutes(minutes)}${mode === 'passive' && !forgotten ? ' passive' : ''}${on}.`);
   }
 
   #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
@@ -1028,6 +1032,28 @@ export class ChartStore {
     if (!removed || removed.chartId !== this.#library.activeId) return;
     for (const session of removed.sessions) addSession(this.data, removed.dateKey, session);
     this.data = { ...this.data };
+    this.save();
+  }
+
+  /** Time measured on a page by a browser extension. Each session is logged once, by its id. */
+  ingest(request: IngestRequest): IngestResult {
+    const { changed, logged, result } = ingestSessions(this.data, request);
+    if (changed) {
+      this.data = { ...this.data };
+      this.save();
+      this.say(ingestWords(this.data, logged));
+    }
+    return result;
+  }
+
+  setPassiveWeight(weight: number): void {
+    if (parsePassiveWeight(weight) === undefined) return;
+    if (weight === PASSIVE_WEIGHT) {
+      const { passiveWeight: _passiveWeight, ...rest } = this.data;
+      this.data = rest;
+    } else {
+      this.data = { ...this.data, passiveWeight: weight };
+    }
     this.save();
   }
 

@@ -66,6 +66,12 @@ describe('parseChart', () => {
 		expect(parseChart(JSON.stringify(emptyChart()))?.version).toBe(1);
 	});
 
+	it('keeps how much passive time counts, when it is one of the choices', () => {
+		expect(parseChart(JSON.stringify({ ...emptyChart(), passiveWeight: 1 }))?.passiveWeight).toBe(1);
+		expect(parseChart(JSON.stringify({ ...emptyChart(), passiveWeight: 0.7 }))?.passiveWeight).toBeUndefined();
+		expect(parseChart(JSON.stringify(emptyChart()))?.passiveWeight).toBeUndefined();
+	});
+
 	it('round-trips a valid chart', () => {
 		const data = slotted(emptyChart());
 		data.goal = 'Ship it';

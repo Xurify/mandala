@@ -1,6 +1,6 @@
 import { briefLines } from './draft.ts';
 import { nearKnown, nextTool } from './tools.ts';
-import { formatMinutes, minutesByPillar } from './timer.ts';
+import { formatMinutes, minutesByPillar, passiveMinutesByPillar } from './timer.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref, type ToolKind } from './model.ts';
 
 /** Letters and digits in any script, so a reply in Japanese or Russian still compares to its chart. */
@@ -606,7 +606,10 @@ export type HelperProgress = {
 	written: number;
 	everTicked: boolean;
 	quiet: number[];
+	/** Counted minutes per pillar this week, passive ones at the chart's weight. */
 	minutes: number[];
+	/** Passive minutes per pillar this week, as they ran. */
+	passive: number[];
 	insights: HelperInsight[];
 };
 
@@ -622,6 +625,7 @@ export function progressOf(data: ChartData, now: Date = new Date()): HelperProgr
 		everTicked: Object.values(data.days ?? {}).some((log) => log.checked.length > 0),
 		quiet: quietPillars(data, history),
 		minutes: minutesByPillar(data, now),
+		passive: passiveMinutesByPillar(data, now),
 		insights: insightsFor(data, now).filter((insight) => !['streak', 'quiet', 'time'].includes(insight.id)).slice(0, 3)
 	};
 }

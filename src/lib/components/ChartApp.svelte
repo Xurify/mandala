@@ -6,6 +6,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { agentTarget, helper } from '$lib/chart/helper.svelte';
 	import { agentTools, registerAgentTools } from '$lib/chart/webmcp';
+	import { isHello, isIngestRequest, ready } from '$lib/chart/ingest';
 	import {
 		blockOfKey,
 		getByKey,
@@ -211,8 +212,18 @@
 		const agents = new AbortController();
 		registerAgentTools(agentTarget, agents.signal);
 
+		// A browser extension on this page posts the time it measured; the chart answers every message it understands.
+		const handleIngest = (event: MessageEvent): void => {
+			if (event.source !== window || event.origin !== window.location.origin) return;
+			if (isHello(event.data)) window.postMessage(ready(), window.location.origin);
+			else if (isIngestRequest(event.data)) window.postMessage(chart.ingest(event.data), window.location.origin);
+		};
+		window.addEventListener('message', handleIngest);
+		window.postMessage(ready(), window.location.origin);
+
 		return () => {
 			agents.abort();
+			window.removeEventListener('message', handleIngest);
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
 			window.removeEventListener('hashchange', handleShareHash);

@@ -31,7 +31,8 @@ export const CHART: Record<keyof ChartData, Reach> = {
 	brief: 'yours',
 	icons: 'yours',
 	cleared: 'yours',
-	timer: 'yours'
+	timer: 'yours',
+	passiveWeight: 'yours'
 };
 
 export const CHART_PART: Record<keyof ChartData, Part> = {
@@ -47,7 +48,8 @@ export const CHART_PART: Record<keyof ChartData, Part> = {
 	brief: 'plan',
 	icons: 'plan',
 	cleared: 'history',
-	timer: 'history'
+	timer: 'history',
+	passiveWeight: 'plan'
 };
 
 export const ACTION_META: Record<keyof ActionMeta, Reach> = {
@@ -84,9 +86,12 @@ export const DAY_LOG: Record<keyof DayLog, Reach> = {
 };
 
 export const SESSION: Record<keyof Session, Reach> = {
+	id: 'yours',
 	action: 'yours',
 	at: 'yours',
 	minutes: 'yours',
+	mode: 'yours',
+	source: 'yours',
 	link: 'yours'
 };
 

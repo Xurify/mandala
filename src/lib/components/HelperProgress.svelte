@@ -2,7 +2,7 @@
 	import type { HelperStore } from '$lib/chart/helper.svelte';
 	import { progressOf } from '$lib/chart/helper';
 	import { HUES } from '$lib/chart/model';
-	import { formatMinutes } from '$lib/chart/timer';
+	import { formatMinutes, passiveWeightOf } from '$lib/chart/timer';
 	import Button from './ui/Button.svelte';
 	import WeekStrip from './WeekStrip.svelte';
 
@@ -12,6 +12,7 @@
 	const named = $derived(helper.data.pillars.filter((pillar) => pillar.trim()).length);
 	const quiet = $derived(progress.quiet.map((index) => helper.data.pillars[index]?.trim()).filter(Boolean));
 	const timeTotal = $derived(progress.minutes.reduce((sum, minutes) => sum + minutes, 0));
+	const passiveTotal = $derived(progress.passive.reduce((sum, minutes) => sum + minutes, 0));
 	const timed = $derived(
 		progress.minutes
 			.map((minutes, pillarIndex) => ({ minutes, pillarIndex, name: helper.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}` }))
@@ -67,6 +68,9 @@
 					<h3 id="bindu-time" class="m-0 text-[0.76rem] font-normal text-muted">Time logged</h3>
 					<p class="m-0 text-[1.05rem] leading-tight font-[620] tabular-nums">{formatMinutes(timeTotal)}</p>
 				</div>
+				{#if passiveTotal > 0}
+					<p class="m-0 -mt-1 text-[0.8rem] leading-snug text-muted">{formatMinutes(passiveTotal)} of it ran in the background, counted at {passiveWeightOf(helper.data) === 1 ? 'full' : passiveWeightOf(helper.data) === 0 ? 'nothing' : 'half'}.</p>
+				{/if}
 				<ul class="m-0 flex list-none flex-col gap-1.5 p-0">
 					{#each timed as row (row.pillarIndex)}
 						<li class="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2.5 text-[0.84rem] leading-tight">

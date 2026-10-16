@@ -1,4 +1,4 @@
-export type IdKind = 'chart' | 'action' | 'tool' | 'share';
+export type IdKind = 'chart' | 'action' | 'tool' | 'share' | 'session';
 
 export type Id<Kind extends IdKind> = `${Kind}_${string}`;
 

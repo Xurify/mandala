@@ -19,10 +19,12 @@ import {
 	type ActionId,
 	type ActionKind,
 	type ChartData,
+	type SessionMode,
 	type Tool,
 	type ToolKind
 } from './model.ts';
 import { keptFor, openedLately, shelfOf, toolInChart, upNext } from './tools.ts';
+import { passiveMinutesByPillar, passiveWeightOf } from './timer.ts';
 
 /**
  * Tools an agent in the browser can call, through WebMCP (`document.modelContext`). The agent reads, proposes what
@@ -43,7 +45,7 @@ export type AgentTarget = {
 	planTomorrow(ids: ActionId[]): void;
 	pin(ids: ActionId[], pinned: boolean): void;
 	moveCard(id: ActionId, lane: Lane, index: number): boolean;
-	logTime(id: ActionId, minutes: number, link?: string): void;
+	logTime(id: ActionId, minutes: number, link?: string, mode?: SessionMode): void;
 	startTimer(id: ActionId, minutes?: number, link?: string): void;
 	stopTimer(): void;
 	addLink(pillarIndex: number, url: string, title: string, kind: ToolKind): void;
@@ -241,6 +243,7 @@ export function weekForAgent(data: ChartData, now: Date, weeksAgo: number, refle
 	const today = dateKeyOf(now);
 	const days: Record<string, string[]> = {};
 	const minutes: Record<string, number> = {};
+	const passive: Record<string, number> = {};
 	const finished: string[] = [];
 	let to = from;
 	for (let offset = 0; offset < 7; offset++) {
@@ -255,7 +258,9 @@ export function weekForAgent(data: ChartData, now: Date, weeksAgo: number, refle
 			const pillarIndex = pillarOfAction(data, session.action);
 			if (pillarIndex === null) continue;
 			const name = pillarName(data, pillarIndex);
-			minutes[name] = (minutes[name] ?? 0) + session.minutes;
+			const counted = session.mode === 'passive' ? session.minutes * passiveWeightOf(data) : session.minutes;
+			minutes[name] = (minutes[name] ?? 0) + counted;
+			if (session.mode === 'passive') passive[name] = (passive[name] ?? 0) + session.minutes;
 		}
 	}
 	for (const [id, meta] of Object.entries(data.meta ?? {})) {
@@ -267,7 +272,8 @@ export function weekForAgent(data: ChartData, now: Date, weeksAgo: number, refle
 		to,
 		ticksByDay: days,
 		finished: finished.filter(Boolean),
-		minutesByPillar: minutes,
+		minutesByPillar: Object.fromEntries(Object.entries(minutes).map(([name, value]) => [name, Math.round(value)])),
+		...(Object.keys(passive).length > 0 ? { passiveMinutesByPillar: passive } : {}),
 		...(note ? { note } : {}),
 		...(from === reflectionWeek ? { reflectionDue: !data.weeks?.[from]?.savedAt } : {})
 	};
@@ -410,7 +416,7 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'progress',
 			title: 'How it is going',
-			description: 'The last 7 days: ticks, the pillars they touched, quiet pillars, minutes logged per pillar, the current streak in days, and up to three insights in words.',
+			description: 'The last 7 days: ticks, the pillars they touched, quiet pillars, minutes logged per pillar (passive time counted at the chart\'s passive weight, and listed apart as it ran), the current streak in days, and up to three insights in words.',
 			inputSchema: { type: 'object', properties: {} },
 			annotations: READ,
 			execute: async () => {
@@ -422,6 +428,8 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 					pillarsTicked: progress.pillars.map(name),
 					quietPillars: progress.quiet.map(name),
 					minutes: Object.fromEntries(progress.minutes.flatMap((minutes, index) => (minutes > 0 ? [[name(index), minutes]] : []))),
+					passiveMinutes: Object.fromEntries(progress.passive.flatMap((minutes, index) => (minutes > 0 ? [[name(index), minutes]] : []))),
+					passiveWeight: passiveWeightOf(data),
 					streakDays: progress.streak,
 					milestonesDone: progress.milestones,
 					actionsWritten: progress.written,
@@ -661,13 +669,14 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 		{
 			name: 'log_time',
 			title: 'Log time on an action',
-			description: `Logs minutes spent on an action, ending now, as if a stopwatch had run. At most ${MAX_MINUTES} minutes. An optional link id from read_shelves records which video or resource on the shelf was studied.`,
+			description: `Logs minutes spent on an action, ending now, as if a stopwatch had run. At most ${MAX_MINUTES} minutes. An optional link id from read_shelves records which video or resource on the shelf was studied. mode "passive" is for time that ran in the background (audio while doing something else); it counts by the chart's passive weight.`,
 			inputSchema: {
 				type: 'object',
 				properties: {
 					id: { type: 'string', description: 'An action id from read_chart' },
 					minutes: { type: 'integer', minimum: 1, maximum: MAX_MINUTES, description: 'Whole minutes spent, ending now' },
-					link: { type: 'string', description: 'An optional link id from read_shelves' }
+					link: { type: 'string', description: 'An optional link id from read_shelves' },
+					mode: { type: 'string', enum: ['active', 'passive'], description: 'Leave out for active. "passive" for time in the background.' }
 				},
 				required: ['id', 'minutes']
 			},
@@ -684,6 +693,9 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 						: typeof input.link_id === 'string' && input.link_id.trim()
 							? input.link_id.trim()
 							: undefined;
+				if (input.mode !== undefined && input.mode !== 'active' && input.mode !== 'passive') return 'Not logged. mode must be "active" or "passive".';
+				const mode: SessionMode | undefined = input.mode === 'passive' ? 'passive' : undefined;
+				const ran = mode ? `${minutes} min passive` : `${minutes} min`;
 				if (linkId) {
 					const matched = toolInChart(data, linkId);
 					if (!matched) return `“${linkId}” is not a link on this chart's shelves.`;
@@ -691,11 +703,11 @@ export function agentTools(target: AgentTarget): AgentTool[] {
 					if (actionSlot && actionSlot.pillarIndex !== matched.pillarIndex) {
 						return `“${matched.tool.title}” is on ${pillarName(data, matched.pillarIndex)}'s shelf, not ${pillarName(data, actionSlot.pillarIndex)}.`;
 					}
-					target.logTime(found.id, minutes, linkId);
-					return `Logged ${minutes} min on “${found.text}” (${matched.tool.title}).`;
+					target.logTime(found.id, minutes, linkId, mode);
+					return `Logged ${ran} on “${found.text}” (${matched.tool.title}).`;
 				}
-				target.logTime(found.id, minutes);
-				return `Logged ${minutes} min on “${found.text}”.`;
+				target.logTime(found.id, minutes, undefined, mode);
+				return `Logged ${ran} on “${found.text}”.`;
 			}
 		},
 		{

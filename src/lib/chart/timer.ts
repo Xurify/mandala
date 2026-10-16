@@ -1,4 +1,4 @@
-import { clockOf, dateKeyOf, pillarOfAction, wordsOf, type ActionId, type ChartData, type Session, type Timer } from './model.ts';
+import { clockOf, dateKeyOf, PASSIVE_WEIGHT, pillarOfAction, wordsOf, type ActionId, type ChartData, type Session, type SessionMode, type Timer } from './model.ts';
 
 export const BLOCK_MINUTES = 25;
 export const BREAK_MINUTES = 5;
@@ -35,10 +35,13 @@ export function sessionOf(timer: Timer, now: number, minutes = minutesRun(timer,
 	return { dateKey: dateKeyOf(start), session: { action: timer.action, at: clockOf(start), minutes, ...(timer.link ? { link: timer.link } : {}) } };
 }
 
-export function sessionEndingAt(action: ActionId, minutes: number, now: Date, link?: string): { dateKey: string; session: Session } {
+export function sessionEndingAt(action: ActionId, minutes: number, now: Date, link?: string, mode?: SessionMode): { dateKey: string; session: Session } {
 	const start = new Date(now.getTime() - minutes * MINUTE);
 	const sameDay = dateKeyOf(start) === dateKeyOf(now);
-	return { dateKey: dateKeyOf(now), session: { action, at: sameDay ? clockOf(start) : '00:00', minutes, ...(link ? { link } : {}) } };
+	return {
+		dateKey: dateKeyOf(now),
+		session: { action, at: sameDay ? clockOf(start) : '00:00', minutes, ...(mode === 'passive' ? { mode } : {}), ...(link ? { link } : {}) }
+	};
 }
 
 export function addSession(data: ChartData, dateKey: string, session: Session): void {
@@ -51,23 +54,70 @@ export function sessionsOn(data: ChartData, dateKey: string): Session[] {
 	return [...(data.days?.[dateKey]?.sessions ?? [])].sort((a, b) => a.at.localeCompare(b.at));
 }
 
+export function passiveWeightOf(data: ChartData): number {
+	return data.passiveWeight ?? PASSIVE_WEIGHT;
+}
+
+export function isPassive(session: Session): boolean {
+	return session.mode === 'passive';
+}
+
+/** Minutes as they ran, active and passive apart. */
+export function splitMinutes(sessions: readonly Session[]): { active: number; passive: number } {
+	let active = 0;
+	let passive = 0;
+	for (const session of sessions) {
+		if (isPassive(session)) passive += session.minutes;
+		else active += session.minutes;
+	}
+	return { active, passive };
+}
+
+/** What the sessions count for, with passive ones at the chart's weight. Whole minutes, rounded once. */
+export function countedMinutes(data: ChartData, sessions: readonly Session[]): number {
+	const { active, passive } = splitMinutes(sessions);
+	return Math.round(active + passive * passiveWeightOf(data));
+}
+
 export function minutesOn(data: ChartData, dateKey: string, action?: ActionId): number {
-	return sessionsOn(data, dateKey)
-		.filter((session) => action === undefined || session.action === action)
-		.reduce((sum, session) => sum + session.minutes, 0);
+	return countedMinutes(
+		data,
+		sessionsOn(data, dateKey).filter((session) => action === undefined || session.action === action)
+	);
 }
 
 export function minutesByPillar(data: ChartData, now: Date = new Date(), days = 7): number[] {
+	const byPillar = Array.from({ length: 8 }, (): Session[] => []);
+	for (let back = 0; back < days; back++) {
+		const date = new Date(now);
+		date.setDate(now.getDate() - back);
+		for (const session of sessionsOn(data, dateKeyOf(date))) {
+			const pillar = pillarOfAction(data, session.action);
+			if (pillar !== null) byPillar[pillar]!.push(session);
+		}
+	}
+	return byPillar.map((sessions) => countedMinutes(data, sessions));
+}
+
+/** Passive minutes as they ran, per pillar, over the same days as `minutesByPillar`. */
+export function passiveMinutesByPillar(data: ChartData, now: Date = new Date(), days = 7): number[] {
 	const out = Array.from({ length: 8 }, () => 0);
 	for (let back = 0; back < days; back++) {
 		const date = new Date(now);
 		date.setDate(now.getDate() - back);
 		for (const session of sessionsOn(data, dateKeyOf(date))) {
 			const pillar = pillarOfAction(data, session.action);
-			if (pillar !== null) out[pillar]! += session.minutes;
+			if (pillar !== null && isPassive(session)) out[pillar]! += session.minutes;
 		}
 	}
 	return out;
+}
+
+/** Every session id on the chart, so one that arrives again is known. */
+export function sessionIds(data: ChartData): Set<string> {
+	const ids = new Set<string>();
+	for (const log of Object.values(data.days ?? {})) for (const session of log.sessions ?? []) if (session.id) ids.add(session.id);
+	return ids;
 }
 
 export function formatMinutes(minutes: number): string {
