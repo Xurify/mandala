@@ -1,1 +1,1 @@
-<div class="mx-2.5 my-[5px] h-px bg-line" role="separator"></div>
+<div class="mx-2.5 my-1 h-px shrink-0 bg-line" role="separator"></div>

@@ -8,6 +8,7 @@
 	type Props = {
 		children: Snippet;
 		icon?: IconName;
+		iconSize?: number;
 		badge?: string;
 		count?: number;
 		shortcut?: string;
@@ -22,6 +23,7 @@
 	let {
 		children,
 		icon,
+		iconSize,
 		badge,
 		count,
 		shortcut,
@@ -35,6 +37,7 @@
 
 	const menu = getMenu();
 	const styles = $derived(menuItem({ tone, active }));
+	const effectiveIconSize = $derived(iconSize ?? (icon === 'bindu' ? 20 : 18));
 
 	function onClick(event: MouseEvent): void {
 		onclick?.(event);
@@ -52,7 +55,7 @@
 >
 	<span class={styles.main()}>
 		{#if icon}
-			<Icon name={icon} size={16} class={styles.icon()} />
+			<Icon name={icon} size={effectiveIconSize} class={styles.icon()} />
 		{/if}
 		{@render children()}
 	</span>

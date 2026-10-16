@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { HUES } from '$lib/chart/model';
+	import { arcPath, pillarArc } from '$lib/chart/ring';
+
 	export type IconName =
 		| 'search'
 		| 'close'
@@ -69,6 +72,14 @@
 		strokeWidth = 1.8,
 		class: className = ''
 	}: Props = $props();
+
+	// Optically tuned for icon sizes (16-24px): wider gap (16°) prevents color bleeding,
+	// slightly bolder face features keep eyes and smile crisp and cheerful at small sizes.
+	const binduRing = { radius: 9.2, stroke: 2.8, gap: 16 };
+	const binduSegments = HUES.map((hue, pillarIndex) => {
+		const { start, end } = pillarArc(pillarIndex, binduRing);
+		return { hue, d: arcPath(12, 12, binduRing.radius, start, end) };
+	});
 </script>
 
 <svg
@@ -276,10 +287,20 @@
 		<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
 		<path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
 	{:else if name === 'bindu'}
-		<circle cx="12" cy="12" r="9" stroke-dasharray="2.3 4.77" stroke-dashoffset="1.15" />
-		<ellipse cx="9.6" cy="10.9" rx="1.1" ry="1.4" fill="currentColor" stroke="none" />
-		<ellipse cx="14.4" cy="10.9" rx="1.1" ry="1.4" fill="currentColor" stroke="none" />
-		<path d="M9.9 14.3Q12 16.2 14.1 14.3" />
+		<circle cx="12" cy="12" r="7.4" class="fill-ink stroke-none" />
+		{#each binduSegments as segment (segment.hue)}
+			<path
+				class="pillar-stroke fill-none stroke-[2.8] [stroke-linecap:round]"
+				style:--h={segment.hue}
+				d={segment.d}
+			/>
+		{/each}
+		<ellipse cx="9.5" cy="11.2" rx="1.2" ry="1.5" class="fill-on-ink stroke-none" />
+		<ellipse cx="14.5" cy="11.2" rx="1.2" ry="1.5" class="fill-on-ink stroke-none" />
+		<path
+			d="M 9.8 14.1 Q 12 16.3 14.2 14.1"
+			class="stroke-on-ink fill-none stroke-[1.4] [stroke-linecap:round]"
+		/>
 	{:else if name === 'key'}
 		<circle cx="7.5" cy="15.5" r="4.5" />
 		<path d="m10.7 12.3 9.8-9.8" />
