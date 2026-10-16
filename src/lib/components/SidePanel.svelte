@@ -11,7 +11,7 @@
 	} from './goal-fit';
 	import Icon from './Icon.svelte';
 	import Shelf from './Shelf.svelte';
-	import { fetchTitle, linkIn, shelfOf, toolsFor } from '$lib/chart/tools';
+	import { fetchTitle, linkIn, sameLink, shelfOf, toolsFor } from '$lib/chart/tools';
 	import { onMount, tick } from 'svelte';
 	import { slipOut } from './ui/motion';
 	import Button from './ui/Button.svelte';
@@ -106,9 +106,15 @@
 	function shelve(id: ActionId, url: string, fromNote = false): void {
 		const at = slotOf(chart.data, id);
 		if (!at) return;
+		if (fromNote) chart.setActionMeta(id, { note: undefined });
+		const twin = shelfOf(chart.data, at.pillarIndex).find((tool) => sameLink(tool.url, url));
+		if (twin) {
+			chart.updateTool(at.pillarIndex, twin.id, { action: id });
+			chart.say(`Already on the shelf. Now handed out by action ${at.slot + 1}.`);
+			return;
+		}
 		const tool = chart.addTool(at.pillarIndex, url);
 		chart.updateTool(at.pillarIndex, tool.id, { action: id });
-		if (fromNote) chart.setActionMeta(id, { note: undefined });
 		void fetchTitle(url).then((title) => title && chart.updateTool(at.pillarIndex, tool.id, { title }));
 		chart.say(`Put on the shelf for action ${at.slot + 1}.`);
 	}

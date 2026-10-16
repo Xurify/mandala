@@ -79,6 +79,32 @@ describe('chart shelves', () => {
 		chart.undoSlip();
 		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
 	});
+
+	it('takes several tools off in one slip, and its undo puts each back in place', () => {
+		chart.data = emptyChart();
+		const [a, b, c] = ['SZaaZpKLTFE', 'wzMrFFcC1BU', 'dQw4w9WgXcQ'].map((id, index) => chart.addTool(1, `https://youtu.be/${id}`, `T${index}`));
+		const d = chart.addTool(4, 'https://example.com/', 'Elsewhere');
+		chart.removeTools([
+			{ pillarIndex: 1, id: a!.id },
+			{ pillarIndex: 1, id: c!.id },
+			{ pillarIndex: 4, id: d.id }
+		]);
+		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['T1']);
+		expect(chart.data.tools?.p4).toBeUndefined();
+		expect(chart.slips.at(-1)?.subject).toBe('3 links');
+		chart.undoSlip();
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([a!.id, b!.id, c!.id]);
+		expect(chart.data.tools?.p4?.map((tool) => tool.id)).toEqual([d.id]);
+	});
+
+	it('moves a tool to another shelf, and lets the routines there hand it out', () => {
+		chart.data = slotted(emptyChart());
+		const tool = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'Clip');
+		chart.updateTool(1, tool.id, { action: A.a1_0, kind: 'once' });
+		chart.moveTools([{ pillarIndex: 1, id: tool.id }], 6);
+		expect(chart.data.tools?.p1).toBeUndefined();
+		expect(chart.data.tools?.p6).toEqual([{ id: tool.id, url: tool.url, title: 'Clip', kind: 'once' }]);
+	});
 });
 
 describe('chart time', () => {

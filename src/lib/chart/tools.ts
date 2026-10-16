@@ -48,6 +48,29 @@ export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {
 	return data.tools?.[`p${pillarIndex}`] ?? [];
 }
 
+/** Two links are one when they play the same video, or name the same page whatever the www, the case of the host, or a closing slash. */
+export function sameLink(a: string, b: string): boolean {
+	const video = videoId(a);
+	if (video) return video === videoId(b);
+	const key = (url: string) => {
+		try {
+			const parsed = new URL(url.trim());
+			return `${parsed.hostname.replace(/^www\./, '').toLowerCase()}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`;
+		} catch {
+			return url.trim();
+		}
+	};
+	return key(a) === key(b);
+}
+
+export function shelvesWith(data: ChartData, url: string): number[] {
+	const out: number[] = [];
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		if (shelfOf(data, pillarIndex).some((tool) => sameLink(tool.url, url))) out.push(pillarIndex);
+	}
+	return out;
+}
+
 export function toolInChart(data: ChartData, id: string): { pillarIndex: number; tool: Tool } | null {
 	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
 		const tool = shelfOf(data, pillarIndex).find((each) => each.id === id);

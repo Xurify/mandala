@@ -3,16 +3,14 @@
 	import { clipboardPicture, pastedPicture, readIcon } from '$lib/chart/site-icon';
 	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import { tick } from 'svelte';
-	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, shelfOf, thumbnailOf, toolDetail, upNext } from '$lib/chart/tools';
-	import { TOOL_KINDS, idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
+	import { fetchTitle, hostOf, iconOf, keptFor, linkIn, nearKnown, openedLately, sameLink, shelfOf, thumbnailOf, upNext } from '$lib/chart/tools';
+	import { idAt, isActionId, isRoutine, slotOf, type Tool } from '$lib/chart/model';
 	import Icon from './Icon.svelte';
-	import ToolFace from './ToolFace.svelte';
+	import ToolRow from './ToolRow.svelte';
 	import Button from './ui/Button.svelte';
-	import IconButton from './ui/IconButton.svelte';
 	import Menu from './ui/Menu.svelte';
 	import MenuDivider from './ui/MenuDivider.svelte';
 	import MenuItem from './ui/MenuItem.svelte';
-	import SegmentedControl from './ui/SegmentedControl.svelte';
 	import Select from './ui/Select.svelte';
 	import { cn } from './ui/cn';
 	import { foldOut } from './ui/motion';
@@ -33,11 +31,6 @@
 			text.trim() ? [{ value: idAt(chart.data, pillarIndex, index), label: `${index + 1} · ${text.trim()}` }] : []
 		)
 	]);
-	const kinds = [
-		{ value: 'repeat', label: 'Repeat', title: 'Comes round until you press Know this' },
-		{ value: 'once', label: 'Once', title: 'Put away after the first open' },
-		{ value: 'staple', label: 'Staple', title: 'Stays for good, and is never asked if known' }
-	];
 	const elsewhere = $derived(Object.entries(chart.data.tools ?? {}).reduce((sum, [key, list]) => (key === `p${pillarIndex}` ? sum : sum + list.length), 0));
 	const asked = $derived(new Set(nearKnown(chart.data).filter((entry) => entry.pillarIndex === pillarIndex).map((entry) => entry.tool.id)));
 
@@ -49,12 +42,29 @@
 	let editing = $state<string | null>(null);
 	let showKnown = $state(false);
 	let added = $state<string | null>(null);
+	let found = $state<string | null>(null);
 
 	$effect(() => {
 		void pillarIndex;
 		editing = null;
 		showKnown = false;
 	});
+
+	$effect(() => {
+		const id = chart.shelfTool;
+		const tool = id ? tools.find((each) => each.id === id) : undefined;
+		if (!tool) return;
+		chart.shelfTool = null;
+		editing = tool.id;
+		if (tool.known) showKnown = true;
+		void tick().then(() => section?.querySelector<HTMLElement>(`[data-tool="${tool.id}"]`)?.scrollIntoView({ block: 'nearest' }));
+	});
+
+	async function closeSettings(tool: Tool): Promise<void> {
+		editing = null;
+		await tick();
+		section?.querySelector<HTMLElement>(`[data-tool="${tool.id}"] [aria-haspopup="menu"]`)?.focus();
+	}
 
 	function keptAt(tool: Tool): number | null {
 		const kept = keptFor(chart.data, tool);
@@ -116,6 +126,17 @@
 		}
 		rejected = false;
 		draft = '';
+		const twin = tools.find((each) => sameLink(each.url, url));
+		if (twin) {
+			chart.say('Already on this shelf.');
+			if (twin.known) showKnown = true;
+			found = null;
+			void tick().then(() => {
+				found = twin.id;
+				section?.querySelector<HTMLElement>(`[data-tool="${twin.id}"]`)?.scrollIntoView({ block: 'nearest' });
+			});
+			return;
+		}
 		const tool = chart.addTool(pillarIndex, url);
 		added = tool.id;
 		void fetchTitle(url).then((title) => {
@@ -145,24 +166,14 @@
 	}
 
 	/** A row that leaves the list takes its focused button with it, so focus goes to the row after it, or the field. */
-	async function leave(tool: Tool, change: () => void): Promise<void> {
+	async function setKnown(tool: Tool, value: boolean): Promise<void> {
 		const list = tool.known ? known : rotation;
-		const after = list[list.findIndex((entry) => entry.id === tool.id) + 1] ?? list[list.findIndex((entry) => entry.id === tool.id) - 1];
-		editing = null;
-		change();
+		const at = list.findIndex((entry) => entry.id === tool.id);
+		const after = list[at + 1] ?? list[at - 1];
+		chart.updateTool(pillarIndex, tool.id, { known: value || undefined });
 		await tick();
-		const target = after ? section?.querySelector<HTMLElement>(`[data-tool="${after.id}"] [aria-expanded]`) : null;
+		const target = after ? section?.querySelector<HTMLElement>(`[data-tool="${after.id}"] [data-tool-face]`) : null;
 		(target ?? field)?.focus();
-	}
-
-	function setKnown(tool: Tool, value: boolean): void {
-		void leave(tool, () => chart.updateTool(pillarIndex, tool.id, { known: value || undefined }));
-	}
-
-	function setKind(tool: Tool, value: string): void {
-		const kind = TOOL_KINDS.find((each) => each === value) ?? 'repeat';
-		if (kind === 'staple' && tool.known) void leave(tool, () => chart.updateTool(pillarIndex, tool.id, { kind }));
-		else chart.updateTool(pillarIndex, tool.id, { kind });
 	}
 </script>
 
@@ -170,39 +181,27 @@
 	{@const host = hostOf(tool.url)}
 	{@const iconable = !thumbnailOf(tool.url)}
 	{@const open = editing === tool.id}
-	{@const nextFor = next.get(tool.id)}
 	<li
 		data-tool={tool.id}
 		class={cn(
-			'flex flex-col rounded-[16px] focus:outline-none',
+			'relative flex flex-col rounded-[16px] focus:outline-none has-[[role=menu]]:z-10',
 			// A filled animation in the settings leaves a stacking context, so without a z-index a list opened there paints under later rows.
-			open && 'relative z-[1] bg-surface shadow-card',
-			added === tool.id && 'motion-safe:animate-pop-in'
+			open && 'z-[1] bg-surface shadow-card',
+			(added === tool.id || found === tool.id) && 'motion-safe:animate-pop-in'
 		)}
 		tabindex="-1"
 		onpaste={iconable ? (event) => onRowPaste(event, tool.id, host) : undefined}
 		out:foldOut
 	>
-		<div class="flex items-center gap-1 p-1">
-			<a
-				href={tool.url}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="flex min-w-0 flex-1 items-center rounded-[12px] px-1.5 py-1 text-text no-underline hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
-				title={nextFor === undefined ? undefined : `Today hands this out for action ${nextFor + 1}`}
-				onclick={() => chart.openTool(pillarIndex, tool.id)}
-			>
-				<ToolFace {tool} detail={toolDetail(chart.data, pillarIndex, tool)} tag={nextFor === undefined ? undefined : 'Up next'} class="min-w-0 flex-1" />
-			</a>
-			<IconButton
-				icon="chevron-down"
-				label="Settings for {tool.title}"
-				class={cn('size-9 text-muted hover:text-text [&_svg]:motion-safe:transition-transform [&_svg]:motion-safe:duration-200', open && 'text-text [&_svg]:rotate-180')}
-				aria-expanded={open}
-				aria-controls="tool-{tool.id}"
-				onclick={() => (editing = open ? null : tool.id)}
-			/>
-		</div>
+		<ToolRow
+			{pillarIndex}
+			{tool}
+			nextFor={next.get(tool.id)}
+			settingsOpen={open}
+			settingsLabel={open ? 'Hide settings' : 'Who hands it out'}
+			onsettings={() => (editing = open ? null : tool.id)}
+			onempty={() => field?.focus()}
+		/>
 		{#if asked.has(tool.id) && !open}
 			<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 px-2.5 pb-2 text-[0.84rem] leading-snug text-pretty">
 				<span>Opened on {openedLately(tool)} of the last 14 days. Know it by now?</span>
@@ -222,21 +221,8 @@
 						value={keptFor(chart.data, tool) ?? 'any'}
 						onchange={(value) => chart.updateTool(pillarIndex, tool.id, { action: isActionId(value) ? value : undefined })}
 					/>
-					<span class="text-[0.8rem] font-[560] text-muted" aria-hidden="true">Comes round</span>
-					<SegmentedControl
-						size="sm"
-						label="How often {tool.title} comes round"
-						options={kinds}
-						value={tool.kind}
-						onchange={(value) => setKind(tool, value)}
-					/>
 				</div>
 				<div class="flex flex-wrap items-center gap-1.5">
-					{#if tool.kind !== 'staple'}
-						<Button size="sm" variant="soft" icon={tool.known ? 'undo' : 'check'} onclick={() => setKnown(tool, !tool.known)}>
-							{tool.known ? 'Back in rotation' : 'Know this'}
-						</Button>
-					{/if}
 					{#if keptAt(tool) !== null}
 						{@const slot = keptAt(tool)!}
 						<Button size="sm" variant="ghost" icon="arrow-left" onclick={() => chart.jumpToKey(`a${pillarIndex}_${slot}`)}>See action {slot + 1}</Button>
@@ -269,7 +255,7 @@
 							{/if}
 						</Menu>
 					{/if}
-					<Button size="sm" variant="danger" icon="trash" class="ms-auto" onclick={() => leave(tool, () => chart.removeTool(pillarIndex, tool.id))}>Remove</Button>
+					<Button size="sm" variant="ghost" class="ms-auto" onclick={() => closeSettings(tool)}>Done</Button>
 				</div>
 			</div>
 		{/if}
@@ -320,7 +306,7 @@
 	{#if routines.length === 0 && rotation.some((tool) => keptFor(chart.data, tool) === undefined)}
 		<p class="m-0 flex items-start gap-1.5 text-[0.82rem] leading-snug text-pretty text-muted">
 			<Icon name="info" size={14} class="mt-0.5 shrink-0" />
-			Nothing hands these out yet. Make an action here a routine, or open a link's settings and pick one.
+			Nothing hands these out yet. Make an action here a routine, or pick one under Who hands it out in a link's menu.
 		</p>
 	{/if}
 
