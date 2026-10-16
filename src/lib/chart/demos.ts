@@ -336,13 +336,13 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Tools',
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, the arrows for another, or the shelf button to open that pillar\'s shelf.',
-			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. The arrow opens its settings. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
+			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. Its ⋯ menu holds the rest: Know this, Comes round, Move to another shelf, Who hands it out, Remove. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
 			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Reading, a link\'s See action 1 turns back to that cell.',
-			'On Reading, LingQ reader is a staple: it comes round for good, is never asked if known, and has no Know this. In any link\'s settings, Comes round turns it into one; a known link made a staple comes back into rotation.',
-			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
+			'On Reading, LingQ reader is a staple: it comes round for good, is never asked if known, and has no Know this. In any link\'s menu, Comes round turns it into one; a known link made a staple comes back into rotation.',
+			'Remove a link from its menu, or focus it and press Delete, then press Undo on the slip. It goes back where it was. Paste a link that is already on the shelf: the shelf says so and points at it instead of adding a twin.',
 			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
-			'On pillar 5, Reading, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
-			'At the foot of any shelf, See all shelves opens every pillar\'s shelf at once, known ones last. Open on a plank turns that pillar\'s block to its shelf. The more-actions menu has it too.',
+			'On pillar 5, Reading, open the readline link\'s menu, choose Who hands it out, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'At the foot of any shelf, See all shelves opens every pillar\'s shelf at once, known ones last. Each link has the same menu there, so it can be removed or moved without leaving. Select links picks several, shift-click for a run, then Move or Remove them in one go; the slip undoes the lot. Open on a plank turns that pillar\'s block to its shelf. The more-actions menu has it too.',
 			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
 		]
 	},

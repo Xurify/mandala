@@ -70,14 +70,30 @@ describe('chart shelves', () => {
 		chart.clearFocusedKey();
 	});
 
-	it('puts a removed tool back where it was when the slip is undone', () => {
-		const first = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'First');
-		chart.addTool(1, 'https://youtu.be/wzMrFFcC1BU', 'Second');
-		chart.removeTool(1, first.id);
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['Second']);
-		expect(chart.slips.at(-1)?.kicker).toBe('Off the shelf');
+	it('takes tools off in one slip, and its undo puts each back where it was', () => {
+		chart.data = emptyChart();
+		const [firstClip, secondClip, thirdClip] = ['SZaaZpKLTFE', 'wzMrFFcC1BU', 'dQw4w9WgXcQ'].map((videoId, index) => chart.addTool(1, `https://youtu.be/${videoId}`, `Clip ${index + 1}`));
+		const site = chart.addTool(4, 'https://example.com/', 'Site');
+		chart.removeTools([
+			{ pillarIndex: 1, id: firstClip!.id },
+			{ pillarIndex: 1, id: thirdClip!.id },
+			{ pillarIndex: 4, id: site.id }
+		]);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([secondClip!.id]);
+		expect(chart.data.tools?.p4).toBeUndefined();
+		expect(chart.slips.at(-1)).toMatchObject({ kicker: 'Off the shelf', subject: '3 links' });
 		chart.undoSlip();
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([firstClip!.id, secondClip!.id, thirdClip!.id]);
+		expect(chart.data.tools?.p4?.map((tool) => tool.id)).toEqual([site.id]);
+	});
+
+	it('moves a tool to another shelf, and lets the routines there hand it out', () => {
+		chart.data = slotted(emptyChart());
+		const clip = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'Clip');
+		chart.updateTool(1, clip.id, { action: A.a1_0, kind: 'once' });
+		chart.moveTools([{ pillarIndex: 1, id: clip.id }], 6);
+		expect(chart.data.tools?.p1).toBeUndefined();
+		expect(chart.data.tools?.p6).toEqual([{ id: clip.id, url: clip.url, title: 'Clip', kind: 'once' }]);
 	});
 });
 

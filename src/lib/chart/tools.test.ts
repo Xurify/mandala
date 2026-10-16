@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealOrder, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
+import { dealOrder, dealTools, hostOf, sameLink, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -184,5 +184,14 @@ describe('the shelf', () => {
 		expect(svgIn('https://readline.app')).toBeNull();
 		expect(linkIn(svg)).toBeNull();
 		expect(linkIn('Watch this! https://youtu.be/6mCmru24BOI.')).toBe('https://youtu.be/6mCmru24BOI');
+	});
+});
+
+describe('the same link twice', () => {
+	it('knows one video however YouTube writes it, and one page whatever the www or the closing slash', () => {
+		expect(sameLink('https://youtu.be/SZaaZpKLTFE', 'https://www.youtube.com/watch?v=SZaaZpKLTFE&t=12')).toBe(true);
+		expect(sameLink('https://youtu.be/SZaaZpKLTFE', 'https://youtu.be/wzMrFFcC1BU')).toBe(false);
+		expect(sameLink('https://www.Example.com/read/', 'https://example.com/read')).toBe(true);
+		expect(sameLink('https://example.com/read?page=2', 'https://example.com/read?page=3')).toBe(false);
 	});
 });

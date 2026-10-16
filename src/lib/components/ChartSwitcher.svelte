@@ -336,7 +336,7 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
 		if (fromOutside(event) || isTypingTarget(event.target)) return;
 		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 		if (document.querySelector('dialog[open]')) return;

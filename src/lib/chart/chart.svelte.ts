@@ -340,6 +340,8 @@ export class ChartStore {
   reflecting = $state(false);
   selecting = $state(false);
   browsingShelves = $state(false);
+  /** A tool whose settings the shelf opens on, when a door elsewhere asks for them. Never saved. */
+  shelfTool = $state<string | null>(null);
 
   landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
     null,
@@ -1070,20 +1072,54 @@ export class ChartStore {
 
   #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
 
-  removeTool(pillarIndex: number, id: string): void {
-    const key = `p${pillarIndex}`;
-    const list = this.data.tools?.[key] ?? [];
-    const at = list.findIndex((tool) => tool.id === id);
-    if (at < 0) return;
-    const rest = list.filter((tool) => tool.id !== id);
-    const tools = { ...this.data.tools };
-    if (rest.length > 0) tools[key] = rest;
-    else delete tools[key];
-    this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+  /** One slip for the lot, and its Undo puts each back where it was. */
+  removeTools(picks: readonly { pillarIndex: number; id: string }[]): void {
+    const tokens: string[] = [];
+    let title = "";
+    for (const { pillarIndex, id } of picks) {
+      const key = `p${pillarIndex}`;
+      const list = this.data.tools?.[key] ?? [];
+      const at = list.findIndex((tool) => tool.id === id);
+      if (at < 0) continue;
+      const rest = list.filter((tool) => tool.id !== id);
+      const tools = { ...this.data.tools };
+      if (rest.length > 0) tools[key] = rest;
+      else delete tools[key];
+      this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+      const token = `tool:${id}`;
+      this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
+      // Put back last-removed first, so each lands at the index it had when it went.
+      tokens.unshift(token);
+      title = list[at]!.title;
+    }
+    if (tokens.length === 0) return;
     this.save();
-    const token = `tool:${id}`;
-    this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
-    this.#place({ key: token, kicker: "Off the shelf", subject: list[at]!.title, undo: [token] });
+    const subject = tokens.length === 1 ? title : `${tokens.length} links`;
+    this.#place({ key: tokens.length === 1 ? tokens[0]! : `tools:${tokens.join()}`, kicker: "Off the shelf", subject, undo: tokens });
+  }
+
+  /** A tool handed out by one action cannot keep it on another pillar, so a move hands it to that shelf's routines. */
+  moveTools(picks: readonly { pillarIndex: number; id: string }[], to: number): void {
+    let tools = { ...this.data.tools };
+    let moved = 0;
+    for (const { pillarIndex, id } of picks) {
+      if (pillarIndex === to) continue;
+      const from = tools[`p${pillarIndex}`] ?? [];
+      const tool = from.find((each) => each.id === id);
+      if (!tool) continue;
+      const rest = from.filter((each) => each.id !== id);
+      if (rest.length > 0) tools[`p${pillarIndex}`] = rest;
+      else delete tools[`p${pillarIndex}`];
+      const kept = { ...tool };
+      delete kept.action;
+      tools = { ...tools, [`p${to}`]: [...(tools[`p${to}`] ?? []), kept] };
+      moved++;
+    }
+    if (moved === 0) return;
+    this.data = { ...this.data, tools };
+    this.save();
+    const name = this.data.pillars[to]?.trim() || `Pillar ${to + 1}`;
+    this.say(moved === 1 ? `Moved to ${name}.` : `Moved ${moved} links to ${name}.`);
   }
 
   #restoreTool(token: string): void {
@@ -1404,9 +1440,10 @@ export class ChartStore {
     this.face = face;
   }
 
-  openShelf(pillarIndex: number): void {
+  openShelf(pillarIndex: number, toolId: string | null = null): void {
     this.selectPillar(pillarIndex);
     this.face = "shelf";
+    this.shelfTool = toolId;
     if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
       this.setViewMode("edit");
     }

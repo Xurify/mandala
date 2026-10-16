@@ -67,7 +67,8 @@ src/
     WeeklyReflection, WeekStrip, MiniChart, CalendarView
     BoardView.svelte          the board: Open, To do, Doing, Done; drag, keyboard carry, card sheet
     Shelf, ShelfSheet, ToolFace the material behind a pillar, and how a link lands on it
-    Shelves.svelte            every pillar's shelf at once, read-only, with a door to each
+    ToolRow.svelte            one link on a shelf and its menu: know, comes round, move, remove (shelf and all shelves)
+    Shelves.svelte            every pillar's shelf at once: each row's menu, and Select links to move or remove several
     TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
