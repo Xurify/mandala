@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { dayTitle, firstDoneMonth, lastDoneDay, monthLine, monthOf, openedOn, shiftMonth, type Goal, type GoalDone, type MonthDay } from '$lib/chart/calendar';
-	import { HUES, pillarOfAction, todayKey, wordsOf, type ActionId } from '$lib/chart/model';
+	import { HUES, PASSIVE_WEIGHTS, pillarOfAction, todayKey, wordsOf, type ActionId } from '$lib/chart/model';
 	import { arcPath, pillarArc } from '$lib/chart/ring';
-	import { formatMinutes, sessionsOn } from '$lib/chart/timer';
+	import { countedMinutes, formatMinutes, isPassive, passiveWeightOf, sessionsOn } from '$lib/chart/timer';
 	import { toolInChart } from '$lib/chart/tools';
 	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
@@ -11,6 +11,7 @@
 	import IconButton from './ui/IconButton.svelte';
 	import Eyebrow from './ui/Eyebrow.svelte';
 	import Pages from './ui/Pages.svelte';
+	import SegmentedControl from './ui/SegmentedControl.svelte';
 	import { cn } from './ui/cn';
 
 	const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -54,6 +55,8 @@
 					.filter((group) => group.done.length > 0 || group.sessions.length > 0 || group.opened.length > 0)
 			: []
 	);
+	const anyPassive = $derived(groups.some((group) => group.goal.id === chart.activeId && group.sessions.some(isPassive)));
+	const WEIGHTS = PASSIVE_WEIGHTS.map((weight) => ({ value: String(weight), label: weight === 0 ? 'Nothing' : weight === 1 ? 'Full' : 'Half' }));
 	const tally = $derived(
 		across && current.finishedCount > 0
 			? current.byGoal.flatMap(({ goal, finished }) => {
@@ -285,7 +288,7 @@
 						{#if group.sessions.length > 0}
 							<div class="flex items-baseline justify-between gap-3 px-2.5 pt-3 pb-1">
 								<h5 class="m-0 flex items-center gap-1.5 text-[0.84rem] leading-tight font-[620] text-muted"><Icon name="clock" size={14} />Time logged</h5>
-								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{formatMinutes(group.sessions.reduce((sum, session) => sum + session.minutes, 0))}</span>
+								<span class="shrink-0 text-[0.8rem] text-muted tabular-nums">{formatMinutes(countedMinutes(group.goal.data, group.sessions))}</span>
 							</div>
 							<ul class="m-0 flex list-none flex-col gap-px p-0">
 								{#each group.sessions as session, index (`${session.action}-${session.at}-${index}`)}
@@ -311,6 +314,9 @@
 												<span class="flex min-w-0 items-center gap-1.5 text-[0.74rem] leading-tight">
 													<span class="pillar-ink truncate font-[620]" style:--h={HUES[pillarIndex]}>{pillarName(group.goal, pillarIndex)}</span>
 													<span class="shrink-0 text-muted tabular-nums">from {clock(session.at)}</span>
+													{#if isPassive(session)}
+														<span class="shrink-0 rounded-full bg-sunken px-1.5 py-px text-[0.68rem] font-[620] text-muted">In the background</span>
+													{/if}
 												</span>
 											</span>
 											<span class="shrink-0 text-[0.86rem] font-[620] whitespace-nowrap text-text tabular-nums">{formatMinutes(session.minutes)}</span>
@@ -353,6 +359,12 @@
 							</ul>
 						{/if}
 					{/each}
+					{#if anyPassive}
+						<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-2.5 pt-3 pb-1">
+							<p id="calendar-passive" class="m-0 text-[0.84rem] leading-snug text-muted">Time in the background counts</p>
+							<SegmentedControl size="sm" label="How much time in the background counts" options={WEIGHTS} value={String(passiveWeightOf(chart.data))} onchange={(value) => chart.setPassiveWeight(Number(value))} />
+						</div>
+					{/if}
 				</section>
 			{/key}
 		{/if}

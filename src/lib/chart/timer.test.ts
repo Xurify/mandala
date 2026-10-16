@@ -14,7 +14,10 @@ import {
 	ringShare,
 	sessionEndingAt,
 	sessionOf,
-	sessionsOn
+	sessionsOn,
+	splitMinutes,
+	countedMinutes,
+	passiveMinutesByPillar
 } from './timer.ts';
 
 const MINUTE = 60_000;
@@ -137,5 +140,30 @@ describe('words', () => {
 	it('reads like a clock', () => {
 		expect(clockFace(4 * MINUTE + 5_000)).toBe('4:05');
 		expect(clockFace(62 * MINUTE + 5_000)).toBe('1:02:05');
+	});
+});
+
+describe('time in the background', () => {
+	it('counts at half unless the chart says otherwise, rounded once', () => {
+		const data = chart();
+		addSession(data, today, { action: A.a0_0, at: '09:30', minutes: 15 });
+		addSession(data, today, { action: A.a0_0, at: '10:00', minutes: 15, mode: 'passive' });
+		addSession(data, today, { action: A.a3_2, at: '11:00', minutes: 5, mode: 'passive' });
+		expect(splitMinutes(sessionsOn(data, today))).toEqual({ active: 15, passive: 20 });
+		expect(countedMinutes(data, sessionsOn(data, today))).toBe(25);
+		expect(minutesOn(data, today)).toBe(25);
+		expect(minutesOn(data, today, A.a3_2)).toBe(3);
+		expect(minutesByPillar(data, new Date(start))).toEqual([23, 0, 0, 3, 0, 0, 0, 0]);
+		expect(passiveMinutesByPillar(data, new Date(start))).toEqual([15, 0, 0, 5, 0, 0, 0, 0]);
+		data.passiveWeight = 0;
+		expect(minutesByPillar(data, new Date(start))).toEqual([15, 0, 0, 0, 0, 0, 0, 0]);
+		data.passiveWeight = 1;
+		expect(minutesOn(data, today)).toBe(35);
+	});
+
+	it('keeps the mode on a session logged by hand', () => {
+		const logged = sessionEndingAt(A.a0_0, 30, new Date(start + 30 * MINUTE), undefined, 'passive');
+		expect(logged.session).toEqual({ action: A.a0_0, at: '09:30', minutes: 30, mode: 'passive' });
+		expect(sessionEndingAt(A.a0_0, 30, new Date(start + 30 * MINUTE), undefined, 'active').session.mode).toBeUndefined();
 	});
 });

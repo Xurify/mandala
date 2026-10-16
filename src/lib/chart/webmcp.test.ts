@@ -25,7 +25,7 @@ function sandbox(data = chartData(), binduOn = true) {
 		tomorrow: [] as ActionId[][],
 		pinned: [] as [ActionId[], boolean][],
 		moved: [] as [ActionId, Lane, number][],
-		time: [] as ([ActionId, number] | [ActionId, number, string])[],
+		time: [] as ([ActionId, number] | [ActionId, number, string] | [ActionId, number, string | undefined, string])[],
 		timers: [] as ([ActionId, number | undefined] | [ActionId, number | undefined, string])[],
 		stopped: 0,
 		links: [] as [number, string, string, ToolKind][],
@@ -45,7 +45,7 @@ function sandbox(data = chartData(), binduOn = true) {
 		planTomorrow: (ids) => calls.tomorrow.push(ids),
 		pin: (ids, pinned) => calls.pinned.push([ids, pinned]),
 		moveCard: (id, lane, index) => (calls.moved.push([id, lane, index]), true),
-		logTime: (id, minutes, link) => calls.time.push(link ? [id, minutes, link] : [id, minutes]),
+		logTime: (id, minutes, link, mode) => calls.time.push(mode ? [id, minutes, link, mode] : link ? [id, minutes, link] : [id, minutes]),
 		startTimer: (id, minutes, link) => calls.timers.push(link ? [id, minutes, link] : [id, minutes]),
 		stopTimer: () => {
 			calls.stopped += 1;
@@ -255,6 +255,9 @@ describe('agent tools', () => {
 		expect(await run('log_time', { id: A.a0_0, minutes: 30, link: 'tool_1' })).toBe('“Drills” is on Speed\'s shelf, not Easy runs.');
 		expect(await run('log_time', { id: A.a1_0, minutes: 30, link: 'tool_1' })).toBe('Logged 30 min on “Speed session 1 on Monday” (Drills).');
 		expect(calls.time[1]).toEqual([A.a1_0, 30, 'tool_1']);
+		expect(await run('log_time', { id: A.a0_0, minutes: 30, mode: 'later' })).toBe('Not logged. mode must be "active" or "passive".');
+		expect(await run('log_time', { id: A.a0_0, minutes: 30, mode: 'passive' })).toBe('Logged 30 min passive on “Easy runs session 1 on Monday”.');
+		expect(calls.time[2]).toEqual([A.a0_0, 30, undefined, 'passive']);
 	});
 
 	it("suggests today's three, hands the review to the agent with the method, and reports progress as JSON", async () => {

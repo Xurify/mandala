@@ -48,13 +48,31 @@ export type DayLog = {
 	sessions?: Session[];
 };
 
+/** Where a session came from, when not from this app's own timer or Log time. */
+export type SessionSource = 'extension';
+
+export type SessionMode = 'active' | 'passive';
+
 export type Session = {
+	/** Set on sessions that arrive from outside, so the same one is never logged twice. */
+	id?: Id<'session'>;
 	action: ActionId;
 	/** Local start, "HH:MM". */
 	at: string;
+	/** As they ran. `passive` ones count by `passiveWeight` wherever time is added up. */
 	minutes: number;
+	/** Left out for active: the person was at it. `passive` is a page playing in the background. */
+	mode?: SessionMode;
+	source?: SessionSource;
 	link?: string;
 };
+
+export const PASSIVE_WEIGHT = 0.5;
+export const PASSIVE_WEIGHTS = [0, 0.5, 1] as const;
+
+export function parsePassiveWeight(value: unknown): number | undefined {
+	return PASSIVE_WEIGHTS.find((weight) => weight === value);
+}
 
 /** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
 export type Timer = {
@@ -126,6 +144,8 @@ export type ChartData = {
 	icons?: Record<string, string>;
 	cleared?: Record<ActionId, ClearedAction>;
 	timer?: Timer;
+	/** How much a passive minute counts, 0 to 1. Left out means `PASSIVE_WEIGHT`. */
+	passiveWeight?: number;
 };
 
 /** A line cleared from the chart that something still points at, so its days still name it, and the same words back in the same place bring it back whole. */
@@ -521,7 +541,8 @@ export function parseChart(raw: string): ChartData | null {
 			tools: parseTools(record.tools),
 			icons: parseIcons(record.icons),
 			cleared: parseCleared(record.cleared, new Set(actionIds.flat())),
-			timer: parseTimer(record.timer)
+			timer: parseTimer(record.timer),
+			passiveWeight: parsePassiveWeight(record.passiveWeight)
 		};
 	} catch {
 		return null;
