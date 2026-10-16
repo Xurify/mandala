@@ -70,40 +70,30 @@ describe('chart shelves', () => {
 		chart.clearFocusedKey();
 	});
 
-	it('puts a removed tool back where it was when the slip is undone', () => {
-		const first = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'First');
-		chart.addTool(1, 'https://youtu.be/wzMrFFcC1BU', 'Second');
-		chart.removeTool(1, first.id);
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['Second']);
-		expect(chart.slips.at(-1)?.kicker).toBe('Off the shelf');
-		chart.undoSlip();
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
-	});
-
-	it('takes several tools off in one slip, and its undo puts each back in place', () => {
+	it('takes tools off in one slip, and its undo puts each back where it was', () => {
 		chart.data = emptyChart();
-		const [a, b, c] = ['SZaaZpKLTFE', 'wzMrFFcC1BU', 'dQw4w9WgXcQ'].map((id, index) => chart.addTool(1, `https://youtu.be/${id}`, `T${index}`));
-		const d = chart.addTool(4, 'https://example.com/', 'Elsewhere');
+		const [firstClip, secondClip, thirdClip] = ['SZaaZpKLTFE', 'wzMrFFcC1BU', 'dQw4w9WgXcQ'].map((videoId, index) => chart.addTool(1, `https://youtu.be/${videoId}`, `Clip ${index + 1}`));
+		const site = chart.addTool(4, 'https://example.com/', 'Site');
 		chart.removeTools([
-			{ pillarIndex: 1, id: a!.id },
-			{ pillarIndex: 1, id: c!.id },
-			{ pillarIndex: 4, id: d.id }
+			{ pillarIndex: 1, id: firstClip!.id },
+			{ pillarIndex: 1, id: thirdClip!.id },
+			{ pillarIndex: 4, id: site.id }
 		]);
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['T1']);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([secondClip!.id]);
 		expect(chart.data.tools?.p4).toBeUndefined();
-		expect(chart.slips.at(-1)?.subject).toBe('3 links');
+		expect(chart.slips.at(-1)).toMatchObject({ kicker: 'Off the shelf', subject: '3 links' });
 		chart.undoSlip();
-		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([a!.id, b!.id, c!.id]);
-		expect(chart.data.tools?.p4?.map((tool) => tool.id)).toEqual([d.id]);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([firstClip!.id, secondClip!.id, thirdClip!.id]);
+		expect(chart.data.tools?.p4?.map((tool) => tool.id)).toEqual([site.id]);
 	});
 
 	it('moves a tool to another shelf, and lets the routines there hand it out', () => {
 		chart.data = slotted(emptyChart());
-		const tool = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'Clip');
-		chart.updateTool(1, tool.id, { action: A.a1_0, kind: 'once' });
-		chart.moveTools([{ pillarIndex: 1, id: tool.id }], 6);
+		const clip = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'Clip');
+		chart.updateTool(1, clip.id, { action: A.a1_0, kind: 'once' });
+		chart.moveTools([{ pillarIndex: 1, id: clip.id }], 6);
 		expect(chart.data.tools?.p1).toBeUndefined();
-		expect(chart.data.tools?.p6).toEqual([{ id: tool.id, url: tool.url, title: 'Clip', kind: 'once' }]);
+		expect(chart.data.tools?.p6).toEqual([{ id: clip.id, url: clip.url, title: 'Clip', kind: 'once' }]);
 	});
 });
 

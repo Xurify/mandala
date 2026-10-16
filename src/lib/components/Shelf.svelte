@@ -42,7 +42,6 @@
 	let editing = $state<string | null>(null);
 	let showKnown = $state(false);
 	let added = $state<string | null>(null);
-	let found = $state<string | null>(null);
 
 	$effect(() => {
 		void pillarIndex;
@@ -130,9 +129,9 @@
 		if (twin) {
 			chart.say('Already on this shelf.');
 			if (twin.known) showKnown = true;
-			found = null;
+			added = null;
 			void tick().then(() => {
-				found = twin.id;
+				added = twin.id;
 				section?.querySelector<HTMLElement>(`[data-tool="${twin.id}"]`)?.scrollIntoView({ block: 'nearest' });
 			});
 			return;
@@ -165,7 +164,7 @@
 		}
 	}
 
-	/** A row that leaves the list takes its focused button with it, so focus goes to the row after it, or the field. */
+	/** A row that leaves the list takes its focus with it, so focus goes to the row after it, or the field. */
 	async function setKnown(tool: Tool, value: boolean): Promise<void> {
 		const list = tool.known ? known : rotation;
 		const at = list.findIndex((entry) => entry.id === tool.id);
@@ -187,7 +186,7 @@
 			'relative flex flex-col rounded-[16px] focus:outline-none has-[[role=menu]]:z-10',
 			// A filled animation in the settings leaves a stacking context, so without a z-index a list opened there paints under later rows.
 			open && 'z-[1] bg-surface shadow-card',
-			(added === tool.id || found === tool.id) && 'motion-safe:animate-pop-in'
+			added === tool.id && 'motion-safe:animate-pop-in'
 		)}
 		tabindex="-1"
 		onpaste={iconable ? (event) => onRowPaste(event, tool.id, host) : undefined}

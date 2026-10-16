@@ -178,7 +178,6 @@
 										pillarIndex={plank.pillarIndex}
 										{tool}
 										nextFor={next[index]?.get(tool.id)}
-										settingsLabel="Who hands it out"
 										onsettings={() => openShelf(plank.pillarIndex, tool.id)}
 										onempty={() => body?.querySelector<HTMLElement>('[data-tool-face]')?.focus()}
 									/>

@@ -22,10 +22,9 @@
 		onsettings: () => void;
 		/** Where focus goes when the row leaves and no row is left beside it. */
 		onempty?: () => void;
-		class?: string;
 	}
 
-	let { pillarIndex, tool, nextFor, settingsOpen = false, settingsLabel = 'Settings', onsettings, onempty, class: className }: Props = $props();
+	let { pillarIndex, tool, nextFor, settingsOpen = false, settingsLabel = 'Who hands it out', onsettings, onempty }: Props = $props();
 
 	let root = $state<HTMLElement | null>(null);
 	let open = $state(false);
@@ -54,7 +53,7 @@
 	}
 
 	function remove(): void {
-		void leave(() => chart.removeTool(pillarIndex, tool.id));
+		void leave(() => chart.removeTools([{ pillarIndex, id: tool.id }]));
 	}
 
 	function setKnown(value: boolean): void {
@@ -88,7 +87,7 @@
 	}
 </script>
 
-<div bind:this={root} class={cn('flex items-center gap-1 p-1', className)}>
+<div bind:this={root} class="flex items-center gap-1 p-1">
 	<a
 		href={tool.url}
 		target="_blank"

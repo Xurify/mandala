@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealOrder, dealTools, hostOf, sameLink, shelvesWith, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
+import { dealOrder, dealTools, hostOf, sameLink, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -193,12 +193,5 @@ describe('the same link twice', () => {
 		expect(sameLink('https://youtu.be/SZaaZpKLTFE', 'https://youtu.be/wzMrFFcC1BU')).toBe(false);
 		expect(sameLink('https://www.Example.com/read/', 'https://example.com/read')).toBe(true);
 		expect(sameLink('https://example.com/read?page=2', 'https://example.com/read?page=3')).toBe(false);
-	});
-
-	it('names every shelf that already holds a link', () => {
-		const data = chart();
-		data.tools = { p1: [tool('SZaaZpKLTFE')], p6: [{ ...tool('x'), url: 'https://www.youtube.com/watch?v=SZaaZpKLTFE' }] };
-		expect(shelvesWith(data, 'https://youtu.be/SZaaZpKLTFE')).toEqual([1, 6]);
-		expect(shelvesWith(data, 'https://example.com')).toEqual([]);
 	});
 });

@@ -1072,10 +1072,6 @@ export class ChartStore {
 
   #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
 
-  removeTool(pillarIndex: number, id: string): void {
-    this.removeTools([{ pillarIndex, id }]);
-  }
-
   /** One slip for the lot, and its Undo puts each back where it was. */
   removeTools(picks: readonly { pillarIndex: number; id: string }[]): void {
     const tokens: string[] = [];
