@@ -541,7 +541,7 @@
 			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
 			{ id: 'duplicate-fresh', label: 'Copy without history', section: 'Actions', icon: 'sparkles', run: () => chart.duplicateChart(true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
-			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
+			{ id: 'guide', label: 'What is Mandala?', section: 'Actions', icon: 'book', run: () => (guideOpen = true) },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
@@ -555,13 +555,13 @@
 			},
 			...(helper.enabled
 				? [
-						{ id: 'helper', label: 'Open Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: () => helper.show() },
-						{ id: 'bindu-off', label: 'Turn off Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOffBindu },
+						{ id: 'helper', label: 'Open Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: () => helper.show() },
+						{ id: 'bindu-off', label: 'Turn off Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: turnOffBindu },
 						helper.aiEnabled
-							? { id: 'ai-off', label: 'Turn off AI provider', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOffAi }
-							: { id: 'ai-on', label: 'Turn on AI provider', section: 'Actions' as const, icon: 'sparkles' as const, run: () => helper.offerAi() }
+							? { id: 'ai-off', label: 'Turn off AI provider', section: 'Actions' as const, icon: 'key' as const, run: turnOffAi }
+							: { id: 'ai-on', label: 'Turn on AI provider', section: 'Actions' as const, icon: 'key' as const, run: () => helper.offerAi() }
 					]
-				: [{ id: 'bindu-on', label: 'Turn on Bindu', section: 'Actions' as const, icon: 'sparkles' as const, run: turnOnBindu }]),
+				: [{ id: 'bindu-on', label: 'Turn on Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: turnOnBindu }]),
 			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
 			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
 			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
@@ -731,7 +731,7 @@
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
-				<MenuItem icon="info" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
+				<MenuItem icon="book" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -743,14 +743,14 @@
 				{/if}
 				<MenuDivider />
 				{#if helper.enabled}
-					<MenuItem icon="sparkles" onclick={turnOffBindu}>Turn off Bindu</MenuItem>
+					<MenuItem icon="bindu" onclick={turnOffBindu}>Turn off Bindu</MenuItem>
 					{#if helper.aiEnabled}
-						<MenuItem icon="sparkles" onclick={turnOffAi}>Turn off AI provider</MenuItem>
+						<MenuItem icon="key" onclick={turnOffAi}>Turn off AI provider</MenuItem>
 					{:else}
-						<MenuItem icon="sparkles" onclick={() => helper.offerAi()}>Turn on AI provider</MenuItem>
+						<MenuItem icon="key" onclick={() => helper.offerAi()}>Turn on AI provider</MenuItem>
 					{/if}
 				{:else}
-					<MenuItem icon="sparkles" onclick={turnOnBindu}>Turn on Bindu</MenuItem>
+					<MenuItem icon="bindu" onclick={turnOnBindu}>Turn on Bindu</MenuItem>
 				{/if}
 				<MenuDivider />
 				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">

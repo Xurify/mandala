@@ -99,7 +99,10 @@
 		timer: true,
 		hourglass: true,
 		stop: true,
-		plus: true
+		plus: true,
+		book: true,
+		bindu: true,
+		key: true
 	} satisfies Record<IconName, true>;
 
 	const iconNames = Object.keys(iconSet) as IconName[];

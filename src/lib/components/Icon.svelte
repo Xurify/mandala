@@ -46,6 +46,9 @@
 		| 'hourglass'
 		| 'stop'
 		| 'plus'
+		| 'book'
+		| 'bindu'
+		| 'key'
 		| 'claude'
 		| 'openai'
 		| 'gemini'
@@ -165,8 +168,9 @@
 		<line x1="10" y1="11" x2="10" y2="17" />
 		<line x1="14" y1="11" x2="14" y2="17" />
 	{:else if name === 'sparkles'}
-		<path d="M12 3l1.9 4.8L18.7 9.7l-4.8 1.9L12 16.4l-1.9-4.8L5.3 9.7l4.8-1.9L12 3z" />
-		<path d="M19 15l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5z" />
+		<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+		<path d="M20 3v4" />
+		<path d="M22 5h-4" />
 	{:else if name === 'undo'}
 		<path d="M3 7v6h6" />
 		<path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
@@ -268,5 +272,18 @@
 		<path d="M17 2v2.5c0 2.5-5 4.5-5 7.5s5 5 5 7.5V22" />
 	{:else if name === 'stop'}
 		<rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
+	{:else if name === 'book'}
+		<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+		<path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+	{:else if name === 'bindu'}
+		<circle cx="12" cy="12" r="9" stroke-dasharray="2.3 4.77" stroke-dashoffset="1.15" />
+		<ellipse cx="9.6" cy="10.9" rx="1.1" ry="1.4" fill="currentColor" stroke="none" />
+		<ellipse cx="14.4" cy="10.9" rx="1.1" ry="1.4" fill="currentColor" stroke="none" />
+		<path d="M9.9 14.3Q12 16.2 14.1 14.3" />
+	{:else if name === 'key'}
+		<circle cx="7.5" cy="15.5" r="4.5" />
+		<path d="m10.7 12.3 9.8-9.8" />
+		<path d="m15.5 7.5 3 3" />
+		<path d="m19 4 2.5 2.5" />
 	{/if}
 </svg>

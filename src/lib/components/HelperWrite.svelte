@@ -366,6 +366,6 @@
 			</div>
 		</form>
 	{:else}
-		<Button class="self-start" size="sm" variant="ghost" icon="sparkles" onclick={() => (helper.aiEnabled ? (connecting = true) : (helper.askingConsent = true))}>Connect an AI provider</Button>
+		<Button class="self-start" size="sm" variant="ghost" icon="key" onclick={() => (helper.aiEnabled ? (connecting = true) : (helper.askingConsent = true))}>Connect an AI provider</Button>
 	{/if}
 </div>

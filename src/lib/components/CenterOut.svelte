@@ -333,7 +333,7 @@
 				{/each}
 			</ol>
 			{#if showGuideLink}
-				<Button variant="ghost" icon="info" aria-haspopup="dialog" onclick={onopenguide}>How the method works</Button>
+				<Button variant="ghost" icon="book" aria-haspopup="dialog" onclick={onopenguide}>How the method works</Button>
 			{/if}
 		</div>
 	{/if}
