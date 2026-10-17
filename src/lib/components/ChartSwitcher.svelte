@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { example } from '$lib/chart/example';
 	import {
@@ -225,6 +226,15 @@
 	const deletedGroups = $derived(groupDeleted(chart.deletedCharts));
 
 	$effect(() => {
+		chart.viewMode;
+		untrack(() => {
+			if (!menuOpen) return;
+			menuOpen = false;
+			find = '';
+		});
+	});
+
+	$effect(() => {
 		if (!menuOpen && !deletedOpen) return;
 		now = Date.now();
 		const timer = setInterval(() => (now = Date.now()), 30_000);
@@ -376,12 +386,13 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<Menu
-	class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]"
-	align="start"
-	label="Switch chart"
-	onopenchange={onMenu}
->
+	<Menu
+		class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]"
+		align="start"
+		label="Switch chart"
+		bind:open={menuOpen}
+		onopenchange={onMenu}
+	>
 	{#snippet trigger({ expanded, toggle })}
 		<MenuTitle title={activeTitle} label="Switch chart: {activeTitle}{waiting}" {expanded} onclick={toggle} dot={waiting !== ''} />
 	{/snippet}
