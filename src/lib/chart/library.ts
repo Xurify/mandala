@@ -7,7 +7,8 @@ import {
 	withNewIds,
 	type ChartData
 } from './model.ts';
-import { countedMinutes } from './timer.ts';
+import { doneOn } from './calendar.ts';
+import { minutesOn } from './timer.ts';
 
 export const LIBRARY_KEY = 'mandala-library-v1';
 export const UNTITLED = 'Untitled';
@@ -150,13 +151,14 @@ export function hasHistory(data: ChartData): boolean {
 	return false;
 }
 
-/** The part of a chart's history a person can weigh at a glance: days something was ticked or timed, actions finished, time logged. */
-export function historyOf(data: ChartData): { days: number; done: number; minutes: number } {
-	const logs = Object.values(data.days ?? {});
+/** Counted as the calendar counts them, so the two never disagree on screen. */
+export function historyOf(data: ChartData): { finished: number; days: number; minutes: number } {
+	const keys = Object.keys(data.days ?? {});
+	const perDay = keys.map((key) => doneOn(data, key).length);
 	return {
-		days: logs.filter((log) => log.checked.length > 0 || (log.sessions?.length ?? 0) > 0).length,
-		done: Object.values(data.meta ?? {}).filter((meta) => meta.done).length,
-		minutes: countedMinutes(data, logs.flatMap((log) => log.sessions ?? []))
+		finished: perDay.reduce((sum, count) => sum + count, 0),
+		days: perDay.filter((count) => count > 0).length,
+		minutes: keys.reduce((sum, key) => sum + minutesOn(data, key), 0)
 	};
 }
 

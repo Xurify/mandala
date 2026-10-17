@@ -23,12 +23,13 @@
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
-	import { hasHistory, titleOf } from '$lib/chart/library';
+	import { titleOf } from '$lib/chart/library';
 	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import CenterOut from './CenterOut.svelte';
+	import DuplicateChart from './DuplicateChart.svelte';
 	import Helper from './Helper.svelte';
 	import HelperFace from './HelperFace.svelte';
 	import ExportDialog from './ExportDialog.svelte';
@@ -538,10 +539,7 @@
 		}
 		items.push(
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
-			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
-			...(hasHistory(chart.data)
-				? [{ id: 'duplicate-fresh', label: 'Duplicate without history', section: 'Actions' as const, icon: 'copy' as const, run: () => chart.duplicateChart(true) }]
-				: []),
+			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => (chart.duplicating = true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
 			{ id: 'guide', label: 'What is Mandala?', section: 'Actions', icon: 'book', run: () => (guideOpen = true) },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
@@ -856,6 +854,7 @@
 		<MethodGuide bind:open={guideOpen} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
+		<DuplicateChart bind:open={chart.duplicating} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog

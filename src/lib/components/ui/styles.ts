@@ -177,30 +177,33 @@ export const dockTab = tv({
 
 export const toast = tv({
 	slots: {
-		root: 'group relative w-max max-w-[min(22rem,100%)] min-w-0',
-		slip: 'relative flex w-full min-w-0 items-center gap-2.5 rounded-[22px] bg-surface py-2 pr-2.5 pl-2 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
+		root: 'group relative w-max max-w-full min-w-0',
+		slip: 'relative flex min-w-0 items-center gap-3 rounded-[24px] bg-surface py-2.5 ps-2.5 pe-4 text-left text-text shadow-float max-[400px]:flex-wrap motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
 		sheet:
-			'absolute inset-0 rounded-[22px] bg-surface shadow-card [translate:var(--sheet)] [rotate:var(--tilt)] motion-safe:transition-[translate,rotate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:[translate:var(--fan)] can-hover:motion-safe:group-hover:[rotate:var(--tilt-fan)]',
-		mark: 'block size-10 shrink-0 overflow-visible',
-		copy: 'flex min-w-0 flex-1 flex-col gap-0.5',
-		kicker: 'leading-none tracking-[0.08em]',
-		line: 'flex min-w-0 flex-nowrap items-center gap-2 max-[400px]:flex-wrap',
-		words: 'm-0 min-w-0 line-clamp-2 text-pretty can-hover:group-hover:line-clamp-none',
-		aside: 'flex shrink-0 items-center gap-1.5 max-[400px]:basis-full',
+			'absolute inset-0 rounded-[24px] bg-surface shadow-card [translate:var(--sheet)] [rotate:var(--tilt)] motion-safe:transition-[translate,rotate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:[translate:var(--fan)] can-hover:motion-safe:group-hover:[rotate:var(--tilt-fan)]',
+		mark: 'block size-9 shrink-0 overflow-visible',
+		copy: 'flex min-w-0 flex-1 flex-col gap-1',
+		words: 'm-0',
+		aside: 'flex shrink-0 items-center gap-2 max-[400px]:basis-full max-[400px]:ps-12',
 		count:
-			'm-0 grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-sunken px-1.5 text-[0.8rem] leading-none font-[620] tracking-[-0.02em] tabular-nums motion-safe:animate-toast-tick'
+			'm-0 grid h-7 min-w-7 shrink-0 place-items-center rounded-full bg-sunken px-2 text-[0.82rem] leading-none font-[620] tracking-[-0.02em] tabular-nums motion-safe:animate-toast-tick'
 	},
 	variants: {
 		named: {
+			// One line, so the slip hugs the name. A wrapped line leaves the box at its widest and the space beside the shorter line reads as a gap.
 			true: {
-				words: 'font-serif text-[1.02rem] leading-[1.22] font-[540] tracking-[-0.012em]'
+				words: 'truncate font-serif text-[1.02rem] leading-[1.22] font-[540] tracking-[-0.01em] can-hover:group-hover:whitespace-normal'
 			},
 			false: {
-				words: 'text-[0.94rem] leading-snug font-medium'
+				words: 'line-clamp-3 text-pretty text-[0.94rem] leading-snug font-medium can-hover:group-hover:line-clamp-none'
 			}
+		},
+		undo: {
+			true: { slip: 'pe-2.5' },
+			false: {}
 		}
 	},
-	defaultVariants: { named: true }
+	defaultVariants: { named: true, undo: false }
 });
 
 export const notice = tv({

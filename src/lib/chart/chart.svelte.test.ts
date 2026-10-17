@@ -236,7 +236,16 @@ describe('chart copies', () => {
 		expect(chart.data.actions[0]![0]).toBe('Read 10 pages at lunch');
 		expect(chart.data.meta?.[copy]).toEqual({ kind: 'routine', note: 'Page 40' });
 		expect(chart.data.days).toBeUndefined();
-		expect(chart.slips.at(-1)?.kicker).toBe('Copied fresh');
+		expect(chart.slips.at(-1)?.kicker).toBe('Duplicated');
+	});
+
+	it('names the copy, and leaves the chart it came from as it was', () => {
+		chart.data = emptyChart();
+		chart.data.goal = 'Reach B1 in Slovak';
+		const from = chart.charts.find((item) => item.active)!.id;
+		chart.duplicateChart(true, 'Reach B1 in Estonian');
+		expect(chart.data.goal).toBe('Reach B1 in Estonian');
+		expect(chart.charts.find((item) => item.id === from)?.title).toBe('Reach B1 in Slovak');
 	});
 });
 

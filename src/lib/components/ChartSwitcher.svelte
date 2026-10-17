@@ -16,7 +16,6 @@
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
 	import { fromOutside } from '$lib/chart/shortcuts';
-	import DuplicateChart from './DuplicateChart.svelte';
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
@@ -570,7 +569,6 @@
 {/snippet}
 
 <SelectCharts bind:open={chart.selecting} />
-<DuplicateChart bind:open={chart.duplicating} />
 
 <Dialog
 	bind:open={deletedOpen}

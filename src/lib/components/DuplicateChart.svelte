@@ -17,13 +17,12 @@
 	const past = $derived(open && hasHistory(chart.data) ? historyOf(chart.data) : null);
 	const detail = $derived.by(() => {
 		if (!past) return '';
-		const parts: string[] = [];
-		if (past.days > 0) parts.push(`${past.days} ${past.days === 1 ? 'day' : 'days'} worked`);
-		if (past.done > 0) parts.push(`${past.done} finished`);
-		if (past.minutes > 0) parts.push(`${formatMinutes(past.minutes)} logged`);
-		return parts.length > 0
-			? `${parts.join(', ')}. The calendar would count it twice.`
-			: 'The board, reflections, and links already opened.';
+		const logged = past.minutes > 0 ? `${formatMinutes(past.minutes)} logged` : '';
+		if (past.finished === 0 && !logged) return 'The board, reflections, and links already opened.';
+		const things = past.finished === 1 ? '1 thing' : `${past.finished} things`;
+		const days = past.days === 1 ? '1 day' : `${past.days} days`;
+		const line = past.finished === 0 ? logged : `${things} finished on ${days}${logged ? `, ${logged}` : ''}`;
+		return `${line}. The calendar would count them twice.`;
 	});
 
 	$effect(() => {
