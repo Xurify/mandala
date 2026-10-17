@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { A } from './fixtures.ts';
 import { emptyChart, exportJson, filledCount, parseChart } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 import {
@@ -14,6 +15,7 @@ import {
 	formatAgo,
 	formatDaysLeft,
 	formatUpdated,
+	hasHistory,
 	newRecord,
 	heldRows,
 	parseLibrary,
@@ -345,5 +347,22 @@ describe('reconcile', () => {
 		expect(merged.charts[0]!.data.goal).toBe('');
 		expect(merged.activeId).toBe(merged.charts[0]!.id);
 		expect(merged.deleted.map((item) => item.id).sort()).toEqual(['a', 'b']);
+	});
+});
+
+describe('hasHistory', () => {
+	it('is the days, the ticks, and the board, not the words', () => {
+		const data = emptyChart();
+		data.goal = 'Read more';
+		data.meta = { [A.a0_0]: { kind: 'routine', note: 'Page 40' } };
+		expect(hasHistory(data)).toBe(false);
+		data.days = { '2026-10-17': { focus: [A.a0_0], checked: [] } };
+		expect(hasHistory(data)).toBe(true);
+		delete data.days;
+		data.meta = { [A.a0_0]: { kind: 'routine', done: true } };
+		expect(hasHistory(data)).toBe(true);
+		data.meta = { [A.a0_0]: { kind: 'routine' } };
+		data.tools = { p0: [{ id: 'tool_1', url: 'https://example.com', title: 'Example', kind: 'repeat', known: true }] };
+		expect(hasHistory(data)).toBe(true);
 	});
 });

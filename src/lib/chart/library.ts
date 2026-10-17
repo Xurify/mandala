@@ -7,6 +7,7 @@ import {
 	withNewIds,
 	type ChartData
 } from './model.ts';
+import { countedMinutes } from './timer.ts';
 
 export const LIBRARY_KEY = 'mandala-library-v1';
 export const UNTITLED = 'Untitled';
@@ -132,6 +133,31 @@ export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibr
 	const deleted = purgeDeleted(library.deleted, now);
 	if (deleted.length === library.deleted.length) return library;
 	return { ...library, deleted };
+}
+
+/** Days, ticks, logged time, done marks, the board, or a link already opened. A note is the plan. */
+export function hasHistory(data: ChartData): boolean {
+	if (data.days && Object.keys(data.days).length > 0) return true;
+	if (data.weeks && Object.keys(data.weeks).length > 0) return true;
+	if (data.cleared && Object.keys(data.cleared).length > 0) return true;
+	if (data.timer) return true;
+	for (const meta of Object.values(data.meta ?? {})) {
+		if (meta.done || meta.doneAt || meta.lane !== undefined || meta.rank !== undefined) return true;
+	}
+	for (const shelf of Object.values(data.tools ?? {})) {
+		if (shelf.some((tool) => tool.known || (tool.opened?.length ?? 0) > 0)) return true;
+	}
+	return false;
+}
+
+/** The part of a chart's history a person can weigh at a glance: days something was ticked or timed, actions finished, time logged. */
+export function historyOf(data: ChartData): { days: number; done: number; minutes: number } {
+	const logs = Object.values(data.days ?? {});
+	return {
+		days: logs.filter((log) => log.checked.length > 0 || (log.sessions?.length ?? 0) > 0).length,
+		done: Object.values(data.meta ?? {}).filter((meta) => meta.done).length,
+		minutes: countedMinutes(data, logs.flatMap((log) => log.sessions ?? []))
+	};
 }
 
 export function withoutHistory(data: ChartData): ChartData {

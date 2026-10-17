@@ -248,7 +248,7 @@ A video, a text, a site is a **tool**: material behind a pillar, not a cell. The
 
 ### What a copy or a share carries
 
-A chart has a plan (goal, pillars, actions, how each is set up, the shelves' links) and a history (days, ticks, time logged, done marks, the board's lanes, reflections). **Duplicate chart** copies both. **Copy without history**, under it in the chart menu and in the command palette, copies the plan only, and its slip says Copied fresh. A share, by link or by page, carries the plan and never the history. Notes are the person's own: a share leaves out each action's note and its board notes unless **Include notes**, in Export, is on for that chart. The rules live in `contract.ts`.
+A chart has a plan (goal, pillars, actions, how each is set up, the shelves' links) and a history (days, ticks, time logged, done marks, the board's lanes, reflections). **Duplicate chart** copies the whole chart, history included. D and the command palette do that at once. When the chart has history, a chevron on that menu item opens **Duplicate without history** (the slip says Copied fresh), and the command palette lists it too. A chart with nothing behind it has no chevron. A share, by link or by page, carries the plan and never the history. Notes are the person's own: a share leaves out each action's note and its board notes unless **Include notes**, in Export, is on for that chart. The rules live in `contract.ts`.
 
 ### Time on an action
 

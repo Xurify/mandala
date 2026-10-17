@@ -344,6 +344,7 @@ export class ChartStore {
   reflecting = $state(false);
   selecting = $state(false);
   browsingShelves = $state(false);
+  duplicating = $state(false);
   /** A tool whose settings the shelf opens on, when a door elsewhere asks for them. Never saved. */
   shelfTool = $state<string | null>(null);
 
@@ -1603,9 +1604,10 @@ export class ChartStore {
     return true;
   }
 
-  duplicateChart(fresh = false): boolean {
+  duplicateChart(fresh = false, goal?: string): boolean {
     this.#flush();
-    const record = newRecord(fresh ? withoutHistory(this.data) : this.data);
+    const copy = fresh ? withoutHistory(this.data) : this.data;
+    const record = newRecord(goal === undefined ? copy : { ...copy, goal });
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
     this.data = cloneChart(record.data);
@@ -1613,7 +1615,7 @@ export class ChartStore {
     const title = titleOf(this.data);
     const held = this.#copySlips();
     this.saveNow();
-    this.#applyNote(held, fresh ? "Copied fresh" : "Duplicated", title, 1, false);
+    this.#applyNote(held, "Duplicated", title, 1, false);
     return true;
   }
 

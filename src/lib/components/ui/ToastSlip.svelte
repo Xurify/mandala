@@ -108,21 +108,25 @@
 				<circle class="fill-ink" cx="50" cy="50" r="10" />
 			</svg>
 		{/key}
-		<div class={s.text()}>
+		<div class={s.copy()}>
 			{#if named}
-				<Eyebrow>{kicker}</Eyebrow>
+				<Eyebrow class={s.kicker()}>{kicker}</Eyebrow>
 			{/if}
-			<p class={s.words()}>{subject}</p>
-		</div>
-		{#if count > 1}
-			{#key count}
-				<p class={s.count()}><span aria-hidden="true">×{count}</span><span class="sr-only">, {count} times</span></p>
-			{/key}
-		{/if}
-		{#if onundo}
-			<div class="shrink-0 max-[400px]:flex max-[400px]:basis-full max-[400px]:ps-[50px]">
-				<Button size="sm" variant="soft" icon="undo" onclick={onundo}>Undo</Button>
+			<div class={s.line()}>
+				<p class={s.words()}>{subject}</p>
+				{#if count > 1 || onundo}
+					<div class={s.aside()}>
+						{#if count > 1}
+							{#key count}
+								<p class={s.count()}><span aria-hidden="true">×{count}</span><span class="sr-only">, {count} times</span></p>
+							{/key}
+						{/if}
+						{#if onundo}
+							<Button size="sm" variant="soft" icon="undo" onclick={onundo}>Undo</Button>
+						{/if}
+					</div>
+				{/if}
 			</div>
-		{/if}
+		</div>
 	</div>
 </div>

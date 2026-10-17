@@ -177,20 +177,27 @@ export const dockTab = tv({
 
 export const toast = tv({
 	slots: {
-		root: 'group relative w-max max-w-full',
-		slip: 'relative flex items-center gap-2.5 max-[400px]:flex-wrap rounded-[22px] bg-surface p-2.5 pr-3 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
+		root: 'group relative w-max max-w-[min(22rem,100%)] min-w-0',
+		slip: 'relative flex w-full min-w-0 items-center gap-2.5 rounded-[22px] bg-surface py-2 pr-2.5 pl-2 text-left text-text shadow-float motion-safe:transition-[translate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:-translate-y-0.5',
 		sheet:
 			'absolute inset-0 rounded-[22px] bg-surface shadow-card [translate:var(--sheet)] [rotate:var(--tilt)] motion-safe:transition-[translate,rotate] motion-safe:duration-200 motion-safe:ease-ui can-hover:motion-safe:group-hover:[translate:var(--fan)] can-hover:motion-safe:group-hover:[rotate:var(--tilt-fan)]',
 		mark: 'block size-10 shrink-0 overflow-visible',
-		text: 'min-w-0 flex-1',
-		words: 'm-0 text-pretty line-clamp-2 can-hover:group-hover:line-clamp-none',
+		copy: 'flex min-w-0 flex-1 flex-col gap-0.5',
+		kicker: 'leading-none tracking-[0.08em]',
+		line: 'flex min-w-0 flex-nowrap items-center gap-2 max-[400px]:flex-wrap',
+		words: 'm-0 min-w-0 line-clamp-2 text-pretty can-hover:group-hover:line-clamp-none',
+		aside: 'flex shrink-0 items-center gap-1.5 max-[400px]:basis-full',
 		count:
-			'm-0 grid h-8 min-w-8 shrink-0 place-items-center rounded-full bg-sunken px-2 text-[0.9rem] leading-none font-[620] tracking-[-0.02em] tabular-nums motion-safe:animate-toast-tick'
+			'm-0 grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-sunken px-1.5 text-[0.8rem] leading-none font-[620] tracking-[-0.02em] tabular-nums motion-safe:animate-toast-tick'
 	},
 	variants: {
 		named: {
-			true: { words: 'mt-0.5 font-serif text-[1.06rem] leading-[1.18] font-[540] tracking-[-0.008em]' },
-			false: { words: 'text-[0.94rem] leading-[1.35] font-medium' }
+			true: {
+				words: 'font-serif text-[1.02rem] leading-[1.22] font-[540] tracking-[-0.012em]'
+			},
+			false: {
+				words: 'text-[0.94rem] leading-snug font-medium'
+			}
 		}
 	},
 	defaultVariants: { named: true }

@@ -16,6 +16,7 @@
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
 	import { fromOutside } from '$lib/chart/shortcuts';
+	import DuplicateChart from './DuplicateChart.svelte';
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
@@ -163,10 +164,6 @@
 			chart.note('Renamed', next);
 		}
 		renameOpen = false;
-	}
-
-	function handleDuplicate(): void {
-		chart.duplicateChart();
 	}
 
 	function handleNew(): void {
@@ -359,7 +356,7 @@
 		}
 		if (key === 'd') {
 			event.preventDefault();
-			handleDuplicate();
+			chart.duplicating = true;
 			return;
 		}
 		if (key === 'n') {
@@ -488,11 +485,10 @@
 		</div>
 		<div class="flex gap-px">
 			<MenuItem icon="edit" shortcut="R" class="flex-1" onclick={openRename}>Rename chart</MenuItem>
-			<MenuItem icon="copy" shortcut="D" class="flex-1" onclick={handleDuplicate}>
+			<MenuItem icon="copy" shortcut="D" class="flex-1" onclick={() => (chart.duplicating = true)}>
 				Duplicate chart
 			</MenuItem>
 		</div>
-		<MenuItem icon="sparkles" onclick={() => chart.duplicateChart(true)}>Copy without history</MenuItem>
 		<MenuDivider />
 		<MenuItem icon="list" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
 		<MenuItem icon="clock" count={chart.deletedCharts.length} onclick={openDeleted}>Recently deleted</MenuItem>
@@ -574,6 +570,7 @@
 {/snippet}
 
 <SelectCharts bind:open={chart.selecting} />
+<DuplicateChart bind:open={chart.duplicating} />
 
 <Dialog
 	bind:open={deletedOpen}
