@@ -91,7 +91,7 @@ export const select = tv({
 
 export const menu = tv({
 	slots: {
-		wrap: 'relative flex',
+		wrap: 'relative isolate flex',
 		trigger: 'relative z-50 w-full',
 		backdrop: 'fixed inset-0 z-[49] cursor-default border-0 bg-transparent p-0',
 		panel:
