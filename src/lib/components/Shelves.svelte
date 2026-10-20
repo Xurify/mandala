@@ -147,7 +147,7 @@
 				</div>
 			{/if}
 			{#each stocked as plank, index (plank.pillarIndex)}
-				<section class="relative flex flex-col gap-1.5 has-[[role=menu]]:z-10 motion-safe:animate-pop-in" style:animation-delay="{index * 45}ms" aria-labelledby="shelves-{plank.pillarIndex}" out:foldOut>
+				<section class="relative flex flex-col gap-1.5 has-[[role=menu]]:z-10 motion-safe:animate-fade-in" style:animation-delay="{index * 45}ms" aria-labelledby="shelves-{plank.pillarIndex}" out:foldOut>
 					<div class="flex min-h-9 items-center gap-2.5 ps-2">
 						<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[plank.pillarIndex]} aria-hidden="true"></span>
 						<h3 id="shelves-{plank.pillarIndex}" class="m-0 flex min-w-0 flex-1 items-baseline gap-1.5 text-[0.92rem] leading-snug font-[620]">

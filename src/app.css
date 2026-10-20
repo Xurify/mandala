@@ -564,6 +564,20 @@
 	}
 }
 
+/* No transform: a filled one stays a containing block, even at identity, and clips a menu open on the row. */
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@utility animate-fade-in {
+	animation: fade-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @keyframes deal-in {
 	from {
 		opacity: 0;

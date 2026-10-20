@@ -48,21 +48,47 @@
 		return false;
 	}
 
+	function frame(): { top: number; right: number; bottom: number; left: number } {
+		const inDialog = Boolean(root?.closest('dialog'));
+		const box = { top: 8, left: 8, right: window.innerWidth - 8, bottom: window.innerHeight - (inDialog ? 8 : DOCK_ROOM) };
+		if (!root || !insideFixedContainer()) return box;
+		for (let node = root.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+			const style = getComputedStyle(node);
+			const clips = (value: string) => value === 'auto' || value === 'scroll' || value === 'hidden' || value === 'clip';
+			const rect = node.getBoundingClientRect();
+			if (clips(style.overflowY)) {
+				box.top = Math.max(box.top, rect.top + 8);
+				box.bottom = Math.min(box.bottom, rect.bottom - 8);
+			}
+			if (clips(style.overflowX)) {
+				box.left = Math.max(box.left, rect.left + 8);
+				box.right = Math.min(box.right, rect.right - 8);
+			}
+		}
+		return box;
+	}
+
 	function pinToViewport(panel: HTMLElement): boolean {
 		const trigger = root?.getBoundingClientRect();
 		if (!trigger || insideFixedContainer()) return false;
-		const height = panel.offsetHeight;
+		const box = frame();
+		const gap = 8;
+		const natural = panel.scrollHeight;
+		const below = box.bottom - trigger.bottom - gap;
+		const above = trigger.top - gap - box.top;
+		const opensUp = natural > below && above > below;
+		const room = Math.max(120, Math.floor(opensUp ? above : below));
+		const height = Math.min(natural, room);
 		const width = panel.offsetWidth;
-		const opensUp = height + 8 > window.innerHeight - trigger.bottom - DOCK_ROOM && trigger.top - height - 8 > 8;
-		const top = opensUp ? trigger.top - 8 - height : trigger.bottom + 8;
+		const top = opensUp ? trigger.top - gap - height : trigger.bottom + gap;
 		const left = align === 'start' ? trigger.left : trigger.right - width;
 		Object.assign(panel.style, {
 			position: 'fixed',
 			top: `${top}px`,
 			bottom: 'auto',
-			left: `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`,
+			left: `${Math.max(box.left, Math.min(left, box.right - width))}px`,
 			right: 'auto',
-			maxHeight: opensUp ? '' : `${Math.max(160, window.innerHeight - top - 8)}px`
+			maxHeight: `${room}px`
 		});
 		up = opensUp;
 		pinnedToViewport = true;
@@ -86,10 +112,15 @@
 	function place(panel: HTMLElement): void {
 		pinnedToViewport = float && pinToViewport(panel);
 		if (pinnedToViewport) return;
-		const below = panel.getBoundingClientRect();
 		const trigger = root?.getBoundingClientRect();
 		if (!trigger) return;
-		up = below.bottom > window.innerHeight - DOCK_ROOM && trigger.top - below.height - 8 > 8;
+		const box = frame();
+		const gap = 8;
+		const natural = panel.scrollHeight;
+		const below = box.bottom - trigger.bottom - gap;
+		const above = trigger.top - gap - box.top;
+		up = natural > below && above > below;
+		panel.style.maxHeight = `${Math.max(120, Math.floor(up ? above : below))}px`;
 	}
 
 	function close(): void {
