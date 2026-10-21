@@ -25,6 +25,7 @@
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import SplitButton from '$lib/components/ui/SplitButton.svelte';
 	import { dock, fieldInk, menu, textArea, textField } from '$lib/components/ui/styles';
 	import ToastLab from './ToastLab.svelte';
 	import EmptyDeleted from '$lib/components/EmptyDeleted.svelte';
@@ -53,7 +54,6 @@
 		'chevron-left': true,
 		'chevron-right': true,
 		'arrow-right': true,
-		'arrow-up-right': true,
 		claude: true,
 		openai: true,
 		gemini: true,
@@ -64,7 +64,6 @@
 		target: true,
 		grid: true,
 		edit: true,
-		type: true,
 		printer: true,
 		image: true,
 		download: true,
@@ -100,7 +99,10 @@
 		timer: true,
 		hourglass: true,
 		stop: true,
-		plus: true
+		plus: true,
+		book: true,
+		bindu: true,
+		key: true
 	} satisfies Record<IconName, true>;
 
 	const iconNames = Object.keys(iconSet) as IconName[];
@@ -841,6 +843,15 @@
 				</MenuItem>
 			</div>
 			<div class="flex flex-wrap items-center gap-3">
+				<SplitButton size="sm" icon="claude" menuLabel="Other ways to send the prompt" onclick={() => chart.say('Opened in Claude')}>
+					{#snippet label()}Open in Claude{/snippet}
+					<Eyebrow class="px-3 pt-2 pb-1">One click</Eyebrow>
+					<MenuItem icon="claude" checked>Claude</MenuItem>
+					<MenuItem icon="openai">ChatGPT</MenuItem>
+					<MenuDivider />
+					<Eyebrow class="px-3 pt-2 pb-1">Copy and paste</Eyebrow>
+					<MenuItem icon="copy" badge="Any chat app">Copy prompt</MenuItem>
+				</SplitButton>
 				<Menu align="start" label="More actions">
 					<MenuItem icon="printer" badge="Ctrl+P" onclick={() => chart.say('Printed')}>Print chart</MenuItem>
 					<MenuItem icon="image" badge=".png" onclick={() => chart.say('Poster exported')}>

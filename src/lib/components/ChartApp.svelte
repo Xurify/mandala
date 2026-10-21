@@ -4,7 +4,9 @@
 	import { page } from '$app/state';
 	import { DEMOS, demoSetup, isDemoId, type DemoId } from '$lib/chart/demos';
 	import { chart } from '$lib/chart/chart.svelte';
-	import { helper } from '$lib/chart/helper.svelte';
+	import { agentTarget, helper } from '$lib/chart/helper.svelte';
+	import { agentTools, registerAgentTools } from '$lib/chart/webmcp';
+	import { isHello, isIngestRequest, ready } from '$lib/chart/ingest';
 	import {
 		blockOfKey,
 		getByKey,
@@ -22,11 +24,12 @@
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
-	import { isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
+	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import BlockSheet from './BlockSheet.svelte';
 	import ChartSwitcher from './ChartSwitcher.svelte';
 	import CenterOut from './CenterOut.svelte';
+	import DuplicateChart from './DuplicateChart.svelte';
 	import Helper from './Helper.svelte';
 	import HelperFace from './HelperFace.svelte';
 	import ExportDialog from './ExportDialog.svelte';
@@ -44,9 +47,11 @@
 	import ShortcutsDialog from './ShortcutsDialog.svelte';
 	import WeeklyReflection from './WeeklyReflection.svelte';
 	import ShelfSheet from './ShelfSheet.svelte';
+	import Shelves from './Shelves.svelte';
 	import LogTimeDialog from './LogTimeDialog.svelte';
 	import TimerSlip from './TimerSlip.svelte';
 	import { linkIn, shelfOf } from '$lib/chart/tools';
+	import { finishOpenRouterSignIn, openRouterSignInPending } from '$lib/chart/provider';
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import Icon from './Icon.svelte';
@@ -137,9 +142,9 @@
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
+			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === open.agent.tool)?.execute(open.agent.input(chart.data));
 			else if (open.bindu === 'home') helper.show();
-			else if (open.bindu === 'review') helper.show('review');
-			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : 'new');
+			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : open.bindu === 'write-review' ? 'review' : 'new');
 		}, 500);
 	}
 
@@ -148,6 +153,18 @@
 		const params = new URL(location.href).searchParams;
 		const demo = params.get('demo');
 		if (isDemoId(demo)) requestAnimationFrame(() => openDemo(demo));
+		const signInCode = params.get('code');
+		if (signInCode && openRouterSignInPending()) {
+			requestAnimationFrame(async () => {
+				replaceState(location.pathname, page.state);
+				const result = await finishOpenRouterSignIn(signInCode);
+				if (result.ok) {
+					helper.connect({ provider: 'openrouter', key: result.key });
+					chart.say('Connected OpenRouter');
+				} else chart.say(result.reason);
+				helper.show('write');
+			});
+		}
 		const shared = linkIn([params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' '));
 		// After the router is up, which replaceState needs.
 		if (shared) {
@@ -193,7 +210,21 @@
 		handleShareHash();
 		window.addEventListener('hashchange', handleShareHash);
 
+		const agents = new AbortController();
+		registerAgentTools(agentTarget, agents.signal);
+
+		// A browser extension on this page posts the time it measured; the chart answers every message it understands.
+		const handleIngest = (event: MessageEvent): void => {
+			if (event.source !== window || event.origin !== window.location.origin) return;
+			if (isHello(event.data)) window.postMessage(ready(), window.location.origin);
+			else if (isIngestRequest(event.data)) window.postMessage(chart.ingest(event.data), window.location.origin);
+		};
+		window.addEventListener('message', handleIngest);
+		window.postMessage(ready(), window.location.origin);
+
 		return () => {
+			agents.abort();
+			window.removeEventListener('message', handleIngest);
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
 			window.removeEventListener('hashchange', handleShareHash);
@@ -255,6 +286,7 @@
 	}
 
 	function handleWindowPaste(event: ClipboardEvent): void {
+		if (fromOutside(event)) return;
 		const target = event.target as HTMLElement | null;
 		if (target?.closest('input, textarea, [contenteditable], [data-helper], dialog')) return;
 		const url = linkIn(event.clipboardData?.getData('text') ?? '');
@@ -303,6 +335,7 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
+		if (fromOutside(event)) return;
 		const inDialog =
 			(event.target instanceof Element && event.target.closest('dialog') !== null) ||
 			document.querySelector('dialog[open]') !== null;
@@ -367,6 +400,21 @@
 			event.preventDefault();
 			chart.setViewMode('board');
 		}
+	}
+
+	function turnOffBindu(): void {
+		helper.setEnabled(false);
+		chart.say('Turned off Bindu. More actions turns it back on.');
+	}
+
+	function turnOnBindu(): void {
+		helper.setEnabled(true);
+		chart.say('Turned on Bindu');
+	}
+
+	function turnOffAi(): void {
+		helper.setAiEnabled(false);
+		chart.say('Turned off the AI provider. Your key stays on this device until you disconnect it.');
 	}
 
 	function isTheme(value: string): value is AppTheme {
@@ -474,6 +522,8 @@
 			: undefined
 	);
 
+	const shelvedCount = $derived(Object.values(chart.data.tools ?? {}).reduce((sum, list) => sum + list.length, 0));
+
 	const paletteCommands = $derived.by((): CommandItem[] => {
 		const items: CommandItem[] = [
 			{ id: 'today', label: 'Go to Today', section: 'Actions', icon: 'sun', run: () => chart.setViewMode('today') },
@@ -481,6 +531,7 @@
 			{ id: 'calendar', label: 'Go to Calendar', section: 'Actions', icon: 'calendar', run: () => chart.setViewMode('calendar') },
 			{ id: 'reflect', label: 'Reflect on this week', section: 'Actions', icon: 'calendar', run: () => (chart.reflecting = true) },
 			{ id: 'chart', label: 'Go to Chart', section: 'Actions', icon: 'grid', run: () => chart.setViewMode('view') },
+			{ id: 'shelves', label: 'See all shelves', section: 'Actions', icon: 'shelf', hint: shelvedCount ? `${shelvedCount} on the shelves` : undefined, run: () => (chart.browsingShelves = true) },
 			{ id: 'edit', label: 'Go to Editor', section: 'Actions', icon: 'edit', run: () => chart.setViewMode('edit') }
 		];
 		if (!isMobile) {
@@ -488,11 +539,9 @@
 		}
 		items.push(
 			{ id: 'new-chart', label: 'New chart', section: 'Actions', icon: 'file-text', run: () => chart.newChart() },
-			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => chart.duplicateChart() },
-			{ id: 'duplicate-fresh', label: 'Copy without history', section: 'Actions', icon: 'sparkles', run: () => chart.duplicateChart(true) },
+			{ id: 'duplicate', label: 'Duplicate chart', section: 'Actions', icon: 'copy', run: () => (chart.duplicating = true) },
 			{ id: 'preset', label: 'Start from a preset', section: 'Actions', icon: 'list', run: () => (presetOpen = true) },
-			{ id: 'guide', label: 'How the method works', section: 'Actions', icon: 'info', run: () => (guideOpen = true) },
-			{ id: 'helper', label: 'Open Bindu', section: 'Actions', icon: 'sparkles', run: () => helper.show() },
+			{ id: 'guide', label: 'What is Mandala?', section: 'Actions', icon: 'book', run: () => (guideOpen = true) },
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
@@ -504,6 +553,15 @@
 				hint: '?',
 				run: () => (shortcutsOpen = true)
 			},
+			...(helper.enabled
+				? [
+						{ id: 'helper', label: 'Open Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: () => helper.show() },
+						{ id: 'bindu-off', label: 'Turn off Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: turnOffBindu },
+						helper.aiEnabled
+							? { id: 'ai-off', label: 'Turn off AI provider', section: 'Actions' as const, icon: 'key' as const, run: turnOffAi }
+							: { id: 'ai-on', label: 'Turn on AI provider', section: 'Actions' as const, icon: 'key' as const, run: () => helper.offerAi() }
+					]
+				: [{ id: 'bindu-on', label: 'Turn on Bindu', section: 'Actions' as const, icon: 'bindu' as const, run: turnOnBindu }]),
 			{ id: 'theme-light', label: 'Light theme', section: 'Actions', icon: 'sun', run: () => chart.setTheme('light') },
 			{ id: 'theme-dark', label: 'Dark theme', section: 'Actions', icon: 'moon', run: () => chart.setTheme('dark') },
 			{ id: 'theme-auto', label: 'Match system theme', section: 'Actions', icon: 'monitor', run: () => chart.setTheme('system') }
@@ -645,7 +703,7 @@
 				</div>
 			{/if}
 
-			{#if !showStartSheet}
+			{#if !showStartSheet && helper.enabled}
 				<button
 					type="button"
 					data-bindu-launcher
@@ -671,8 +729,6 @@
 				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
 				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
-				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
-				<MenuItem icon="info" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -681,6 +737,21 @@
 							{chart.backupState === 'needs-permission' ? 'Resume backups' : 'Keep a backup folder'}
 						</MenuItem>
 					{/if}
+				{/if}
+				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
+				<MenuDivider />
+				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
+				<MenuItem icon="book" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
+				<MenuDivider />
+				{#if helper.enabled}
+					<MenuItem icon="bindu" onclick={turnOffBindu}>Turn off Bindu</MenuItem>
+					{#if helper.aiEnabled}
+						<MenuItem icon="key" onclick={turnOffAi}>Turn off AI provider</MenuItem>
+					{:else}
+						<MenuItem icon="key" onclick={() => helper.offerAi()}>Turn on AI provider</MenuItem>
+					{/if}
+				{:else}
+					<MenuItem icon="bindu" onclick={turnOnBindu}>Turn on Bindu</MenuItem>
 				{/if}
 				<MenuDivider />
 				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
@@ -743,7 +814,9 @@
 						{#if !chart.dirty && effectiveViewMode !== 'view'}
 							<div class="flex flex-wrap items-center gap-2" out:slipOut>
 								<Button icon="list" onclick={handleOpenPresets}>Start from a preset</Button>
-								<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
+								{#if helper.enabled}
+									<Button variant="soft" icon="sparkles" onclick={() => helper.show('write', 'new')}>Start a chart</Button>
+								{/if}
 							</div>
 						{/if}
 					</div>
@@ -781,6 +854,7 @@
 		<MethodGuide bind:open={guideOpen} />
 		<ImportDialog bind:open={importOpen} onapply={handleApplyImport} />
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
+		<DuplicateChart bind:open={chart.duplicating} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog
@@ -805,6 +879,7 @@
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
 		<ShelfSheet />
+		<Shelves />
 		<LogTimeDialog />
 	</header>
 
@@ -884,7 +959,7 @@
 							showGuideLink={hideHero}
 							class={hideHero ? 'mt-8 max-[900px]:mt-5' : undefined}
 							onopenguide={() => (guideOpen = true)}
-							ondraftinchat={() => helper.show('write', 'new')}
+							ondraftinchat={helper.enabled ? () => helper.show('write', 'new') : undefined}
 						/>
 					{/key}
 				{:else if effectiveViewMode === 'view'}
@@ -958,7 +1033,9 @@
 		</div>
 	{/if}
 
-	<Helper {helper} hideLauncher={showStartSheet} />
+	{#if helper.enabled}
+		<Helper {helper} hideLauncher={showStartSheet} />
+	{/if}
 
 	<Dock label="Layout view mode" hideTabs={showStartSheet}>
 		{#snippet above()}

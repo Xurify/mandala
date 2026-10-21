@@ -28,7 +28,7 @@
 </script>
 
 <div
-	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(26rem,calc(100vw-2rem))] grid-cols-[minmax(0,1fr)] justify-items-center transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
+	class="absolute bottom-[calc(100%+12px)] left-1/2 z-10 grid w-max max-w-[min(30rem,calc(100vw-2rem))] grid-cols-[minmax(0,1fr)] justify-items-center transition-opacity duration-300 ease-[cubic-bezier(0.33,0,0.2,1)] {on
 		? 'pointer-events-auto'
 		: 'pointer-events-none'}"
 	style:translate="-50% 0"
@@ -44,7 +44,7 @@
 >
 	{#if shown}
 		{#key shown.id}
-			<div class="col-start-1 row-start-1 max-w-full" out:slipOut>
+			<div class="col-start-1 row-start-1 min-w-0 max-w-full" out:slipOut>
 				<ToastSlip
 					class="motion-safe:animate-sheet-in"
 					kicker={shown.kicker}

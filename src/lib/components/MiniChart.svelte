@@ -4,23 +4,16 @@
 
 	interface Props {
 		data: ChartData;
-		/** Cells to mark, by key. A pillar key marks both places the pillar sits. */
-		flagged?: readonly string[];
-		play?: 'fill' | 'read' | null;
+		play?: 'fill' | null;
 		cell?: number;
 		label: string;
 		class?: string;
 	}
 
-	let { data, flagged = [], play = null, cell = 9, label, class: className }: Props = $props();
+	let { data, play = null, cell = 9, label, class: className }: Props = $props();
 
-	const marked = $derived(new Set(flagged));
-	const READ_END = 9 * 42 + 9 * 7;
-
-	function delayOf(block: number, index: number, k: number | null): string | undefined {
-		if (play === 'fill') return `${(k ?? 0) * 90 + index * 14}ms`;
-		if (play === 'read') return `${block * 42 + index * 7}ms`;
-		return undefined;
+	function delayOf(index: number, k: number | null): string | undefined {
+		return play === 'fill' ? `${(k ?? 0) * 90 + index * 14}ms` : undefined;
 	}
 </script>
 
@@ -35,20 +28,16 @@
 				<span
 					class={cn(
 						'relative overflow-hidden rounded-[2.5px]',
-						where.type === 'goal' ? 'bg-ink' : where.type === 'pillar' ? 'bg-sunken' : 'pillar-action',
-						// An outline is drawn outside the clip, so the mark reads at this size.
-						marked.has(key) && 'z-[1] outline-[1.5px] outline-offset-1 outline-ink outline-solid',
-						marked.has(key) && play === 'read' && 'motion-safe:animate-mark-in'
+						where.type === 'goal' ? 'bg-ink' : where.type === 'pillar' ? 'bg-sunken' : 'pillar-action'
 					)}
 					style:width="{cell}px"
 					style:height="{cell}px"
 					style:--h={k === null ? undefined : HUES[k]}
-					style:animation-delay={marked.has(key) && play === 'read' ? `${READ_END + 60}ms` : undefined}
 				>
 					{#if written && k !== null}
 						<span
 							class={cn('absolute inset-0', where.type === 'pillar' ? 'pillar-dot' : 'pillar-cell', play && 'motion-safe:animate-scan')}
-							style:animation-delay={delayOf(block, index, k)}
+							style:animation-delay={delayOf(index, k)}
 						></span>
 					{/if}
 				</span>

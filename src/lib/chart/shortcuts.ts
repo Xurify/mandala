@@ -83,3 +83,20 @@ export function visibleShortcuts(mod: string, desktop: boolean): ShortcutGroup[]
 			}))
 	})).filter((group) => group.items.length > 0);
 }
+
+type Target = { closest?(selector: string): unknown; ownerDocument?: { body: unknown; documentElement: unknown } | null };
+
+/**
+ * A key or paste the page did not start: from a browser extension's panel, say. A field in a shadow root reaches the
+ * page with the root's host as its target, so it does not look like a field. An open root still shows the field
+ * first in the path; a closed one hides it, but its host sits outside the app's own nodes (`data-app`).
+ */
+export function fromOutside(event: { target: EventTarget | null; composedPath(): EventTarget[] }): boolean {
+	const origin = event.composedPath()[0];
+	if (origin !== undefined && origin !== event.target) return true;
+	const target = event.target as Target | null;
+	if (typeof target?.closest !== 'function') return false;
+	const page = target.ownerDocument;
+	if (target === page?.body || target === page?.documentElement) return false;
+	return target.closest('[data-app]') === null;
+}

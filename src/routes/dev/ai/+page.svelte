@@ -2,7 +2,7 @@
 	import { chart } from '$lib/chart/chart.svelte';
 	import { parseDraftText } from '$lib/chart/draft';
 	import { exampleChart } from '$lib/chart/example';
-	import { describeKey, gapsOf, reviewChart, suggestToday, suggestWeek } from '$lib/chart/helper';
+	import { describeKey, gapsOf, suggestToday, suggestWeek } from '$lib/chart/helper';
 	import { HelperStore, type HelperMood } from '$lib/chart/helper.svelte';
 	import { dateKeyOffset, emptyChart, HUES, idOfKey, setByKey, setMeta, todayKey, type ActionId, type ChartData } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
@@ -28,7 +28,7 @@
 	];
 	const faceScenarios: { mood: HelperMood; moment: string }[] = [
 		{ mood: 'happy', moment: 'A moment just landed' },
-		{ mood: 'puzzled', moment: 'Review has lines to tighten' },
+		{ mood: 'puzzled', moment: 'A page that is not there' },
 		{ mood: 'offering', moment: 'Picks on the table' },
 		{ mood: 'curious', moment: 'Waiting for a reply' },
 		{ mood: 'listening', moment: 'Typing in a field' },
@@ -101,14 +101,12 @@
 		note(`Scenario: ${value}`);
 	}
 
-	const findings = $derived(reviewChart(sample));
 	const week = $derived(suggestWeek(sample));
 	const today = $derived(suggestToday(sample));
 	const gaps = $derived(gapsOf(sample));
 
 	let pasted = $state('');
 	const pastedChart = $derived(pasted.trim() ? parseDraftText(pasted) : null);
-	const pastedFindings = $derived(pastedChart ? reviewChart(pastedChart, 99) : []);
 
 	function setTheme(next: string): void {
 		if (next === 'system' || next === 'light' || next === 'dark') chart.setTheme(next);
@@ -152,8 +150,8 @@
 				<h1 class="m-0 mt-2 font-serif text-[clamp(1.9rem,4vw,2.8rem)] font-[480] tracking-[-0.012em] text-balance">Bindu</h1>
 			</div>
 			<p class="m-0 text-pretty text-muted">
-				Every page of Bindu, against a sandbox chart. It runs on rules, instantly. Writing goes to a chat app through a prompt,
-				and the pasted reply comes back here. Your real charts are not touched.
+				Every page of Bindu, against a sandbox chart. Picks and notes run on rules, instantly. Writing and review go to a chat app
+				through a prompt, and the pasted reply comes back here. Your real charts are not touched.
 			</p>
 		</div>
 	</header>
@@ -195,21 +193,7 @@
 
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Rules</Eyebrow>
-		<div class="grid grid-cols-3 gap-6 max-[900px]:grid-cols-1">
-			<section class="flex min-w-0 flex-col gap-2.5">
-				<h2 class="m-0 text-[0.95rem] font-[620]">Review · {findings.length}</h2>
-				<ul class="m-0 flex list-none flex-col gap-2 p-0">
-					{#each findings as finding (finding.key)}
-						<li class="flex flex-col text-[0.88rem] leading-snug">
-							<span class="text-[0.74rem] font-semibold text-muted">{describeKey(sample, finding.key)} · {finding.code}</span>
-							<span>{finding.text}</span>
-							<span class="text-[0.76rem] text-muted">{finding.reason}</span>
-						</li>
-					{:else}
-						<li class="text-[0.88rem] text-muted">Every cell passes.</li>
-					{/each}
-				</ul>
-			</section>
+		<div class="grid grid-cols-2 gap-6 max-[900px]:grid-cols-1">
 			<section class="flex min-w-0 flex-col gap-2.5">
 				<h2 class="m-0 text-[0.95rem] font-[620]">This week · {week.length}</h2>
 				{@render picks(week)}
@@ -234,7 +218,6 @@
 			{#if pasted.trim()}
 				<p class="m-0 text-[0.88rem]">
 					{pastedChart ? 'A whole chart.' : 'Not a whole chart.'}
-					{pastedFindings.length ? `Review flags: ${pastedFindings.map((finding) => finding.code).join(', ')}` : ''}
 				</p>
 			{/if}
 		</Card>

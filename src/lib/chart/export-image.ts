@@ -33,39 +33,52 @@ function fitLine(
 	return next ? `${next}…` : '…';
 }
 
-function wrapText(
+const words = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter(undefined, { granularity: 'word' }) : null;
+
+/**
+ * Places a line may break. Chinese, Japanese and Thai put no spaces between words, so splitting on spaces
+ * would make a whole cell one word. Punctuation rides on the word before it.
+ */
+function breakUnits(text: string): string[] {
+	const clean = text.trim().replace(/\s+/g, ' ');
+	if (!words) return clean.split(/(?<= )/);
+	const units: string[] = [];
+	for (const part of words.segment(clean)) {
+		const glue = !part.isWordLike && part.segment.trim() !== '' && units.length > 0;
+		if (glue) units[units.length - 1] += part.segment;
+		else units.push(part.segment);
+	}
+	return units;
+}
+
+export function wrapText(
 	context: CanvasRenderingContext2D,
 	text: string,
 	maxWidth: number,
 	maxLines: number,
 	allowEllipsis = true
 ): string[] {
-	const words = text.trim().split(/\s+/).filter((word) => word.length > 0);
 	const lines: string[] = [];
 	let currentLine = '';
 
-	for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
-		const word = words[wordIndex] ?? '';
-		const testLine = currentLine ? `${currentLine} ${word}` : word;
-		const metrics = context.measureText(testLine);
-
-		if (metrics.width > maxWidth && currentLine) {
+	for (const unit of breakUnits(text)) {
+		if (!currentLine && unit.trim() === '') continue;
+		const testLine = currentLine + unit;
+		if (context.measureText(testLine.trimEnd()).width > maxWidth && currentLine.trim()) {
 			if (lines.length === maxLines - 1) {
-				lines.push(
-					allowEllipsis ? fitLine(context, `${currentLine}…`, maxWidth, true) : currentLine
-				);
+				lines.push(allowEllipsis ? fitLine(context, `${currentLine.trimEnd()}…`, maxWidth, true) : currentLine.trimEnd());
 				currentLine = '';
 				break;
 			}
-			lines.push(currentLine);
-			currentLine = word;
+			lines.push(currentLine.trimEnd());
+			currentLine = unit.trimStart();
 		} else {
 			currentLine = testLine;
 		}
 	}
 
-	if (currentLine && lines.length < maxLines) {
-		lines.push(fitLine(context, currentLine, maxWidth, allowEllipsis));
+	if (currentLine.trim() && lines.length < maxLines) {
+		lines.push(fitLine(context, currentLine.trimEnd(), maxWidth, allowEllipsis));
 	}
 
 	return lines;

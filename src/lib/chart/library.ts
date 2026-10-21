@@ -7,6 +7,8 @@ import {
 	withNewIds,
 	type ChartData
 } from './model.ts';
+import { doneOn } from './calendar.ts';
+import { minutesOn } from './timer.ts';
 
 export const LIBRARY_KEY = 'mandala-library-v1';
 export const UNTITLED = 'Untitled';
@@ -132,6 +134,32 @@ export function purgeLibrary(library: ChartLibrary, now = Date.now()): ChartLibr
 	const deleted = purgeDeleted(library.deleted, now);
 	if (deleted.length === library.deleted.length) return library;
 	return { ...library, deleted };
+}
+
+/** Days, ticks, logged time, done marks, the board, or a link already opened. A note is the plan. */
+export function hasHistory(data: ChartData): boolean {
+	if (data.days && Object.keys(data.days).length > 0) return true;
+	if (data.weeks && Object.keys(data.weeks).length > 0) return true;
+	if (data.cleared && Object.keys(data.cleared).length > 0) return true;
+	if (data.timer) return true;
+	for (const meta of Object.values(data.meta ?? {})) {
+		if (meta.done || meta.doneAt || meta.lane !== undefined || meta.rank !== undefined) return true;
+	}
+	for (const shelf of Object.values(data.tools ?? {})) {
+		if (shelf.some((tool) => tool.known || (tool.opened?.length ?? 0) > 0)) return true;
+	}
+	return false;
+}
+
+/** Counted as the calendar counts them, so the two never disagree on screen. */
+export function historyOf(data: ChartData): { finished: number; days: number; minutes: number } {
+	const keys = Object.keys(data.days ?? {});
+	const perDay = keys.map((key) => doneOn(data, key).length);
+	return {
+		finished: perDay.reduce((sum, count) => sum + count, 0),
+		days: perDay.filter((count) => count > 0).length,
+		minutes: keys.reduce((sum, key) => sum + minutesOn(data, key), 0)
+	};
 }
 
 export function withoutHistory(data: ChartData): ChartData {

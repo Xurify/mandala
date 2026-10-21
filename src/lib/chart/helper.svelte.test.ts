@@ -1,7 +1,35 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Connection, ProviderReply } from './provider.ts';
 import { HelperStore, type HelperTarget } from './helper.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { dateKeyOf, emptyChart, setByKey, setMeta, type ActionId, type ChartData } from './model.ts';
+
+const provider = vi.hoisted(() => ({
+	saved: null as Connection | null,
+	consent: true,
+	prompts: [] as string[],
+	next: [] as ((signal?: AbortSignal) => Promise<ProviderReply>)[]
+}));
+
+vi.mock('./provider.ts', () => ({
+	loadConnection: () => provider.saved,
+	loadAiConsent: () => provider.consent,
+	saveAiConsent: (on: boolean) => (provider.consent = on),
+	saveConnection: (connection: Connection | null) => (provider.saved = connection),
+	sendPrompt: (_connection: Connection, prompt: string, signal?: AbortSignal) => {
+		provider.prompts.push(prompt);
+		return provider.next.shift()!(signal);
+	}
+}));
+
+beforeEach(() => {
+	provider.saved = null;
+	provider.consent = true;
+	provider.prompts = [];
+	provider.next = [];
+});
+
+const gemini: Connection = { provider: 'gemini', key: 'AIza-test' };
 
 function chartData(goal: string): ChartData {
 	const data = slotted(emptyChart());
@@ -13,7 +41,7 @@ function chartData(goal: string): ChartData {
 
 function sandbox() {
 	const charts: Record<string, ChartData> = { one: chartData('Run a half marathon'), two: chartData('Learn Spanish') };
-	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][] };
+	const calls = { declined: [] as ActionId[][], shown: [] as string[], today: [] as ActionId[][], notes: [] as [string, string][] };
 	let active = 'one';
 	const target: HelperTarget = {
 		data: () => charts[active]!,
@@ -29,6 +57,10 @@ function sandbox() {
 		pinWeek: (keys) => {
 			for (const key of keys) setMeta(charts[active]!, key, { pinned: true });
 		},
+		setKinds: (changes) => {
+			for (const change of changes) setMeta(charts[active]!, change.id, { kind: change.after });
+		},
+		saveNote: (weekKey, note) => calls.notes.push([weekKey, note]),
 		showCell: () => {},
 		decline: (keys) => calls.declined.push(keys),
 		noteShown: (signature) => {
@@ -73,8 +105,8 @@ describe('HelperStore pages', () => {
 	it('turns to a page and back, and remembers the direction', () => {
 		const { helper } = sandbox();
 		helper.show();
-		helper.go('review');
-		expect(helper.page).toBe('review');
+		helper.go('progress');
+		expect(helper.page).toBe('progress');
 		expect(helper.direction).toBe(1);
 		expect(helper.mood).toBe('idle');
 		helper.back();
@@ -98,13 +130,6 @@ describe('HelperStore pages', () => {
 		switchTo('two');
 		expect(helper.page).toBe('home');
 		expect(helper.picks).toBeNull();
-	});
-
-	it('looks puzzled on a review with lines to tighten', () => {
-		const { helper, charts } = sandbox();
-		charts.one!.actions[0]![0] = 'Be healthier';
-		helper.show('review');
-		expect(helper.mood).toBe('puzzled');
 	});
 });
 
@@ -235,5 +260,202 @@ describe('HelperStore hands writing to a chat app', () => {
 		expect(helper.page).toBe('write');
 		expect(helper.mode).toBe('new');
 		expect(helper.outcome?.kind).toBe('chart');
+	});
+});
+
+describe('HelperStore with an AI provider', () => {
+	it('keeps the connection on the device, and forgets it on request', () => {
+		const { helper } = sandbox();
+		helper.connect(gemini);
+		expect(helper.connection).toEqual(gemini);
+		helper.connect(null);
+		expect(helper.connection).toBeNull();
+	});
+
+	it('sends the prompt a chat app would get, and reads the reply as if it were pasted', async () => {
+		const { helper, charts } = sandbox();
+		const full = structuredClone(charts.one!);
+		charts.one!.actions[2]![5] = '';
+		helper.connect(gemini);
+		helper.show('write', 'fill');
+		provider.next.push(async () => ({ ok: true, text: reply(full) }));
+		const sent = helper.send();
+		expect(helper.sending).toBe('fill');
+		expect(helper.mood).toBe('curious');
+		await sent;
+		expect(provider.prompts[0]).toContain('Fill every empty string');
+		expect(helper.sending).toBeNull();
+		expect(helper.outcome).toMatchObject({ kind: 'cells', edits: [{ key: 'a2_5', before: '' }] });
+		expect(helper.repliedBy).toBe('provider');
+		helper.reply = reply(full).replace('Here it is', 'Pasted');
+		expect(helper.repliedBy).toBe('paste');
+	});
+
+	it('writes a new chart without asking questions first', async () => {
+		const { helper } = sandbox();
+		helper.connect(gemini);
+		helper.show('write', 'new');
+		helper.goal = 'Learn Spanish';
+		provider.next.push(async () => ({ ok: true, text: reply(chartData('Speak Spanish at work')) }));
+		await helper.send();
+		expect(provider.prompts[0]).toContain('Do not ask me anything');
+		expect(helper.outcome?.kind).toBe('chart');
+	});
+
+	it('shows an answer for a question, and says why a request failed', async () => {
+		const { helper } = sandbox();
+		helper.connect(gemini);
+		helper.show('write', 'ask');
+		helper.question = 'Which pillar first?';
+		provider.next.push(async () => ({ ok: true, text: 'Start with Sleep.' }));
+		await helper.send();
+		expect(helper.askAnswer).toBe('Start with Sleep.');
+		expect(helper.reply).toBe('');
+		provider.next.push(async () => ({ ok: false, reason: 'Gemini is busy, or this key hit its limit. Try again in a minute.' }));
+		await helper.send();
+		expect(helper.sendError).toContain('Gemini is busy');
+		expect(helper.askAnswer).toBe('');
+	});
+
+	it('drops a reply that comes back after Stop', async () => {
+		const { helper, charts } = sandbox();
+		helper.connect(gemini);
+		helper.show('write', 'review');
+		let finish: (value: ProviderReply) => void = () => {};
+		provider.next.push(() => new Promise((resolve) => (finish = resolve)));
+		const sent = helper.send();
+		helper.cancel();
+		expect(helper.sending).toBeNull();
+		finish({ ok: true, text: reply(charts.one!) });
+		await sent;
+		expect(helper.reply).toBe('');
+		expect(helper.sendError).toBe('');
+	});
+
+	it('sends nothing until the person turns AI on, and stops when they turn it off', async () => {
+		provider.consent = false;
+		const { helper } = sandbox();
+		helper.connect(gemini);
+		helper.show('write', 'fill');
+		await helper.send();
+		expect(provider.prompts).toEqual([]);
+		helper.offerAi();
+		expect(helper.askingConsent).toBe(true);
+		expect(helper.page).toBe('write');
+		helper.setAiEnabled(true);
+		expect(provider.consent).toBe(true);
+		expect(helper.askingConsent).toBe(false);
+		provider.next.push(() => new Promise(() => {}));
+		void helper.send();
+		expect(helper.sending).toBe(helper.mode);
+		helper.setAiEnabled(false);
+		expect(helper.sending).toBeNull();
+		expect(provider.consent).toBe(false);
+		expect(helper.connection).toEqual(gemini);
+	});
+});
+
+describe('HelperStore turned off', () => {
+	it('closes, and opens for nothing until it is turned back on', () => {
+		const { helper } = sandbox();
+		helper.show('today');
+		helper.setEnabled(false);
+		expect(helper.open).toBe(false);
+		expect(helper.page).toBe('home');
+		helper.show('write');
+		expect(helper.open).toBe(false);
+		helper.setEnabled(true);
+		helper.show();
+		expect(helper.open).toBe(true);
+	});
+});
+
+describe('HelperStore offers', () => {
+	it('holds lines from an agent on their own page until they are kept', () => {
+		const { helper, charts } = sandbox();
+		charts.one!.actions[2]![3] = '';
+		helper.propose({ kind: 'cells', edits: [{ key: 'a2_3', before: '', after: 'Run 20 km on Sunday morning' }] });
+		expect(helper.open).toBe(true);
+		expect(helper.page).toBe('offer');
+		expect(helper.mood).toBe('offering');
+		expect(charts.one!.actions[2]![3]).toBe('');
+		helper.keepOffer();
+		expect(charts.one!.actions[2]![3]).toBe('Run 20 km on Sunday morning');
+		expect(helper.offer).toBeNull();
+		expect(helper.moment?.title).toBe('Every line is written');
+	});
+
+	it('leaves a line the person changed while the offer waited', () => {
+		const { helper, charts } = sandbox();
+		helper.propose({
+			kind: 'cells',
+			edits: [
+				{ key: 'a0_0', before: 'Easy runs step 1', after: 'Run 5 km easy on Tuesday' },
+				{ key: 'a0_1', before: 'Easy runs step 2', after: 'Run 5 km easy on Thursday' }
+			]
+		});
+		charts.one!.actions[0]![1] = 'Mine now';
+		helper.keepOffer();
+		expect(charts.one!.actions[0]).toEqual(expect.arrayContaining(['Run 5 km easy on Tuesday', 'Mine now']));
+		expect(helper.moment?.title).toBe('Rewrote 1 action');
+	});
+
+	it('holds nothing while Bindu is off', () => {
+		const { helper } = sandbox();
+		helper.setEnabled(false);
+		expect(helper.propose({ kind: 'note', weekKey: '2026-10-12', before: '', after: 'A good week.' })).toBe(false);
+		expect(helper.open).toBe(false);
+		expect(helper.offer).toBeNull();
+		helper.setEnabled(true);
+	});
+
+	it('drops the offer on Not now, or when the chart changes', () => {
+		const { helper, charts, switchTo } = sandbox();
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		helper.back();
+		expect(helper.offer).toBeNull();
+		expect(charts.one!.pillars[0]).toBe('Easy runs');
+		helper.propose({ kind: 'cells', edits: [{ key: 'p0', before: 'Easy runs', after: 'Base miles' }] });
+		switchTo('two');
+		expect(helper.offer).toBeNull();
+		expect(helper.page).toBe('home');
+	});
+
+	it('keeps kinds from an agent, except where the line or its kind changed meanwhile', () => {
+		const { helper, charts } = sandbox();
+		const data = charts.one!;
+		helper.propose({
+			kind: 'kinds',
+			changes: [
+				{ id: A.a0_0, text: 'Easy runs step 1', pillarIndex: 0, before: undefined, after: 'routine' },
+				{ id: A.a3_1, text: 'Strength step 2', pillarIndex: 3, before: undefined, after: 'milestone' },
+				{ id: A.a4_0, text: 'Sleep step 1', pillarIndex: 4, before: undefined, after: 'routine' }
+			]
+		});
+		expect(helper.page).toBe('offer');
+		data.actions[3]![1] = 'Lift on Fridays';
+		setMeta(data, A.a4_0, { kind: 'milestone' });
+		helper.keepOffer();
+		expect(data.meta?.[A.a0_0]?.kind).toBe('routine');
+		expect(data.meta?.[A.a3_1]?.kind).toBeUndefined();
+		expect(data.meta?.[A.a4_0]?.kind).toBe('milestone');
+		expect(helper.moment).toMatchObject({ title: 'Sorted 1 action', pillars: [0] });
+	});
+
+	it("saves the week's note from an agent", () => {
+		const { helper, calls } = sandbox();
+		helper.propose({ kind: 'note', weekKey: '2026-10-12', before: '', after: 'Two easy runs held.' });
+		helper.keepOffer();
+		expect(calls.notes).toEqual([['2026-10-12', 'Two easy runs held.']]);
+		expect(helper.moment?.title).toBe('Week saved');
+	});
+
+	it('opens a whole chart from an agent beside this one', () => {
+		const { helper, charts } = sandbox();
+		const next = chartData('Learn the cello');
+		helper.propose({ kind: 'chart', data: next });
+		helper.keepOffer();
+		expect(charts.three?.goal).toBe('Learn the cello');
+		expect(helper.moment?.title).toBe('Your chart is ready');
 	});
 });

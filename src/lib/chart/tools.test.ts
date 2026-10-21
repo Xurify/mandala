@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
 import { ICON_MAX, dateKeyOf, emptyChart, parseChart, type ChartData, type Tool } from './model.ts';
-import { dealOrder, dealTools, hostOf, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolsFor, upNext, videoId } from './tools.ts';
+import { dealOrder, dealTools, hostOf, sameLink, iconOf, linkIn, svgIn, nearKnown, newTool, nextTool, opened, openedLately, thumbnailOf, toolDetail, toolsFor, upNext, videoId } from './tools.ts';
 
 const now = new Date(2026, 9, 10, 12);
 const day = (offset: number) => dateKeyOf(new Date(2026, 9, 10 + offset, 12));
@@ -44,12 +44,32 @@ describe('links', () => {
 });
 
 describe('the shelf', () => {
+	it('keeps a staple for good: opening never puts it away, and Bindu never asks if it is known', () => {
+		const data = chart();
+		const days = Array.from({ length: 14 }, (_, index) => day(-index));
+		data.tools = { p1: [tool('a', { kind: 'staple', opened: days }), tool('b', { opened: days })] };
+		expect(opened(data.tools.p1![0]!, now).known).toBeUndefined();
+		expect(nearKnown(data, now).map((entry) => entry.tool.id)).toEqual(['b']);
+		const parsed = parseChart(JSON.stringify({ ...data, tools: { p1: [{ ...tool('c', { kind: 'staple' }), known: true }] } }))?.tools?.p1?.[0];
+		expect(parsed?.kind).toBe('staple');
+		expect(parsed?.known).toBeUndefined();
+	});
+
 	it('hands unassigned tools to routines, and named ones to their action', () => {
 		const data = chart();
 		data.tools = { p1: [tool('a'), tool('b', { action: A.a1_1 }), tool('c', { action: A.a1_0 })] };
 		expect(toolsFor(data, A.a1_0).map((entry) => entry.id)).toEqual(['a', 'c']);
 		expect(toolsFor(data, A.a1_1).map((entry) => entry.id)).toEqual(['b']);
 		expect(toolsFor(data, A.a2_0)).toEqual([]);
+	});
+
+	it('says under a tool who hands it out, how often, or that it is known', () => {
+		const data = chart();
+		expect(toolDetail(data, 1, tool('a'))).toBe('any routine');
+		expect(toolDetail(data, 1, tool('b', { action: A.a1_1, kind: 'once' }))).toBe('for action 2 · once');
+		expect(toolDetail(data, 1, tool('c', { known: true, kind: 'once' }))).toBe('known');
+		expect(toolDetail(data, 2, tool('d'))).toBe('no routine yet');
+		expect(toolDetail(data, 1, tool('e', { kind: 'staple' }))).toBe('any routine · staple');
 	});
 
 	it('rotates: never opened first, then the one that waited longest, holding still within a day', () => {
@@ -164,5 +184,14 @@ describe('the shelf', () => {
 		expect(svgIn('https://readline.app')).toBeNull();
 		expect(linkIn(svg)).toBeNull();
 		expect(linkIn('Watch this! https://youtu.be/6mCmru24BOI.')).toBe('https://youtu.be/6mCmru24BOI');
+	});
+});
+
+describe('the same link twice', () => {
+	it('knows one video however YouTube writes it, and one page whatever the www or the closing slash', () => {
+		expect(sameLink('https://youtu.be/SZaaZpKLTFE', 'https://www.youtube.com/watch?v=SZaaZpKLTFE&t=12')).toBe(true);
+		expect(sameLink('https://youtu.be/SZaaZpKLTFE', 'https://youtu.be/wzMrFFcC1BU')).toBe(false);
+		expect(sameLink('https://www.Example.com/read/', 'https://example.com/read')).toBe(true);
+		expect(sameLink('https://example.com/read?page=2', 'https://example.com/read?page=3')).toBe(false);
 	});
 });

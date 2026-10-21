@@ -154,7 +154,7 @@
 					{#if item.icon}
 						<Icon
 							name={item.icon}
-							size={16}
+							size={item.icon === 'bindu' ? 20 : 18}
 							class={item.tone === 'danger' ? 'shrink-0 text-danger' : 'shrink-0 text-muted'}
 						/>
 					{/if}

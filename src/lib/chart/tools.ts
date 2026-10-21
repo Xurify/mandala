@@ -48,12 +48,48 @@ export function shelfOf(data: ChartData, pillarIndex: number): Tool[] {
 	return data.tools?.[`p${pillarIndex}`] ?? [];
 }
 
-export function toolCount(data: ChartData): number {
-	return Object.values(data.tools ?? {}).reduce((sum, list) => sum + list.length, 0);
+/** Two links are one when they play the same video, or name the same page whatever the www, the case of the host, or a closing slash. */
+export function sameLink(a: string, b: string): boolean {
+	const video = videoId(a);
+	if (video) return video === videoId(b);
+	const key = (url: string) => {
+		try {
+			const parsed = new URL(url.trim());
+			return `${parsed.hostname.replace(/^www\./, '').toLowerCase()}${parsed.pathname.replace(/\/+$/, '')}${parsed.search}`;
+		} catch {
+			return url.trim();
+		}
+	};
+	return key(a) === key(b);
+}
+
+export function shelvesWith(data: ChartData, url: string): number[] {
+	const out: number[] = [];
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		if (shelfOf(data, pillarIndex).some((tool) => sameLink(tool.url, url))) out.push(pillarIndex);
+	}
+	return out;
+}
+
+export function toolInChart(data: ChartData, id: string): { pillarIndex: number; tool: Tool } | null {
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		const tool = shelfOf(data, pillarIndex).find((each) => each.id === id);
+		if (tool) return { pillarIndex, tool };
+	}
+	return null;
 }
 
 export function keptFor(data: ChartData, tool: Tool): ActionId | undefined {
 	return tool.action && slotOf(data, tool.action) ? tool.action : undefined;
+}
+
+export function toolDetail(data: ChartData, pillarIndex: number, tool: Tool): string {
+	if (tool.known) return 'known';
+	const kept = keptFor(data, tool);
+	const slot = kept ? slotOf(data, kept)?.slot : undefined;
+	const routine = (data.actions[pillarIndex] ?? []).some((text, index) => text.trim() && isRoutine(data.meta?.[idAt(data, pillarIndex, index)]));
+	const who = slot !== undefined ? `for action ${slot + 1}` : routine ? 'any routine' : 'no routine yet';
+	return tool.kind === 'repeat' ? who : `${who} · ${tool.kind}`;
 }
 
 export function toolsFor(data: ChartData, id: ActionId): Tool[] {

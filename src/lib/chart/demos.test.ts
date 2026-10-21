@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { DEMOS, demoSetup, isDemoId } from './demos.ts';
-import { parseDraftText } from './draft.ts';
-import { fillEdits, greetingInsight, reviewChart, suggestToday, weekInReview } from './helper.ts';
+import { DEMOS, demoSetup, isDemoId, type AgentCall } from './demos.ts';
+import { chartFromDraft, parseDraftText } from './draft.ts';
+import { fillEdits, greetingInsight, reviseEdits, suggestToday, weekInReview } from './helper.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { FORGOTTEN_MINUTES, isForgotten, isOver, minutesByPillar, remainingMs } from './timer.ts';
-import { completedBy, dateKeyOf, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
+import { completedBy, dateKeyOf, emptyChart, getByKey, idOfKey, keyOf, wholeness } from './model.ts';
 import { boardOf, doneByWeek, type Card } from './board.ts';
 import { monthOf } from './calendar.ts';
 import { getPreset } from './presets/index.ts';
 import { countCompletedBlocks, resumeStep, presetActionsToLend } from './start.ts';
+import { kindsToChanges, linesToEdits } from './webmcp.ts';
 
 const now = new Date(2026, 9, 10, 12);
 
@@ -62,7 +63,8 @@ describe('demos', () => {
 
 	it('gives Bindu something to say, something to review, and gaps a reply fills', () => {
 		expect(greetingInsight(demoSetup('bindu-week', now).data!, now)).not.toBeNull();
-		expect(reviewChart(demoSetup('bindu-review', now).data!).length).toBeGreaterThanOrEqual(4);
+		const review = DEMOS.find((demo) => demo.id === 'bindu-review')!;
+		expect(reviseEdits(demoSetup('bindu-review', now).data!, parseDraftText(review.reply!())!)).toHaveLength(5);
 		const fill = DEMOS.find((demo) => demo.id === 'bindu-fill')!;
 		const edits = fillEdits(demoSetup('bindu-fill', now).data!, parseDraftText(fill.reply!())!);
 		expect(edits.length).toBe(1 + 8 + 5);
@@ -113,5 +115,36 @@ describe('demos', () => {
 		const total = minutes.reduce((sum, value) => sum + value, 0);
 		expect(minutes[1]! / total).toBeGreaterThanOrEqual(0.5);
 		expect(greetingInsight(demoSetup('time-week', now).data!, now)?.id).toBe('time');
+	});
+
+	it('hands Bindu a weak line rewritten and an empty pillar filled, as an agent would', () => {
+		const setup = demoSetup('bindu-agent', now);
+		const open = setup.open as { agent: AgentCall };
+		expect(open.agent.tool).toBe('propose_lines');
+		const { edits, refused } = linesToEdits(setup.data!, open.agent.input(setup.data!).lines);
+		expect(refused).toEqual([]);
+		expect(edits).toHaveLength(10);
+		expect(edits.filter((edit) => edit.before)).toEqual([{ key: 'a1_2', before: 'Run more', after: 'Add 5 minutes to one easy run each week' }]);
+	});
+
+	it('asks an agent tool for kinds and a note that would change something, with ids from the chart that opened', () => {
+		const kinds = demoSetup('agent-kinds', now);
+		const call = (kinds.open as { agent: AgentCall }).agent;
+		expect(call.tool).toBe('propose_kinds');
+		const { changes, refused } = kindsToChanges(kinds.data!, call.input(kinds.data!).kinds);
+		expect(refused).toEqual([]);
+		expect(changes).toHaveLength(6);
+		const shelf = demoSetup('agent-shelf', now);
+		const link = (shelf.open as { agent: AgentCall }).agent;
+		expect(link.tool).toBe('update_shelf_link');
+		expect(link.input(shelf.data!)).toEqual({ id: 't-site', kind: 'staple' });
+		expect(shelf.data!.tools?.p1?.find((tool) => tool.id === 't-site')?.kind).toBe('repeat');
+		const week = demoSetup('agent-week', now);
+		expect((week.open as { agent: AgentCall }).agent.tool).toBe('propose_reflection');
+		const whole = demoSetup('agent-chart', now);
+		const draft = (whole.open as { agent: AgentCall }).agent;
+		expect(whole.data).toBeNull();
+		expect(draft.tool).toBe('propose_chart');
+		expect(chartFromDraft(draft.input(emptyChart()))?.actions.flat().filter(Boolean)).toHaveLength(64);
 	});
 });

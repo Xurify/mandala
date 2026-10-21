@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import Icon from './Icon.svelte';
 	import MenuTitle from './MenuTitle.svelte';
@@ -9,6 +10,18 @@
 
 	const scoped = $derived(chart.goals.find((goal) => goal.id === chart.calendarScope));
 	const title = $derived(chart.goals.length === 1 ? (chart.goals[0]?.title ?? '') : (scoped?.title ?? 'All charts'));
+	const listed = $derived.by(() => {
+		const at = new Map(chart.charts.map((item) => [item.id, item.updatedAt]));
+		return chart.goals.slice().sort((a, b) => (at.get(b.id) ?? 0) - (at.get(a.id) ?? 0));
+	});
+	let open = $state(false);
+
+	$effect(() => {
+		chart.viewMode;
+		untrack(() => {
+			open = false;
+		});
+	});
 
 	const titleClass =
 		'm-0 font-serif text-[clamp(1.85rem,3.4vw,2.55rem)] leading-[1.12] font-[460] tracking-[-0.015em] text-text max-[900px]:text-[clamp(1.7rem,7.2vw,2.15rem)]';
@@ -16,13 +29,13 @@
 
 <Eyebrow class="mb-2">Your calendar</Eyebrow>
 {#if chart.goals.length > 1}
-	<Menu class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]" align="start" label="Charts on the calendar">
+	<Menu class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]" align="start" label="Charts on the calendar" bind:open>
 		{#snippet trigger({ expanded, toggle })}
 			<MenuTitle {title} label="Charts on the calendar: {title}" {expanded} onclick={toggle} />
 		{/snippet}
 		{@render scope('all', 'All charts', 'calendar')}
 		<MenuDivider />
-		{#each chart.goals as goal (goal.id)}
+		{#each listed as goal (goal.id)}
 			{@render scope(goal.id, goal.title)}
 		{/each}
 	</Menu>

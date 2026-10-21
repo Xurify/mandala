@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
 	import { HUES } from '$lib/chart/model';
-	import { fetchTitle, hostOf, shelfOf } from '$lib/chart/tools';
+	import { fetchTitle, hostOf, shelfOf, shelvesWith } from '$lib/chart/tools';
+	import Icon from './Icon.svelte';
 	import ToolFace from './ToolFace.svelte';
 	import Button from './ui/Button.svelte';
 	import Dialog from './ui/Dialog.svelte';
@@ -28,9 +29,16 @@
 
 	const preview = $derived(chart.pendingLink ? { url: chart.pendingLink, title: title ?? hostOf(chart.pendingLink), kind: 'repeat' as const } : null);
 
+	const holders = $derived(chart.pendingLink ? shelvesWith(chart.data, chart.pendingLink) : []);
+
 	function put(pillarIndex: number): void {
 		const url = chart.pendingLink;
 		if (!url) return;
+		if (holders.includes(pillarIndex)) {
+			chart.say(`Already on ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}.`);
+			chart.pendingLink = null;
+			return;
+		}
 		const tool = chart.addTool(pillarIndex, url, title ?? '');
 		if (!title) void fetchTitle(url).then((found) => found && chart.updateTool(pillarIndex, tool.id, { title: found }));
 		chart.say(`Added to ${chart.data.pillars[pillarIndex]?.trim() || `Pillar ${pillarIndex + 1}`}.`);
@@ -38,7 +46,12 @@
 	}
 </script>
 
-<Dialog bind:open title="Add to a shelf" description="Which pillar is this for?" size="sm">
+<Dialog
+	bind:open
+	title="Add to a shelf"
+	description={holders.length ? `Already on ${new Intl.ListFormat('en').format(holders.map((index) => chart.data.pillars[index]?.trim() || `Pillar ${index + 1}`))}. Add it to another pillar too?` : 'Which pillar is this for?'}
+	size="sm"
+>
 	{#if preview}
 		<div class="mb-4 rounded-[18px] bg-bg px-3 py-2.5">
 			<ToolFace tool={preview} size="md" />
@@ -46,6 +59,7 @@
 		<ul class="m-0 grid list-none grid-cols-2 gap-1.5 p-0 max-[420px]:grid-cols-1">
 			{#each chart.data.pillars as pillar, pillarIndex (pillarIndex)}
 				{@const count = shelfOf(chart.data, pillarIndex).length}
+				{@const has = holders.includes(pillarIndex)}
 				<li>
 					<button
 						type="button"
@@ -54,7 +68,9 @@
 					>
 						<span class="pip size-2.5 shrink-0 rounded-full" style:--pip-h={HUES[pillarIndex]} aria-hidden="true"></span>
 						<span class="min-w-0 flex-1 truncate font-[560]">{pillar.trim() || `Pillar ${pillarIndex + 1}`}</span>
-						{#if count}
+						{#if has}
+							<span class="flex shrink-0 items-center gap-1 text-[0.78rem] font-[560] text-muted"><Icon name="check" size={13} />Has it</span>
+						{:else if count}
 							<span class="shrink-0 text-[0.78rem] text-muted tabular-nums">{count}</span>
 						{/if}
 					</button>

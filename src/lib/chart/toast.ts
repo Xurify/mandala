@@ -9,13 +9,6 @@ export type SlipBurst = {
 	mixed: boolean;
 };
 
-export function burstToast(kicker: string, subject: string, count: number, mixed = false): string {
-	if (mixed) return `${kicker} ${count} ${count === 1 ? 'chart' : 'charts'}.`;
-	const name = subject.trim() || UNTITLED;
-	if (count > 1) return `${kicker} “${name}” ×${count}.`;
-	return `${kicker} “${name}”.`;
-}
-
 export function nextSlipBurst(
 	previous: SlipBurst | null,
 	key: string,

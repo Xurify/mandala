@@ -14,7 +14,10 @@ import {
 	ringShare,
 	sessionEndingAt,
 	sessionOf,
-	sessionsOn
+	sessionsOn,
+	splitMinutes,
+	countedMinutes,
+	passiveMinutesByPillar
 } from './timer.ts';
 
 const MINUTE = 60_000;
@@ -92,6 +95,7 @@ describe('the log', () => {
 	it('adds time spent before it was logged, ending now', () => {
 		const now = new Date(2026, 9, 12, 19, 0);
 		expect(sessionEndingAt(A.a3_2, 45, now)).toEqual({ dateKey: today, session: { action: A.a3_2, at: '18:15', minutes: 45 } });
+		expect(sessionEndingAt(A.a3_2, 45, now, 'tool_1')).toEqual({ dateKey: today, session: { action: A.a3_2, at: '18:15', minutes: 45, link: 'tool_1' } });
 		const justAfterMidnight = new Date(2026, 9, 13, 0, 20);
 		expect(sessionEndingAt(A.a3_2, 60, justAfterMidnight).session.at).toBe('00:00');
 	});
@@ -111,11 +115,11 @@ describe('the log', () => {
 
 	it('travels through a save and keeps a running timer', () => {
 		const data = chart();
-		addSession(data, today, { action: A.a0_0, at: '07:10', minutes: 15 });
-		data.timer = { action: A.a3_2, since: start, length: 25 };
+		addSession(data, today, { action: A.a0_0, at: '07:10', minutes: 15, link: 'tool_1' });
+		data.timer = { action: A.a3_2, since: start, length: 25, link: 'tool_1' };
 		const again = parseChart(JSON.stringify(data))!;
-		expect(again.days?.[today]?.sessions).toEqual([{ action: A.a0_0, at: '07:10', minutes: 15 }]);
-		expect(again.timer).toEqual({ action: A.a3_2, since: start, length: 25 });
+		expect(again.days?.[today]?.sessions).toEqual([{ action: A.a0_0, at: '07:10', minutes: 15, link: 'tool_1' }]);
+		expect(again.timer).toEqual({ action: A.a3_2, since: start, length: 25, link: 'tool_1' });
 	});
 
 	it('drops a timer it cannot read', () => {
@@ -136,5 +140,30 @@ describe('words', () => {
 	it('reads like a clock', () => {
 		expect(clockFace(4 * MINUTE + 5_000)).toBe('4:05');
 		expect(clockFace(62 * MINUTE + 5_000)).toBe('1:02:05');
+	});
+});
+
+describe('time in the background', () => {
+	it('counts at half unless the chart says otherwise, rounded once', () => {
+		const data = chart();
+		addSession(data, today, { action: A.a0_0, at: '09:30', minutes: 15 });
+		addSession(data, today, { action: A.a0_0, at: '10:00', minutes: 15, mode: 'passive' });
+		addSession(data, today, { action: A.a3_2, at: '11:00', minutes: 5, mode: 'passive' });
+		expect(splitMinutes(sessionsOn(data, today))).toEqual({ active: 15, passive: 20 });
+		expect(countedMinutes(data, sessionsOn(data, today))).toBe(25);
+		expect(minutesOn(data, today)).toBe(25);
+		expect(minutesOn(data, today, A.a3_2)).toBe(3);
+		expect(minutesByPillar(data, new Date(start))).toEqual([23, 0, 0, 3, 0, 0, 0, 0]);
+		expect(passiveMinutesByPillar(data, new Date(start))).toEqual([15, 0, 0, 5, 0, 0, 0, 0]);
+		data.passiveWeight = 0;
+		expect(minutesByPillar(data, new Date(start))).toEqual([15, 0, 0, 0, 0, 0, 0, 0]);
+		data.passiveWeight = 1;
+		expect(minutesOn(data, today)).toBe(35);
+	});
+
+	it('keeps the mode on a session logged by hand', () => {
+		const logged = sessionEndingAt(A.a0_0, 30, new Date(start + 30 * MINUTE), undefined, 'passive');
+		expect(logged.session).toEqual({ action: A.a0_0, at: '09:30', minutes: 30, mode: 'passive' });
+		expect(sessionEndingAt(A.a0_0, 30, new Date(start + 30 * MINUTE), undefined, 'active').session.mode).toBeUndefined();
 	});
 });

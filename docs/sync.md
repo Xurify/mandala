@@ -10,12 +10,12 @@ Mandala keeps everything in the browser today. This page is the contract that ke
 | --- | --- | --- |
 | `shared` | With anyone, by link or published share, and between your devices | the goal, pillars, actions, whether an action is a routine or a one-time step, pinned, the shelves' links |
 | `asked` | Between your devices, and to another person only when that share includes it | an action's `note` and its board `details` (Include notes, in Export) |
-| `yours` | Between your own devices, never to another person | everything that happened while the chart was worked (`days` with ticks and time logged, `weeks`, done marks, the board's lanes, `cleared`, what was opened from a shelf and when, the running `timer`), the `brief`, site `icons` |
+| `yours` | Between your own devices, never to another person | everything that happened while the chart was worked (`days` with ticks and time logged, `weeks`, done marks, the board's lanes, `cleared`, what was opened from a shelf and when, the running `timer`), the `brief`, site `icons`, how much passive time counts (`passiveWeight`) |
 | `device` | Nowhere | nothing inside a chart; see the browser keys below |
 
-It also says which part of the chart each field is. `plan` is the chart and how it is set up; `history` is what happened while it was worked. Copy without history keeps only `plan` (`withoutHistory` in `library.ts`). History is never `shared`: a person you send a chart to gets the plan, not your days.
+It also says which part of the chart each field is. `plan` is the chart and how it is set up; `history` is what happened while it was worked. A duplicate without **Include history** keeps only `plan` (`withoutHistory` in `library.ts`). History is never `shared`: a person you send a chart to gets the plan, not your days.
 
-It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one cloud sync replaces. The rest belong to the device: theme, accent, the view, the chat app, share secrets, the prototype's sync state.
+It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one cloud sync replaces. The rest belong to the device: theme, accent, the view, where prompts go, share secrets, the prototype's sync state.
 
 Two checks keep it honest:
 

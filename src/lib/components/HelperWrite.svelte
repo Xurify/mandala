@@ -1,14 +1,18 @@
 <script lang="ts">
 	import type { HelperStore, WriteMode } from '$lib/chart/helper.svelte';
-	import { CHAT_APPS } from '$lib/chart/draft';
-	import { draftButton, editWords, gapsOf, groupEdits } from '$lib/chart/helper';
+	import { CHAT_APPS, chatLink, type ChatApp } from '$lib/chart/draft';
+	import { looksLikeKey, openRouterSignInUrl, PROVIDERS, providerOf, type ProviderId } from '$lib/chart/provider';
+	import { gapsOf } from '$lib/chart/helper';
 	import { hasContent } from '$lib/chart/model';
-	import { HUES, setByKey } from '$lib/chart/model';
+	import HelperDraft from './HelperDraft.svelte';
 	import Icon from './Icon.svelte';
-	import MiniChart from './MiniChart.svelte';
+	import BouncingDots from './ui/BouncingDots.svelte';
 	import Button from './ui/Button.svelte';
+	import Eyebrow from './ui/Eyebrow.svelte';
+	import MenuDivider from './ui/MenuDivider.svelte';
+	import MenuItem from './ui/MenuItem.svelte';
 	import SegmentedControl from './ui/SegmentedControl.svelte';
-	import Select from './ui/Select.svelte';
+	import SplitButton from './ui/SplitButton.svelte';
 	import { cn } from './ui/cn';
 	import { textArea, textField } from './ui/styles';
 
@@ -22,19 +26,58 @@
 		...(written ? [{ value: 'review', label: 'Review' }] : []),
 		{ value: 'ask', label: 'Ask' }
 	]);
-	const appOptions = CHAT_APPS.map((app) => ({ value: app.id, label: app.label, icon: app.icon }));
 	const app = $derived(CHAT_APPS.find((entry) => entry.id === helper.app) ?? CHAT_APPS[0]!);
+	const targetApp = $derived(CHAT_APPS.find((entry) => entry.id === helper.promptTarget) ?? null);
 	const outcome = $derived(helper.outcome);
-	const preview = $derived.by(() => {
-		if (outcome?.kind !== 'cells') return helper.data;
-		const next = $state.snapshot(helper.data);
-		for (const edit of outcome.edits) setByKey(next, edit.key, edit.after);
-		return next;
-	});
+
 	const copied = $derived(helper.copied === helper.mode);
 	const opened = $derived(copied ? helper.sent : null);
+	let link = $state<{ mode: WriteMode; app: ChatApp } | null>(null);
+	const linked = $derived(copied && link?.mode === helper.mode ? link.app : null);
 	const answered = $derived(outcome !== null && outcome.kind !== 'unread');
 	let failed = $state(false);
+	let connecting = $state(false);
+	let choice = $state<ProviderId>('openrouter');
+	let keyDraft = $state('');
+	let modelDraft = $state('');
+	let leaving = $state(false);
+	const connected = $derived(helper.connection ? providerOf(helper.connection.provider) : null);
+	const live = $derived(helper.aiEnabled ? connected : null);
+	const chosen = $derived(providerOf(choice));
+	const providerOptions = PROVIDERS.map((provider) => ({ value: provider.id, label: provider.label }));
+	const replyFromProvider = $derived(helper.repliedBy === 'provider');
+	const sendingThisMode = $derived(helper.sending !== null && helper.sending === helper.mode);
+	const ready = $derived(helper.mode === 'new' ? helper.goal.trim() !== '' : helper.mode === 'ask' ? helper.question.trim() !== '' : true);
+	const sendLabel = $derived(
+		live ? (helper.mode === 'ask' ? `Ask ${live.label}` : helper.mode === 'review' ? `Review with ${live.label}` : `Write with ${live.label}`) : ''
+	);
+
+	function saveKey(event: SubmitEvent): void {
+		event.preventDefault();
+		if (!looksLikeKey(choice, keyDraft)) return;
+		const model = choice === 'openrouter' ? modelDraft.trim() : '';
+		helper.connect({ provider: choice, key: keyDraft.trim(), ...(model ? { model } : {}) });
+		keyDraft = '';
+		modelDraft = '';
+		connecting = false;
+	}
+
+	function turnOnAi(): void {
+		helper.setAiEnabled(true);
+		if (!helper.connection) connecting = true;
+	}
+
+	async function signInWithOpenRouter(): Promise<void> {
+		leaving = true;
+		location.assign(await openRouterSignInUrl(`${location.origin}${location.pathname}`));
+	}
+
+	function setModel(value: string): void {
+		const connection = helper.connection;
+		if (!connection) return;
+		const model = value.trim();
+		helper.connect({ provider: connection.provider, key: connection.key, ...(model ? { model } : {}) });
+	}
 
 	$effect(() => {
 		if (helper.mode === 'fill' && gaps === 0) helper.mode = 'ask';
@@ -48,18 +91,39 @@
 				: mode === 'fill'
 					? `It keeps your lines and writes only the ${gaps === 1 ? 'one that is' : `${gaps} that are`} empty.`
 					: mode === 'review'
-						? 'It runs the two tests on every line, in any language, and rewrites the ones that fail.'
+						? "It rewrites only the lines you can't tick off, or that aren't up to you."
 						: 'It reads your chart with the question. The answer stays there.';
 		return { there };
 	});
 	const APPS = Object.fromEntries(CHAT_APPS.map((entry) => [entry.id, entry.label])) as Record<(typeof CHAT_APPS)[number]['id'], string>;
 
+	function sendPrompt(): void {
+		if (targetApp) {
+			link = null;
+			helper.openIn(targetApp.id);
+		} else void copy();
+	}
+
 	async function copy(): Promise<void> {
 		const mode: WriteMode = helper.mode;
+		helper.setPromptTarget('clipboard');
 		try {
 			await navigator.clipboard.writeText(helper.prompt(mode));
 			failed = false;
+			link = null;
 			helper.markCopied(mode);
+		} catch {
+			failed = true;
+		}
+	}
+
+	async function copyLink(): Promise<void> {
+		const mode: WriteMode = helper.mode;
+		try {
+			await navigator.clipboard.writeText(chatLink(helper.app, helper.prompt(mode)));
+			failed = false;
+			helper.markCopied(mode);
+			link = { mode, app: helper.app };
 		} catch {
 			failed = true;
 		}
@@ -105,10 +169,8 @@
 			{@render thread(copied)}
 			<span class={marker(copied, !copied)} aria-hidden="true">{#if copied}{@render check()}{:else}1{/if}</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">Copy the prompt</p>
-				{#if helper.mode === 'review'}
-					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">The whole chart goes with it. Lines that pass come back as they are.</p>
-				{:else if helper.mode === 'new'}
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{live ? `Write it with ${live.label}, or send the prompt` : targetApp ? 'Send the prompt' : 'Copy the prompt'}</p>
+				{#if helper.mode === 'new'}
 					<input
 						class={textField}
 						type="text"
@@ -132,19 +194,37 @@
 						onblur={() => (helper.listening = false)}
 					></textarea>
 				{/if}
+				{#if live}
+					<div class="flex flex-wrap items-center gap-2">
+						<Button size="sm" variant={answered || helper.askAnswer ? 'soft' : 'primary'} icon={live.icon} disabled={!ready || helper.sending !== null} onclick={() => helper.send()}>
+							{#if sendingThisMode}<span class="inline-flex items-center">Writing<BouncingDots /></span>{:else}{sendLabel}{/if}
+						</Button>
+						{#if sendingThisMode}
+							<Button size="sm" variant="ghost" onclick={() => helper.cancel()}>Stop</Button>
+						{:else if !ready}
+							<span class="text-[0.8rem] text-muted">{helper.mode === 'new' ? 'Type your goal first.' : 'Type your question first.'}</span>
+						{/if}
+					</div>
+					{#if helper.sendError}
+						<p class="m-0 text-[0.82rem] leading-snug text-pretty text-danger motion-safe:animate-pop-in" role="alert">{helper.sendError}</p>
+					{/if}
+				{/if}
 				<div class="flex flex-wrap items-center gap-2">
-					<Button size="sm" variant="soft" icon={copied && !opened ? 'check' : 'copy'} onclick={copy}>{copied && !opened ? 'Copied' : 'Copy'}</Button>
-					<Button size="sm" variant="soft" icon={app.icon} onclick={() => helper.openIn()}>Open in {app.label}</Button>
-					<Select
-						size="sm"
-						class="w-[9.5rem]"
-						label="Which chat app to open"
-						options={appOptions}
-						value={helper.app}
-						onchange={(value) => {
-							if (CHAT_APPS.some((entry) => entry.id === value)) helper.useApp(value as (typeof CHAT_APPS)[number]['id']);
-						}}
-					/>
+					<SplitButton size="sm" icon={targetApp ? targetApp.icon : copied && !opened && !linked ? 'check' : 'copy'} menuLabel="Other ways to send the prompt" onclick={sendPrompt}>
+						{#snippet label()}{targetApp ? `Open in ${targetApp.label}` : copied && !opened && !linked ? 'Prompt copied' : 'Copy prompt'}{/snippet}
+						<div role="group" aria-labelledby="send-open">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-open">One click</span></Eyebrow>
+							{#each CHAT_APPS as entry (entry.id)}
+								<MenuItem icon={entry.icon} checked={helper.promptTarget === entry.id} onclick={() => ((link = null), helper.openIn(entry.id))}>{entry.label}</MenuItem>
+							{/each}
+						</div>
+						<MenuDivider />
+						<div role="group" aria-labelledby="send-paste">
+							<Eyebrow class="px-3 pt-2 pb-1"><span id="send-paste">Copy and paste</span></Eyebrow>
+							<MenuItem icon="copy" badge="Any chat app" checked={helper.promptTarget === 'clipboard'} onclick={copy}>Copy prompt</MenuItem>
+							<MenuItem icon="link" badge="Opens {app.label}" onclick={copyLink}>Copy link</MenuItem>
+						</div>
+					</SplitButton>
 					{#if failed}
 						<span class="basis-full text-[0.8rem] text-danger">Copying was blocked here. Try again.</span>
 					{/if}
@@ -158,8 +238,22 @@
 				{#if answered || opened !== null || (helper.mode === 'ask' && copied)}{@render check()}{:else}2{/if}
 			</span>
 			<div class="flex min-w-0 flex-1 flex-col gap-1 pt-1">
-				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{opened ? `It is in ${APPS[opened]}'s box. Send it there.` : 'Paste it into any chat app'}</p>
-				<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
+				<p class="m-0 text-[0.95rem] leading-tight font-[620]">{sendingThisMode && live
+						? `${live.label} is writing. It can take a minute.`
+						: helper.askAnswer && helper.mode === 'ask' && live
+							? `${live.label} answered`
+							: replyFromProvider && live
+								? `${live.label} wrote it`
+								: opened
+						? `It is in ${APPS[opened]}'s box. Send it there.`
+						: linked
+							? `Paste the link into any browser. ${APPS[linked]} opens with it.`
+							: 'Paste it into any chat app'}</p>
+				{#if helper.askAnswer && helper.mode === 'ask'}
+					<p class="m-0 mt-1.5 rounded-[20px] bg-bg p-3.5 text-[0.92rem] leading-[1.5] text-pretty whitespace-pre-line motion-safe:animate-pop-in">{helper.askAnswer}</p>
+				{:else}
+					<p class="m-0 text-[0.84rem] leading-snug text-pretty text-muted">{steps.there}</p>
+				{/if}
 			</div>
 		</li>
 
@@ -169,59 +263,9 @@
 					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}{@render check()}{:else}3{/if}
 				</span>
 				<div class="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
-					<p class="m-0 text-[0.95rem] leading-tight font-[620]">Paste the reply here</p>
-					{#if outcome?.kind === 'chart'}
-						{@const data = outcome.data}
-						<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
-							<div class="flex items-start gap-3.5">
-								<MiniChart {data} play="fill" cell={8} label="A full chart, 64 actions" />
-								<p class="m-0 min-w-0 flex-1 text-[0.98rem] leading-snug font-[620] text-pretty">{data.goal}</p>
-							</div>
-							<ol class="m-0 grid list-none grid-cols-2 gap-x-3 gap-y-1 p-0 text-[0.84rem] leading-[1.35]">
-								{#each data.pillars as pillar, pillarIndex (pillarIndex)}
-									<li class="flex min-w-0 items-center gap-1.5">
-										<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[pillarIndex]} aria-hidden="true"></span>
-										<span class="truncate">{pillar}</span>
-									</li>
-								{/each}
-							</ol>
-							<div class="flex items-center gap-2">
-								<Button size="sm" onclick={() => helper.applyReply()}>{draftButton(helper.data)}</Button>
-								<Button size="sm" variant="ghost" onclick={() => (helper.reply = '')}>Paste another</Button>
-							</div>
-						</div>
-					{:else if outcome?.kind === 'cells'}
-						{@const words = editWords(helper.data, outcome.edits)}
-						<div class="flex flex-col gap-3 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in">
-							<div class="flex max-h-[220px] flex-col gap-3 overflow-y-auto overscroll-contain">
-								{#each groupEdits(preview, outcome.edits) as group (group.key)}
-									<section class="flex min-w-0 flex-col gap-1" aria-label={group.label}>
-										<p class="m-0 flex items-center gap-1.5 text-[0.76rem] font-[620]">
-											{#if group.pillarIndex !== null}
-												<span class="pip size-2 shrink-0 rounded-full" style:--pip-h={HUES[group.pillarIndex]} aria-hidden="true"></span>
-												<span class="pillar-ink" style:--h={HUES[group.pillarIndex]}>{group.label}</span>
-											{:else}
-												<span class="text-muted">{group.label}</span>
-											{/if}
-										</p>
-										<ul class="m-0 flex list-none flex-col gap-1 p-0 ps-3.5">
-											{#each group.edits as edit (edit.key)}
-												<li class="flex flex-col text-[0.88rem] leading-snug text-pretty">
-													{#if edit.before.trim()}
-														<span class="text-[0.8rem] text-muted line-through">{edit.before}</span>
-													{/if}
-													<span>{edit.after}</span>
-												</li>
-											{/each}
-										</ul>
-									</section>
-								{/each}
-							</div>
-							<div class="flex items-center gap-2">
-								<Button size="sm" onclick={() => helper.applyReply()}>{words.button}</Button>
-								<Button size="sm" variant="ghost" onclick={() => (helper.reply = '')}>Paste another</Button>
-							</div>
-						</div>
+					<p class="m-0 text-[0.95rem] leading-tight font-[620]">{replyFromProvider && live ? `${live.label}'s reply` : 'Paste the reply here'}</p>
+					{#if outcome?.kind === 'chart' || outcome?.kind === 'cells'}
+						<HelperDraft data={helper.data} draft={outcome} onkeep={() => helper.applyReply()} aside="Paste another" onaside={() => (helper.reply = '')} />
 					{:else}
 						<textarea
 							class={cn(textArea, 'min-h-[76px] resize-none')}
@@ -248,4 +292,80 @@
 			</li>
 		{/if}
 	</ol>
+
+	{#if helper.askingConsent}
+		<section class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" aria-labelledby="ai-consent-title">
+			<p id="ai-consent-title" class="m-0 text-[0.95rem] leading-tight font-[620]">Let Mandala send your chart to an AI?</p>
+			<ul class="m-0 flex list-disc flex-col gap-1.5 ps-4 text-[0.84rem] leading-snug text-pretty text-muted">
+				<li>When you press Write, Review or Ask, this browser sends the chart, what you told Bindu, and your question to the connected provider. Nothing goes before you press.</li>
+				<li>The provider (ex. Claude <b>Anthropic</b>) bills your account, and keeps the text under its own terms.</li>
+				<li>Turn it off any time in the "more actions" menu. Copying a prompt will always be available.</li>
+			</ul>
+			<div class="flex items-center gap-2">
+				<Button size="sm" onclick={turnOnAi}>Turn on</Button>
+				<Button size="sm" variant="ghost" onclick={() => (helper.askingConsent = false)}>Not now</Button>
+			</div>
+		</section>
+	{:else if connected && helper.connection && !helper.aiEnabled}
+		<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
+			<span class="inline-flex items-center gap-1.5"><Icon name={connected.icon} size={14} />Your {connected.label} key is saved. AI is off.</span>
+			<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => (helper.askingConsent = true)}>Turn on</button>
+			<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => helper.connect(null)}>Disconnect</button>
+		</p>
+	{:else if connected && helper.connection}
+		<div class="flex flex-col gap-2">
+			<p class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8rem] leading-snug text-muted">
+				<span class="inline-flex items-center gap-1.5"><Icon name={connected.icon} size={14} />{connected.label} is connected on this device.</span>
+				<button type="button" class="cursor-pointer border-0 bg-transparent p-0 font-sans text-[0.8rem] font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink" onclick={() => helper.connect(null)}>Disconnect</button>
+			</p>
+			{#if connected.id === 'openrouter'}
+				<label class="flex flex-col gap-1">
+					<span class="text-[0.8rem] font-[600] text-muted">Model</span>
+					<input
+						class={cn(textField, 'h-9 text-[0.86rem]')}
+						type="text"
+						autocomplete="off"
+						spellcheck="false"
+						placeholder={connected.defaultModel}
+						value={helper.connection.model ?? ''}
+						onchange={(event) => setModel(event.currentTarget.value)}
+					/>
+					<span class="text-[0.76rem] leading-snug text-pretty text-muted">Any model on openrouter.ai. openrouter/free costs nothing, with a daily limit.</span>
+				</label>
+			{/if}
+		</div>
+	{:else if connecting && helper.aiEnabled}
+		<form class="flex flex-col gap-2.5 rounded-[20px] bg-bg p-3.5 motion-safe:animate-pop-in" onsubmit={saveKey}>
+			<p class="m-0 text-[0.95rem] leading-tight font-[620]">Connect an AI provider</p>
+			<SegmentedControl options={providerOptions} bind:value={choice} size="sm" label="AI provider" />
+			{#if choice === 'openrouter'}
+				<Button class="self-start" size="sm" icon="sparkles" disabled={leaving} onclick={signInWithOpenRouter}>
+					{#if leaving}<span class="inline-flex items-center">Opening OpenRouter<BouncingDots /></span>{:else}Connect OpenRouter{/if}
+				</Button>
+				<p class="m-0 text-[0.8rem] leading-snug text-muted">Or paste a key you already have:</p>
+			{/if}
+			<input
+				class={textField}
+				type="password"
+				autocomplete="off"
+				spellcheck="false"
+				aria-label="Your {chosen.label} API key"
+				placeholder="Your {chosen.label} key"
+				bind:value={keyDraft}
+			/>
+			{#if choice === 'openrouter'}
+				<input class={textField} type="text" autocomplete="off" spellcheck="false" aria-label="Model" placeholder="Model: {chosen.defaultModel}" bind:value={modelDraft} />
+			{/if}
+			<p class="m-0 text-[0.8rem] leading-snug text-pretty text-muted">
+				Billed by {chosen.label}, separately from a ChatGPT, Claude or Gemini subscription. Copying the prompt costs nothing extra. The key stays on this device and never syncs.
+				<a class="font-[600] text-text underline decoration-line underline-offset-4 hover:decoration-text" href={chosen.keyUrl} target="_blank" rel="noopener noreferrer">Get a key</a>
+			</p>
+			<div class="flex items-center gap-2">
+				<Button size="sm" variant="soft" type="submit" disabled={!looksLikeKey(choice, keyDraft)}>Save key</Button>
+				<Button size="sm" variant="ghost" onclick={() => ((connecting = false), (keyDraft = ''), (modelDraft = ''))}>Cancel</Button>
+			</div>
+		</form>
+	{:else}
+		<Button class="self-start" size="sm" variant="ghost" icon="key" onclick={() => (helper.aiEnabled ? (connecting = true) : (helper.askingConsent = true))}>Connect an AI provider</Button>
+	{/if}
 </div>

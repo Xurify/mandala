@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { example } from '$lib/chart/example';
 	import {
@@ -14,6 +15,7 @@
 		type DeletedSummary
 	} from '$lib/chart/library';
 	import { TEXT_MAX } from '$lib/chart/model';
+	import { fromOutside } from '$lib/chart/shortcuts';
 	import EmptyDeleted from './EmptyDeleted.svelte';
 	import FillRing from './FillRing.svelte';
 	import Icon from './Icon.svelte';
@@ -163,10 +165,6 @@
 		renameOpen = false;
 	}
 
-	function handleDuplicate(): void {
-		chart.duplicateChart();
-	}
-
 	function handleNew(): void {
 		chart.newChart();
 	}
@@ -222,6 +220,15 @@
 	}
 
 	const deletedGroups = $derived(groupDeleted(chart.deletedCharts));
+
+	$effect(() => {
+		chart.viewMode;
+		untrack(() => {
+			if (!menuOpen) return;
+			menuOpen = false;
+			find = '';
+		});
+	});
 
 	$effect(() => {
 		if (!menuOpen && !deletedOpen) return;
@@ -335,8 +342,8 @@
 	}
 
 	function handleWindowKeydown(event: KeyboardEvent): void {
-		if (event.ctrlKey || event.metaKey || event.altKey) return;
-		if (isTypingTarget(event.target)) return;
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+		if (fromOutside(event) || isTypingTarget(event.target)) return;
 		if (event.target instanceof Element && event.target.closest('[data-helper]')) return;
 		if (document.querySelector('dialog[open]')) return;
 
@@ -348,7 +355,7 @@
 		}
 		if (key === 'd') {
 			event.preventDefault();
-			handleDuplicate();
+			chart.duplicating = true;
 			return;
 		}
 		if (key === 'n') {
@@ -375,12 +382,13 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<Menu
-	class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]"
-	align="start"
-	label="Switch chart"
-	onopenchange={onMenu}
->
+	<Menu
+		class="max-w-full [&_[role=menu]]:w-[min(24rem,calc(100vw-32px))]"
+		align="start"
+		label="Switch chart"
+		bind:open={menuOpen}
+		onopenchange={onMenu}
+	>
 	{#snippet trigger({ expanded, toggle })}
 		<MenuTitle title={activeTitle} label="Switch chart: {activeTitle}{waiting}" {expanded} onclick={toggle} dot={waiting !== ''} />
 	{/snippet}
@@ -476,11 +484,10 @@
 		</div>
 		<div class="flex gap-px">
 			<MenuItem icon="edit" shortcut="R" class="flex-1" onclick={openRename}>Rename chart</MenuItem>
-			<MenuItem icon="copy" shortcut="D" class="flex-1" onclick={handleDuplicate}>
+			<MenuItem icon="copy" shortcut="D" class="flex-1" onclick={() => (chart.duplicating = true)}>
 				Duplicate chart
 			</MenuItem>
 		</div>
-		<MenuItem icon="sparkles" onclick={() => chart.duplicateChart(true)}>Copy without history</MenuItem>
 		<MenuDivider />
 		<MenuItem icon="list" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
 		<MenuItem icon="clock" count={chart.deletedCharts.length} onclick={openDeleted}>Recently deleted</MenuItem>

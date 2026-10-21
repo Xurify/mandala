@@ -48,18 +48,38 @@ export type DayLog = {
 	sessions?: Session[];
 };
 
+/** Where a session came from, when not from this app's own timer or Log time. */
+export type SessionSource = 'extension';
+
+export type SessionMode = 'active' | 'passive';
+
 export type Session = {
+	/** Set on sessions that arrive from outside, so the same one is never logged twice. */
+	id?: Id<'session'>;
 	action: ActionId;
 	/** Local start, "HH:MM". */
 	at: string;
+	/** As they ran. `passive` ones count by `passiveWeight` wherever time is added up. */
 	minutes: number;
+	/** Left out for active: the person was at it. `passive` is a page playing in the background. */
+	mode?: SessionMode;
+	source?: SessionSource;
+	link?: string;
 };
+
+export const PASSIVE_WEIGHT = 0.5;
+export const PASSIVE_WEIGHTS = [0, 0.5, 1] as const;
+
+export function parsePassiveWeight(value: unknown): number | undefined {
+	return PASSIVE_WEIGHTS.find((weight) => weight === value);
+}
 
 /** `since` is epoch ms rather than a running count, so a reload, a phone asleep, or another tab reads the same time. */
 export type Timer = {
 	action?: ActionId;
 	since: number;
 	length?: number;
+	link?: string;
 };
 
 export type WeekReflection = {
@@ -92,13 +112,14 @@ export function parseBrief(value: unknown): ChartBrief | undefined {
 	return Object.keys(brief).length > 0 ? brief : undefined;
 }
 
-export type ToolKind = 'once' | 'repeat';
+export type ToolKind = 'once' | 'repeat' | 'staple';
+export const TOOL_KINDS: readonly ToolKind[] = ['repeat', 'once', 'staple'];
 
 export type Tool = {
 	id: string;
 	url: string;
 	title: string;
-	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. */
+	/** `once` retires itself the first time it is opened. `repeat` stays in rotation until it is known. `staple` is never known. */
 	kind: ToolKind;
 	/** Without one, or while its action is cleared, any routine in the pillar may hand it out. */
 	action?: ActionId;
@@ -123,6 +144,8 @@ export type ChartData = {
 	icons?: Record<string, string>;
 	cleared?: Record<ActionId, ClearedAction>;
 	timer?: Timer;
+	/** How much a passive minute counts, 0 to 1. Left out means `PASSIVE_WEIGHT`. */
+	passiveWeight?: number;
 };
 
 /** A line cleared from the chart that something still points at, so its days still name it, and the same words back in the same place bring it back whole. */
@@ -154,10 +177,10 @@ export function parseTools(value: unknown): Record<string, Tool[]> | undefined {
 				id: record.id,
 				url: record.url.trim(),
 				title: typeof record.title === 'string' ? record.title.trim().slice(0, TEXT_MAX * 2) : '',
-				kind: record.kind === 'once' ? 'once' : 'repeat'
+				kind: TOOL_KINDS.find((kind) => kind === record.kind) ?? 'repeat'
 			};
 			if (isId('action', record.action)) tool.action = record.action;
-			if (record.known === true) tool.known = true;
+			if (record.known === true && tool.kind !== 'staple') tool.known = true;
 			if (Array.isArray(record.opened)) tool.opened = record.opened.filter((day): day is string => typeof day === 'string').slice(-60);
 			return [tool];
 		});
@@ -173,6 +196,7 @@ export function parseTimer(value: unknown): Timer | undefined {
 	const timer: Timer = { since: record.since };
 	if (isId('action', record.action)) timer.action = record.action;
 	if (typeof record.length === 'number' && record.length > 0 && record.length <= 24 * 60) timer.length = record.length;
+	if (typeof record.link === 'string' && record.link.trim()) timer.link = record.link.trim();
 	return timer.action || timer.length ? timer : undefined;
 }
 
@@ -517,7 +541,8 @@ export function parseChart(raw: string): ChartData | null {
 			tools: parseTools(record.tools),
 			icons: parseIcons(record.icons),
 			cleared: parseCleared(record.cleared, new Set(actionIds.flat())),
-			timer: parseTimer(record.timer)
+			timer: parseTimer(record.timer),
+			passiveWeight: parsePassiveWeight(record.passiveWeight)
 		};
 	} catch {
 		return null;
@@ -715,7 +740,7 @@ export function exportFilename(data: ChartData): string {
 	const sanitizedGoal = data.goal
 		.trim()
 		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/[^\p{L}\p{N}]+/gu, '-')
 		.replace(/^-+|-+$/g, '');
 	return sanitizedGoal ? `mandala-${sanitizedGoal}.json` : 'mandala-chart.json';
 }
@@ -848,50 +873,6 @@ export function pillarActivityLast7(data: ChartData): number[] {
 		}
 	}
 	return counts;
-}
-
-export type DayActivity = { focusCount: number; checkedCount: number };
-
-export function yearActivity(data: ChartData, year: number): Map<string, DayActivity> {
-	const prefix = `${year}-`;
-	const result = new Map<string, DayActivity>();
-	if (!data.days) return result;
-	for (const [key, log] of Object.entries(data.days)) {
-		if (!key.startsWith(prefix)) continue;
-		result.set(key, { focusCount: log.focus.length, checkedCount: log.checked.length });
-	}
-	return result;
-}
-
-export type YearStats = {
-	daysWithFocus: number;
-	checkedActions: number;
-	bestStreak: number;
-};
-
-export function yearStats(data: ChartData, year: number): YearStats {
-	let daysWithFocus = 0;
-	let checkedActions = 0;
-	let bestStreak = 0;
-	let currentStreak = 0;
-	for (
-		const date = new Date(year, 0, 1);
-		date.getFullYear() === year;
-		date.setDate(date.getDate() + 1)
-	) {
-		const log = data.days?.[dateKeyOf(date)];
-		const hasFocus = (log?.focus.length ?? 0) > 0;
-		const hasChecked = (log?.checked.length ?? 0) > 0;
-		if (hasFocus || hasChecked) {
-			currentStreak += 1;
-			bestStreak = Math.max(bestStreak, currentStreak);
-			if (hasFocus) daysWithFocus += 1;
-			checkedActions += log?.checked.length ?? 0;
-		} else {
-			currentStreak = 0;
-		}
-	}
-	return { daysWithFocus, checkedActions, bestStreak };
 }
 
 export function isUrl(value: string): boolean {

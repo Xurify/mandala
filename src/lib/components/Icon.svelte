@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { HUES } from '$lib/chart/model';
+	import { arcPath, pillarArc } from '$lib/chart/ring';
+
 	export type IconName =
 		| 'search'
 		| 'close'
@@ -6,12 +9,10 @@
 		| 'chevron-left'
 		| 'chevron-right'
 		| 'arrow-right'
-		| 'arrow-up-right'
 		| 'arrow-left'
 		| 'target'
 		| 'grid'
 		| 'edit'
-		| 'type'
 		| 'printer'
 		| 'image'
 		| 'download'
@@ -48,6 +49,9 @@
 		| 'hourglass'
 		| 'stop'
 		| 'plus'
+		| 'book'
+		| 'bindu'
+		| 'key'
 		| 'claude'
 		| 'openai'
 		| 'gemini'
@@ -68,6 +72,14 @@
 		strokeWidth = 1.8,
 		class: className = ''
 	}: Props = $props();
+
+	// Optically tuned for icon sizes (16-24px): wider gap (16°) prevents color bleeding,
+	// slightly bolder face features keep eyes and smile crisp and cheerful at small sizes.
+	const binduRing = { radius: 9.2, stroke: 2.8, gap: 16 };
+	const binduSegments = HUES.map((hue, pillarIndex) => {
+		const { start, end } = pillarArc(pillarIndex, binduRing);
+		return { hue, d: arcPath(12, 12, binduRing.radius, start, end) };
+	});
 </script>
 
 <svg
@@ -113,9 +125,6 @@
 		<path fill="currentColor" stroke="none" d="M22.3977 7.0896h-2.3106V.0676l-7.5094 6.3542V.1577h-1.1554v6.1966L4.4904 0v7.0896H1.6023v10.3976h2.8882V24l6.932-6.3591v6.2005h1.1554v-6.0469l6.9318 6.1807v-6.4879h2.8882V7.0896zm-3.4657-4.531v4.531h-5.355l5.355-4.531zm-13.2862.0676 4.8691 4.4634H5.6458V2.6262zM2.7576 16.332V8.245h7.8476l-6.1149 6.1147v1.9723H2.7576zm2.8882 5.0404v-3.8852h.0001v-2.6488l5.7763-5.7764v7.0111l-5.7764 5.2993zm12.7086.0248-5.7766-5.1509V9.0618l5.7766 5.7766v6.5588zm2.8882-5.0652h-1.733v-1.9723L13.3948 8.245h7.8478v8.087z" />
 	{:else if name === 'grok'}
 		<path fill="currentColor" stroke="none" d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z" />
-	{:else if name === 'arrow-up-right'}
-		<line x1="7" y1="17" x2="17" y2="7" />
-		<polyline points="8 7 17 7 17 16" />
 	{:else if name === 'arrow-left'}
 		<line x1="19" y1="12" x2="5" y2="12" />
 		<polyline points="12 19 5 12 12 5" />
@@ -136,10 +145,6 @@
 	{:else if name === 'edit'}
 		<path d="M12 20h9" />
 		<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-	{:else if name === 'type'}
-		<polyline points="4 7 4 4 20 4 20 7" />
-		<line x1="12" y1="4" x2="12" y2="20" />
-		<line x1="9" y1="20" x2="15" y2="20" />
 	{:else if name === 'printer'}
 		<polyline points="6 9 6 2 18 2 18 9" />
 		<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -174,8 +179,9 @@
 		<line x1="10" y1="11" x2="10" y2="17" />
 		<line x1="14" y1="11" x2="14" y2="17" />
 	{:else if name === 'sparkles'}
-		<path d="M12 3l1.9 4.8L18.7 9.7l-4.8 1.9L12 16.4l-1.9-4.8L5.3 9.7l4.8-1.9L12 3z" />
-		<path d="M19 15l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1 1-2.5z" />
+		<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+		<path d="M20 3v4" />
+		<path d="M22 5h-4" />
 	{:else if name === 'undo'}
 		<path d="M3 7v6h6" />
 		<path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
@@ -277,5 +283,28 @@
 		<path d="M17 2v2.5c0 2.5-5 4.5-5 7.5s5 5 5 7.5V22" />
 	{:else if name === 'stop'}
 		<rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />
+	{:else if name === 'book'}
+		<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+		<path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+	{:else if name === 'bindu'}
+		<circle cx="12" cy="12" r="7.4" class="fill-ink stroke-none" />
+		{#each binduSegments as segment (segment.hue)}
+			<path
+				class="pillar-stroke fill-none stroke-[2.8] [stroke-linecap:round]"
+				style:--h={segment.hue}
+				d={segment.d}
+			/>
+		{/each}
+		<ellipse cx="9.5" cy="11.2" rx="1.2" ry="1.5" class="fill-on-ink stroke-none" />
+		<ellipse cx="14.5" cy="11.2" rx="1.2" ry="1.5" class="fill-on-ink stroke-none" />
+		<path
+			d="M 9.8 14.1 Q 12 16.3 14.2 14.1"
+			class="stroke-on-ink fill-none stroke-[1.4] [stroke-linecap:round]"
+		/>
+	{:else if name === 'key'}
+		<circle cx="7.5" cy="15.5" r="4.5" />
+		<path d="m10.7 12.3 9.8-9.8" />
+		<path d="m15.5 7.5 3 3" />
+		<path d="m19 4 2.5 2.5" />
 	{/if}
 </svg>

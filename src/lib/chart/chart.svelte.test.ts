@@ -38,13 +38,6 @@ describe('chart day log', () => {
 		expect(log?.declined).toEqual([A.a0_0, A.a1_0]);
 		expect(log?.shown).toEqual([`stuck:${A.a3_0}`]);
 	});
-
-	it('drops an empty brief', () => {
-		chart.setBrief({ timeline: 'October' });
-		expect(chart.data.brief).toEqual({ timeline: 'October' });
-		chart.setBrief({ timeline: '  ' });
-		expect(chart.data.brief).toBeUndefined();
-	});
 });
 
 describe('chart board', () => {
@@ -77,14 +70,30 @@ describe('chart shelves', () => {
 		chart.clearFocusedKey();
 	});
 
-	it('puts a removed tool back where it was when the slip is undone', () => {
-		const first = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'First');
-		chart.addTool(1, 'https://youtu.be/wzMrFFcC1BU', 'Second');
-		chart.removeTool(1, first.id);
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['Second']);
-		expect(chart.slips.at(-1)?.kicker).toBe('Off the shelf');
+	it('takes tools off in one slip, and its undo puts each back where it was', () => {
+		chart.data = emptyChart();
+		const [firstClip, secondClip, thirdClip] = ['SZaaZpKLTFE', 'wzMrFFcC1BU', 'dQw4w9WgXcQ'].map((videoId, index) => chart.addTool(1, `https://youtu.be/${videoId}`, `Clip ${index + 1}`));
+		const site = chart.addTool(4, 'https://example.com/', 'Site');
+		chart.removeTools([
+			{ pillarIndex: 1, id: firstClip!.id },
+			{ pillarIndex: 1, id: thirdClip!.id },
+			{ pillarIndex: 4, id: site.id }
+		]);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([secondClip!.id]);
+		expect(chart.data.tools?.p4).toBeUndefined();
+		expect(chart.slips.at(-1)).toMatchObject({ kicker: 'Off the shelf', subject: '3 links' });
 		chart.undoSlip();
-		expect(chart.data.tools?.p1?.map((tool) => tool.title)).toEqual(['First', 'Second']);
+		expect(chart.data.tools?.p1?.map((tool) => tool.id)).toEqual([firstClip!.id, secondClip!.id, thirdClip!.id]);
+		expect(chart.data.tools?.p4?.map((tool) => tool.id)).toEqual([site.id]);
+	});
+
+	it('moves a tool to another shelf, and lets the routines there hand it out', () => {
+		chart.data = slotted(emptyChart());
+		const clip = chart.addTool(1, 'https://youtu.be/SZaaZpKLTFE', 'Clip');
+		chart.updateTool(1, clip.id, { action: A.a1_0, kind: 'once' });
+		chart.moveTools([{ pillarIndex: 1, id: clip.id }], 6);
+		expect(chart.data.tools?.p1).toBeUndefined();
+		expect(chart.data.tools?.p6).toEqual([{ id: clip.id, url: clip.url, title: 'Clip', kind: 'once' }]);
 	});
 });
 
@@ -143,6 +152,45 @@ describe('chart time', () => {
 		expect(logged()).toEqual([40]);
 	});
 
+	it('stops the stopwatch on an action taken off today, and keeps its minutes', () => {
+		const today = todayKey();
+		chart.setFocus(today, [ids().a0_0, ids().a3_2]);
+		chart.startTimer(ids().a0_0);
+		chart.data.timer!.since -= 7 * MINUTE;
+		expect(chart.setFocus(today, [ids().a0_0])).toBeNull();
+		expect(chart.timer).not.toBeNull();
+		chart.setFocus('2099-01-01', [ids().a0_0]);
+		chart.setFocus('2099-01-01', []);
+		expect(chart.timer).not.toBeNull();
+		expect(chart.setFocus(today, [ids().a3_2])).toBe('Logged 7 min on Scales before work.');
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([7]);
+	});
+
+	it('leaves a stopwatch alone when its action was never on today, and drops one left on for hours', () => {
+		const today = todayKey();
+		chart.startTimer(ids().a0_0);
+		chart.setFocus(today, [ids().a3_2]);
+		expect(chart.timer).not.toBeNull();
+		chart.setFocus(today, [ids().a0_0]);
+		chart.data.timer!.since -= 9 * 60 * MINUTE;
+		expect(chart.setFocus(today, [])).toBe('The stopwatch on Scales before work ran for hours, so it was not logged.');
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([]);
+	});
+
+	it("stops the stopwatch when its card moves off today's list on the board", () => {
+		chart.data.actionIds = slotted(emptyChart()).actionIds;
+		chart.setFocus(todayKey(), [A.a0_0, A.a3_2]);
+		chart.startTimer(A.a0_0);
+		chart.data.timer!.since -= 4 * MINUTE;
+		chart.moveCard(A.a3_2, 'todo', 0);
+		expect(chart.timer).not.toBeNull();
+		chart.moveCard(A.a0_0, 'todo', 0);
+		expect(chart.timer).toBeNull();
+		expect(logged()).toEqual([4]);
+	});
+
 	it('logs nothing for under a minute', () => {
 		chart.startTimer(ids().a0_0);
 		chart.data.timer!.since -= 50_000;
@@ -169,8 +217,8 @@ describe('chart time', () => {
 	});
 
 	it('adds time spent away from the app', () => {
-		chart.logTime(ids().a3_2, 45);
-		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45 })]);
+		chart.logTime(ids().a3_2, 45, 'tool_1');
+		expect(chart.data.days?.[todayKey()]?.sessions).toEqual([expect.objectContaining({ action: ids().a3_2, minutes: 45, link: 'tool_1' })]);
 	});
 });
 
@@ -188,7 +236,16 @@ describe('chart copies', () => {
 		expect(chart.data.actions[0]![0]).toBe('Read 10 pages at lunch');
 		expect(chart.data.meta?.[copy]).toEqual({ kind: 'routine', note: 'Page 40' });
 		expect(chart.data.days).toBeUndefined();
-		expect(chart.slips.at(-1)?.kicker).toBe('Copied fresh');
+		expect(chart.slips.at(-1)?.kicker).toBe('Duplicated');
+	});
+
+	it('names the copy, and leaves the chart it came from as it was', () => {
+		chart.data = emptyChart();
+		chart.data.goal = 'Reach B1 in Slovak';
+		const from = chart.charts.find((item) => item.active)!.id;
+		chart.duplicateChart(true, 'Reach B1 in Estonian');
+		expect(chart.data.goal).toBe('Reach B1 in Estonian');
+		expect(chart.charts.find((item) => item.id === from)?.title).toBe('Reach B1 in Slovak');
 	});
 });
 

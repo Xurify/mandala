@@ -31,7 +31,8 @@ export const CHART: Record<keyof ChartData, Reach> = {
 	brief: 'yours',
 	icons: 'yours',
 	cleared: 'yours',
-	timer: 'yours'
+	timer: 'yours',
+	passiveWeight: 'yours'
 };
 
 export const CHART_PART: Record<keyof ChartData, Part> = {
@@ -47,7 +48,8 @@ export const CHART_PART: Record<keyof ChartData, Part> = {
 	brief: 'plan',
 	icons: 'plan',
 	cleared: 'history',
-	timer: 'history'
+	timer: 'history',
+	passiveWeight: 'plan'
 };
 
 export const ACTION_META: Record<keyof ActionMeta, Reach> = {
@@ -84,15 +86,20 @@ export const DAY_LOG: Record<keyof DayLog, Reach> = {
 };
 
 export const SESSION: Record<keyof Session, Reach> = {
+	id: 'yours',
 	action: 'yours',
 	at: 'yours',
-	minutes: 'yours'
+	minutes: 'yours',
+	mode: 'yours',
+	source: 'yours',
+	link: 'yours'
 };
 
 export const TIMER: Record<keyof Timer, Reach> = {
 	action: 'yours',
 	since: 'yours',
-	length: 'yours'
+	length: 'yours',
+	link: 'yours'
 };
 
 export const WEEK: Record<keyof WeekReflection, Reach> = {
@@ -164,7 +171,11 @@ export const BROWSER_KEYS: Record<string, string> = {
 	mandala_view_mode: 'The view last open',
 	mandala_view_scale: 'Fit or Large',
 	mandala_goal_fit: 'Measured goal text sizes, so the goal does not resize after paint',
-	mandala_chat_app: 'The chat app prompts open in',
+	mandala_prompt_target: 'Where Bindu sends a prompt: the clipboard, or a chat app',
+	mandala_bindu: 'Off when the person turned Bindu off',
+	mandala_ai_consent: 'Whether the person agreed to the app sending their chart to the AI provider they connect',
+	mandala_ai_provider: 'The AI provider the person connected, its key, and a model. Never synced, shared, or exported',
+	mandala_openrouter_verifier: 'Session only: the one-time secret for an OpenRouter sign-in in progress',
 	theme: 'Light, dark, or the system',
 	accent: 'The accent, when not the default'
 };

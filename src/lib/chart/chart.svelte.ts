@@ -1,7 +1,7 @@
 import { morph } from "./morph";
 import { applyChange, finish as finishAction, leftToday, moveCard as cardMove, reopen as reopenAction, type Change, type Lane } from "./board.ts";
 import type { Goal } from "./calendar.ts";
-import { newTool, opened } from "./tools";
+import { newTool, opened, toolInChart } from "./tools";
 import {
   blockOfK,
   blockOfKey,
@@ -30,7 +30,6 @@ import {
   withNewIds,
   type ActionId,
   type ActionMeta,
-  type ChartBrief,
   type ChartData,
   type DayLog,
   type Milestones,
@@ -38,6 +37,9 @@ import {
   type Ref,
   type Session,
   type Timer,
+  PASSIVE_WEIGHT,
+  parsePassiveWeight,
+  type SessionMode,
   type Tool,
   type ToolKind,
   type WeekReflection,
@@ -70,7 +72,6 @@ import {
 } from "./library.ts";
 import {
   batchSubject,
-  burstToast,
   placeSlip,
   SLIP_MS,
   type Slip,
@@ -82,6 +83,7 @@ import {
   unpublishChart,
 } from "./sync/publish.ts";
 import { overlayLocalEdits } from "./sync/sync.ts";
+import { ingest as ingestSessions, ingestWords, type IngestRequest, type IngestResult } from "./ingest.ts";
 import {
   addSession,
   BREAK_MINUTES,
@@ -248,10 +250,6 @@ export class ChartStore {
   chartLayout: ChartLayout = $state(isLayout(this.viewMode) ? this.viewMode : "view");
   viewScale: ViewScale = $state(loadInitialViewScale());
   query = $state("");
-  status = $state("");
-  statusKicker = $state("");
-  statusSubject = $state("");
-  statusCount = $state(0);
   slips: Slip[] = $state([]);
   exportFallback = $state("");
   saveWarned = $state(false);
@@ -345,6 +343,10 @@ export class ChartStore {
   pillarActivity: number[] = $derived(pillarActivityLast7(this.data));
   reflecting = $state(false);
   selecting = $state(false);
+  browsingShelves = $state(false);
+  duplicating = $state(false);
+  /** A tool whose settings the shelf opens on, when a door elsewhere asks for them. Never saved. */
+  shelfTool = $state<string | null>(null);
 
   landed = $state<{ id: number; pillars: number[]; chart: boolean } | null>(
     null,
@@ -712,25 +714,7 @@ export class ChartStore {
     const placed = placeSlip(this.slips, Date.now(), this.#slipSeq, input);
     this.slips = placed.pile;
     this.#slipSeq = placed.nextId;
-    this.#syncFront();
     this.#armToastTimer();
-  }
-
-  #syncFront(): void {
-    const front = this.slips.at(-1);
-    if (!front) {
-      this.status = "";
-      this.statusKicker = "";
-      this.statusSubject = "";
-      this.statusCount = 0;
-      return;
-    }
-    this.statusKicker = front.kicker;
-    this.statusSubject = front.kicker ? front.subject : "";
-    this.statusCount = front.count;
-    this.status = front.kicker
-      ? burstToast(front.kicker, front.subject, front.count, front.mixed)
-      : front.subject;
   }
 
   #armToastTimer(): void {
@@ -750,7 +734,6 @@ export class ChartStore {
     if (this.#toastsHeld) return;
     const now = Date.now();
     this.slips = this.slips.filter((slip) => slip.until > now);
-    this.#syncFront();
     this.#armToastTimer();
   }
 
@@ -874,7 +857,15 @@ export class ChartStore {
   moveCard(id: ActionId, lane: Lane, index: number): boolean {
     const change = cardMove(this.data, id, lane, index, this.today);
     if (!change) return false;
+    const timer = this.data.timer;
+    const wasToday = timer?.action === id && getDayLog(this.data, this.today).focus.includes(id);
     this.#apply(change);
+    if (wasToday && timer && !getDayLog(this.data, this.today).focus.includes(id)) {
+      const stopped = this.#timerOff(timer, id);
+      this.data = { ...this.data };
+      this.save();
+      this.say(stopped);
+    }
     return true;
   }
 
@@ -884,16 +875,34 @@ export class ChartStore {
     this.save();
   }
 
-  /** `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. */
-  setFocus(dateKey: string, ids: ActionId[], replaced = false): void {
+  /**
+   * `replaced`: Bindu swapped the whole list, so the old picks were not taken off by hand. Returns what happened to a
+   * stopwatch on an action taken off today, which it has already said.
+   */
+  setFocus(dateKey: string, ids: ActionId[], replaced = false): string | null {
     if (!this.data.days) this.data.days = {};
     const existing = this.data.days[dateKey] ?? { focus: [], checked: [] };
     const removed = replaced ? [] : existing.focus.filter((id) => !ids.includes(id));
     const dropped = [...(existing.dropped ?? []).filter((id) => !ids.includes(id)), ...removed];
     const log: DayLog = { ...existing, focus: ids, started: true, dropped: dropped.length > 0 ? [...new Set(dropped)] : undefined };
     this.data.days[dateKey] = log;
+    const timer = this.data.timer;
+    const stopped = dateKey === this.today && timer?.action && existing.focus.includes(timer.action) && !ids.includes(timer.action) ? this.#timerOff(timer, timer.action) : null;
     this.data = { ...this.data };
     this.save();
+    if (stopped) this.say(stopped);
+    return stopped;
+  }
+
+  /** As switching to another action does: the minutes so far are kept, unless it was left on for hours. */
+  #timerOff(timer: Timer, action: ActionId): string {
+    const now = Date.now();
+    const label = actionLabel(this.data, action);
+    const logged = isForgotten(timer, now) ? null : this.#logTimer(timer, now);
+    delete this.data.timer;
+    this.timerEnd = null;
+    if (isForgotten(timer, now)) return `The stopwatch on ${label} ran for hours, so it was not logged.`;
+    return logged ? `Logged ${formatMinutes(logged.minutes)} on ${label}.` : `Stopped the stopwatch on ${label}.`;
   }
 
   declineToday(ids: ActionId[]): void {
@@ -921,7 +930,7 @@ export class ChartStore {
   loggingTime = $state<{ action: ActionId; forgotten?: Timer } | null>(null);
   #endSeq = 1;
 
-  startTimer(action: ActionId, length?: number): void {
+  startTimer(action: ActionId, length?: number, link?: string): void {
     const now = Date.now();
     const previous = this.data.timer;
     if (previous?.action) {
@@ -932,7 +941,7 @@ export class ChartStore {
         if (logged) this.say(`Logged ${formatMinutes(logged.minutes)} on ${actionLabel(this.data, previous.action)}.`);
       }
     }
-    this.data.timer = length ? { action, since: now, length } : { action, since: now };
+    this.data.timer = { action, since: now, ...(length ? { length } : {}), ...(link ? { link } : {}) };
     this.timerEnd = null;
     this.data = { ...this.data };
     this.save();
@@ -978,19 +987,21 @@ export class ChartStore {
     this.#clearTimer();
   }
 
-  logTime(action: ActionId, minutes: number): void {
+  logTime(action: ActionId, minutes: number, link?: string, mode?: SessionMode): void {
     const forgotten = this.loggingTime?.forgotten;
     if (forgotten && this.data.timer?.since === forgotten.since) {
-      this.#logTimer(forgotten, Date.now(), minutes);
+      this.#logTimer(forgotten, Date.now(), minutes, link ?? forgotten.link);
       this.#clearTimer();
     } else {
-      const { dateKey, session } = sessionEndingAt(action, minutes, new Date());
+      const { dateKey, session } = sessionEndingAt(action, minutes, new Date(), link, mode);
       addSession(this.data, dateKey, session);
       this.data = { ...this.data };
       this.save();
     }
     this.loggingTime = null;
-    this.say(`Logged ${formatMinutes(minutes)} on ${actionLabel(this.data, action)}.`);
+    const tool = link ? toolInChart(this.data, link)?.tool : null;
+    const on = tool ? ` on “${tool.title}” (${actionLabel(this.data, action)})` : ` on ${actionLabel(this.data, action)}`;
+    this.say(`Logged ${formatMinutes(minutes)}${mode === 'passive' && !forgotten ? ' passive' : ''}${on}.`);
   }
 
   #removedTime = new Map<string, { chartId: string; dateKey: string; sessions: Session[] }>();
@@ -1027,8 +1038,30 @@ export class ChartStore {
     this.save();
   }
 
-  #logTimer(timer: Timer, now: number, minutes?: number): { minutes: number } | null {
-    const logged = sessionOf(timer, now, minutes);
+  /** Time measured on a page by a browser extension. Each session is logged once, by its id. */
+  ingest(request: IngestRequest): IngestResult {
+    const { changed, logged, result } = ingestSessions(this.data, request);
+    if (changed) {
+      this.data = { ...this.data };
+      this.save();
+      this.say(ingestWords(this.data, logged));
+    }
+    return result;
+  }
+
+  setPassiveWeight(weight: number): void {
+    if (parsePassiveWeight(weight) === undefined) return;
+    if (weight === PASSIVE_WEIGHT) {
+      const { passiveWeight: _passiveWeight, ...rest } = this.data;
+      this.data = rest;
+    } else {
+      this.data = { ...this.data, passiveWeight: weight };
+    }
+    this.save();
+  }
+
+  #logTimer(timer: Timer, now: number, minutes?: number, link?: string): { minutes: number } | null {
+    const logged = sessionOf(link ? { ...timer, link } : timer, now, minutes);
     if (!logged) return null;
     addSession(this.data, logged.dateKey, logged.session);
     return logged.session;
@@ -1058,6 +1091,7 @@ export class ChartStore {
   updateTool(pillarIndex: number, id: string, patch: Partial<Tool>): void {
     this.#patchTool(pillarIndex, id, (tool) => {
       const next = { ...tool, ...patch };
+      if (next.kind === "staple") delete next.known;
       for (const field of ["action", "known", "opened"] as const) if (next[field] === undefined) delete next[field];
       return next;
     });
@@ -1065,20 +1099,54 @@ export class ChartStore {
 
   #removedTools = new Map<string, { chartId: string; pillarIndex: number; at: number; tool: Tool }>();
 
-  removeTool(pillarIndex: number, id: string): void {
-    const key = `p${pillarIndex}`;
-    const list = this.data.tools?.[key] ?? [];
-    const at = list.findIndex((tool) => tool.id === id);
-    if (at < 0) return;
-    const rest = list.filter((tool) => tool.id !== id);
-    const tools = { ...this.data.tools };
-    if (rest.length > 0) tools[key] = rest;
-    else delete tools[key];
-    this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+  /** One slip for the lot, and its Undo puts each back where it was. */
+  removeTools(picks: readonly { pillarIndex: number; id: string }[]): void {
+    const tokens: string[] = [];
+    let title = "";
+    for (const { pillarIndex, id } of picks) {
+      const key = `p${pillarIndex}`;
+      const list = this.data.tools?.[key] ?? [];
+      const at = list.findIndex((tool) => tool.id === id);
+      if (at < 0) continue;
+      const rest = list.filter((tool) => tool.id !== id);
+      const tools = { ...this.data.tools };
+      if (rest.length > 0) tools[key] = rest;
+      else delete tools[key];
+      this.data = { ...this.data, tools: Object.keys(tools).length > 0 ? tools : undefined };
+      const token = `tool:${id}`;
+      this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
+      // Put back last-removed first, so each lands at the index it had when it went.
+      tokens.unshift(token);
+      title = list[at]!.title;
+    }
+    if (tokens.length === 0) return;
     this.save();
-    const token = `tool:${id}`;
-    this.#removedTools.set(token, { chartId: this.#library.activeId, pillarIndex, at, tool: list[at]! });
-    this.#place({ key: token, kicker: "Off the shelf", subject: list[at]!.title, undo: [token] });
+    const subject = tokens.length === 1 ? title : `${tokens.length} links`;
+    this.#place({ key: tokens.length === 1 ? tokens[0]! : `tools:${tokens.join()}`, kicker: "Off the shelf", subject, undo: tokens });
+  }
+
+  /** A tool handed out by one action cannot keep it on another pillar, so a move hands it to that shelf's routines. */
+  moveTools(picks: readonly { pillarIndex: number; id: string }[], to: number): void {
+    let tools = { ...this.data.tools };
+    let moved = 0;
+    for (const { pillarIndex, id } of picks) {
+      if (pillarIndex === to) continue;
+      const from = tools[`p${pillarIndex}`] ?? [];
+      const tool = from.find((each) => each.id === id);
+      if (!tool) continue;
+      const rest = from.filter((each) => each.id !== id);
+      if (rest.length > 0) tools[`p${pillarIndex}`] = rest;
+      else delete tools[`p${pillarIndex}`];
+      const kept = { ...tool };
+      delete kept.action;
+      tools = { ...tools, [`p${to}`]: [...(tools[`p${to}`] ?? []), kept] };
+      moved++;
+    }
+    if (moved === 0) return;
+    this.data = { ...this.data, tools };
+    this.save();
+    const name = this.data.pillars[to]?.trim() || `Pillar ${to + 1}`;
+    this.say(moved === 1 ? `Moved to ${name}.` : `Moved ${moved} links to ${name}.`);
   }
 
   #restoreTool(token: string): void {
@@ -1113,12 +1181,6 @@ export class ChartStore {
       ...this.data,
       tools: { ...this.data.tools, [key]: list.map((tool) => (tool.id === id ? change(tool) : tool)) },
     };
-    this.save();
-  }
-
-  setBrief(brief: ChartBrief | undefined): void {
-    const next = brief && Object.values(brief).some((value) => value?.trim()) ? brief : undefined;
-    this.data = { ...this.data, brief: next };
     this.save();
   }
 
@@ -1405,10 +1467,11 @@ export class ChartStore {
     this.face = face;
   }
 
-  openShelf(pillarIndex: number): void {
+  openShelf(pillarIndex: number, toolId: string | null = null): void {
     this.selectPillar(pillarIndex);
     this.face = "shelf";
-    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar") {
+    this.shelfTool = toolId;
+    if (this.viewMode === "view" || this.viewMode === "today" || this.viewMode === "calendar" || this.viewMode === "board") {
       this.setViewMode("edit");
     }
   }
@@ -1541,9 +1604,10 @@ export class ChartStore {
     return true;
   }
 
-  duplicateChart(fresh = false): boolean {
+  duplicateChart(fresh = false, goal?: string): boolean {
     this.#flush();
-    const record = newRecord(fresh ? withoutHistory(this.data) : this.data);
+    const copy = fresh ? withoutHistory(this.data) : this.data;
+    const record = newRecord(goal === undefined ? copy : { ...copy, goal });
     this.#library.charts = [...this.#library.charts, record];
     this.#library.activeId = record.id;
     this.data = cloneChart(record.data);
@@ -1551,7 +1615,7 @@ export class ChartStore {
     const title = titleOf(this.data);
     const held = this.#copySlips();
     this.saveNow();
-    this.#applyNote(held, fresh ? "Copied fresh" : "Duplicated", title, 1, false);
+    this.#applyNote(held, "Duplicated", title, 1, false);
     return true;
   }
 
@@ -1611,10 +1675,6 @@ export class ChartStore {
     this.#applyNote(held, "Deleted", batch.subject, doomed.length, batch.mixed, doomed.map((item) => item.id));
   }
 
-  restoreChart(id: string): void {
-    this.restoreCharts([id]);
-  }
-
   restoreCharts(ids: string[]): void {
     if (ids.length === 0) return;
     this.#flush();
@@ -1634,10 +1694,6 @@ export class ChartStore {
     this.#applySavedGoalFit();
     this.saveNow();
     this.#applyNote(held, "Restored", batch.subject, titles.length, batch.mixed);
-  }
-
-  forgetChart(id: string): void {
-    this.forgetCharts([id]);
   }
 
   forgetCharts(ids: string[]): void {

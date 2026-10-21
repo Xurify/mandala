@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { A, slotted } from './fixtures.ts';
 import { emptyChart, exportJson, filledCount, parseChart } from './model.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 import {
@@ -14,6 +15,8 @@ import {
 	formatAgo,
 	formatDaysLeft,
 	formatUpdated,
+	hasHistory,
+	historyOf,
 	newRecord,
 	heldRows,
 	parseLibrary,
@@ -345,5 +348,37 @@ describe('reconcile', () => {
 		expect(merged.charts[0]!.data.goal).toBe('');
 		expect(merged.activeId).toBe(merged.charts[0]!.id);
 		expect(merged.deleted.map((item) => item.id).sort()).toEqual(['a', 'b']);
+	});
+});
+
+describe('hasHistory', () => {
+	it('is the days, the ticks, and the board, not the words', () => {
+		const data = emptyChart();
+		data.goal = 'Read more';
+		data.meta = { [A.a0_0]: { kind: 'routine', note: 'Page 40' } };
+		expect(hasHistory(data)).toBe(false);
+		data.days = { '2026-10-17': { focus: [A.a0_0], checked: [] } };
+		expect(hasHistory(data)).toBe(true);
+		delete data.days;
+		data.meta = { [A.a0_0]: { kind: 'routine', done: true } };
+		expect(hasHistory(data)).toBe(true);
+		data.meta = { [A.a0_0]: { kind: 'routine' } };
+		data.tools = { p0: [{ id: 'tool_1', url: 'https://example.com', title: 'Example', kind: 'repeat', known: true }] };
+		expect(hasHistory(data)).toBe(true);
+	});
+});
+
+describe('historyOf', () => {
+	it('counts what was finished, on how many days, and the time, as the calendar does', () => {
+		const data = slotted(emptyChart());
+		data.actions[0]![0] = 'Read 10 pages';
+		data.actions[0]![1] = 'Write a page';
+		data.days = {
+			'2026-10-15': { focus: [A.a0_0], checked: [A.a0_0, A.a0_1], sessions: [{ action: A.a0_0, at: '09:00', minutes: 30 }] },
+			'2026-10-16': { focus: [A.a0_1], checked: [] },
+			'2026-10-17': { focus: [], checked: [A.a0_0], sessions: [{ action: A.a0_1, at: '18:00', minutes: 15 }] }
+		};
+		expect(historyOf(data)).toEqual({ finished: 3, days: 2, minutes: 45 });
+		expect(historyOf(emptyChart())).toEqual({ finished: 0, days: 0, minutes: 0 });
 	});
 });

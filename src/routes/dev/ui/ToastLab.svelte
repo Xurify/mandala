@@ -206,7 +206,7 @@
 			>
 				{#if demo}
 					{#key demo.id}
-						<div class="col-start-1 row-start-1 max-w-full" out:slipOut>
+						<div class="col-start-1 row-start-1 min-w-0 max-w-full" out:slipOut>
 							{@render body(demo)}
 						</div>
 					{/key}

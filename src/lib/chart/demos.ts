@@ -17,7 +17,13 @@ export type DemoId =
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
+	| 'bindu-provider'
+	| 'bindu-agent'
+	| 'agent-chart'
+	| 'agent-kinds'
+	| 'agent-week'
 	| 'tools'
+	| 'agent-shelf'
 	| 'select'
 	| 'time-stopwatch'
 	| 'time-block'
@@ -34,8 +40,11 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true };
+	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: AgentCall };
 };
+
+/** A tool an agent would call once the demo's chart is open; ids are read from that chart, since opening it may give new ones. */
+export type AgentCall = { tool: string; input: (data: ChartData) => Record<string, unknown> };
 
 export type Demo = {
 	id: DemoId;
@@ -168,7 +177,7 @@ function shelves(data: ChartData, now: Date): NonNullable<ChartData['tools']> {
 			tool('t-test', 'https://youtu.be/1FWYOawIJNA', 'Are you really A2 level? Take this vocabulary test', { kind: 'once', known: true, opened: days(1) })
 		],
 		p4: [
-			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { action: idAt(data, 4, 0) }),
+			tool('t-lingq', 'https://www.lingq.com/en/learn/ru/web/reader/23800803', 'LingQ reader', { kind: 'staple', action: idAt(data, 4, 0) }),
 			tool('t-read', 'https://readline.app/r/moya-devushka', 'Moya devushka · readline', { action: idAt(data, 4, 0) })
 		]
 	};
@@ -190,7 +199,7 @@ export const DEMOS: readonly Demo[] = [
 		title: 'Finish a pillar',
 		group: 'Writing the chart',
 		steps: [
-			'Core phrases is one action short. The cursor is in the empty cell.',
+			'Vocabulary is one action short. The cursor is in the empty cell.',
 			'Type the line, then pause or leave the cell. Its check stamps onto pillar 3, its block glows, and its arc in the ring redraws.',
 			'The chart is not full, so there is no chart moment.'
 		]
@@ -327,12 +336,24 @@ export const DEMOS: readonly Demo[] = [
 		group: 'Tools',
 		steps: [
 			'Today opens with real Slovak and Russian links behind the actions. Each routine hands out one a day: tap ▶ to open it, the arrows for another, or the shelf button to open that pillar\'s shelf.',
-			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. The arrow opens its settings. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
-			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Sentence patterns, a link\'s See action 1 turns back to that cell.',
-			'Remove a link from its settings, then press Undo on the slip. It goes back where it was.',
+			'On Listening\'s shelf, each link is one line: who hands it out, how often, and Up next on the one Today shows. Its ⋯ menu holds the rest: Know this, Comes round, Move to another shelf, Who hands it out, Remove. One video was opened 11 of the last 14 days, so the shelf asks. Known ones wait folded at the end.',
+			'Choose Actions under the pillar\'s name: the block turns back over. Click an action that hands out links, then Hands out … from the shelf to turn it again. On Reading, a link\'s See action 1 turns back to that cell.',
+			'On Reading, LingQ reader is a staple: it comes round for good, is never asked if known, and has no Know this. In any link\'s menu, Comes round turns it into one; a known link made a staple comes back into rotation.',
+			'Remove a link from its menu, or focus it and press Delete, then press Undo on the slip. It goes back where it was. Paste a link that is already on the shelf: the shelf says so and points at it instead of adding a twin.',
 			'Click an action cell and paste a YouTube link into its note. It lands on the shelf, handed out by that action, and the cell counts it. Paste one anywhere else on the chart to pick a pillar instead. On Android, share from YouTube to Mandala does the same.',
-			'On pillar 5, Sentence patterns, open the readline link\'s settings, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'On pillar 5, Reading, open the readline link\'s menu, choose Who hands it out, press Add an icon, and pick any picture, an SVG included, or copy SVG code and press Ctrl V on that row. Every readline link wears it, in Today too.',
+			'At the foot of any shelf, See all shelves opens every pillar\'s shelf at once, known ones last. Each link has the same menu there, so it can be removed or moved without leaving. Select links picks several, shift-click for a run, then Move or Remove them in one go; the slip undoes the lot. Open on a plank turns that pillar\'s block to its shelf. The more-actions menu has it too.',
 			'Open the calendar from Today: the day lists what was opened from a shelf. Press Ctrl K and type a video\'s title to open it from anywhere.'
+		]
+	},
+	{
+		id: 'agent-shelf',
+		title: 'A staple from an agent',
+		group: 'Tools',
+		steps: [
+			'The demo calls update_shelf_link, as an agent would after read_shelves: Comprehensible Russian on Listening becomes a staple. The slip says your assistant changed it.',
+			'Open the Listening shelf from its row in Today: under the title it says staple, and its settings have no Know this.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask it what is on your shelves, or to keep a link for good.'
 		]
 	},
 	{
@@ -356,13 +377,14 @@ export const DEMOS: readonly Demo[] = [
 	},
 	{
 		id: 'bindu-review',
-		title: 'Bindu finds weak lines',
+		title: 'Review a chart with a prompt',
 		group: 'Bindu',
 		steps: [
-			'Weak lines opens on a chart with lines that fail the two tests. The chart sweeps, then the weak cells get a ring.',
-			'Click a line to open it in the editor and fix it. It folds out of the list.',
-			'Or press Review with a prompt instead: the chat app rewrites the failing lines, in any language, and Keep writes them in.'
-		]
+			'Bindu opens on Review, on a chart with five lines that cannot be ticked or are not yours to do.',
+			'Copy the prompt, or open the arrow beside it and pick a chat app. The button remembers the pick. It checks every line in the language the chart is written in.',
+			'Use "Copy a sample reply" on this card and paste it into the reply box. Only the failing lines change.'
+		],
+		reply: () => JSON.stringify(preset('health'))
 	},
 	{
 		id: 'bindu-fill',
@@ -385,6 +407,57 @@ export const DEMOS: readonly Demo[] = [
 			'Start this chart to see it open, with the moment in Bindu.'
 		],
 		reply: () => JSON.stringify(preset('music'))
+	},
+	{
+		id: 'bindu-provider',
+		title: 'Connect an AI provider',
+		group: 'Bindu',
+		steps: [
+			'Bindu opens on Fill the gaps. Press Connect an AI provider at the foot of the page. The first time, it asks to turn AI on and says what would be sent. Then pick OpenRouter, Gemini, Claude or OpenAI; Save key stays off until the key looks like one of theirs.',
+			'Connect OpenRouter leaves for openrouter.ai and comes back connected, with Bindu open on this page. Its model field takes any OpenRouter model; openrouter/free costs nothing.',
+			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.',
+			'More actions holds Turn off AI provider, and Turn off Bindu, which takes the face and every door to it away until Turn on Bindu.'
+		]
+	},
+	{
+		id: 'bindu-agent',
+		title: 'Lines from an agent in the browser',
+		group: 'Bindu',
+		steps: [
+			'A chart with an empty pillar and a weak line. The demo calls the propose_lines tool, as an agent in the browser would, and Bindu opens on Lines to look over.',
+			'The rewrite shows the line it replaces. Nothing is written until Keep, which lands the moment. Not now drops the offer.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then ask the agent to fill the gaps.'
+		]
+	},
+	{
+		id: 'agent-chart',
+		title: 'A whole chart from an agent',
+		group: 'Bindu',
+		steps: [
+			'A new, empty chart. The demo calls propose_chart, as an agent would after new_chart_guide, and Bindu opens on the chart to keep.',
+			'Keep fills the empty chart and lands the moment. Not now leaves it empty.',
+			'With a real agent: in Chrome, turn on chrome://flags/#enable-webmcp-testing, then tell it your goal and ask for a chart straight away.'
+		]
+	},
+	{
+		id: 'agent-kinds',
+		title: 'Routines and milestones from an agent',
+		group: 'Bindu',
+		steps: [
+			'The demo calls propose_kinds, as an agent would after reading the chart: six actions, each with the kind it would be. Bindu opens on How each one repeats.',
+			'Keep sorts them, and the routines show on Today every day as habits. Not now leaves every action as it was.',
+			'With a real agent: ask it which of your actions are habits.'
+		]
+	},
+	{
+		id: 'agent-week',
+		title: "The week's note from an agent",
+		group: 'Bindu',
+		steps: [
+			'A week of ticks behind the chart. The demo calls propose_reflection, as an agent would after week_history, and Bindu opens on A line for next week.',
+			'Save the week keeps it as the note for the week, the same one the weekly reflection writes.',
+			"With a real agent: ask it how your week went, and to write the week's note."
+		]
 	}
 ];
 
@@ -421,6 +494,11 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.tools = shelves(data, now);
 		return { data, view: 'today' };
 	}
+	if (id === 'agent-shelf') {
+		const { data } = demoSetup('tools', now);
+		const input = (opened: ChartData) => ({ id: opened.tools?.p1?.find((tool) => tool.url === 'https://comprehensiblerussian.com/#/home')?.id, kind: 'staple' });
+		return { data, view: 'today', open: { agent: { tool: 'update_shelf_link', input } } };
+	}
 	if (id === 'time-stopwatch') return { data: timed(now, 'a2_0', 12 * MINUTE), view: 'today' };
 	if (id === 'time-block') return { data: timed(now, 'a4_0', 25 * MINUTE - 40_000, 25), view: 'today' };
 	if (id === 'time-log') return { data: livedIn(now), view: 'today' };
@@ -436,14 +514,48 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 		data.actions[3]![1] = 'Get 10k followers';
 		data.actions[5]![4] = 'Work hard every day';
 		data.pillars[6] = 'Motivation';
-		return { data, view: 'view', open: { bindu: 'review' } };
+		return { data, view: 'view', open: { bindu: 'write-review' } };
 	}
-	if (id === 'bindu-fill') {
+	if (id === 'bindu-fill' || id === 'bindu-provider') {
 		const data = preset('fitness');
 		data.pillars[6] = '';
 		data.actions[6] = data.actions[6]!.map(() => '');
 		data.actions[2] = data.actions[2]!.map((action, index) => (index < 3 ? action : ''));
 		return { data, view: 'view', open: { bindu: 'write-fill' } };
+	}
+	if (id === 'bindu-agent') {
+		const whole = preset('fitness');
+		const data = preset('fitness');
+		data.pillars[6] = '';
+		data.actions[6] = data.actions[6]!.map(() => '');
+		data.actions[1]![2] = 'Run more';
+		const lines = [
+			{ cell: 'a1_2', text: whole.actions[1]![2]! },
+			{ cell: 'p6', text: whole.pillars[6]! },
+			...whole.actions[6]!.map((text, slot) => ({ cell: `a6_${slot}`, text }))
+		];
+		return { data, view: 'view', open: { agent: { tool: 'propose_lines', input: () => ({ lines }) } } };
+	}
+	if (id === 'agent-chart') {
+		const whole = preset('fitness');
+		const input = () => ({ goal: whole.goal, pillars: whole.pillars, actions: whole.actions });
+		return { data: null, view: 'view', open: { agent: { tool: 'propose_chart', input } } };
+	}
+	if (id === 'agent-kinds') {
+		const kinds: [string, string][] = [
+			['a0_0', 'routine'],
+			['a0_3', 'milestone'],
+			['a1_0', 'routine'],
+			['a1_3', 'milestone'],
+			['a6_0', 'routine'],
+			['a6_1', 'milestone']
+		];
+		const input = (data: ChartData) => ({ kinds: kinds.map(([key, kind]) => ({ id: idIn(data, key), kind })) });
+		return { data: preset('language'), view: 'view', open: { agent: { tool: 'propose_kinds', input } } };
+	}
+	if (id === 'agent-week') {
+		const note = 'Most mornings held, Speaking twice. Next week, one graded reader before Friday.';
+		return { data: livedIn(now), view: 'today', open: { agent: { tool: 'propose_reflection', input: () => ({ note }) } } };
 	}
 	return { data: null, view: 'view', open: { bindu: 'write-new' } };
 }
