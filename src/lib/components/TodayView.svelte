@@ -9,6 +9,7 @@
 	import IconButton from './ui/IconButton.svelte';
 	import { dealOrder, dealTools, toolsFor } from '$lib/chart/tools';
 	import { dealFirst, finishedOn } from '$lib/chart/board';
+	import { welcomeBack } from '$lib/chart/helper';
 	import { readyChime } from '$lib/chart/chime';
 	import { BLOCK_MINUTES, elapsedMs, formatMinutes, minutesOn, ringShare } from '$lib/chart/timer';
 	import TimerRing from './TimerRing.svelte';
@@ -151,10 +152,11 @@
 	}
 
 	const picking = $derived(allActions.length > 0 && !confirmed && pickable.length > 0);
+	const back = $derived(welcomeBack(chart.data));
 
 	const heading = $derived.by((): string => {
 		if (confirmed && focusEntries.length > 0) return "Today's focus";
-		if (picking) return 'Pick three for today';
+		if (picking) return back ? 'Welcome back' : 'Pick three for today';
 		return 'Today';
 	});
 
@@ -499,7 +501,7 @@
 							{heading}
 						</h2>
 						<p class="m-0 mt-1.5 max-w-[52ch] text-[0.95rem] text-pretty text-muted">
-							Three actions from your chart, small enough to finish today.
+							{back ? 'One action is enough to start again. Pick more if you like.' : 'Three actions from your chart, small enough to finish today.'}
 						</p>
 					</div>
 				</header>

@@ -16,6 +16,7 @@ import {
   hasContent,
   idx,
   isActionId,
+  idOfKey,
   keyOf,
   pillarActivityLast7,
   progressMilestones,
@@ -775,7 +776,9 @@ export class ChartStore {
    */
   setText(key: string, value: string, quiet = false): void {
     const before = wholeness(this.data);
+    const was = getByKey(this.data, key).trim();
     setByKey(this.data, key, value);
+    if (value.trim() && value.trim() !== was) this.#noteWritten(key);
     this.save();
     if (key === "g") this.#applySavedGoalFit();
     const after = wholeness(this.data);
@@ -785,6 +788,14 @@ export class ChartStore {
       return;
     }
     this.#hold(done, after);
+  }
+
+  #noteWritten(key: string): void {
+    const id = isActionId(key) ? key : idOfKey(this.data, key);
+    if (!id) return;
+    const existing = this.data.days?.[this.today] ?? { focus: [], checked: [] };
+    if (existing.wrote?.includes(id)) return;
+    this.data.days = { ...this.data.days, [this.today]: { ...existing, wrote: [...(existing.wrote ?? []), id] } };
   }
 
   #hold(done: { pillars: number[]; chart: boolean }, now: { pillars: boolean[]; chart: boolean }): void {

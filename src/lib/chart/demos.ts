@@ -14,6 +14,7 @@ export type DemoId =
 	| 'board'
 	| 'reflection'
 	| 'bindu-week'
+	| 'bindu-away'
 	| 'bindu-review'
 	| 'bindu-fill'
 	| 'bindu-new'
@@ -92,6 +93,17 @@ function livedIn(now: Date): ChartData {
 		4: { focus: ['a5_1', 'a2_3', 'a0_0'], checked: ['a2_3', 'a0_0'] },
 		5: { focus: ['a1_2', 'a4_2', 'a5_1'], checked: ['a1_2', 'a4_2'] },
 		9: { focus: ['a5_1'], checked: [] }
+	});
+	return data;
+}
+
+function away(now: Date): ChartData {
+	const data = preset('language');
+	data.meta = metaFor(data, { a0_0: { kind: 'routine' } });
+	history(data, now, {
+		14: { focus: ['a0_1', 'a2_0', 'a4_0'], checked: ['a0_1', 'a2_0', 'a0_0'] },
+		12: { focus: ['a1_0', 'a3_2'], checked: ['a1_0', 'a0_0'] },
+		9: { focus: ['a5_1', 'a1_3'], checked: ['a5_1'] }
 	});
 	return data;
 }
@@ -376,6 +388,15 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'bindu-away',
+		title: 'Back after a break',
+		group: 'Bindu',
+		steps: [
+			'Nothing was ticked for nine days. Bindu opens with a welcome, not a count of what was missed.',
+			'Pick one for today offers a single pick. Put it on today.'
+		]
+	},
+	{
 		id: 'bindu-review',
 		title: 'Review a chart with a prompt',
 		group: 'Bindu',
@@ -507,6 +528,7 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };
+	if (id === 'bindu-away') return { data: away(now), view: 'today', open: { bindu: 'home' } };
 	if (id === 'bindu-review') {
 		const data = preset('health');
 		data.actions[0]![0] = 'Be healthier';

@@ -31,3 +31,12 @@ export function newId<Kind extends IdKind>(kind: Kind, now: number = Date.now())
 export function isId<Kind extends IdKind>(kind: Kind, value: unknown): value is Id<Kind> {
 	return typeof value === 'string' && value.startsWith(`${kind}_`) && SUFFIX.test(value.slice(kind.length + 1));
 }
+
+/** When the id was made, in epoch ms: the UUIDv7's first 48 bits. */
+export function timeOf(id: string): number | null {
+	const suffix = id.slice(id.indexOf('_') + 1);
+	if (!SUFFIX.test(suffix)) return null;
+	let value = 0n;
+	for (const char of suffix) value = (value << 5n) | BigInt(ALPHABET.indexOf(char));
+	return Number(value >> 80n);
+}

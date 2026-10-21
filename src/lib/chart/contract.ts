@@ -82,7 +82,8 @@ export const DAY_LOG: Record<keyof DayLog, Reach> = {
 	dropped: 'yours',
 	declined: 'yours',
 	shown: 'yours',
-	sessions: 'yours'
+	sessions: 'yours',
+	wrote: 'yours'
 };
 
 export const SESSION: Record<keyof Session, Reach> = {

@@ -19,9 +19,11 @@ import {
 	suggestWeek,
 	unseenInsights,
 	weekInReview,
+	welcomeBack,
 	weekStrip
 } from './helper.ts';
 import { A, slotted, type Cell } from './fixtures.ts';
+import { newId } from './id.ts';
 import { dateKeyOf, emptyChart, parseChart, weekStartKey, type ActionId, type ChartData } from './model.ts';
 
 function sample(): ChartData {
@@ -249,6 +251,47 @@ describe('more insights', () => {
 		const retire = insightsFor(data, now).find((insight) => insight.id === 'retire');
 		expect(retire?.key).toBe(A.a4_0);
 		expect(retire?.text).toContain('is ticked on 11 of the last 14 days');
+	});
+
+	it('welcomes a return before the first tick, and asks for one pick', () => {
+		const data = sample();
+		data.days = { [day(-9)]: { focus: [A.a0_0], checked: [A.a0_0] } };
+		expect(welcomeBack(data, now)).toBe(true);
+		expect(insightsFor(data, now)[0]?.id).toBe('away');
+		expect(suggestToday(data, now)).toHaveLength(1);
+		expect(nextMove(data, now).label).toBe('Pick one for today');
+	});
+
+	it('does not call a short gap a break', () => {
+		const data = sample();
+		data.days = { [day(-3)]: { focus: [A.a0_0], checked: [A.a0_0] } };
+		expect(welcomeBack(data, now)).toBe(false);
+		expect(suggestToday(data, now)).toHaveLength(3);
+		data.days = { [day(-9)]: { focus: [A.a0_0], checked: [A.a0_0] }, [day(0)]: { focus: [A.a1_0], checked: [] } };
+		expect(welcomeBack(data, now)).toBe(false);
+	});
+
+	it('names the line that has gone longest without moving', () => {
+		const data = sample();
+		const fresh = new Date(now);
+		fresh.setDate(now.getDate() - 2);
+		data.actionIds = data.actionIds.map((row) => row.map(() => newId('action', fresh.getTime())));
+		data.actionIds[2]![5] = A.a2_5;
+		data.actionIds[3]![1] = A.a3_1;
+		data.days = { [day(-1)]: { focus: [], checked: [A.a0_0] }, [day(-40)]: { focus: [A.a2_5], checked: [] }, [day(-5)]: { focus: [], checked: [], wrote: [A.a3_1] } };
+		const still = insightsFor(data, now).filter((insight) => insight.id === 'still');
+		expect(still).toHaveLength(1);
+		expect(still[0]?.key).toBe(A.a2_5);
+		expect(still[0]?.text).toBe('\u201cLong run step 6\u201d hasn\'t moved in 5 weeks. Reword it smaller, or clear the cell for something new.');
+	});
+
+	it('leaves a line on the board out of the still list', () => {
+		const data = sample();
+		data.actionIds = data.actionIds.map((row) => row.map(() => newId('action', now.getTime())));
+		data.actionIds[2]![5] = A.a2_5;
+		data.days = { [day(-1)]: { focus: [], checked: [data.actionIds[0]![0]!] } };
+		data.meta = { [A.a2_5]: { kind: 'milestone', lane: 'todo' } };
+		expect(insightsFor(data, now).some((insight) => insight.id === 'still')).toBe(false);
 	});
 
 	it('holds back an insight shown in the last three days', () => {
