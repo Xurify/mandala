@@ -55,7 +55,7 @@ export function toHex([r, g, b]: [number, number, number]): string {
 }
 
 export const BRAND = {
-	ink: oklchToRgb(0.24, 0.012, 60),
+	ink: oklchToRgb(0.27, 0.03, 50),
 	paper: oklchToRgb(0.972, 0.008, 85),
 	pillars: HUES.map((hue) => oklchToRgb(0.7, 0.13, hue))
 };
