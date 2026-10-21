@@ -20,8 +20,9 @@ Losing the key loses the way back to the server copy, never the charts on a devi
 CREATE TABLE sync_rows (
 	room TEXT NOT NULL,       -- SHA-256 of the room id the device sends
 	id TEXT NOT NULL,         -- the chart's id
-	data TEXT,                -- the sealed chart, or NULL once deleted for good
+	size INTEGER NOT NULL,    -- characters in data, so a room's total is cheap to add up
 	updated_at INTEGER NOT NULL,
+	data TEXT,                -- the sealed chart, or NULL once deleted for good
 	PRIMARY KEY (room, id)
 )
 ```
@@ -33,8 +34,19 @@ A sealed chart is `{ id, updatedAt, deletedAt?, data }`: live, or in recently de
 All requests carry the room id in `x-sync-room`.
 
 - `GET /api/sync?since=<ms>` → `{ rows: [{ id, data, at }], more }`, oldest first, 200 at a time.
-- `PUT /api/sync/<chart id>` with `{ data }` and either `if-match: "<at in base 36>"` (write over the version read) or `if-none-match: *` (create). Returns `{ at }`, or 412 with `{ row }` as it is now when another device wrote first. A write with neither header gets 428. Up to 1,000 rows a room and 2,000,000 characters a row.
+- `PUT /api/sync/<chart id>` with `{ data }` and either `if-match: "<at in base 36>"` (write over the version read) or `if-none-match: *` (create). Returns `{ at }`, or 412 with `{ row }` as it is now when another device wrote first. A write with neither header gets 428. A room holds up to 1,000 rows, 2,000,000 characters a row, and 50,000,000 in all.
 - 503 when the server has no database, so the dialog can say sync cannot run there.
+
+### Limits (`lib/server/limit.ts`)
+
+Each request is counted in fixed windows, in the `sync_limits` table, since serverless instances share nothing else. A request over any limit gets 429 with `retry-after`; the device waits that long, the dialog says it paused, and the menu row says Paused.
+
+| Counted by | Limit |
+| --- | --- |
+| Room | 120 reads and 120 writes a minute |
+| Address | 600 reads and 600 writes a minute, 200 MB written an hour, 50 new rooms a day |
+
+A device reads every 45 seconds and writes two seconds after an edit, so one person stays far under the room limits. The address limits are wider because a phone network can put many people behind one address. The address is kept only as a hash, in a window that ends, and windows a day old are cleared.
 
 ### A round (`DeviceSync`, `device.svelte.ts`)
 

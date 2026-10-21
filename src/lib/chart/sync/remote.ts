@@ -5,12 +5,14 @@ import type { RemoteRow, SyncedChart } from './plan.ts';
 /** A row as the server keeps it: sealed, or null once deleted for good. */
 export type SealedRow = { id: string; data: string | null; at: number };
 
-export type SyncFailure = 'offline' | 'unavailable' | 'error';
+export type SyncFailure = 'offline' | 'unavailable' | 'limited' | 'error';
 
 export class SyncError extends Error {
 	constructor(
 		readonly kind: SyncFailure,
-		message: string
+		message: string,
+		/** Seconds the server asked for before the next try. */
+		readonly retryAfter: number | null = null
 	) {
 		super(message);
 	}
@@ -22,6 +24,10 @@ async function call(path: string, room: string, init: RequestInit = {}): Promise
 		response = await fetch(path, { ...init, cache: 'no-store', headers: { ...init.headers, 'content-type': 'application/json', 'x-sync-room': room } });
 	} catch {
 		throw new SyncError('offline', 'No connection.');
+	}
+	if (response.status === 429) {
+		const seconds = Number(response.headers.get('retry-after'));
+		throw new SyncError('limited', 'Too many requests.', Number.isFinite(seconds) && seconds > 0 ? seconds : 60);
 	}
 	if (response.status === 503) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;

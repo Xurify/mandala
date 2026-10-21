@@ -33,6 +33,7 @@
 	const status = $derived.by((): string => {
 		if (sync.status === 'syncing') return 'Syncing…';
 		if (sync.status === 'offline') return 'Offline. It catches up when the connection is back.';
+		if (sync.status === 'limited') return 'Paused for a moment, after a lot at once. It goes on by itself.';
 		if (sync.status === 'unavailable') return 'This copy of Mandala has no database for sync, so your charts stay on this device.';
 		if (sync.status === 'error') return sync.problem || 'Something went wrong. It tries again soon.';
 		if (sync.lastAt === null) return 'Not synced yet.';

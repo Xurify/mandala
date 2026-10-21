@@ -41,6 +41,8 @@ export class DeviceSync {
 	#again = false;
 	#timer: ReturnType<typeof setTimeout> | null = null;
 	#started = false;
+	/** Set when the server asked to wait; rounds asked for sooner run when it ends. */
+	#pauseUntil = 0;
 
 	constructor(host: SyncHost) {
 		this.#host = host;
@@ -98,7 +100,7 @@ export class DeviceSync {
 		this.#timer = setTimeout(() => {
 			this.#timer = null;
 			void this.now();
-		}, delay);
+		}, Math.max(delay, this.#pauseUntil - Date.now()));
 	}
 
 	async now(): Promise<void> {
@@ -120,9 +122,10 @@ export class DeviceSync {
 			if (this.key !== key) return;
 			this.status = error instanceof SyncError ? error.kind : 'error';
 			this.problem = error instanceof Error ? error.message : '';
+			if (error instanceof SyncError && error.retryAfter) this.#pauseUntil = Date.now() + error.retryAfter * 1000;
 		} finally {
 			this.#running = false;
-			if (this.#again) {
+			if (this.#again || this.status === 'limited') {
 				this.#again = false;
 				this.soon(500);
 			}

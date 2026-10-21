@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { db, hasDb, initDb } from './db';
+import { spend, type Charge } from './limit';
 
 const ROOM_RE = /^[0-9a-f]{64}$/;
 
@@ -25,6 +26,13 @@ export async function unavailable(): Promise<Response | null> {
 	} catch {
 		return json({ error: 'The sync database did not answer.' }, { status: 503 });
 	}
+}
+
+/** A 429 with how long to wait, or null when every charge is within its limit. */
+export async function limited(charges: readonly Charge[]): Promise<Response | null> {
+	const wait = await spend(db(), charges);
+	if (wait === null) return null;
+	return json({ error: 'Too many requests. Try again shortly.', retryAfter: wait }, { status: 429, headers: { 'retry-after': String(wait) } });
 }
 
 export async function rowAt(room: string, id: string): Promise<SyncRow | null> {

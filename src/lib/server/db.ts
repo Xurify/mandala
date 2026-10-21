@@ -1,5 +1,6 @@
 import { createClient, type Client } from '@libsql/client';
 import { env } from '$env/dynamic/private';
+import { LIMIT_SCHEMA } from './limit';
 
 /**
  * Dev without a Turso account: TURSO_DATABASE_URL=file:./local/charts.db.
@@ -35,14 +36,17 @@ const SCHEMA = [
 		data TEXT NOT NULL,
 		updated_at INTEGER NOT NULL
 	)`,
+	// `size` sits before `data`, so adding up a room's sizes never reads the sealed charts.
 	`CREATE TABLE IF NOT EXISTS sync_rows (
 		room TEXT NOT NULL,
 		id TEXT NOT NULL,
-		data TEXT,
+		size INTEGER NOT NULL,
 		updated_at INTEGER NOT NULL,
+		data TEXT,
 		PRIMARY KEY (room, id)
 	)`,
-	'CREATE INDEX IF NOT EXISTS sync_rows_by_time ON sync_rows (room, updated_at)'
+	'CREATE INDEX IF NOT EXISTS sync_rows_by_time ON sync_rows (room, updated_at)',
+	LIMIT_SCHEMA
 ];
 
 export function initDb(): Promise<void> {

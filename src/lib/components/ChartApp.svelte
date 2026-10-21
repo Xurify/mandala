@@ -537,7 +537,7 @@
 	}
 
 	const syncBadge = $derived(
-		!chart.sync.key ? undefined : chart.sync.status === 'offline' ? 'Offline' : chart.sync.status === 'error' || chart.sync.status === 'unavailable' ? 'Not syncing' : 'On'
+		!chart.sync.key ? undefined : chart.sync.status === 'offline' ? 'Offline' : chart.sync.status === 'limited' ? 'Paused' : chart.sync.status === 'error' || chart.sync.status === 'unavailable' ? 'Not syncing' : 'On'
 	);
 
 	const backupBadge = $derived(

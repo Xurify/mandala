@@ -44,5 +44,4 @@ Ordered by how much each would cost to get wrong.
 3. **Times with a zone.** Day keys and `doneAt` are local dates, and tick times are local `HH:MM`. Keep the date keys (they are what the person lived), and store a UTC time with the offset beside each tick, so two devices in different zones agree on order.
 4. **Room to grow.** Site icons can reach 96KB each; store them once by content hash outside the chart. Sync keeps a base copy of every chart beside the library. Move both from `localStorage` (about 5MB) to IndexedDB before `days` and the trash outgrow it.
 5. **Erasing the server copy.** Turning sync off stops one device; the sealed rows stay. A way to empty the room has to stop the other devices first, or they send everything up again.
-6. **Limits per person.** Anyone can open a room, and a room holds up to 1,000 rows of 2MB. Rate-limit writes and cap rooms per client before the app is offered to strangers.
-7. **Share ownership on the server.** A share's update secret lives on the device that published it, so another device cannot update it.
+6. **Share ownership on the server.** A share's update secret lives on the device that published it, so another device cannot update it.
