@@ -283,6 +283,16 @@ Done for now is on every page after the goal. It keeps every line and goes back 
 
 While the sheet is up, the page holds only what can be used on it: no search field or search button, no stats card, no scale row, no Bindu face in the corner or the top bar (the sheet has the chat app door), and the dock's tabs step aside. On the first chart the hero steps aside too, since there is nothing to switch to, and How the method works moves into the sheet beside the marks. When the sheet closes, the dock's tabs land again. The full preset, all 64 at once, is still in the command palette and the editor's start buttons for anyone who asks for it.
 
+### Sync devices
+
+More actions, **Sync devices** (also in the command palette), opens one small dialog with three faces, each with one move (`SyncDialog.svelte`, rules in [docs/device-sync.md](docs/device-sync.md)).
+
+- **Off.** What sync is, in one sentence that says the charts are sealed on the device. **Turn on sync** is the primary; **I have a key** turns the same dialog into a field for a key from another device, with the field already taken. A key that is not one says what a key looks like, under the field.
+- **On.** The status in words, never a colored dot ("Synced 3 min ago", "Offline. It catches up when the connection is back."), with a refresh button beside it. **Copy link** is the primary: the link carries the key in the hash, so another device opens straight into joining. Under it the key itself, in five groups that wrap whole, to type by hand, and the one warning: anyone with it can read and change your charts. **Turn off here** asks once, inline, and says the key is needed to come back. When the server has no database, the dialog says so and offers nothing else.
+- **Joining.** A link opens **Sync this device?**: the charts here and there end up on both, and nothing is removed. A device that holds only a blank chart drops it for the ones that arrive.
+
+The menu row carries a badge only while sync is on: On, Offline, or Not syncing. Sync is quiet otherwise. A slip says so only when the person would otherwise wonder what changed: "Added 2 charts from your other device.", or "Updated from your other device." when the open chart changed under them.
+
 ### Feedback
 
 - `Toast` sits above the dock as one paper slip (`bg-surface`, `--shadow-float`): the brand mark, an eyebrow for the verb, the chart name at title size. The mark sits centered on the eyebrow and name together. The name keeps to one line, so the slip hugs it: a wrapped name leaves the box at its widest, and the space beside the short line reads as a hole. A name longer than the slip (30rem, or the screen) ends in an ellipsis, and hovering shows all of it. A plain `chart.say()` is one sentence, past tense, no exclamation, and no eyebrow. One slip at a time. Repeating that action while it shows adds a sheet behind it and ticks `×n`, and restarts the clock. A different action fades this slip and lands the next one. Charts that do not share a name read as “2 charts”. A delete carries Undo (`Button` `soft`) and stays 8 seconds; everything else 5. The ring empties one pillar at a time. During the last stretch the pile closes and the slip lifts and fades. Hover fans the sheets behind it, pauses the clock, and brings a fading slip back. It never drops into the dock.

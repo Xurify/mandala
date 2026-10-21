@@ -77,13 +77,10 @@ import {
   SLIP_MS,
   type Slip,
 } from "./toast.ts";
-import {
-  fetchRow,
-  publishChart,
-  pushRow,
-  unpublishChart,
-} from "./sync/publish.ts";
+import { publishChart, unpublishChart } from "./sync/publish.ts";
 import { overlayLocalEdits } from "./sync/sync.ts";
+import { DeviceSync } from "./sync/device.svelte.ts";
+import { localChart, withCharts, type SyncedChart } from "./sync/plan.ts";
 import { ingest as ingestSessions, ingestWords, type IngestRequest, type IngestResult } from "./ingest.ts";
 import {
   addSession,
@@ -103,9 +100,6 @@ export type TimerEnd = {
   minutes: number;
 };
 
-export type SyncStatus = "off" | "syncing" | "synced" | "error";
-const SYNC_ROOM_KEY = "mandala-sync-room";
-const SYNC_STATE_KEY = "mandala-sync-state-v1";
 const HELD_KEY = "mandala-held";
 import { exampleChart, isExampleChart } from "./example.ts";
 import { applySavedGoalFit } from "$lib/components/goal-fit";
@@ -289,16 +283,15 @@ export class ChartStore {
   backupLastAt = $state<number | null>(null);
   #backupWarned = false;
 
-  #syncBase: ChartData | null = null;
-  /** The chart sync was turned on for. The prototype carries one chart, so others never go out under its key. */
-  #syncChart = "";
-  #syncBaseAt = 0;
-  #syncBusy = false;
-  #syncApplying = false;
-  #syncTimer: ReturnType<typeof setTimeout> | null = null;
-  syncEnabled = $state(false);
-  syncStatus = $state<SyncStatus>("off");
-  syncRoom = $state("");
+  sync = new DeviceSync({
+    library: () => {
+      const unsaved = this.#saveTimer !== null || JSON.stringify(activeRecord(this.#library).data) !== JSON.stringify(this.data);
+      if (unsaved) this.saveNow();
+      else this.#catchUp(null);
+      return $state.snapshot(this.#library) as ChartLibrary;
+    },
+    adopt: (next, from, changed) => this.#adoptSynced(next, from, changed),
+  });
 
   shareId = $state("");
   shareUpdatedAt = $state<number | null>(null);
@@ -388,12 +381,13 @@ export class ChartStore {
           const next = purgeLibrary(parsed);
           this.#adopt(next);
           if (next !== parsed) this.#writeLibrary();
-          this.#resumeSync();
+          this.sync.start();
           return;
         }
       }
       this.#adopt(emptyLibrary());
       this.saveNow();
+      this.sync.start();
     } catch {}
   }
 
@@ -477,8 +471,10 @@ export class ChartStore {
     this.#catchUp(edited ? this.#library.activeId : null);
     try {
       const raw = JSON.stringify(this.#library);
+      const changed = raw !== this.#seen;
       localStorage.setItem(LIBRARY_KEY, raw);
       this.#seen = raw;
+      if (changed) this.sync.soon();
     } catch {
       if (!this.saveWarned) {
         this.saveWarned = true;
@@ -559,6 +555,46 @@ export class ChartStore {
     if (editing) this.save();
   }
 
+  /**
+   * Charts that came from another device. Lines typed here while the round ran stay on top. An adopted chart
+   * is stamped later than the copy it replaces, so another tab still holding that copy does not keep it as newer.
+   */
+  #adoptSynced(planned: ChartLibrary, from: ChartLibrary, changed: readonly string[]): void {
+    this.#flush();
+    const current = $state.snapshot(this.#library) as ChartLibrary;
+    const changes = new Map<string, SyncedChart | null>();
+    let added = 0;
+    for (const id of changed) {
+      const target = localChart(planned, id);
+      const now = localChart(current, id);
+      if (!target) {
+        changes.set(id, null);
+        continue;
+      }
+      if (!now && target.deletedAt === undefined) added += 1;
+      const before = localChart(from, id);
+      const typed = before && now && JSON.stringify(before.data) !== JSON.stringify(now.data);
+      const data = typed ? overlayLocalEdits(before.data, now.data, target.data) : target.data;
+      const touched = now ? Math.max(now.updatedAt, now.deletedAt ?? 0) + 1 : 0;
+      changes.set(id, { ...target, data, updatedAt: Math.max(target.updatedAt, touched) });
+    }
+    const was = this.#library.activeId;
+    const shown = JSON.stringify(this.data);
+    let next = withCharts(current, changes);
+    const only = current.charts[0];
+    // A device that just joined holds one blank chart. The charts that arrived take its place.
+    if (added > 0 && current.charts.length === 1 && current.deleted.length === 0 && only && !hasContent(only.data)) {
+      const charts = next.charts.filter((record) => record.id !== only.id);
+      const newest = charts.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      if (newest) next = { ...next, activeId: newest.id, charts };
+    }
+    this.#library = next;
+    this.#writeLibrary();
+    this.#follow(was, false);
+    if (added > 0) this.say(added === 1 ? "Added a chart from your other device." : `Added ${added} charts from your other device.`);
+    else if (this.#library.activeId === was && JSON.stringify(this.data) !== shown) this.say("Updated from your other device.");
+  }
+
   #follow(was: string, editing: boolean): void {
     const record = activeRecord(this.#library);
     if (record.id !== was) {
@@ -631,7 +667,6 @@ export class ChartStore {
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
     this.#saveTimer = setTimeout(() => this.saveNow(), 300);
     if (this.autoShare && this.shareId) this.#scheduleAutoPublish();
-    if (this.syncEnabled) this.#scheduleSyncPush();
   }
 
   say(message: string, keep = false): void {
@@ -1216,197 +1251,6 @@ export class ChartStore {
     this.save();
   }
 
-  #resumeSync(): void {
-    try {
-      const room = localStorage.getItem(SYNC_ROOM_KEY);
-      if (!room) return;
-      this.syncEnabled = true;
-      this.syncRoom = room;
-      this.#loadSyncState(room);
-      if (!this.#syncChart) this.#syncChart = this.#library.activeId;
-      void this.pullSync();
-    } catch {}
-  }
-
-  #syncing(): boolean {
-    return this.syncEnabled && Boolean(this.syncRoom) && this.#library.activeId === this.#syncChart;
-  }
-
-  #loadSyncState(room: string): void {
-    try {
-      const raw = localStorage.getItem(SYNC_STATE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        room: string;
-        chart?: string;
-        updatedAt: number;
-        data: ChartData;
-      };
-      if (parsed.room !== room) return;
-      this.#syncBase = parsed.data;
-      this.#syncBaseAt = parsed.updatedAt;
-      if (parsed.chart) this.#syncChart = parsed.chart;
-    } catch {
-    }
-  }
-
-  #persistSyncState(): void {
-    if (!this.#syncBase) return;
-    try {
-      localStorage.setItem(
-        SYNC_STATE_KEY,
-        JSON.stringify({
-          room: this.syncRoom,
-          chart: this.#syncChart,
-          updatedAt: this.#syncBaseAt,
-          data: this.#syncBase,
-        }),
-      );
-    } catch {
-    }
-  }
-
-  async pullSync(): Promise<void> {
-    if (!this.#syncing() || this.#syncBusy) return;
-    this.#syncBusy = true;
-    this.syncStatus = "syncing";
-    try {
-      const remote = await fetchRow(this.syncRoom, this.#syncBaseAt || null);
-      if (remote.unchanged) {
-        this.syncStatus = "synced";
-        return;
-      }
-      if (remote.chart && remote.updatedAt !== null) {
-        const merged = this.#syncBase
-          ? overlayLocalEdits(this.#syncBase, this.data, remote.chart)
-          : cloneChart(remote.chart);
-        if (JSON.stringify(merged) !== JSON.stringify(this.data)) {
-          this.#adoptSync(merged);
-          this.say("Pulled the latest from your other device.");
-        }
-        this.#rebase(remote.chart, remote.updatedAt);
-        if (JSON.stringify(merged) !== JSON.stringify(remote.chart)) {
-          await this.#putSync(merged, remote.updatedAt);
-        }
-        this.syncStatus = "synced";
-      } else {
-        await this.#putSync(this.data, remote.updatedAt);
-        this.syncStatus = "synced";
-      }
-    } catch {
-      this.syncStatus = "error";
-    } finally {
-      this.#syncBusy = false;
-    }
-  }
-
-  async pushSync(): Promise<void> {
-    if (!this.#syncing() || this.#syncBusy) return;
-    this.#syncBusy = true;
-    this.syncStatus = "syncing";
-    try {
-      const remote = await fetchRow(this.syncRoom, this.#syncBaseAt || null);
-      let outgoing = this.data;
-      if (
-        remote.chart &&
-        remote.updatedAt !== null &&
-        remote.updatedAt !== this.#syncBaseAt &&
-        this.#syncBase
-      ) {
-        outgoing = overlayLocalEdits(this.#syncBase, this.data, remote.chart);
-        this.#adoptSync(outgoing);
-        this.#rebase(remote.chart, remote.updatedAt);
-      }
-      await this.#putSync(outgoing, remote.updatedAt);
-      this.syncStatus = "synced";
-    } catch {
-      this.syncStatus = "error";
-    } finally {
-      this.#syncBusy = false;
-    }
-  }
-
-  /** The server's copy as last read: what this device's own edits are measured from. */
-  #rebase(data: ChartData, updatedAt: number): void {
-    this.#syncBase = cloneChart(data);
-    this.#syncBaseAt = updatedAt;
-    this.#persistSyncState();
-  }
-
-  async #putSync(data: ChartData, expected: number | null): Promise<void> {
-    let outgoing = data;
-    let version = expected;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const result = await pushRow(this.syncRoom, this.syncRoom, outgoing, version);
-      if (!result.moved) {
-        this.#rebase(outgoing, result.updatedAt);
-        return;
-      }
-      const remote = await fetchRow(this.syncRoom);
-      version = remote.updatedAt;
-      if (!remote.chart || remote.updatedAt === null) continue;
-      outgoing = this.#syncBase ? overlayLocalEdits(this.#syncBase, this.data, remote.chart) : cloneChart(remote.chart);
-      this.#adoptSync(outgoing);
-      this.#rebase(remote.chart, remote.updatedAt);
-    }
-    throw new Error("Another device kept writing first.");
-  }
-
-  #adoptSync(data: ChartData): void {
-    this.#syncApplying = true;
-    try {
-      this.data = data;
-      this.saveNow();
-    } finally {
-      this.#syncApplying = false;
-    }
-  }
-
-  #scheduleSyncPush(): void {
-    if (this.#syncApplying || !this.#syncing()) return;
-    if (this.#syncTimer) clearTimeout(this.#syncTimer);
-    this.#syncTimer = setTimeout(() => {
-      this.#syncTimer = null;
-      void this.pushSync();
-    }, 1200);
-  }
-
-  enableSync(room: string): void {
-    const trimmed = room.trim();
-    if (!/^[A-Za-z0-9_-]{8,64}$/.test(trimmed)) {
-      this.say("Sync key needs 8 to 64 letters, numbers, or dashes.");
-      return;
-    }
-    try {
-      localStorage.setItem(SYNC_ROOM_KEY, trimmed);
-    } catch {
-    }
-    this.syncEnabled = true;
-    this.syncRoom = trimmed;
-    this.#loadSyncState(trimmed);
-    this.#syncChart = this.#library.activeId;
-    void this.pullSync();
-    this.say("Sync on for this chart. It follows you to devices with the same key.");
-  }
-
-  disableSync(): void {
-    this.syncEnabled = false;
-    this.syncStatus = "off";
-    this.syncRoom = "";
-    this.#syncChart = "";
-    this.#syncBase = null;
-    this.#syncBaseAt = 0;
-    if (this.#syncTimer) {
-      clearTimeout(this.#syncTimer);
-      this.#syncTimer = null;
-    }
-    try {
-      localStorage.removeItem(SYNC_ROOM_KEY);
-      localStorage.removeItem(SYNC_STATE_KEY);
-    } catch {}
-    this.say("Sync off.");
-  }
-
   async publishShare(): Promise<void> {
     if (this.shareBusy) return;
     this.shareBusy = true;
@@ -1657,7 +1501,6 @@ export class ChartStore {
     this.data = cloneChart(record.data);
     this.#resetView();
     this.saveNow();
-    if (id === this.#syncChart) void this.pullSync();
   }
 
   deleteChart(id: string): void {

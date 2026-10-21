@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts, no backend. Data stays in `localStorage`. The one outside call is optional: a person who turns AI on and connects their own provider (OpenRouter, Gemini, Claude or OpenAI) can have Bindu send its prompt there from the browser (`provider.ts`). Nothing is sent without that consent, and Bindu as a whole can be turned off.
+Mandala is a local-first goal chart (Mandala method): one goal in the center, eight pillars around it, eight actions per pillar. No accounts. Data stays in `localStorage`. The outside calls are optional. A person who turns AI on and connects their own provider (OpenRouter, Gemini, Claude or OpenAI) can have Bindu send its prompt there from the browser (`provider.ts`); nothing is sent without that consent, and Bindu as a whole can be turned off. A person who turns on sync keeps the same charts on each of their devices: charts are sealed on the device with a key only those devices hold, and the server (`/api/sync`, Turso) keeps a copy it cannot read (`docs/device-sync.md`). A published share is the one thing the server can read, and only the plan.
 
 **Before touching any UI, read [DESIGN.md](./DESIGN.md).** It is the source of truth for tokens, components, and copy. A new or restyled component also follows **Making a component** there: name the object it is in this app, give it one job, try several versions in the place it will sit, and let arrivals land while departures ease out.
 
@@ -49,6 +49,13 @@ src/
     morph.ts                  view transitions for view, theme and accent changes
     theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
     contract.ts               where each saved field may travel (shared, yours, device), and every browser storage key
+    sync/                     device sync and shares (docs/device-sync.md)
+      key.ts                  the sync key, the room and seal derived from it, sealing a chart on the device (tested)
+      plan.ts                 per chart: take, send, or merge against what was last agreed on; deleted for good wins (pure, tested)
+      sync.ts                 one chart merged field by field: this device's edits on top of the server's copy (pure, tested)
+      remote.ts               the sync API from the browser, and opening what it returns
+      device.svelte.ts        DeviceSync: when a round runs, one tab at a time, the status the dialog shows
+      publish.ts              published shares
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
@@ -71,9 +78,11 @@ src/
     ToolRow.svelte            one link on a shelf and its menu: know, comes round, move, remove (shelf and all shelves)
     Shelves.svelte            every pillar's shelf at once: each row's menu, and Select links to move or remove several
     TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
+    SyncDialog.svelte         turning sync on, joining from a link or a typed key, the key, turning it off here
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
+  routes/api/sync             the sealed rows device sync reads and writes (lib/server/sync.ts)
   routes/dev/demo             one-click situations for trying every interaction
 scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 ```

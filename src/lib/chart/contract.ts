@@ -163,8 +163,8 @@ export function narrowed(data: ChartData, keepMeta: (field: keyof ActionMeta) =>
 export const BROWSER_KEYS: Record<string, string> = {
 	'mandala-library-v1': 'Every chart, the open one, and the trash. Cloud sync carries the charts, not the open one',
 	'mandala-held': 'Charts this version could not read, set aside before the library was written back',
-	'mandala-sync-room': 'The sync key of the device-sync prototype',
-	'mandala-sync-state-v1': 'The prototype: the chart it syncs and its last synced copy',
+	'mandala-sync-key': 'The sync key: it finds this person\'s charts on the server and seals them. Never leaves the device but by the person\'s hand',
+	'mandala-sync-v1': 'Device sync: how far it has read, and each chart as it last agreed with the server',
 	'mandala-share-state-v1': 'Which charts were published from here, and whether they update on their own',
 	'mandala-share-secrets-v1': 'The secret that lets this device update its published shares',
 	mandala_reflect: 'The day and hour the weekly reflection is offered',

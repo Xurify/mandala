@@ -107,18 +107,3 @@ export async function fetchRow(id: string, ifNoneMatch: number | null = null): P
 }
 
 export const fetchShare = fetchRow;
-
-export type PushedRow = { updatedAt: number; moved: false } | { moved: true };
-
-/** For device sync, the sync key doubles as the write secret. `expected` null writes only where there is no row yet. */
-export async function pushRow(key: string, secret: string, data: ChartData, expected: number | null): Promise<PushedRow> {
-	const condition: Record<string, string> = expected === null ? { 'if-none-match': '*' } : { 'if-match': `"${expected.toString(36)}"` };
-	const response = await request('PUT', key, secret, { chart: data }, condition);
-	if (response.status === 412) return { moved: true };
-	if (!response.ok) {
-		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
-		throw new Error(detail ?? `Sync failed (${response.status}).`);
-	}
-	const { updatedAt } = (await response.json()) as { updatedAt: number };
-	return { updatedAt, moved: false };
-}

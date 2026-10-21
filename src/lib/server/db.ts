@@ -16,6 +16,10 @@ function databaseUrl(): string {
 	return raw;
 }
 
+export function hasDb(): boolean {
+	return Boolean(env.TURSO_DATABASE_URL?.trim());
+}
+
 export function db(): Client {
 	client ??= createClient({
 		url: databaseUrl(),
@@ -24,18 +28,30 @@ export function db(): Client {
 	return client;
 }
 
-const SCHEMA = `
-	CREATE TABLE IF NOT EXISTS charts (
+const SCHEMA = [
+	`CREATE TABLE IF NOT EXISTS charts (
 		key TEXT PRIMARY KEY,
 		secret TEXT NOT NULL,
 		data TEXT NOT NULL,
 		updated_at INTEGER NOT NULL
-	)
-`;
+	)`,
+	`CREATE TABLE IF NOT EXISTS sync_rows (
+		room TEXT NOT NULL,
+		id TEXT NOT NULL,
+		data TEXT,
+		updated_at INTEGER NOT NULL,
+		PRIMARY KEY (room, id)
+	)`,
+	'CREATE INDEX IF NOT EXISTS sync_rows_by_time ON sync_rows (room, updated_at)'
+];
 
 export function initDb(): Promise<void> {
 	schemaReady ??= db()
-		.execute(SCHEMA)
-		.then(() => undefined);
+		.batch(SCHEMA, 'write')
+		.then(() => undefined)
+		.catch((error: unknown) => {
+			schemaReady = null;
+			throw error;
+		});
 	return schemaReady;
 }

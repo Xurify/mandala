@@ -1,4 +1,4 @@
-import type { ChartData, DayLog, Session } from '../model.ts';
+import type { ActionMeta, ChartData, DayLog, Session, Tool } from '../model.ts';
 import { cloneChart } from '../library.ts';
 
 /**
@@ -30,7 +30,7 @@ export function overlayLocalEdits(
 		if (value === null) delete merged.meta?.[id];
 		else {
 			merged.meta ??= {};
-			merged.meta[id] = value;
+			merged.meta[id] = overlayFields(base.meta?.[id], value, merged.meta[id]) as ActionMeta;
 		}
 	});
 	overlayGroup(base.cleared, edited.cleared, (id, value) => {
@@ -56,12 +56,12 @@ export function overlayLocalEdits(
 	});
 
 	overlayGroup(base.tools, edited.tools, (key, value) => {
-		if (value === null) delete merged.tools?.[key];
-		else {
-			merged.tools ??= {};
-			merged.tools[key] = value;
-		}
+		const list = overlayTools(base.tools?.[key] ?? [], value ?? [], merged.tools?.[key] ?? []);
+		merged.tools ??= {};
+		if (list.length > 0) merged.tools[key] = list;
+		else delete merged.tools[key];
 	});
+	if (merged.tools && Object.keys(merged.tools).length === 0) delete merged.tools;
 
 	overlayGroup(base.icons, edited.icons, (host, value) => {
 		if (value === null) delete merged.icons?.[host];
@@ -78,6 +78,8 @@ export function overlayLocalEdits(
 	if (JSON.stringify(base.timer ?? null) !== JSON.stringify(edited.timer ?? null)) {
 		merged.timer = edited.timer ? { ...edited.timer } : undefined;
 	}
+
+	if (base.passiveWeight !== edited.passiveWeight) merged.passiveWeight = edited.passiveWeight;
 
 	return merged;
 }
@@ -109,6 +111,44 @@ export function overlayDay(base: DayLog | undefined, edited: DayLog, target: Day
 		else delete merged.started;
 	}
 	return merged;
+}
+
+/** A link moved, renamed, or opened on one device, and opened on the other, keeps both: `opened` merges as a list. */
+function overlayTools(base: readonly Tool[], edited: readonly Tool[], target: readonly Tool[]): Tool[] {
+	const was = new Map(base.map((tool) => [tool.id, tool]));
+	const now = new Map(edited.map((tool) => [tool.id, tool]));
+	const out: Tool[] = [];
+	for (const tool of target) {
+		const before = was.get(tool.id);
+		const after = now.get(tool.id);
+		if (before && !after) continue;
+		out.push(before && after ? mergeTool(before, after, tool) : structuredClone(tool));
+	}
+	const kept = new Set(out.map((tool) => tool.id));
+	for (const tool of edited) if (!was.has(tool.id) && !kept.has(tool.id)) out.push(structuredClone(tool));
+	return out;
+}
+
+function mergeTool(base: Tool, edited: Tool, target: Tool): Tool {
+	const merged = overlayFields(base, edited, target) as Tool;
+	const opened = overlayList(base.opened ?? [], edited.opened ?? [], target.opened ?? [], String).sort();
+	if (opened.length > 0) merged.opened = opened;
+	else delete merged.opened;
+	return merged;
+}
+
+/** Each field this device changed since `base` goes onto `target`; the rest stay as the other device left them. */
+function overlayFields<T extends object>(base: T | undefined, edited: T, target: T | undefined): T {
+	if (!target) return structuredClone(edited);
+	const merged = structuredClone(target) as Record<string, unknown>;
+	const before = (base ?? {}) as Record<string, unknown>;
+	const after = edited as Record<string, unknown>;
+	for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
+		if (JSON.stringify(before[field]) === JSON.stringify(after[field])) continue;
+		if (after[field] === undefined) delete merged[field];
+		else merged[field] = structuredClone(after[field]);
+	}
+	return merged as T;
 }
 
 function sessionKey(session: Session): string {

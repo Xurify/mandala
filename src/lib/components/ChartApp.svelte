@@ -22,6 +22,7 @@
 	import { applyAccent, applyTheme } from '$lib/chart/theme';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
+	import { normalizeSyncKey } from '$lib/chart/sync/key';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
 	import { titleOf } from '$lib/chart/library';
 	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
@@ -54,6 +55,7 @@
 	import { finishOpenRouterSignIn, openRouterSignInPending } from '$lib/chart/provider';
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
+	import SyncDialog from './SyncDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk, iconButton } from './ui/styles';
@@ -95,6 +97,8 @@
 	let exportOpen = $state(false);
 	let shareOpen = $state(false);
 	let incomingShare = $state<ChartData | null>(null);
+	let syncOpen = $state(false);
+	let syncJoining = $state<string | null>(null);
 	let paletteOpen = $state(false);
 	let clearOpen = $state(false);
 	let paletteQuery = $state('');
@@ -210,6 +214,21 @@
 		handleShareHash();
 		window.addEventListener('hashchange', handleShareHash);
 
+		const handleSyncHash = (): void => {
+			const match = /^#sync=(.+)$/.exec(window.location.hash);
+			if (!match) return;
+			window.history.replaceState(null, '', window.location.pathname + window.location.search);
+			const key = normalizeSyncKey(decodeURIComponent(match[1]!));
+			if (!key) {
+				chart.say('That sync link is not complete. Copy it again from your other device.');
+				return;
+			}
+			syncJoining = key;
+			syncOpen = true;
+		};
+		handleSyncHash();
+		window.addEventListener('hashchange', handleSyncHash);
+
 		const agents = new AbortController();
 		registerAgentTools(agentTarget, agents.signal);
 
@@ -228,6 +247,7 @@
 			themeMediaQuery.removeEventListener('change', handleThemeChange);
 			mobileMediaQuery.removeEventListener('change', handleMobileChange);
 			window.removeEventListener('hashchange', handleShareHash);
+			window.removeEventListener('hashchange', handleSyncHash);
 		};
 	});
 
@@ -516,6 +536,10 @@
 		}
 	}
 
+	const syncBadge = $derived(
+		!chart.sync.key ? undefined : chart.sync.status === 'offline' ? 'Offline' : chart.sync.status === 'error' || chart.sync.status === 'unavailable' ? 'Not syncing' : 'On'
+	);
+
 	const backupBadge = $derived(
 		chart.backupLastAt
 			? new Date(chart.backupLastAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -545,6 +569,7 @@
 			{ id: 'export', label: 'Export chart', section: 'Actions', icon: 'download', run: () => (exportOpen = true) },
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
+			{ id: 'sync', label: 'Sync devices', section: 'Actions', icon: 'devices', run: () => (syncOpen = true) },
 			{
 				id: 'shortcuts',
 				label: 'Keyboard shortcuts',
@@ -738,6 +763,7 @@
 						</MenuItem>
 					{/if}
 				{/if}
+				<MenuItem icon="devices" badge={syncBadge} onclick={() => (syncOpen = true)}>Sync devices</MenuItem>
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
@@ -856,6 +882,7 @@
 		<ExportDialog bind:open={exportOpen} oncopytext={copyText} />
 		<DuplicateChart bind:open={chart.duplicating} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
+		<SyncDialog bind:open={syncOpen} bind:joining={syncJoining} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog
 			bind:open={clearOpen}

@@ -193,3 +193,53 @@ describe('overlayLocalEdits removals', () => {
 		expect(merged.days && '2026-10-21' in merged.days).toBe(false);
 	});
 });
+
+describe('overlayLocalEdits, field by field', () => {
+	it('keeps an action pinned on one device and moved on the board on the other', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone' } };
+		const edited = structuredClone(base);
+		edited.meta![A.a0_0] = { kind: 'milestone', pinned: true };
+		const server = structuredClone(base);
+		server.meta![A.a0_0] = { kind: 'milestone', lane: 'doing', rank: 0 };
+		expect(overlayLocalEdits(base, edited, server).meta?.[A.a0_0]).toEqual({ kind: 'milestone', lane: 'doing', rank: 0, pinned: true });
+	});
+
+	it('takes a field off when this device took it off', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', pinned: true } };
+		const edited = structuredClone(base);
+		edited.meta![A.a0_0] = { kind: 'milestone' };
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).meta?.[A.a0_0]).toEqual({ kind: 'milestone' });
+	});
+
+	it('merges a shelf by link: added here, renamed there, opened on both', () => {
+		const tool = { id: 'tool_a', url: 'https://example.com/a', title: 'A', kind: 'repeat' as const, opened: ['2026-10-01'] };
+		const base = chartWith('Goal');
+		base.tools = { p0: [tool] };
+		const edited = structuredClone(base);
+		edited.tools!.p0 = [{ ...tool, opened: ['2026-10-01', '2026-10-20'] }, { id: 'tool_b', url: 'https://example.com/b', title: 'B', kind: 'once' }];
+		const server = structuredClone(base);
+		server.tools!.p0 = [{ ...tool, title: 'Renamed', opened: ['2026-10-01', '2026-10-21'] }];
+		expect(overlayLocalEdits(base, edited, server).tools?.p0).toEqual([
+			{ ...tool, title: 'Renamed', opened: ['2026-10-01', '2026-10-20', '2026-10-21'] },
+			{ id: 'tool_b', url: 'https://example.com/b', title: 'B', kind: 'once' }
+		]);
+	});
+
+	it('moves a link to another shelf', () => {
+		const tool = { id: 'tool_a', url: 'https://example.com/a', title: 'A', kind: 'repeat' as const };
+		const base = chartWith('Goal');
+		base.tools = { p0: [tool] };
+		const edited = structuredClone(base);
+		edited.tools = { p3: [tool] };
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).tools).toEqual({ p3: [tool] });
+	});
+
+	it('keeps a passive weight changed here', () => {
+		const base = chartWith('Goal');
+		const edited = structuredClone(base);
+		edited.passiveWeight = 1;
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).passiveWeight).toBe(1);
+	});
+});

@@ -92,6 +92,7 @@
 		link: true,
 		shelf: true,
 		refresh: true,
+		devices: true,
 		folder: true,
 		command: true,
 		keyboard: true,
