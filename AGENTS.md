@@ -78,7 +78,8 @@ src/
     ToolRow.svelte            one link on a shelf and its menu: know, comes round, move, remove (shelf and all shelves)
     Shelves.svelte            every pillar's shelf at once: each row's menu, and Select links to move or remove several
     TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
-    SyncDialog.svelte         turning sync on, joining from a link or a typed key, the key, turning it off here
+    SyncDialog.svelte         turning sync on, joining from a QR code, a link or a saved key, turning it off here
+    QrCode.svelte             a QR code drawn in tokens, dark on light in both themes
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui

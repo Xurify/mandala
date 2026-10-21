@@ -12,7 +12,7 @@ Turned on from More actions, Sync devices (`SyncDialog.svelte`). The rules live 
 
 From the key, HKDF derives two things (`syncSecrets`): a **room id**, which names this person's rows on the server, and an **AES-GCM key**, which seals each chart before it leaves. A chart is gzipped, then sealed with its chart id bound in, so a row moved under another id fails to open. The server holds only sealed rows and a hash of the room id, so a copy of the table is not enough to read a chart or to write into a room.
 
-Losing the key loses the way back to the server copy, never the charts on a device. Any device that still syncs shows the key again.
+Another device joins by scanning a QR code of that link, by the link itself, or by the key typed or picked from saved passwords: **Save to passwords** stores it in the browser's password manager under "Mandala sync" (through `PasswordCredential` in Chromium, and a submitted hidden form elsewhere). Losing the key loses the way back to the server copy, never the charts on a device. Any device that still syncs, or the password manager, has it.
 
 ### The rows
 

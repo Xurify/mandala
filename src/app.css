@@ -88,6 +88,8 @@
 	--color-muted: var(--muted);
 	--color-line: var(--line);
 	--color-ink: var(--ink);
+	--color-qr-ink: var(--qr-ink);
+	--color-qr-paper: var(--qr-paper);
 	--color-ink-hover: var(--ink-hover);
 	--color-on-ink: var(--on-ink);
 	--color-accent: var(--accent);
@@ -811,6 +813,9 @@
 	--muted: oklch(0.5 0.035 55);
 	--line: oklch(0.88 0.02 75);
 	--ink: oklch(0.27 0.03 50);
+	/* A QR code stays dark on light in both themes, since many cameras cannot read it inverted. */
+	--qr-ink: oklch(0.2 0.02 50);
+	--qr-paper: oklch(0.99 0.005 85);
 	--ink-hover: oklch(0.35 0.03 50);
 	--on-ink: oklch(0.985 0.006 85);
 	--accent: var(--swatch-clay);
@@ -878,6 +883,8 @@
 		--muted: oklch(0.73 0.022 70);
 		--line: oklch(0.31 0.014 62);
 		--ink: oklch(0.95 0.008 85);
+		--qr-ink: oklch(0.2 0.02 50);
+		--qr-paper: oklch(0.99 0.005 85);
 		--ink-hover: oklch(0.88 0.01 85);
 		--on-ink: oklch(0.2 0.01 65);
 		--accent: var(--swatch-clay);
@@ -938,6 +945,8 @@
 	--muted: oklch(0.73 0.022 70);
 	--line: oklch(0.31 0.014 62);
 	--ink: oklch(0.95 0.008 85);
+	--qr-ink: oklch(0.2 0.02 50);
+	--qr-paper: oklch(0.99 0.005 85);
 	--ink-hover: oklch(0.88 0.01 85);
 	--on-ink: oklch(0.2 0.01 65);
 	--accent: var(--swatch-clay);
