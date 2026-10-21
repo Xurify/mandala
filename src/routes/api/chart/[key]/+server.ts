@@ -4,9 +4,9 @@ import { db, initDb } from '$lib/server/db';
 
 export const prerender = false;
 
-// One key, one row, two uses: a personal sync key (whole-chart last write,
-// secret = the key itself) or a published share (public id, owner-held
-// secret). Reads only need the key; writes and deletes need the secret.
+// One key, one row, two uses: a personal sync key (secret = the key itself)
+// or a published share (public id, owner-held secret). Reads only need the
+// key; writes and deletes need the secret.
 const KEY_RE = /^[A-Za-z0-9_-]{8,128}$/;
 const MAX_BYTES = 256 * 1024;
 
@@ -58,20 +58,43 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 
 	await initDb();
 	const existing = await db().execute({
-		sql: 'SELECT secret FROM charts WHERE key = ?',
+		sql: 'SELECT secret, updated_at FROM charts WHERE key = ?',
 		args: [key]
 	});
 	const row = existing.rows[0];
 	if (row && String(row.secret) !== secret) {
 		return json({ error: 'wrong secret' }, { status: 403 });
 	}
-	const updatedAt = Date.now();
-	await db().execute({
-		sql: `INSERT INTO charts (key, secret, data, updated_at) VALUES (?, ?, ?, ?)
-			ON CONFLICT(key) DO UPDATE SET secret = excluded.secret, data = excluded.data, updated_at = excluded.updated_at`,
-		args: [key, secret, data, updatedAt]
-	});
-	return json({ ok: true, updatedAt });
+	// Device sync writes only over the version it read: `if-match` with that version's ETag, or
+	// `if-none-match: *` to create. A share's publish sends neither and replaces the row.
+	const ifMatch = request.headers.get('if-match');
+	const createOnly = request.headers.get('if-none-match') === '*';
+	const previous = row ? Number(row.updated_at) : null;
+	const moved = json({ error: 'moved', updatedAt: previous }, { status: 412 });
+	if (createOnly && row) return moved;
+	if (ifMatch && (previous === null || etagFor(previous) !== ifMatch)) return moved;
+	// Strictly later, so two writes in one millisecond never share an ETag.
+	const updatedAt = Math.max(Date.now(), (previous ?? 0) + 1);
+	if (ifMatch) {
+		const written = await db().execute({
+			sql: 'UPDATE charts SET data = ?, updated_at = ? WHERE key = ? AND updated_at = ?',
+			args: [data, updatedAt, key, previous]
+		});
+		if (written.rowsAffected === 0) return moved;
+	} else if (createOnly) {
+		const written = await db().execute({
+			sql: 'INSERT INTO charts (key, secret, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(key) DO NOTHING',
+			args: [key, secret, data, updatedAt]
+		});
+		if (written.rowsAffected === 0) return moved;
+	} else {
+		await db().execute({
+			sql: `INSERT INTO charts (key, secret, data, updated_at) VALUES (?, ?, ?, ?)
+				ON CONFLICT(key) DO UPDATE SET secret = excluded.secret, data = excluded.data, updated_at = excluded.updated_at`,
+			args: [key, secret, data, updatedAt]
+		});
+	}
+	return json({ ok: true, updatedAt }, { headers: { etag: etagFor(updatedAt) } });
 };
 
 export const DELETE: RequestHandler = async ({ params, request }) => {

@@ -95,7 +95,7 @@
 	</header>
 
 	<Notice>
-		Whole-chart sync: pull on open, push after edits. Set
+		Device sync: pull on open, push after edits. Set
 		<code>TURSO_DATABASE_URL</code> to a <code>file:</code> URL for local dev.
 	</Notice>
 

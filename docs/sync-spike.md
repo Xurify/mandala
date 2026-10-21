@@ -5,10 +5,11 @@ is optional. Both features ride on one SQLite table (`charts`) behind
 same-origin API routes in this app (`src/routes/api/chart/[key]`), backed by
 Turso in production. There is no separate worker, no WebSocket, no CORS.
 
-The model is **whole-chart last write wins**: one row, one `updated_at`,
-replace the JSON. Field merge was deliberately skipped — with one person and
-one device at a time, the second device pulls the first device's chart before
-anyone types, so per-field merge only matters in a rare corner.
+One row, one `updated_at`, the whole chart as JSON. A device writes only over
+the version it read; when another device wrote first, it reads that copy, puts
+its own edits on top (`overlayLocalEdits`), and writes again. A day edited on
+both devices keeps both sides: each list in the day log takes what this device
+added or took off, and keeps the rest.
 
 ## The row
 
@@ -35,7 +36,9 @@ deletes need the row's secret.
 - `GET` → `{ chart, updatedAt }`, or 404. Supports `if-none-match` with an
   `updatedAt`-derived ETag → 304 when unchanged.
 - `PUT` with `x-chart-secret` and `{ chart }` → creates the row or replaces
-  it, returns `{ updatedAt }`. Wrong secret → 403.
+  it, returns `{ updatedAt }`. Wrong secret → 403. Device sync adds
+  `if-match` (the ETag it read) or `if-none-match: *` (create only), and gets
+  412 when the row moved. A share's publish sends neither.
 - `DELETE` with `x-chart-secret` → removes the row.
 
 ## Device sync flow (`src/lib/chart/chart.svelte.ts`)

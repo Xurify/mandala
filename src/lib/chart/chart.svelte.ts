@@ -1284,15 +1284,13 @@ export class ChartStore {
           this.#adoptSync(merged);
           this.say("Pulled the latest from your other device.");
         }
-        this.#syncBase = cloneChart(merged);
-        this.#syncBaseAt = remote.updatedAt;
-        this.#persistSyncState();
+        this.#rebase(remote.chart, remote.updatedAt);
         if (JSON.stringify(merged) !== JSON.stringify(remote.chart)) {
-          await this.#putSync(merged);
+          await this.#putSync(merged, remote.updatedAt);
         }
         this.syncStatus = "synced";
       } else {
-        await this.#putSync(this.data);
+        await this.#putSync(this.data, remote.updatedAt);
         this.syncStatus = "synced";
       }
     } catch {
@@ -1317,8 +1315,9 @@ export class ChartStore {
       ) {
         outgoing = overlayLocalEdits(this.#syncBase, this.data, remote.chart);
         this.#adoptSync(outgoing);
+        this.#rebase(remote.chart, remote.updatedAt);
       }
-      await this.#putSync(outgoing);
+      await this.#putSync(outgoing, remote.updatedAt);
       this.syncStatus = "synced";
     } catch {
       this.syncStatus = "error";
@@ -1327,11 +1326,30 @@ export class ChartStore {
     }
   }
 
-  async #putSync(data: ChartData): Promise<void> {
-    const result = await pushRow(this.syncRoom, this.syncRoom, data);
+  /** The server's copy as last read: what this device's own edits are measured from. */
+  #rebase(data: ChartData, updatedAt: number): void {
     this.#syncBase = cloneChart(data);
-    this.#syncBaseAt = result.updatedAt;
+    this.#syncBaseAt = updatedAt;
     this.#persistSyncState();
+  }
+
+  async #putSync(data: ChartData, expected: number | null): Promise<void> {
+    let outgoing = data;
+    let version = expected;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await pushRow(this.syncRoom, this.syncRoom, outgoing, version);
+      if (!result.moved) {
+        this.#rebase(outgoing, result.updatedAt);
+        return;
+      }
+      const remote = await fetchRow(this.syncRoom);
+      version = remote.updatedAt;
+      if (!remote.chart || remote.updatedAt === null) continue;
+      outgoing = this.#syncBase ? overlayLocalEdits(this.#syncBase, this.data, remote.chart) : cloneChart(remote.chart);
+      this.#adoptSync(outgoing);
+      this.#rebase(remote.chart, remote.updatedAt);
+    }
+    throw new Error("Another device kept writing first.");
   }
 
   #adoptSync(data: ChartData): void {

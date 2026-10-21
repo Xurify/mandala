@@ -222,7 +222,6 @@ function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: 
 	return pick;
 }
 
-/** Days since the last tick before today, when it was long enough ago to call a break. */
 export function daysAway(data: ChartData, now: Date = new Date()): number | null {
 	let last: number | null = null;
 	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
@@ -232,7 +231,7 @@ export function daysAway(data: ChartData, now: Date = new Date()): number | null
 	return last !== null && last > AWAY_DAYS ? last : null;
 }
 
-/** Back after a break with nothing started today. One pick is enough to begin again. */
+/** One pick is enough to begin again. */
 export function welcomeBack(data: ChartData, now: Date = new Date()): boolean {
 	const today = data.days?.[dateKeyOf(now)];
 	return !today?.checked.length && !today?.focus.length && daysAway(data, now) !== null;

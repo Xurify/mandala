@@ -50,9 +50,7 @@ export type IngestResult = {
 	type: typeof INGEST_RESULT;
 	version: number;
 	requestId: string;
-	/** Ids logged now. */
 	logged: string[];
-	/** Ids the chart already had. */
 	known: string[];
 	skipped: IngestSkip[];
 };
