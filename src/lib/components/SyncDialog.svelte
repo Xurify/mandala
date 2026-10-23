@@ -27,7 +27,6 @@
 	let leaving = $state(false);
 	let showKey = $state(false);
 	let typedVisible = $state(false);
-	let saved = $state(false);
 	let saveForm = $state<HTMLFormElement | null>(null);
 	let clock = $state(Date.now());
 
@@ -63,7 +62,6 @@
 		leaving = false;
 		showKey = false;
 		typedVisible = false;
-		saved = false;
 		joining = null;
 	});
 
@@ -100,12 +98,10 @@
 		if (Saved) {
 			try {
 				await navigator.credentials.store(new Saved({ id: SAVED_NAME, name: SAVED_NAME, password: key }));
-				saved = true;
 				return;
 			} catch {}
 		}
 		saveForm?.requestSubmit();
-		saved = true;
 	}
 
 	async function copy(what: 'link' | 'key'): Promise<void> {
@@ -147,8 +143,8 @@
 				<Button variant="soft" size="sm" icon={copied === 'link' ? 'check' : 'link'} onclick={() => void copy('link')}>
 					{copied === 'link' ? 'Link copied' : 'Copy link'}
 				</Button>
-				<Button variant="soft" size="sm" icon={saved ? 'check' : 'key'} onclick={() => void saveToPasswords()}>
-					{saved ? 'Offered to your passwords' : 'Save to passwords'}
+				<Button variant="soft" size="sm" icon="key" onclick={() => void saveToPasswords()}>
+					Save to passwords
 				</Button>
 				<Button variant="ghost" size="sm" icon="eye" aria-expanded={showKey} onclick={() => (showKey = !showKey)}>
 					{showKey ? 'Hide the key' : 'Show the key'}
