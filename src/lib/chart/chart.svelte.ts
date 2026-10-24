@@ -68,6 +68,7 @@ import {
   withoutHistory,
   TRASH_MS,
   type ChartLibrary,
+  type ChartRecord,
   type ChartSummary,
   type DeletedSummary,
 } from "./library.ts";
@@ -295,7 +296,7 @@ export class ChartStore {
     clashed: (clashes, lost) => this.#clashed(clashes, lost),
   });
   /** What Undo on a sync slip puts back: the other device's words, or a chart deleted for good elsewhere. */
-  #syncUndo = new Map<string, { chartId: string; clashes: Clash[] } | { lost: SyncedChart }>();
+  #syncUndo = new Map<string, { chartId: string; clashes: Clash[] } | { lost: SyncedChart; blank: string | null }>();
   #syncSeq = 1;
 
   shareId = $state("");
@@ -612,10 +613,13 @@ export class ChartStore {
       const subject = lines.length > 1 ? `${lines.length} lines` : `“${words.length > 60 ? `${words.slice(0, 59)}…` : words}”`;
       this.#place({ key: token, kicker: "Changed on both devices", subject, undo: [token] });
     }
+    // When the deleted chart was the last one, a blank took its place. Undo drops that blank, if still blank.
+    const only = this.#library.charts.length === 1 ? this.#library.charts[0] : undefined;
+    const blank = only && !hasContent(only.data) ? only.id : null;
     for (const chart of lost) {
       void keepVersion({ chartId: chart.id, at: Date.now(), why: "deleted", data: chart.data });
       const token = `sync:${this.#syncSeq++}`;
-      this.#syncUndo.set(token, { lost: chart });
+      this.#syncUndo.set(token, { lost: chart, blank });
       this.#place({ key: token, kicker: "Deleted on your other device", subject: titleOf(chart.data), undo: [token] });
     }
   }
@@ -628,8 +632,14 @@ export class ChartStore {
     this.#flush();
     if ("lost" in kept) {
       const record = newRecord(cloneChart(kept.lost.data));
-      this.#library.charts = [...this.#library.charts, record];
+      const stillBlank = (each: ChartRecord) => each.id === kept.blank && !hasContent(each.data);
+      this.#library.charts = [...this.#library.charts.filter((each) => !stillBlank(each)), record];
+      this.#library.activeId = record.id;
+      this.data = cloneChart(record.data);
+      this.#resetView();
+      this.#adoptShareState();
       this.saveNow();
+      this.say("Brought it back as a new chart.");
       return;
     }
     const other = (clash: Clash) => (clash.kept === "theirs" ? clash.mine : clash.theirs);

@@ -767,9 +767,7 @@
 					{/if}
 				{/if}
 				<MenuItem icon="devices" badge={syncBadge} onclick={() => (syncOpen = true)}>Sync devices</MenuItem>
-				{#if chart.sync.key}
-					<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
-				{/if}
+				<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
