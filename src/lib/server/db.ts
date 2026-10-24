@@ -4,17 +4,22 @@ import { LIMIT_SCHEMA } from './limit';
 
 /**
  * Dev without a Turso account: TURSO_DATABASE_URL=file:./local/charts.db.
- * Production: the libsql:// URL plus TURSO_AUTH_TOKEN.
+ * Production: the database URL from Turso plus TURSO_AUTH_TOKEN.
  */
 let client: Client | null = null;
 let schemaReady: Promise<void> | null = null;
+
+/** Turso's dashboard hands out `turso://` URLs; @libsql/client only accepts `libsql://` for the same host. */
+export function libsqlUrl(raw: string): string {
+	return raw.replace(/^turso:\/\//i, 'libsql://');
+}
 
 function databaseUrl(): string {
 	const raw = env.TURSO_DATABASE_URL?.trim();
 	if (!raw) {
 		throw new Error('TURSO_DATABASE_URL is not set.');
 	}
-	return raw;
+	return libsqlUrl(raw);
 }
 
 export function hasDb(): boolean {

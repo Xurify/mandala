@@ -78,7 +78,7 @@ TURSO_DATABASE_URL=file:./local/charts.db
 bun run dev
 ```
 
-Production: set `TURSO_DATABASE_URL` (libsql://) and `TURSO_AUTH_TOKEN` as Vercel env vars. The tables create themselves on the first request. Without them the app works as before, and the sync dialog says sync cannot run there.
+Production: set `TURSO_DATABASE_URL` (the `libsql://` or `turso://` URL from the Turso dashboard) and `TURSO_AUTH_TOKEN` as Vercel env vars. The tables create themselves on the first request. Without them the app works as before, and the sync dialog says sync cannot run there.
 
 ### Earlier versions (`versions.ts`)
 
