@@ -133,7 +133,7 @@
 			{@render mark(lead ? pillarIndex : null)}
 			<span class="flex min-w-0 flex-1 flex-col">
 				<textarea
-					class="m-0 block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 font-sans text-[0.92rem] leading-snug text-text outline-none"
+					class="m-0 block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 font-sans text-[0.92rem] leading-snug text-text outline-none max-[900px]:text-base coarse:text-base"
 					rows="1"
 					maxlength="120"
 					aria-label="Rewrite {entry.text}"

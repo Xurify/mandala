@@ -136,6 +136,11 @@
 			up = false;
 			expanded = true;
 			onopenchange?.(true);
+			queueMicrotask(() => {
+				const items = menuItems();
+				const current = items.find((item) => item.getAttribute('aria-current') === 'true') ?? items[0];
+				current?.focus({ preventScroll: true });
+			});
 		}
 	}
 
@@ -152,9 +157,22 @@
 	}
 
 	function onKey(event: KeyboardEvent): void {
-		if (!expanded || !root) return;
-		if (!(event.target instanceof Node) || !root.contains(event.target)) return;
+		if (!root || !(event.target instanceof Node) || !root.contains(event.target)) return;
 		if (event.altKey || event.ctrlKey || event.metaKey) return;
+		if (!expanded) {
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				up = false;
+				expanded = true;
+				onopenchange?.(true);
+				const last = event.key === 'ArrowUp';
+				queueMicrotask(() => {
+					const items = menuItems();
+					focusItem(last ? items[items.length - 1] : items[0]);
+				});
+			}
+			return;
+		}
 
 		if (event.key === 'Escape') {
 			event.preventDefault();

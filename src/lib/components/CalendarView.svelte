@@ -43,6 +43,7 @@
 	const selectedDay = $derived(days.find((day) => day.inMonth && day.key === selected));
 	const fallbackKey = $derived(thisMonth ? today : lastDoneDay(current));
 	const picked = $derived(selectedDay ?? days.find((day) => day.key === fallbackKey) ?? null);
+	const focusKey = $derived(picked?.key ?? days.find((day) => day.inMonth && !day.future)?.key ?? null);
 	const groups = $derived(
 		picked
 			? inScope
@@ -108,7 +109,11 @@
 		const at = buttons.findIndex((button) => button === document.activeElement);
 		if (at < 0) return;
 		event.preventDefault();
-		buttons[Math.max(0, Math.min(buttons.length - 1, at + step))]?.focus();
+		const target = buttons[Math.max(0, Math.min(buttons.length - 1, at + step))];
+		if (target) {
+			selected = target.dataset.day ?? '';
+			target.focus();
+		}
 	}
 
 	function clock(at: string): string {
@@ -165,7 +170,7 @@
 						<div class="grid grid-cols-7" role="row">
 							{#each week as day, columnIndex (day.key)}
 								{#if !day.inMonth}
-									<span class="h-12" aria-hidden="true"></span>
+									<span class="h-12" role="gridcell" aria-disabled="true"></span>
 								{:else}
 									{@const chosen = day.key === picked?.key}
 									<button
@@ -178,6 +183,7 @@
 											chosen && 'bg-sunken'
 										)}
 										aria-selected={chosen}
+										tabindex={day.key === focusKey ? 0 : -1}
 										aria-label={spoken(day)}
 										disabled={day.future}
 										onclick={() => open(day)}

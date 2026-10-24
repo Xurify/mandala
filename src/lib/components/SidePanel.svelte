@@ -351,12 +351,33 @@
 
 <div class="rounded-[30px] bg-surface p-6 shadow-card max-[900px]:rounded-[26px] max-[900px]:px-3.5 max-[900px]:py-[18px]">
 	<div class="mb-[26px] flex items-center gap-2.5 max-[900px]:mb-5 max-[900px]:gap-1.5 @max-[360px]:gap-1">
-		<div class="flex min-w-0 flex-1 items-center gap-2.5 max-[900px]:gap-1.5 @max-[360px]:gap-1" role="tablist" aria-label="Chart sections">
+		<div
+			class="flex min-w-0 flex-1 items-center gap-2.5 max-[900px]:gap-1.5 @max-[360px]:gap-1"
+			role="tablist"
+			tabindex="-1"
+			aria-label="Chart sections"
+			onkeydown={(event) => {
+				const list = event.currentTarget as HTMLElement;
+				const tabs = [...list.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+				if (!tabs.length) return;
+				const current = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+				let next: HTMLButtonElement | undefined;
+				if (event.key === 'ArrowRight') next = tabs[((current < 0 ? 0 : current) + 1) % tabs.length];
+				else if (event.key === 'ArrowLeft') next = tabs[((current < 0 ? 0 : current) - 1 + tabs.length) % tabs.length];
+				else if (event.key === 'Home') next = tabs[0];
+				else if (event.key === 'End') next = tabs[tabs.length - 1];
+				if (!next) return;
+				event.preventDefault();
+				next.click();
+				next.focus();
+			}}
+		>
 			<button
 				type="button"
 				role="tab"
 				class="relative inline-flex min-h-[34px] shrink-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3.5 text-[0.84rem] font-semibold whitespace-nowrap text-text bg-sunken motion-safe:transition-[color,scale] motion-safe:duration-150 motion-safe:ease-ui after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken-hover not-aria-selected:focus-visible:bg-sunken-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.96] aria-selected:bg-ink aria-selected:text-on-ink @max-[360px]:px-[9px] @max-[360px]:[&_span]:hidden"
 				aria-selected={chart.sel === 4}
+				tabindex={chart.sel === 4 ? undefined : -1}
 				onclick={() => chart.selectGoal()}
 				aria-label="Center goal and core vision"
 			>
@@ -385,6 +406,7 @@
 						title="{pillarName} ({actionsCount}/8 actions)"
 						aria-label="Pillar {pillarIndex + 1}: {pillarName}"
 						aria-selected={isSelected}
+						tabindex={isSelected ? undefined : -1}
 						onclick={() => chart.selectPillar(pillarIndex)}
 					>
 						<span>{pillarIndex + 1}</span>
@@ -411,7 +433,7 @@
 		<div class="inline-flex shrink-0 gap-0.5 @max-[440px]:hidden">
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Previous section"
 				onclick={() => chart.selectPreviousPillar()}
 			>
@@ -419,7 +441,7 @@
 			</button>
 			<button
 				type="button"
-				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-none active:scale-[0.94] max-[900px]:size-[30px]"
+				class="relative inline-flex size-[34px] cursor-pointer items-center justify-center rounded-full border-0 p-0 text-muted motion-safe:transition-[color,scale] motion-safe:duration-150 after:absolute after:inset-y-[-5px] after:inset-x-0 after:content-[''] hover:bg-sunken hover:text-text focus-visible:bg-sunken focus-visible:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink active:scale-[0.94] max-[900px]:size-[30px]"
 				aria-label="Next section"
 				onclick={() => chart.selectNextPillar()}
 			>
@@ -489,7 +511,7 @@
 								{#if cellIndex === 4}
 									<span
 										class={cn(
-											'pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
+											'pointer-events-none absolute top-2.5 start-3 z-[2] inline-flex items-center gap-1 rounded-full bg-black/8 px-[7px] py-0.5 text-[0.62rem] font-bold tracking-[0.08em] text-on-p uppercase max-[900px]:top-[7px] max-[900px]:start-2 max-[900px]:px-[5px] max-[900px]:py-px max-[900px]:text-[0.56rem] dark:bg-white/16',
 											chart.sel === 4 && 'left-1/2 -translate-x-1/2 bg-[oklch(0.5_0_0/0.22)] text-goal-fg max-[900px]:left-1/2'
 										)}
 									>
@@ -497,7 +519,7 @@
 										<span>{chart.sel === 4 ? 'Goal' : 'Pillar'}</span>
 									</span>
 								{:else}
-									<span class="pointer-events-none absolute top-2.5 left-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:left-2">
+									<span class="pointer-events-none absolute top-2.5 start-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:start-2">
 										<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
 										{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
 											<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
@@ -508,7 +530,7 @@
 										{@const actionMeta = chart.metaOf(actionId)}
 										{@const shelved = toolsFor(chart.data, actionId).filter((tool) => !tool.known).length}
 										{#if actionMeta?.pinned || actionMeta?.done || actionMeta?.note || shelved}
-											<span class="pointer-events-none absolute top-2.5 right-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:right-2">
+											<span class="pointer-events-none absolute top-2.5 end-2.5 z-[2] inline-flex items-center gap-1 text-muted max-[900px]:top-[7px] max-[900px]:end-2">
 												{#if actionMeta?.pinned}
 													<Icon name="pin" size={11} />
 												{/if}
@@ -530,11 +552,11 @@
 								<textarea
 									bind:this={textareaElements[cellIndex]}
 									class={cn(
-										'field block h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto',
+										'field block h-full min-h-0 w-full min-w-0 resize-none scroll-mt-20 scroll-mb-[140px] rounded-[20px] border-0 bg-sunken px-3 pt-[30px] pb-3 text-[15px] leading-[1.35] text-text motion-safe:transition-[box-shadow] motion-safe:duration-150 placeholder:text-muted placeholder:opacity-75 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none focus-visible:z-[3] focus-visible:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus-visible:outline-none max-[900px]:rounded-[15px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-[7px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto coarse:focus:text-base',
 										info(chart.sel, cellIndex).type === 'goal' &&
-											'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
+											'goal bg-goal px-4 text-center font-serif text-[17px] font-[520] text-goal-fg rounded-[26px] placeholder:text-goal-fg placeholder:opacity-55 can-hover:hover:bg-goal-hover can-hover:[&.highlight]:bg-goal-hover max-[900px]:rounded-[20px] max-[900px]:text-[15px] coarse:focus:text-base [[data-goal-clamped]:not(:focus-within)_&]:overflow-hidden [[data-goal-clamped]:not(:focus-within)_&]:text-transparent',
 										info(chart.sel, cellIndex).type === 'pillar' &&
-											'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px]',
+											'pillar pillar-cell rounded-[26px] font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60 can-hover:hover:pillar-hot can-hover:[&.highlight]:pillar-hot max-[900px]:rounded-[20px] max-[900px]:text-[14px] coarse:focus:text-base',
 										info(chart.sel, cellIndex).type === 'action' &&
 											'action pillar-action can-hover:hover:action-hot can-hover:[&.highlight]:action-hot',
 										info(chart.sel, cellIndex).type === 'action' &&
@@ -571,7 +593,7 @@
 									>
 								{/if}
 								{#if chart.textOf(cellKey(chart.sel, cellIndex)).length >= 100}
-									<span class="pointer-events-none absolute right-2 bottom-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
+									<span class="pointer-events-none absolute bottom-2 end-2 z-[2] rounded-full bg-ink px-1.5 py-px text-[0.68rem] font-semibold text-on-ink print:hidden">
 										{120 - chart.textOf(cellKey(chart.sel, cellIndex)).length}
 									</span>
 								{/if}
@@ -627,12 +649,12 @@
 								</div>
 
 								<div class="relative">
-									<span class="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">
+									<span class="pointer-events-none absolute top-1/2 start-3.5 -translate-y-1/2 text-muted">
 										<Icon name="edit" size={16} />
 									</span>
 									<input
 										type="text"
-										class={cn(fieldInk, 'pr-4 pl-10')}
+										class={cn(fieldInk, 'ps-10 pe-4')}
 										placeholder="Add a note, like a chapter or a page"
 										aria-label="Note for action {idx(effectiveCellIndex) + 1}"
 										value={meta?.note ?? ''}

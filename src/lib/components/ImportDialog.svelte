@@ -166,7 +166,7 @@
 
 		<div class="flex flex-col gap-1.5">
 			<div class="flex items-center justify-between gap-2">
-				<span class="text-[0.78rem] font-semibold tracking-[0.08em] text-muted uppercase">
+				<span id="import-chart-text" class="text-[0.78rem] font-semibold tracking-[0.08em] text-muted uppercase">
 					Chart text
 				</span>
 				<Button
@@ -181,7 +181,8 @@
 			</div>
 
 			<textarea
-				class={cn(textArea, 'h-48 text-[0.88rem] leading-[1.5]')}
+				class={cn(textArea, 'h-48 text-[0.88rem] leading-[1.5] max-[900px]:text-base coarse:text-base')}
+				aria-labelledby="import-chart-text"
 				placeholder={`Goal: Launch your side project\n\nPillar 1: Product validation\n  - Interview 20 prospective users\n  - Build a landing page\n\nPillar 2: Rapid prototyping\n  - Build MVP in 2 weeks`}
 				bind:value={rawText}
 				spellcheck="false"

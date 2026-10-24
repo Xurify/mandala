@@ -98,7 +98,7 @@
 	<div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain ps-6 pe-5 pb-5 scrollbar-gutter-stable">
 		<textarea
 			id="card-sheet-title"
-			class="m-0 -mx-1.5 w-[calc(100%+0.75rem)] resize-none rounded-[12px] border-0 bg-transparent px-1.5 py-1 font-serif text-[1.45rem] leading-[1.2] font-[480] tracking-[-0.01em] text-balance text-text [field-sizing:content] hover:bg-sunken focus:bg-sunken focus:outline-none"
+			class="m-0 -mx-1.5 w-[calc(100%+0.75rem)] resize-none rounded-[12px] border-0 bg-transparent px-1.5 py-1 font-serif text-[1.45rem] leading-[1.2] font-[480] tracking-[-0.01em] text-balance text-text [field-sizing:content] hover:bg-sunken focus:bg-sunken focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink"
 			maxlength="120"
 			rows="1"
 			aria-label="Action"
@@ -143,6 +143,7 @@
 			<h3 id="card-sheet-notes" class="m-0 text-[0.95rem] font-semibold">Notes</h3>
 			<textarea
 				class={cn(textArea, 'min-h-36 resize-none [field-sizing:content]')}
+				aria-labelledby="card-sheet-notes"
 				placeholder="What your tutor said, new words, what to try next time"
 				value={meta?.details ?? ''}
 				oninput={(event) => {
