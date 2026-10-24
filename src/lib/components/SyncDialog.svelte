@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { chart } from '$lib/chart/chart.svelte';
 	import { formatAgo } from '$lib/chart/library';
 	import Icon from './Icon.svelte';
@@ -28,12 +29,21 @@
 	let showKey = $state(false);
 	let typedVisible = $state(false);
 	let saveForm = $state<HTMLFormElement | null>(null);
+	let dialog = $state<Dialog | null>(null);
 	let clock = $state(Date.now());
 
 	const asking = $derived(joining !== null && joining !== sync.key);
 	const link = $derived(sync.key && typeof location !== 'undefined' ? `${location.origin}/#sync=${sync.key}` : '');
 	const title = $derived(
-		asking ? 'Sync this device?' : !sync.key ? 'Your charts on every device' : sync.status === 'unavailable' ? 'Sync cannot run here' : 'Sync is on'
+		asking
+			? 'Sync this device?'
+			: !sync.key
+				? 'Your charts on every device'
+				: leaving
+					? 'Turn off sync here?'
+					: sync.status === 'unavailable'
+						? 'Sync cannot run here'
+						: 'Sync is on'
 	);
 
 	const status = $derived.by((): string => {
@@ -65,8 +75,22 @@
 		joining = null;
 	});
 
+	/** A new face takes the control that had focus with it, so focus would fall to the page behind the dialog. */
+	async function settle(): Promise<void> {
+		await tick();
+		const active = document.activeElement;
+		if (!active || active === document.body) dialog?.refocus();
+	}
+
+	function show(face: 'typing' | 'leaving', on: boolean): void {
+		if (face === 'typing') typing = on;
+		else leaving = on;
+		void settle();
+	}
+
 	function turnOn(): void {
 		sync.turnOn();
+		void settle();
 	}
 
 	function join(key: string): void {
@@ -78,12 +102,18 @@
 		typing = false;
 		typed = '';
 		wrong = false;
+		open = false;
 	}
 
 	function turnOff(): void {
 		sync.turnOff();
 		leaving = false;
+		open = false;
 		chart.say('Sync turned off on this device.');
+	}
+
+	function syncNow(): void {
+		if (sync.status !== 'syncing') void sync.now();
 	}
 
 	/**
@@ -118,7 +148,7 @@
 	}
 </script>
 
-<Dialog bind:open {title} size="sm">
+<Dialog bind:this={dialog} bind:open {title} size="sm">
 	{#if asking}
 		<p class="m-0 text-[0.95rem] leading-[1.5] text-pretty">
 			The charts on this device and on your other one will be on both. Nothing here is removed.
@@ -128,10 +158,14 @@
 				This device syncs with another key now. It moves to this one, and the charts it already has come along.
 			</p>
 		{/if}
+	{:else if sync.key && leaving}
+		<p class="m-0 text-[0.95rem] leading-[1.5] text-pretty">
+			Your charts stay on this device. To sync it again later, you need another synced device or the key in your saved passwords.
+		</p>
 	{:else if sync.key}
 		<div class="flex items-center gap-2" aria-live="polite">
 			<p class="m-0 min-w-0 flex-1 text-[0.95rem] leading-[1.45] text-pretty" data-sync-status={sync.status}>{status}</p>
-			<IconButton icon="refresh" label="Sync now" disabled={sync.status === 'syncing'} onclick={() => void sync.now()} />
+			<IconButton icon="refresh" label="Sync now" aria-disabled={sync.status === 'syncing'} onclick={syncNow} />
 		</div>
 		{#if sync.status !== 'unavailable'}
 			<Eyebrow class="mt-6 mb-3">Add another device</Eyebrow>
@@ -163,11 +197,6 @@
 				<input type="text" name="username" autocomplete="username" value={SAVED_NAME} tabindex="-1" readonly />
 				<input type="password" name="password" autocomplete="new-password" value={sync.key} tabindex="-1" readonly />
 			</form>
-		{/if}
-		{#if leaving}
-			<p class="m-0 mt-5 text-[0.92rem] leading-[1.5] text-pretty" role="alert">
-				Your charts stay on this device. To sync it again later, you need another synced device or the key in your saved passwords.
-			</p>
 		{/if}
 	{:else}
 		<p class="m-0 text-[0.95rem] leading-[1.5] text-pretty">
@@ -220,17 +249,17 @@
 			<Button onclick={() => joining && join(joining)}>Sync this device</Button>
 		{:else if sync.key}
 			{#if leaving}
-				<Button variant="soft" onclick={() => (leaving = false)}>Keep sync</Button>
+				<Button variant="soft" data-autofocus onclick={() => show('leaving', false)}>Keep sync</Button>
 				<Button variant="danger" onclick={turnOff}>Turn off here</Button>
 			{:else}
-				<Button variant="ghost" onclick={() => (leaving = true)}>Turn off here</Button>
+				<Button variant="ghost" onclick={() => show('leaving', true)}>Turn off here</Button>
 				<Button variant="soft" onclick={() => (open = false)}>Done</Button>
 			{/if}
 		{:else if typing}
-			<Button variant="soft" onclick={() => (typing = false)}>Back</Button>
+			<Button variant="soft" onclick={() => show('typing', false)}>Back</Button>
 			<Button disabled={typed.trim().length === 0} onclick={() => join(typed)}>Sync this device</Button>
 		{:else}
-			<Button variant="ghost" onclick={() => (typing = true)}>I have a sync key</Button>
+			<Button variant="ghost" onclick={() => show('typing', true)}>I have a sync key</Button>
 			<Button onclick={turnOn} data-autofocus>Turn on sync</Button>
 		{/if}
 	{/snippet}

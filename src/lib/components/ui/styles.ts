@@ -23,7 +23,7 @@ export const button = tv({
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]/none',
-			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]/none'
+			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]/none coarse:min-h-[44px]'
 		}
 	},
 	defaultVariants: { variant: 'primary', size: 'md' }
@@ -45,7 +45,7 @@ export const splitButton = tv({
 });
 
 export const iconButton = tv({
-	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 ${focus}`
+	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 aria-disabled:pointer-events-none aria-disabled:opacity-30 ${focus}`
 });
 
 export const segmented = tv({
