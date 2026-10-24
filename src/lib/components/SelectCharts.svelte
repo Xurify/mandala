@@ -121,7 +121,7 @@
 			{#if find}
 				<button
 					type="button"
-					class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+					class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2.5 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
 					aria-label="Clear search"
 					onclick={() => (find = '')}
 				>

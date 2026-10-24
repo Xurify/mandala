@@ -207,7 +207,7 @@
 				if (edgeSince === 0) edgeSince = now;
 				else if (now - edgeSince > 450) {
 					const step = (columns.querySelector<HTMLElement>('[data-lane]')?.offsetWidth ?? 0) + parseFloat(getComputedStyle(columns).columnGap);
-					columns.scrollBy({ left: side * step, behavior: 'smooth' });
+					columns.scrollBy({ left: side * step, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 					// Counts from the end of this step's own glide, so a held card turns one list at a time.
 					edgeSince = now + 300;
 				}

@@ -68,7 +68,7 @@
 			<textarea
 				bind:this={fields[cellIndex]}
 				class={cn(
-					'field m-0 aspect-square w-full min-w-0 resize-none self-start border-0 p-2 font-sans text-[15px] leading-[1.25] text-pretty text-text placeholder:text-muted placeholder:opacity-75 motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:shadow-[0_0_0_2px_var(--accent)] focus:outline-none',
+					'field m-0 aspect-square w-full min-w-0 resize-none self-start border-0 p-2 font-sans text-[15px] leading-[1.25] text-pretty text-text placeholder:text-muted placeholder:opacity-75 motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:shadow-[0_0_0_2px_var(--accent)] focus:outline-none coarse:focus:text-base',
 					cellIndex === 4
 						? 'pillar-cell rounded-[28%] text-center font-semibold text-on-p placeholder:text-on-p placeholder:opacity-60'
 						: 'pillar-action rounded-[16px]',

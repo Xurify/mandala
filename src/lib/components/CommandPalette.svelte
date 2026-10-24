@@ -92,6 +92,7 @@
 
 <dialog
 	bind:this={el}
+	aria-label="Command palette"
 	class="dialog-backdrop m-auto w-[min(34rem,calc(100vw-32px))] max-h-[min(78dvh,620px)] overflow-hidden rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog print:hidden"
 	onclick={(event) => {
 		if (event.target === event.currentTarget) open = false;
@@ -109,6 +110,7 @@
 			type="text"
 			placeholder="Type a command or search your chart"
 			role="combobox"
+			aria-label="Type a command or search your chart"
 			aria-expanded="true"
 			aria-controls="command-list"
 			aria-activedescendant={filtered[active] ? `cmd-${filtered[active].id}` : undefined}

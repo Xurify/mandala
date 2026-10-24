@@ -323,14 +323,14 @@
 							<IconButton
 								icon="refresh"
 								label="Another tool for {entry.text}"
-								class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+								class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text coarse:size-11"
 								onclick={() => passOver(entry.id, tool.id)}
 							/>
 						{/if}
 						<IconButton
 							icon="shelf"
 							label="Open the {entry.pillarName} shelf"
-							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text"
+							class="size-9 shrink-0 text-muted hover:bg-surface hover:text-text coarse:size-11"
 							onclick={() => chart.openShelf(entry.pillarIndex)}
 						/>
 					</div>
