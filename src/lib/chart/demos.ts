@@ -1,7 +1,8 @@
 import { buildChart, getPreset, type PresetId } from './presets/index.ts';
 import type { ViewMode } from './chart.svelte.ts';
 import { applyChange, finish } from './board.ts';
-import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type ChartData, type Session, type Tool } from './model.ts';
+import { dateKeyOf, idAt, idOfKey, setMeta, type ActionId, type ActionMeta, type ChartData, type Session, type Share, type Tool } from './model.ts';
+import { newId } from './id.ts';
 
 export type DemoId =
 	| 'complete'
@@ -26,6 +27,7 @@ export type DemoId =
 	| 'tools'
 	| 'agent-shelf'
 	| 'select'
+	| 'shares'
 	| 'time-stopwatch'
 	| 'time-block'
 	| 'time-log'
@@ -41,7 +43,9 @@ export type DemoSetup = {
 	startSheet?: { borrowedPreset: PresetId | null };
 	/** Opened as charts of their own before `data`, so a view across charts has more than one goal. */
 	others?: ChartData[];
-	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { agent: AgentCall };
+	open?: { bindu: 'home' | 'write-review' | 'write-fill' | 'write-new' } | { reflection: true } | { select: true } | { shares: true } | { agent: AgentCall };
+	/** A page the chart counts as published, so the list has one to stop. Its id is not on the server, and stopping it still clears it here. */
+	share?: Share;
 };
 
 /** A tool an agent would call once the demo's chart is open; ids are read from that chart, since opening it may give new ones. */
@@ -379,6 +383,16 @@ export const DEMOS: readonly Demo[] = [
 		]
 	},
 	{
+		id: 'shares',
+		title: 'Shared pages',
+		group: 'Your charts',
+		steps: [
+			'Shared pages opens from More actions with one page listed: the chart it belongs to, when it was last published, and its link.',
+			'Stop takes the page down and the row leaves. Copy link copies it without opening Export.',
+			'Deleting a chart with a page stops the page too, and a page another device published shows up here once sync brings the chart.'
+		]
+	},
+	{
 		id: 'bindu-week',
 		title: 'Bindu with a week behind it',
 		group: 'Bindu',
@@ -526,6 +540,10 @@ export function demoSetup(id: DemoId, now: Date = new Date()): DemoSetup {
 	if (id === 'time-forgot') return { data: timed(now, 'a2_0', 552 * MINUTE), view: 'today' };
 	if (id === 'time-week') return { data: clocked(livedIn(now), now), view: 'calendar' };
 	if (id === 'select') return { data: preset('language'), view: 'view', copies: 5, open: { select: true } };
+	if (id === 'shares') {
+		const share: Share = { id: newId('share', now.getTime()), secret: 'demo', updatedAt: now.getTime() - 50 * 60_000, auto: true };
+		return { data: preset('language'), view: 'view', open: { shares: true }, share };
+	}
 	if (id === 'reflection') return { data: livedIn(now), view: 'today', open: { reflection: true } };
 	if (id === 'bindu-week') return { data: livedIn(now), view: 'view', open: { bindu: 'home' } };
 	if (id === 'bindu-away') return { data: away(now), view: 'today', open: { bindu: 'home' } };

@@ -11,6 +11,16 @@ function chartWith(goal: string, pillar0 = ''): ChartData {
 }
 
 describe('overlayLocalEdits', () => {
+	it('carries a page published here to the server copy, and a page stopped here off it', () => {
+		const share = { id: 'share_01m5qnzqnce1vrm4awy56y2tbk' as const, secret: 's3cret', updatedAt: 1_000 };
+		const base = chartWith('Goal');
+		const published = { ...structuredClone(base), share };
+		expect(overlayLocalEdits(base, published, chartWith('Goal, edited there')).share).toEqual(share);
+		const stopped = structuredClone(base);
+		expect(overlayLocalEdits(published, stopped, { ...chartWith('Goal'), share }).share).toBeUndefined();
+		expect(overlayLocalEdits(published, structuredClone(published), { ...chartWith('Goal'), share: { ...share, updatedAt: 2_000 } }).share?.updatedAt).toBe(2_000);
+	});
+
 	it('keeps the server copy when the device changed nothing', () => {
 		const base = chartWith('Server goal', 'Health');
 		const edited = structuredClone(base);

@@ -1,30 +1,6 @@
 import { newId } from '../id.ts';
-import { parseChart, type ChartData } from '../model.ts';
+import { parseChart, type ChartData, type Share } from '../model.ts';
 import { forSharing } from '../share.ts';
-
-const SECRET_KEY = 'mandala-share-secrets-v1';
-
-export type PublishedShare = { id: string; updatedAt: number };
-
-function readSecrets(): Record<string, string> {
-	try {
-		const raw = localStorage.getItem(SECRET_KEY);
-		return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-	} catch {
-		return {};
-	}
-}
-
-function writeSecrets(secrets: Record<string, string>): void {
-	try {
-		localStorage.setItem(SECRET_KEY, JSON.stringify(secrets));
-	} catch {
-	}
-}
-
-export function secretFor(id: string): string | null {
-	return readSecrets()[id] ?? null;
-}
 
 export function shareUrl(id: string): string {
 	const origin = typeof location === 'undefined' ? '' : location.origin;
@@ -52,41 +28,28 @@ async function request(
 	});
 }
 
-export async function publishChart(
-	data: ChartData,
-	existingId: string | null,
-	notes = false
-): Promise<PublishedShare> {
-	const id = existingId ?? newId('share');
-	const secret = existingId ? secretFor(id) : null;
-	if (existingId && !secret) {
-		throw new Error('The update secret for this share is missing on this device.');
-	}
-	const useSecret = secret ?? newSecret();
-	const response = await request('PUT', id, useSecret, { chart: forSharing(data, { notes }) });
+/**
+ * Publishes the chart to its page, or to a new one when it has none. The share that comes back is the chart's
+ * to keep (`data.share`): the secret in it is what lets any of the person's devices update or remove the page.
+ */
+export async function publishChart(data: ChartData, existing: Share | null, notes = false): Promise<Share> {
+	const id = existing?.id ?? newId('share');
+	const secret = existing?.secret ?? newSecret();
+	const response = await request('PUT', id, secret, { chart: forSharing(data, { notes }) });
 	if (!response.ok) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
 		throw new Error(detail ?? `Publish failed (${response.status}).`);
 	}
 	const stored = (await response.json()) as { updatedAt: number };
-	if (!secret) {
-		const secrets = readSecrets();
-		secrets[id] = useSecret;
-		writeSecrets(secrets);
-	}
-	return { id, updatedAt: stored.updatedAt };
+	return { ...existing, id, secret, updatedAt: stored.updatedAt, ...(notes ? { notes: true } : { notes: undefined }) };
 }
 
-export async function unpublishChart(id: string): Promise<void> {
-	const secret = secretFor(id);
-	if (!secret) throw new Error('The update secret for this share is missing on this device.');
-	const response = await request('DELETE', id, secret);
+/** Removes the page. A page already gone counts as removed. */
+export async function unpublishChart(share: Pick<Share, 'id' | 'secret'>): Promise<void> {
+	const response = await request('DELETE', share.id, share.secret);
 	if (!response.ok && response.status !== 404) {
 		throw new Error(`Could not stop sharing (${response.status}).`);
 	}
-	const secrets = readSecrets();
-	delete secrets[id];
-	writeSecrets(secrets);
 }
 
 export type FetchedRow = { chart: ChartData | null; updatedAt: number | null; unchanged: boolean };

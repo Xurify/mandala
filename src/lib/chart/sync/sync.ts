@@ -81,6 +81,10 @@ export function overlayLocalEdits(
 
 	if (base.passiveWeight !== edited.passiveWeight) merged.passiveWeight = edited.passiveWeight;
 
+	if (JSON.stringify(base.share ?? null) !== JSON.stringify(edited.share ?? null)) {
+		merged.share = edited.share ? { ...edited.share } : undefined;
+	}
+
 	return merged;
 }
 

@@ -67,7 +67,7 @@ When both devices rewrote the same goal, pillar, line, action note, or week note
 
 ## Published share (`/s/[id]`)
 
-One row in `charts`: an unguessable public id and an update secret the owner keeps in `mandala-share-secrets-v1`. `PUT /api/chart/<id>` with `x-chart-secret` replaces it, `GET` reads it (with an ETag), `DELETE` removes it. The page is a read-only snapshot, one fetch on open plus a refresh button. A share carries the plan, never the history (`forSharing`).
+One row in `charts`: an unguessable public id and an update secret the owner keeps on the chart itself (`data.share`, so sync carries it to the owner's other devices). `PUT /api/chart/<id>` with `x-chart-secret` replaces it, `GET` reads it (with an ETag), `DELETE` removes it. The page is a read-only snapshot, one fetch on open plus a refresh button. A share carries the plan, never the history (`forSharing`).
 
 ## Local development
 

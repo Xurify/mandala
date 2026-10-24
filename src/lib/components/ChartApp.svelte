@@ -56,6 +56,7 @@
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import SyncDialog from './SyncDialog.svelte';
+	import SharedPagesDialog from './SharedPagesDialog.svelte';
 	import VersionsDialog from './VersionsDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
@@ -101,6 +102,7 @@
 	let syncOpen = $state(false);
 	let syncJoining = $state<string | null>(null);
 	let versionsOpen = $state(false);
+	let sharesOpen = $state(false);
 	let paletteOpen = $state(false);
 	let clearOpen = $state(false);
 	let paletteQuery = $state('');
@@ -137,6 +139,7 @@
 		replaceState(location.pathname, page.state);
 		for (const other of setup.others ?? []) chart.applyDraft(other, true);
 		if (setup.data) chart.importChart(setup.data, `Demo ready: ${demo?.title ?? id}.`);
+		if (setup.share) chart.adoptShare(setup.share);
 		else if (chart.dirty) chart.newChart();
 		chart.setViewMode(setup.view, false);
 		for (let copy = 0; copy < (setup.copies ?? 0); copy++) chart.duplicateChart();
@@ -148,6 +151,7 @@
 		setTimeout(() => {
 			if ('reflection' in open) chart.reflecting = true;
 			else if ('select' in open) chart.selecting = true;
+			else if ('shares' in open) sharesOpen = true;
 			else if ('agent' in open) void agentTools(agentTarget).find((tool) => tool.name === open.agent.tool)?.execute(open.agent.input(chart.data));
 			else if (open.bindu === 'home') helper.show();
 			else helper.show('write', open.bindu === 'write-fill' ? 'fill' : open.bindu === 'write-review' ? 'review' : 'new');
@@ -573,6 +577,7 @@
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
 			{ id: 'sync', label: 'Sync devices', section: 'Actions', icon: 'devices', run: () => (syncOpen = true) },
 			{ id: 'versions', label: 'Earlier versions', section: 'Actions', icon: 'clock', run: () => (versionsOpen = true) },
+			{ id: 'shares', label: 'Shared pages', section: 'Actions', icon: 'eye', run: () => (sharesOpen = true) },
 			{
 				id: 'shortcuts',
 				label: 'Keyboard shortcuts',
@@ -770,6 +775,7 @@
 				{#if chart.sync.key}
 					<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
 				{/if}
+				<MenuItem icon="eye" badge={chart.shares.length ? String(chart.shares.length) : undefined} onclick={() => (sharesOpen = true)}>Shared pages</MenuItem>
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
@@ -890,6 +896,7 @@
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
 		<SyncDialog bind:open={syncOpen} bind:joining={syncJoining} />
 		<VersionsDialog bind:open={versionsOpen} />
+		<SharedPagesDialog bind:open={sharesOpen} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog
 			bind:open={clearOpen}

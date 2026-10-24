@@ -5,7 +5,8 @@ import {
 	filledCount,
 	parseChart,
 	withNewIds,
-	type ChartData
+	type ChartData,
+	type Share
 } from './model.ts';
 import { doneOn } from './calendar.ts';
 import { minutesOn } from './timer.ts';
@@ -42,6 +43,14 @@ export type ChartSummary = {
 	filled: number;
 	updatedAt: number;
 	active: boolean;
+};
+
+/** A page published from a chart here. `deletedAt` is set while the chart waits in recently deleted. */
+export type SharedPage = {
+	chartId: string;
+	title: string;
+	share: Share;
+	deletedAt?: number;
 };
 
 export type DeletedSummary = {
@@ -414,6 +423,26 @@ export function summarizeDeleted(deleted: DeletedRecord[], now = Date.now()): De
 			deletedAt: item.deletedAt,
 			daysLeft: daysUntilPurge(item.deletedAt, now)
 		}));
+}
+
+/** Every page published from a chart here, newest publish first. The open chart is read live, since its edits may not be flushed. */
+export function sharedPages(library: ChartLibrary, live: ChartData): SharedPage[] {
+	const rows: SharedPage[] = [];
+	for (const record of library.charts) {
+		const data = record.id === library.activeId ? live : record.data;
+		if (data.share) rows.push({ chartId: record.id, title: titleOf(data), share: data.share });
+	}
+	for (const record of library.deleted) {
+		if (record.data.share) rows.push({ chartId: record.id, title: titleOf(record.data), share: record.data.share, deletedAt: record.deletedAt });
+	}
+	return rows.sort((a, b) => b.share.updatedAt - a.share.updatedAt);
+}
+
+/** The records recently deleted held before a purge and not after it. */
+export function expired(before: ChartLibrary, after: ChartLibrary): DeletedRecord[] {
+	if (before === after) return [];
+	const kept = new Set(after.deleted.map((record) => record.id));
+	return before.deleted.filter((record) => !kept.has(record.id));
 }
 
 export function flushActive(

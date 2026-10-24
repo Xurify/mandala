@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { chart } from './chart.svelte.ts';
 import { A, slotted } from './fixtures.ts';
 import { emptyChart, todayKey } from './model.ts';
@@ -276,5 +276,70 @@ describe('starting from the center', () => {
 		chart.openStartSheet(null);
 		chart.closeStartSheet();
 		expect(chart.inStartSheet).toBe(false);
+	});
+});
+
+describe('share pages', () => {
+	const share = { id: 'share_01m5qnzqnce1vrm4awy56y2tbk' as const, secret: 's3cret', updatedAt: 1_000 };
+
+	function answering(status: number) {
+		const calls: { url: string; method: string | undefined }[] = [];
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async (url: string, init: RequestInit) => {
+				calls.push({ url, method: init.method });
+				return new Response(status === 204 ? null : JSON.stringify({ updatedAt: 2_000 }), { status, headers: { 'content-type': 'application/json' } });
+			})
+		);
+		return calls;
+	}
+
+	afterEach(() => vi.unstubAllGlobals());
+
+	it('reads the page from the chart, so it is there after a reload and on a synced device', () => {
+		chart.data = { ...emptyChart(), share: { ...share, auto: true } };
+		expect(chart.shareId).toBe(share.id);
+		expect(chart.autoShare).toBe(true);
+		expect(chart.shares.map((page) => page.share.id)).toEqual([share.id]);
+	});
+
+	it('keeps the page listed when the server could not take it down', async () => {
+		chart.data = { ...emptyChart(), goal: 'Shared', share };
+		answering(500);
+		await expect(chart.stopSharing()).rejects.toThrow();
+		expect(chart.shareId).toBe(share.id);
+		const calls = answering(204);
+		await chart.stopSharing();
+		expect(calls).toEqual([{ url: `/api/chart/${share.id}`, method: 'DELETE' }]);
+		expect(chart.shareId).toBe('');
+		expect(chart.shares.find((page) => page.share.id === share.id)).toBeUndefined();
+	});
+
+	it('takes the page down when its chart is deleted', async () => {
+		chart.data = { ...emptyChart(), goal: 'Shared', share };
+		const calls = answering(204);
+		const id = chart.charts.find((item) => item.active)!.id;
+		chart.deleteChart(id);
+		await vi.waitFor(() => expect(calls).toEqual([{ url: `/api/chart/${share.id}`, method: 'DELETE' }]));
+		await vi.waitFor(() => expect(chart.shares.find((page) => page.chartId === id)).toBeUndefined());
+	});
+
+	it('stops a page of a chart that is not open, from the list', async () => {
+		chart.data = { ...emptyChart(), goal: 'Shared', share };
+		const from = chart.charts.find((item) => item.active)!.id;
+		chart.newChart();
+		expect(chart.shares.some((page) => page.chartId === from)).toBe(true);
+		const calls = answering(404);
+		await chart.stopSharingChart(from);
+		expect(calls).toHaveLength(1);
+		expect(chart.shares.some((page) => page.chartId === from)).toBe(false);
+	});
+
+	it('leaves the page with the original when a chart is duplicated', () => {
+		chart.data = { ...emptyChart(), goal: 'Shared', share };
+		const from = chart.charts.find((item) => item.active)!.id;
+		chart.duplicateChart();
+		expect(chart.shareId).toBe('');
+		expect(chart.shares.filter((page) => page.share.id === share.id).map((page) => page.chartId)).toEqual([from]);
 	});
 });
