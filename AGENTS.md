@@ -67,6 +67,7 @@ src/
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
     MandalaGrid.svelte        the 9×9 grid
+    ChartSkeleton.svelte      the grid's shape while a shared chart loads: blank cells, pillar centers breathing in turn
     BlockSheet.svelte         a pillar's block in words, opened from the chart on a phone
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
