@@ -37,9 +37,11 @@ import {
   type ReflectAt,
   type Ref,
   type Session,
+  type Share,
   type Timer,
   PASSIVE_WEIGHT,
   parsePassiveWeight,
+  parseShare,
   type SessionMode,
   type Tool,
   type ToolKind,
@@ -63,6 +65,8 @@ import {
   reconcile,
   restoreManyFromLibrary,
   summarize,
+  sharedPages,
+  expired,
   summarizeDeleted,
   titleOf,
   withoutHistory,
@@ -71,6 +75,7 @@ import {
   type ChartRecord,
   type ChartSummary,
   type DeletedSummary,
+  type SharedPage,
 } from "./library.ts";
 import {
   batchSubject,
@@ -79,6 +84,7 @@ import {
   type Slip,
 } from "./toast.ts";
 import { publishChart, unpublishChart } from "./sync/publish.ts";
+import { pageText } from "./share.ts";
 import { overlayLocalEdits, putWords, type Clash } from "./sync/sync.ts";
 import { DeviceSync } from "./sync/device.svelte.ts";
 import { localChart, withCharts, type SyncedChart } from "./sync/plan.ts";
@@ -216,6 +222,7 @@ function loadStartSheetState(): StartSheetState | null {
 }
 
 const SHARE_STATE_KEY = "mandala-share-state-v1";
+const SHARE_SECRETS_KEY = "mandala-share-secrets-v1";
 const REFLECT_KEY = "mandala_reflect";
 
 function loadInitialReflectAt(): ReflectAt {
@@ -299,13 +306,26 @@ export class ChartStore {
   #syncUndo = new Map<string, { chartId: string; clashes: Clash[] } | { lost: SyncedChart; blank: string | null }>();
   #syncSeq = 1;
 
-  shareId = $state("");
-  shareUpdatedAt = $state<number | null>(null);
-  autoShare = $state(false);
-  shareNotes = $state(false);
+  /** The page this chart is published to lives on the chart (`data.share`), so every synced device can update or stop it. */
+  get shareId(): string {
+    return this.data.share?.id ?? "";
+  }
+  get shareUpdatedAt(): number | null {
+    return this.data.share?.updatedAt ?? null;
+  }
+  get autoShare(): boolean {
+    return this.data.share?.auto === true;
+  }
+  get shareNotes(): boolean {
+    return this.data.share ? this.data.share.notes === true : this.#notesBeforePublish;
+  }
+  #notesBeforePublish = $state(false);
   shareBusy = $state(false);
   #shareTimer: ReturnType<typeof setTimeout> | null = null;
-  #shareChartId = "";
+  /** The chart as the page last saw it, so a save that only wrote `share` back does not publish again. */
+  #published = "";
+  /** Every page published from a chart here, live or in recently deleted. */
+  shares: SharedPage[] = $derived(sharedPages(this.#library, this.data));
 
   filled = $derived(filledCount(this.data));
   hits = $derived(searchHits(this.data, this.query));
@@ -387,6 +407,8 @@ export class ChartStore {
           const next = purgeLibrary(parsed);
           this.#adopt(next);
           if (next !== parsed) this.#writeLibrary();
+          this.#adoptLegacyShares();
+          void this.#retire(expired(parsed, next));
           this.sync.start();
           return;
         }
@@ -402,7 +424,6 @@ export class ChartStore {
     this.data = cloneChart(activeRecord(library).data);
     this.sel = 4;
     this.query = "";
-    this.#adoptShareState();
     this.#applySavedGoalFit();
   }
 
@@ -411,42 +432,34 @@ export class ChartStore {
     applySavedGoalFit(this.data.goal, this.viewMode, this.viewScale, window.innerWidth);
   }
 
-  #adoptShareState(): void {
-    const chartId = this.#library.activeId;
-    this.#shareChartId = chartId;
+  /** An earlier build kept the page and its secret in two keys of their own. They move onto each chart once. */
+  #adoptLegacyShares(): void {
+    let state: Record<string, { id?: unknown; updatedAt?: unknown; auto?: unknown; notes?: unknown }> = {};
+    let secrets: Record<string, unknown> = {};
     try {
-      const raw = localStorage.getItem(SHARE_STATE_KEY);
-      const all = raw
-        ? (JSON.parse(raw) as Record<
-            string,
-            { id: string; updatedAt: number | null; auto: boolean; notes?: boolean }
-          >)
-        : {};
-      const entry = all[chartId];
-      this.shareId = entry?.id ?? "";
-      this.shareUpdatedAt = entry?.updatedAt ?? null;
-      this.autoShare = entry?.auto ?? false;
-      this.shareNotes = entry?.notes === true;
+      const rawState = localStorage.getItem(SHARE_STATE_KEY);
+      const rawSecrets = localStorage.getItem(SHARE_SECRETS_KEY);
+      if (!rawState && !rawSecrets) return;
+      state = rawState ? (JSON.parse(rawState) as typeof state) : {};
+      secrets = rawSecrets ? (JSON.parse(rawSecrets) as typeof secrets) : {};
     } catch {
-      this.shareId = "";
-      this.shareUpdatedAt = null;
-      this.autoShare = false;
-      this.shareNotes = false;
+      return;
     }
-  }
-
-  #persistShareState(): void {
+    let moved = false;
+    for (const [chartId, entry] of Object.entries(state)) {
+      const record = this.#library.charts.find((each) => each.id === chartId) ?? this.#library.deleted.find((each) => each.id === chartId);
+      if (!record || record.data.share || typeof entry.id !== "string") continue;
+      const share = parseShare({ id: entry.id, secret: secrets[entry.id], updatedAt: typeof entry.updatedAt === "number" ? entry.updatedAt : 0, auto: entry.auto, notes: entry.notes });
+      if (!share) continue;
+      record.data.share = share;
+      if (chartId === this.#library.activeId) this.data.share = { ...share };
+      moved = true;
+    }
     try {
-      const raw = localStorage.getItem(SHARE_STATE_KEY);
-      const all = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-      all[this.#shareChartId] = {
-        id: this.shareId,
-        updatedAt: this.shareUpdatedAt,
-        auto: this.autoShare,
-        notes: this.shareNotes,
-      };
-      localStorage.setItem(SHARE_STATE_KEY, JSON.stringify(all));
+      localStorage.removeItem(SHARE_STATE_KEY);
+      localStorage.removeItem(SHARE_SECRETS_KEY);
     } catch {}
+    if (moved) this.#writeLibrary();
   }
 
   #resetView(): void {
@@ -637,7 +650,6 @@ export class ChartStore {
       this.#library.activeId = record.id;
       this.data = cloneChart(record.data);
       this.#resetView();
-      this.#adoptShareState();
       this.saveNow();
       this.say("Brought it back as a new chart.");
       return;
@@ -665,6 +677,9 @@ export class ChartStore {
     this.#flush();
     const live = this.#library.charts.find((record) => record.id === version.chartId);
     const data = cloneChart(version.data);
+    // The page belongs to the chart as it is, not to the version that comes back.
+    if (live?.data.share) data.share = { ...live.data.share };
+    else delete data.share;
     if (live) {
       void keepVersion({ chartId: live.id, at: Date.now(), why: "restored", data: cloneChart(live.data) });
       this.#library.charts = this.#library.charts.map((record) => (record.id === live.id ? { ...record, data } : record));
@@ -676,7 +691,6 @@ export class ChartStore {
     }
     this.data = cloneChart(activeRecord(this.#library).data);
     this.#resetView();
-    this.#adoptShareState();
     this.saveNow();
     this.say(live ? "Went back to an earlier version." : "Brought it back as a new chart.");
   }
@@ -686,7 +700,6 @@ export class ChartStore {
     if (record.id !== was) {
       this.data = cloneChart(record.data);
       this.#resetView();
-      this.#adoptShareState();
       this.#applySavedGoalFit();
     } else if (!editing && JSON.stringify(record.data) !== JSON.stringify(this.data)) {
       this.data = cloneChart(record.data);
@@ -745,6 +758,7 @@ export class ChartStore {
   purgeExpired(): void {
     const next = purgeLibrary(this.#library);
     if (next === this.#library) return;
+    void this.#retire(expired(this.#library, next));
     this.#library = next;
     this.#writeLibrary();
   }
@@ -752,7 +766,7 @@ export class ChartStore {
   save(): void {
     if (this.#saveTimer) clearTimeout(this.#saveTimer);
     this.#saveTimer = setTimeout(() => this.saveNow(), 300);
-    if (this.autoShare && this.shareId) this.#scheduleAutoPublish();
+    if (this.autoShare && this.shareId && pageText(this.data) !== this.#published) this.#scheduleAutoPublish();
   }
 
   say(message: string, keep = false): void {
@@ -1343,39 +1357,106 @@ export class ChartStore {
     if (this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId || null, this.shareNotes);
-      this.shareId = result.id;
-      this.shareUpdatedAt = result.updatedAt;
-      this.#persistShareState();
+      const share = await publishChart(this.data, this.data.share ?? null, this.shareNotes);
+      this.#published = pageText(this.data);
+      this.#setShare(share);
     } finally {
       this.shareBusy = false;
     }
   }
 
+  /** The page comes down first. A device that cannot reach the server keeps the page in its list, so it can try again. */
   async stopSharing(): Promise<void> {
-    if (!this.shareId) return;
-    const id = this.shareId;
-    this.shareId = "";
-    this.shareUpdatedAt = null;
-    this.autoShare = false;
-    this.#persistShareState();
-    await unpublishChart(id);
+    const share = this.data.share;
+    if (!share || this.shareBusy) return;
+    this.shareBusy = true;
+    try {
+      this.#cancelAutoPublish();
+      await unpublishChart(share);
+      this.#setShare(undefined);
+    } finally {
+      this.shareBusy = false;
+    }
+  }
+
+  /** Stops a page from the list, whichever chart it belongs to, live or in recently deleted. */
+  async stopSharingChart(chartId: string): Promise<void> {
+    if (chartId === this.#library.activeId) return this.stopSharing();
+    const record = this.#library.charts.find((each) => each.id === chartId) ?? this.#library.deleted.find((each) => each.id === chartId);
+    const share = record?.data.share;
+    if (!record || !share) return;
+    await unpublishChart(share);
+    this.#stripShare(chartId);
+    this.#writeLibrary();
+    this.sync.soon();
+  }
+
+  /** A page that is already live (a demo's) becomes this chart's. */
+  adoptShare(share: Share): void {
+    this.#setShare({ ...share });
   }
 
   setShareNotes(on: boolean): void {
-    this.shareNotes = on;
-    this.#persistShareState();
-    if (this.shareId && this.autoShare) this.#scheduleAutoPublish();
+    if (!this.data.share) {
+      this.#notesBeforePublish = on;
+      return;
+    }
+    this.#setShare({ ...this.data.share, ...(on ? { notes: true } : { notes: undefined }) });
+    if (this.autoShare) this.#scheduleAutoPublish();
   }
 
   setAutoShare(on: boolean): void {
-    this.autoShare = on;
-    this.#persistShareState();
-    if (on) {
-      if (!this.shareId) void this.#autoPublish();
-      else this.#scheduleAutoPublish();
-    } else {
-      this.#cancelAutoPublish();
+    if (!this.data.share) {
+      if (on) void this.#publishFirst();
+      return;
+    }
+    this.#setShare({ ...this.data.share, ...(on ? { auto: true } : { auto: undefined }) });
+    if (on) this.#scheduleAutoPublish();
+    else this.#cancelAutoPublish();
+  }
+
+  async #publishFirst(): Promise<void> {
+    try {
+      await this.publishShare();
+      if (this.data.share) this.#setShare({ ...this.data.share, auto: true });
+    } catch (error) {
+      this.say(error instanceof Error ? error.message : "Could not publish here.");
+    }
+  }
+
+  #setShare(share: Share | undefined): void {
+    const data = { ...this.data };
+    if (share) data.share = share;
+    else delete data.share;
+    this.data = data;
+    this.saveNow();
+  }
+
+  #stripShare(chartId: string): void {
+    const without = (data: ChartData): ChartData => {
+      const next = { ...data };
+      delete next.share;
+      return next;
+    };
+    this.#library.charts = this.#library.charts.map((each) => (each.id === chartId && each.data.share ? { ...each, data: without(each.data) } : each));
+    this.#library.deleted = this.#library.deleted.map((each) => (each.id === chartId && each.data.share ? { ...each, data: without(each.data) } : each));
+  }
+
+  /**
+   * Pages of charts that are leaving (deleted, or dropped from recently deleted) come down. One the server could
+   * not be reached for stays on its chart, and in the list, so it can be stopped later.
+   */
+  async #retire(records: readonly { id: string; data: ChartData }[]): Promise<void> {
+    for (const record of records) {
+      const share = record.data.share;
+      if (!share) continue;
+      try {
+        await unpublishChart(share);
+        this.#stripShare(record.id);
+        this.#writeLibrary();
+      } catch {
+        this.say(`The share page of “${titleOf(record.data)}” is still up. Stop it from Shared pages.`);
+      }
     }
   }
 
@@ -1395,12 +1476,12 @@ export class ChartStore {
   }
 
   async #autoPublish(): Promise<void> {
-    if (!this.autoShare || !this.shareId || this.shareBusy) return;
+    if (!this.autoShare || !this.data.share || this.shareBusy) return;
     this.shareBusy = true;
     try {
-      const result = await publishChart(this.data, this.shareId, this.shareNotes);
-      this.shareUpdatedAt = result.updatedAt;
-      this.#persistShareState();
+      const share = await publishChart(this.data, this.data.share, this.shareNotes);
+      this.#published = pageText(this.data);
+      this.#setShare(share);
     } catch {
       // Retry on the next edit; the page still serves the last good snapshot.
       this.#scheduleAutoPublish();
@@ -1599,10 +1680,10 @@ export class ChartStore {
     if (!next) return;
     const activeChanged = next.activeId !== this.#library.activeId;
     this.#library = next;
+    if (doomed) void this.#retire([doomed]);
     if (activeChanged) {
       this.data = cloneChart(activeRecord(next).data);
       this.#resetView();
-      this.#adoptShareState();
       this.#applySavedGoalFit();
     }
     const held = this.#copySlips();
@@ -1623,10 +1704,10 @@ export class ChartStore {
     if (!next || doomed.length === 0) return;
     const activeChanged = next.activeId !== this.#library.activeId;
     this.#library = next;
+    void this.#retire(doomed);
     if (activeChanged) {
       this.data = cloneChart(activeRecord(next).data);
       this.#resetView();
-      this.#adoptShareState();
       this.#applySavedGoalFit();
     }
     const batch = batchSubject(doomed.map((item) => titleOf(item.data)));
@@ -1650,7 +1731,6 @@ export class ChartStore {
     this.#library = next;
     this.data = cloneChart(activeRecord(next).data);
     this.#resetView();
-    this.#adoptShareState();
     this.#applySavedGoalFit();
     this.saveNow();
     this.#applyNote(held, "Restored", batch.subject, titles.length, batch.mixed);
@@ -1666,6 +1746,7 @@ export class ChartStore {
     if (!next || titles.length === 0) return;
     const batch = batchSubject(titles);
     const held = this.#copySlips();
+    void this.#retire(this.#library.deleted.filter((row) => want.has(row.id)));
     this.#library = next;
     this.saveNow();
     this.#applyNote(held, "Removed", batch.subject, titles.length, batch.mixed);
@@ -1674,7 +1755,8 @@ export class ChartStore {
   #fillOrSpawn(next: ChartData, message: string | null): boolean {
     if (!this.dirty) {
       this.closeStartSheet();
-      this.data = withNewIds(next);
+      const share = this.data.share;
+      this.data = { ...withNewIds(next), ...(share ? { share } : {}) };
       this.#resetView();
       this.saveNow();
       if (message) this.say(message);

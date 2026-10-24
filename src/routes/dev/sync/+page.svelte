@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { chart } from '$lib/chart/chart.svelte';
-	import { fetchShare, publishChart, secretFor, shareUrl, unpublishChart } from '$lib/chart/sync/publish';
+	import { fetchShare, publishChart, shareUrl, unpublishChart } from '$lib/chart/sync/publish';
+	import type { Share } from '$lib/chart/model';
 	import { filledCount } from '$lib/chart/model';
 	import Wordmark from '$lib/components/Wordmark.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -10,7 +11,8 @@
 	import { textField } from '$lib/components/ui/styles';
 
 	// Publishing needs the API's database: set TURSO_DATABASE_URL (a file: URL works locally).
-	let shareId = $state('');
+	let share = $state<Share | null>(null);
+	const shareId = $derived(share?.id ?? '');
 	let shareMessage = $state('');
 	let fetchedGoal = $state('');
 
@@ -29,9 +31,7 @@
 	async function publish(): Promise<void> {
 		shareMessage = '';
 		try {
-			const existing = secretFor(shareId) ? shareId : null;
-			const result = await publishChart(chart.data, existing);
-			shareId = result.id;
+			share = await publishChart(chart.data, share);
 			shareMessage = 'Published. The link serves the latest version.';
 		} catch (error) {
 			shareMessage = error instanceof Error ? error.message : 'Publish failed.';
@@ -40,9 +40,9 @@
 
 	async function stopSharing(): Promise<void> {
 		try {
-			await unpublishChart(shareId);
+			if (share) await unpublishChart(share);
 			shareMessage = 'Share removed.';
-			shareId = '';
+			share = null;
 		} catch (error) {
 			shareMessage = error instanceof Error ? error.message : 'Could not stop sharing.';
 		}
@@ -77,7 +77,7 @@
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Publish a chart</Eyebrow>
 		<div class="flex flex-wrap items-end gap-4">
-			<Button onclick={publish}>{secretFor(shareId) ? 'Update share' : 'Publish current chart'}</Button>
+			<Button onclick={publish}>{share ? 'Update share' : 'Publish current chart'}</Button>
 			{#if shareId}
 				<Button variant="ghost" onclick={check}>Check link</Button>
 				<Button variant="danger" onclick={stopSharing}>Stop sharing</Button>

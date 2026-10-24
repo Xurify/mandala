@@ -56,7 +56,7 @@ src/
       sync.ts                 one chart merged field by field: this device's edits on top of the server's copy (pure, tested)
       remote.ts               the sync API from the browser, and opening what it returns
       device.svelte.ts        DeviceSync: when a round runs, one tab at a time, the status the dialog shows
-      publish.ts              published shares
+      publish.ts              published shares: publish, update, and stop a page with the secret the chart holds (`data.share`)
     tools.ts                  shelves: video ids, rotation, opened, known (pure, tested)
     calendar.ts               a month of days and what was finished on each, across every chart (pure, tested)
     board.ts                  the board's lists: lanes, order, moves, what Today deals first (pure, tested)
@@ -67,6 +67,7 @@ src/
   lib/components/
     ChartApp.svelte           page shell: topbar, hero, results, layout modes, dock, toast
     MandalaGrid.svelte        the 9×9 grid
+    ChartSkeleton.svelte      the grid's shape while a shared chart loads: blank cells, pillar centers breathing in turn
     BlockSheet.svelte         a pillar's block in words, opened from the chart on a phone
     SidePanel.svelte          editor for the selected block
     ProgressRing.svelte       8-segment progress ring (spatial angles)
@@ -82,6 +83,7 @@ src/
     SyncDialog.svelte         turning sync on, joining from a QR code, a link or a saved key, turning it off here
     QrCode.svelte             a QR code drawn in tokens, dark on light in both themes
     VersionsDialog.svelte     earlier versions of each chart, and going back to one
+    SharedPagesDialog.svelte  every page published from a chart here, with its link, and Stop
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui

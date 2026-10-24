@@ -10,12 +10,12 @@ Mandala keeps everything in the browser. Device sync, when it is on, keeps the s
 | --- | --- | --- |
 | `shared` | With anyone, by link or published share, and between your devices | the goal, pillars, actions, whether an action is a routine or a one-time step, pinned, the shelves' links |
 | `asked` | Between your devices, and to another person only when that share includes it | an action's `note` and its board `details` (Include notes, in Export) |
-| `yours` | Between your own devices, never to another person | everything that happened while the chart was worked (`days` with ticks and time logged, `weeks`, done marks, the board's lanes, `cleared`, what was opened from a shelf and when, the running `timer`), the `brief`, site `icons`, how much passive time counts (`passiveWeight`) |
+| `yours` | Between your own devices, never to another person | everything that happened while the chart was worked (`days` with ticks and time logged, `weeks`, done marks, the board's lanes, `cleared`, what was opened from a shelf and when, the running `timer`), the `brief`, site `icons`, how much passive time counts (`passiveWeight`), the page the chart is published to and the secret that updates it (`share`) |
 | `device` | Nowhere | nothing inside a chart; see the browser keys below |
 
 It also says which part of the chart each field is. `plan` is the chart and how it is set up; `history` is what happened while it was worked. A duplicate without **Include history** keeps only `plan` (`withoutHistory` in `library.ts`). History is never `shared`: a person you send a chart to gets the plan, not your days.
 
-It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one sync carries. The rest belong to the device: theme, accent, the view, where prompts go, share secrets, the sync key and what sync last agreed on.
+It also lists every key the app keeps in the browser (`BROWSER_KEYS`). The library is the one sync carries. The rest belong to the device: theme, accent, the view, where prompts go, the sync key and what sync last agreed on.
 
 Two checks keep it honest:
 
@@ -34,6 +34,7 @@ So a feature that saves something new has to decide where it goes, in the same c
 - **An action is its id, not its cell.** `meta`, ticks, and a tool kept for an action point at `actionIds`, never at `a{k}_{j}`. A line keeps its id while its words change. A cleared line gets a new id, and what pointed at the old one stays with it: `cleared` keeps its words and place, so its days still name it, and the same words back in the same place bring it back whole. A duplicate, an import, or a share gets new action ids (`withNewIds`), so no two charts hold the same action.
 - **The open chart is the device's.** Sync carries each chart and whether it is in recently deleted, never which one is open.
 - **Deleting for good is for good.** It leaves an empty row on the server, so no device that still holds the chart brings it back.
+- **A page belongs to its chart.** The share a chart is published to, with the secret that updates or removes it, is a field of the chart (`share`, `yours`), so every synced device can update it, keep it up to date, or stop it, and **Shared pages** (More actions) lists every page from every chart here. The page comes down before the device forgets it: a stop that fails leaves the page listed, to try again. Deleting the chart, or dropping it from recently deleted, takes the page down the same way. A copy (duplicate, import, a share opened) starts without one, and going back to an earlier version keeps the page the chart has now.
 
 ## Still to do
 
@@ -44,4 +45,4 @@ Ordered by how much each would cost to get wrong.
 3. **Times with a zone.** Day keys and `doneAt` are local dates, and tick times are local `HH:MM`. Keep the date keys (they are what the person lived), and store a UTC time with the offset beside each tick, so two devices in different zones agree on order.
 4. **Room to grow.** Site icons can reach 96KB each; store them once by content hash outside the chart. Sync keeps a base copy of every chart beside the library. Move both from `localStorage` (about 5MB) to IndexedDB before `days` and the trash outgrow it.
 5. **Erasing the server copy.** Turning sync off stops one device; the sealed rows stay. A way to empty the room has to stop the other devices first, or they send everything up again.
-6. **Share ownership on the server.** A share's update secret lives on the device that published it, so another device cannot update it.
+6. **One chart published twice.** Two devices that each publish the same chart before they sync make two pages. The merge keeps the one from the device edited last, and the other page stays up with no device holding its secret. Sync should notice the second share in `overlayLocalEdits` and take it down.

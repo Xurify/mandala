@@ -7,6 +7,7 @@
 	import CommandPalette, { type CommandItem } from '$lib/components/CommandPalette.svelte';
 	import DaySeal from '$lib/components/DaySeal.svelte';
 	import Icon, { type IconName } from '$lib/components/Icon.svelte';
+	import ChartSkeleton from '$lib/components/ChartSkeleton.svelte';
 	import MandalaGrid from '$lib/components/MandalaGrid.svelte';
 	import ProgressRing from '$lib/components/ProgressRing.svelte';
 	import ShortcutsDialog from '$lib/components/ShortcutsDialog.svelte';
@@ -1031,6 +1032,14 @@
 		</div>
 		<div class="max-w-[520px]">
 			<MandalaGrid mode="view" source={sample} />
+		</div>
+		<Eyebrow>Loading</Eyebrow>
+		<p class="m-0 max-w-[62ch] text-[0.9rem] text-pretty text-muted">
+			A chart on its way (the shared page) is the paper it will land on: 81 blank cells, and each pillar's center breathing in its
+			own hue, clockwise from the top as on the ring. Reduced motion holds them lit.
+		</p>
+		<div class="max-w-[520px]">
+			<ChartSkeleton />
 		</div>
 	</Card>
 

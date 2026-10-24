@@ -63,6 +63,11 @@ export function isShareHash(hash: string): boolean {
 	return hash.startsWith(`#${SHARE_PREFIX}`);
 }
 
+/** The page's text for this chart, as `publishChart` would send it, so a chart unchanged since is not published again. */
+export function pageText(data: ChartData): string {
+	return JSON.stringify(forSharing(data, { notes: data.share?.notes === true }));
+}
+
 export function forSharing(data: ChartData, { notes = false }: { notes?: boolean } = {}): ChartData {
 	const open = (reach: Reach): boolean => reach === 'shared' || (notes && reach === 'asked');
 	return {

@@ -4,7 +4,7 @@
 	import { describe, filledCount, getByKey, type ChartData } from '$lib/chart/model';
 	import MandalaGrid from '$lib/components/MandalaGrid.svelte';
 	import Wordmark from '$lib/components/Wordmark.svelte';
-	import BouncingDots from '$lib/components/ui/BouncingDots.svelte';
+	import ChartSkeleton from '$lib/components/ChartSkeleton.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Eyebrow from '$lib/components/ui/Eyebrow.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -88,14 +88,15 @@
 	</header>
 
 	{#if loading}
-		<p class="m-0 inline-flex items-center text-muted" role="status">
-			Loading
-			<BouncingDots />
-		</p>
+		<div class="flex flex-col gap-2" aria-hidden="true">
+			<div class="h-[clamp(1.6rem,4vw,2.2rem)] w-3/4 rounded-full bg-sunken"></div>
+			<div class="h-4 w-2/5 rounded-full bg-sunken"></div>
+		</div>
+		<ChartSkeleton />
 	{:else if error}
 		<Notice>{error}</Notice>
 	{:else if chartData}
-		<div class="flex flex-col gap-2">
+		<div class="flex flex-col gap-2 motion-safe:animate-pop-in">
 			<h1 class="m-0 font-serif text-[clamp(1.6rem,4vw,2.2rem)] font-[480] tracking-[-0.012em] text-balance">
 				{chartData.goal.trim() || 'Untitled chart'}
 			</h1>
@@ -107,7 +108,9 @@
 			</p>
 		</div>
 
-		<MandalaGrid mode="view" source={chartData} onSelect={selectCell} />
+		<div class="motion-safe:animate-pop-in">
+			<MandalaGrid mode="view" source={chartData} onSelect={selectCell} />
+		</div>
 
 		{#if expanded}
 			<Dialog bind:open={showExpanded} title={expanded.label} size="sm">

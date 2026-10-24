@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ACTION_META, BRIEF, BROWSER_KEYS, CHART, CHART_PART, META_PART, TOOL, TOOL_PART } from './contract.ts';
+import { ACTION_META, BRIEF, BROWSER_KEYS, CHART, CHART_PART, META_PART, SHARE, TOOL, TOOL_PART } from './contract.ts';
 import { withoutHistory } from './library.ts';
 import { A, slotted } from './fixtures.ts';
 import { emptyChart, type ActionMeta, type ChartData, type Tool } from './model.ts';
@@ -23,7 +23,8 @@ describe('the sync contract', () => {
 		icons: { 'youtu.be': 'data:image/png;base64,AAAA' },
 		cleared: { [`action_${'0'.repeat(24)}99`]: { text: 'An old line', pillar: 0, slot: 1 } },
 		timer: { action: A.a0_0, since: 1_000, length: 25 },
-		passiveWeight: 1
+		passiveWeight: 1,
+		share: { id: 'share_01m5qnzqnce1vrm4awy56y2tbk', secret: 's3cret', updatedAt: 1_000, auto: true, notes: true }
 	});
 
 	it('gives another person what is shared, and only that', () => {
@@ -64,6 +65,11 @@ describe('the sync contract', () => {
 		}
 		expect(data.days).toBeDefined();
 		expect(data.meta![A.a0_0]!.done).toBe(true);
+	});
+
+	it('keeps a page and its secret to your own devices', () => {
+		expect(CHART.share).toBe('yours');
+		expect(Object.values(SHARE).every((reach) => reach === 'yours')).toBe(true);
 	});
 
 	it('never shares what a fresh copy would leave behind', () => {

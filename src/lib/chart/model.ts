@@ -148,6 +148,18 @@ export type ChartData = {
 	timer?: Timer;
 	/** How much a passive minute counts, 0 to 1. Left out means `PASSIVE_WEIGHT`. */
 	passiveWeight?: number;
+	/** The page this chart is published to, and the secret that updates or removes it. Travels only between your devices. */
+	share?: Share;
+};
+
+export type Share = {
+	id: Id<'share'>;
+	secret: string;
+	updatedAt: number;
+	/** The page is published again after each edit. */
+	auto?: boolean;
+	/** The page carries each action's note and board notes. */
+	notes?: boolean;
 };
 
 /** A line cleared from the chart that something still points at, so its days still name it, and the same words back in the same place bring it back whole. */
@@ -200,6 +212,17 @@ export function parseTimer(value: unknown): Timer | undefined {
 	if (typeof record.length === 'number' && record.length > 0 && record.length <= 24 * 60) timer.length = record.length;
 	if (typeof record.link === 'string' && record.link.trim()) timer.link = record.link.trim();
 	return timer.action || timer.length ? timer : undefined;
+}
+
+export function parseShare(value: unknown): Share | undefined {
+	if (!value || typeof value !== 'object') return undefined;
+	const record = value as Record<string, unknown>;
+	if (!isId('share', record.id) || typeof record.secret !== 'string' || !record.secret) return undefined;
+	if (typeof record.updatedAt !== 'number' || !Number.isFinite(record.updatedAt)) return undefined;
+	const share: Share = { id: record.id, secret: record.secret, updatedAt: record.updatedAt };
+	if (record.auto === true) share.auto = true;
+	if (record.notes === true) share.notes = true;
+	return share;
 }
 
 export const CHART_VERSION = 1;
@@ -343,6 +366,8 @@ export function withNewIds(data: ChartData): ChartData {
 	const keyed = <T>(record: Record<ActionId, T> | undefined) =>
 		record ? (Object.fromEntries(Object.entries(record).map(([id, value]) => [swap(id as ActionId), value])) as Record<ActionId, T>) : undefined;
 	const copy = parseChart(JSON.stringify(data)) ?? emptyChart();
+	// A copy is a new chart: a page published from the original stays the original's.
+	delete copy.share;
 	return {
 		...copy,
 		actionIds: copy.actionIds.map((row) => row.map(swap)),
@@ -545,7 +570,8 @@ export function parseChart(raw: string): ChartData | null {
 			icons: parseIcons(record.icons),
 			cleared: parseCleared(record.cleared, new Set(actionIds.flat())),
 			timer: parseTimer(record.timer),
-			passiveWeight: parsePassiveWeight(record.passiveWeight)
+			passiveWeight: parsePassiveWeight(record.passiveWeight),
+			share: parseShare(record.share)
 		};
 	} catch {
 		return null;

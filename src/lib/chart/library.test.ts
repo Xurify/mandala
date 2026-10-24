@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from './fixtures.ts';
 import { emptyChart, exportJson, filledCount, parseChart } from './model.ts';
+import { newId } from './id.ts';
 import { buildChart, getPreset } from './presets/index.ts';
 import {
 	cloneChart,
@@ -23,6 +24,9 @@ import {
 	purgeDeleted,
 	reconcile,
 	restoreManyFromLibrary,
+	sharedPages,
+	expired,
+	purgeLibrary,
 	summarize,
 	titleOf,
 	TRASH_DAYS,
@@ -380,5 +384,38 @@ describe('historyOf', () => {
 		};
 		expect(historyOf(data)).toEqual({ finished: 3, days: 2, minutes: 45 });
 		expect(historyOf(emptyChart())).toEqual({ finished: 0, days: 0, minutes: 0 });
+	});
+});
+
+describe('shared pages', () => {
+	const share = (updatedAt: number) => ({ id: newId('share'), secret: 's3cret', updatedAt });
+
+	it('lists every page here, the open chart read live, newest publish first, with deleted charts marked', () => {
+		const library = emptyLibrary();
+		const open = library.charts[0]!;
+		const other = newRecord({ ...emptyChart(), goal: 'Other' });
+		other.data.share = share(1);
+		const gone = { ...newRecord({ ...emptyChart(), goal: 'Gone' }), deletedAt: 9 };
+		gone.data.share = share(3);
+		library.charts.push(other);
+		library.deleted.push(gone);
+		const live = { ...open.data, goal: 'Open, edited', share: share(2) };
+		const pages = sharedPages(library, live);
+		expect(pages.map((page) => [page.title, page.deletedAt])).toEqual([
+			['Gone', 9],
+			['Open, edited', undefined],
+			['Other', undefined]
+		]);
+		expect(sharedPages(library, open.data).map((page) => page.title)).toEqual(['Gone', 'Other']);
+	});
+
+	it('names the deleted charts a purge drops', () => {
+		const library = emptyLibrary();
+		const old = { ...newRecord(emptyChart()), deletedAt: 0 };
+		const fresh = { ...newRecord(emptyChart()), deletedAt: Date.now() };
+		library.deleted.push(old, fresh);
+		const purged = purgeLibrary(library);
+		expect(expired(library, purged).map((record) => record.id)).toEqual([old.id]);
+		expect(expired(library, library)).toEqual([]);
 	});
 });

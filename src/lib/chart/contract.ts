@@ -1,4 +1,4 @@
-import type { ActionMeta, ChartBrief, ChartData, ClearedAction, DayLog, Session, Timer, Tool, WeekReflection } from './model.ts';
+import type { ActionMeta, ChartBrief, ChartData, ClearedAction, DayLog, Session, Share, Timer, Tool, WeekReflection } from './model.ts';
 
 /**
  * Where each piece of saved data may travel. `shared`: with anyone, by link or published share, and between your
@@ -32,7 +32,8 @@ export const CHART: Record<keyof ChartData, Reach> = {
 	icons: 'yours',
 	cleared: 'yours',
 	timer: 'yours',
-	passiveWeight: 'yours'
+	passiveWeight: 'yours',
+	share: 'yours'
 };
 
 export const CHART_PART: Record<keyof ChartData, Part> = {
@@ -49,7 +50,8 @@ export const CHART_PART: Record<keyof ChartData, Part> = {
 	icons: 'plan',
 	cleared: 'history',
 	timer: 'history',
-	passiveWeight: 'plan'
+	passiveWeight: 'plan',
+	share: 'history'
 };
 
 export const ACTION_META: Record<keyof ActionMeta, Reach> = {
@@ -129,6 +131,14 @@ export const TOOL_PART: Record<keyof Tool, Part> = {
 	opened: 'history'
 };
 
+export const SHARE: Record<keyof Share, Reach> = {
+	id: 'yours',
+	secret: 'yours',
+	updatedAt: 'yours',
+	auto: 'yours',
+	notes: 'yours'
+};
+
 export const CLEARED: Record<keyof ClearedAction, Reach> = {
 	text: 'yours',
 	pillar: 'yours',
@@ -165,8 +175,8 @@ export const BROWSER_KEYS: Record<string, string> = {
 	'mandala-held': 'Charts this version could not read, set aside before the library was written back',
 	'mandala-sync-key': 'The sync key: it finds this person\'s charts on the server and seals them. Never leaves the device but by the person\'s hand',
 	'mandala-sync-v1': 'Device sync: how far it has read, and each chart as it last agreed with the server',
-	'mandala-share-state-v1': 'Which charts were published from here, and whether they update on their own',
-	'mandala-share-secrets-v1': 'The secret that lets this device update its published shares',
+	'mandala-share-state-v1': 'Where an earlier build kept which charts were published from here. Read once, moved onto each chart as `share`, and removed',
+	'mandala-share-secrets-v1': 'Where an earlier build kept the secret for each published page. Read once with the state above, and removed',
 	mandala_reflect: 'The day and hour the weekly reflection is offered',
 	mandala_start_sheet: 'The chart being written from the center out, and the preset it borrowed from',
 	mandala_view_mode: 'The view last open',

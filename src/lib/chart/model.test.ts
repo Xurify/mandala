@@ -72,6 +72,19 @@ describe('parseChart', () => {
 		expect(parseChart(JSON.stringify(emptyChart()))?.passiveWeight).toBeUndefined();
 	});
 
+	it('keeps the page a chart is published to, when it is whole', () => {
+		const share = { id: 'share_01m5qnzqnce1vrm4awy56y2tbk', secret: 's3cret', updatedAt: 1_000, auto: true };
+		expect(parseChart(JSON.stringify({ ...emptyChart(), share }))?.share).toEqual(share);
+		expect(parseChart(JSON.stringify({ ...emptyChart(), share: { ...share, notes: 'yes' } }))?.share).toEqual(share);
+		expect(parseChart(JSON.stringify({ ...emptyChart(), share: { id: share.id, updatedAt: 1 } }))?.share).toBeUndefined();
+		expect(parseChart(JSON.stringify({ ...emptyChart(), share: { ...share, id: 'chart_01m5qnzqnce1vrm4awy56y2tbk' } }))?.share).toBeUndefined();
+	});
+
+	it('leaves the page behind when a copy gets new ids', () => {
+		const share = { id: 'share_01m5qnzqnce1vrm4awy56y2tbk' as const, secret: 's3cret', updatedAt: 1_000 };
+		expect(withNewIds({ ...emptyChart(), share }).share).toBeUndefined();
+	});
+
 	it('round-trips a valid chart', () => {
 		const data = slotted(emptyChart());
 		data.goal = 'Ship it';
