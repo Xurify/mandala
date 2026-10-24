@@ -63,6 +63,7 @@ describe('demos', () => {
 
 	it('gives Bindu something to say, something to review, and gaps a reply fills', () => {
 		expect(greetingInsight(demoSetup('bindu-week', now).data!, now)).not.toBeNull();
+		expect(greetingInsight(demoSetup('bindu-away', now).data!, now)?.id).toBe('away');
 		const review = DEMOS.find((demo) => demo.id === 'bindu-review')!;
 		expect(reviseEdits(demoSetup('bindu-review', now).data!, parseDraftText(review.reply!())!)).toHaveLength(5);
 		const fill = DEMOS.find((demo) => demo.id === 'bindu-fill')!;

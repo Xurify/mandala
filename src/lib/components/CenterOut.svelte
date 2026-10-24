@@ -370,7 +370,7 @@
 					<p class={ledeClass}>
 						Pick a goal that you really want to achieve, no matter how big or small. We'll go through the process and you'll figure out on your own how to get there.
 						<br />
-						<b>Don't worry you can make more multiple later.</b>
+						<b>You can start more charts later.</b>
 					</p>
 					<input
 						id="start-goal"

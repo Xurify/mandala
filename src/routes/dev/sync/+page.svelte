@@ -9,34 +9,10 @@
 	import Notice from '$lib/components/ui/Notice.svelte';
 	import { textField } from '$lib/components/ui/styles';
 
-	// Dev-only harness for the two sync surfaces. Device sync needs the API's
-	// database: set TURSO_DATABASE_URL (a file: URL works locally). Publishing
-	// uses the same routes. This page is scaffolding — the app doesn't offer
-	// sync in its UI yet.
-	let room = $state(`dev-${Math.random().toString(36).slice(2, 7)}`);
-	let lastSyncedGoal = $state('');
-
+	// Publishing needs the API's database: set TURSO_DATABASE_URL (a file: URL works locally).
 	let shareId = $state('');
 	let shareMessage = $state('');
 	let fetchedGoal = $state('');
-
-	const statusLabel: Record<string, string> = {
-		off: 'Off',
-		syncing: 'Syncing…',
-		synced: 'Synced',
-		error: 'Error — check the server logs'
-	};
-
-	async function enable(): Promise<void> {
-		chart.enableSync(room.trim() || 'default-dev-key');
-		await chart.pullSync();
-		lastSyncedGoal = chart.data.goal;
-	}
-
-	async function push(): Promise<void> {
-		await chart.pushSync();
-		lastSyncedGoal = chart.data.goal;
-	}
 
 	async function check(): Promise<void> {
 		fetchedGoal = '';
@@ -87,45 +63,16 @@
 				Sync harness
 			</h1>
 			<p class="m-0 max-w-[62ch] text-pretty text-muted">
-				Two surfaces, one table. Device sync keeps your charts in step across
-				your own devices; publishing gives a read-only link that serves the
-				latest version of one chart.
+				Publishing gives a read-only link that serves the latest version of
+				one chart.
 			</p>
 		</div>
 	</header>
 
 	<Notice>
-		Whole-chart sync: pull on open, push after edits. Set
-		<code>TURSO_DATABASE_URL</code> to a <code>file:</code> URL for local dev.
+		Device sync lives in the app: More actions, then Sync devices. Both need
+		<code>TURSO_DATABASE_URL</code>; a <code>file:</code> URL works for local dev.
 	</Notice>
-
-	<Card class="flex flex-col gap-4">
-		<div class="flex items-center justify-between gap-4">
-			<Eyebrow>Device sync</Eyebrow>
-			<span class="text-[0.84rem] tabular-nums text-muted">{statusLabel[chart.syncStatus]}</span>
-		</div>
-		<div class="flex flex-wrap items-end gap-4">
-			<label class="flex min-w-[12rem] flex-1 flex-col gap-1.5">
-				<span class="text-[0.84rem] font-[560]">Sync key</span>
-				<input
-					class={textField}
-					type="text"
-					autocomplete="off"
-					spellcheck="false"
-					bind:value={room}
-				/>
-			</label>
-			<Button onclick={enable} icon="link">Sync this chart</Button>
-			<Button variant="soft" onclick={push}>Push now</Button>
-			{#if chart.syncEnabled}
-				<Button variant="ghost" onclick={() => chart.pullSync()}>Pull now</Button>
-				<Button variant="danger" onclick={() => chart.disableSync()}>Turn off</Button>
-			{/if}
-		</div>
-		<p class="m-0 text-[0.84rem] tabular-nums text-muted">
-			{#if lastSyncedGoal}Last synced goal “{lastSyncedGoal}”{:else}Not synced yet{/if}
-		</p>
-	</Card>
 
 	<Card class="flex flex-col gap-4">
 		<Eyebrow>Publish a chart</Eyebrow>

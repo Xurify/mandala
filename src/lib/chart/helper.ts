@@ -1,4 +1,5 @@
 import { briefLines } from './draft.ts';
+import { timeOf } from './id.ts';
 import { nearKnown, nextTool } from './tools.ts';
 import { formatMinutes, minutesByPillar, passiveMinutesByPillar } from './timer.ts';
 import { dateKeyOf, exportText, getByKey, hasContent, idAt, isOpenFocus, isRoutine, labelOfKey, pillarOfAction, weekStartKey, type ActionId, type ActionKind, type ActionMeta, type ChartData, type Ref, type ToolKind } from './model.ts';
@@ -75,6 +76,9 @@ const DAY_MS = 86_400_000;
 const STUCK_PICKS = 3;
 const STUCK_WINDOW = 14;
 const MOMENTUM_WINDOW = 7;
+/** Four empty days in a row, the same gap `comeback` counts. */
+const AWAY_DAYS = 4;
+const STILL_DAYS = 28;
 
 function daysBetween(fromKey: string, now: Date): number {
 	const [year, month, day] = fromKey.split('-').map(Number);
@@ -218,10 +222,25 @@ function toPick(data: ChartData, candidate: Candidate, role: PickRole, history: 
 	return pick;
 }
 
+export function daysAway(data: ChartData, now: Date = new Date()): number | null {
+	let last: number | null = null;
+	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
+		const ago = daysBetween(dateKey, now);
+		if (ago > 0 && log.checked.length > 0 && (last === null || ago < last)) last = ago;
+	}
+	return last !== null && last > AWAY_DAYS ? last : null;
+}
+
+/** One pick is enough to begin again. */
+export function welcomeBack(data: ChartData, now: Date = new Date()): boolean {
+	const today = data.days?.[dateKeyOf(now)];
+	return !today?.checked.length && !today?.focus.length && daysAway(data, now) !== null;
+}
+
 export function suggestToday(
 	data: ChartData,
 	now: Date = new Date(),
-	count = 3,
+	count = welcomeBack(data, now) ? 1 : 3,
 	exclude: ReadonlySet<ActionId> = new Set()
 ): HelperPick[] {
 	const history = pickHistory(data, now);
@@ -396,7 +415,7 @@ function quietPillars(data: ChartData, history: PickHistory, days = 7): number[]
 }
 
 export type HelperInsight = {
-	id: 'today' | 'yesterday' | 'comeback' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'time' | 'words' | 'follow' | 'retire' | 'tool';
+	id: 'today' | 'yesterday' | 'away' | 'comeback' | 'still' | 'streak' | 'stuck' | 'dropped' | 'quiet' | 'rhythm' | 'time' | 'words' | 'follow' | 'retire' | 'tool';
 	text: string;
 	/** Higher shows first. Above 30 is worth a greeting. */
 	weight: number;
@@ -408,7 +427,7 @@ export function insightSignature(insight: HelperInsight): string {
 	return `${insight.id}:${insight.key ?? insight.ref ?? ''}`;
 }
 
-const DAY_BOUND = new Set<HelperInsight['id']>(['today', 'yesterday', 'comeback']);
+const DAY_BOUND = new Set<HelperInsight['id']>(['today', 'yesterday', 'away', 'comeback']);
 const SHOWN_WINDOW = 3;
 
 export function unseenInsights(data: ChartData, now: Date = new Date()): HelperInsight[] {
@@ -466,6 +485,8 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		if (gap >= 4 && gap < 60) insights.push({ id: 'comeback', text: `First tick in ${gap + 1} days. Good to see you.`, weight: 45 });
 	}
 
+	if (welcomeBack(data, now)) insights.push({ id: 'away', text: 'Welcome back. One small thing today is enough to start again.', weight: 46 });
+
 	const streak = currentStreak(data, now);
 	if (streak >= 3) insights.push({ id: 'streak', text: `${streak} days in a row.`, weight: 15 + Math.min(streak, 15) });
 
@@ -515,7 +536,7 @@ export function insightsFor(data: ChartData, now: Date = new Date()): HelperInsi
 		insights.push({ id: 'time', ref: `p${most}`, text: `Most of your time this week went to ${pillarName(data, most)}: ${formatMinutes(minutes[most]!)}.`, weight: 32 });
 	}
 
-	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now), ...knownByNow(data, now));
+	insights.push(...ownWords(data, now), ...followThrough(data, now), ...readyToRetire(data, now), ...sittingStill(data, now), ...knownByNow(data, now));
 
 	return insights.sort((a, b) => b.weight - a.weight);
 }
@@ -561,6 +582,35 @@ function followThrough(data: ChartData, now: Date): HelperInsight[] {
 			weight: 22
 		}
 	];
+}
+
+/**
+ * The open line that has gone longest without being written, picked, worked on, or ticked, once that is four
+ * weeks. A plan that no longer fits is better reworded or cleared than carried.
+ */
+function sittingStill(data: ChartData, now: Date): HelperInsight[] {
+	const touched = new Map<ActionId, number>();
+	for (const [dateKey, log] of Object.entries(data.days ?? {})) {
+		const ago = daysBetween(dateKey, now);
+		if (ago < 0) continue;
+		const ids = [...log.focus, ...log.checked, ...(log.dropped ?? []), ...(log.wrote ?? []), ...(log.sessions ?? []).map((session) => session.action)];
+		for (const id of ids) touched.set(id, Math.min(ago, touched.get(id) ?? ago));
+	}
+	let oldest: { id: ActionId; text: string; since: number } | null = null;
+	data.actions.forEach((row, pillarIndex) => {
+		if (!filled(data.pillars[pillarIndex])) return;
+		row.forEach((action, slot) => {
+			const id = idAt(data, pillarIndex, slot);
+			const meta = data.meta?.[id];
+			const made = timeOf(id);
+			if (!filled(action) || !isOpenFocus(meta) || meta?.pinned || meta?.lane || made === null) return;
+			const since = Math.min(daysBetween(dateKeyOf(new Date(made)), now), touched.get(id) ?? Infinity);
+			if (since >= STILL_DAYS && (!oldest || since > oldest.since)) oldest = { id, text: action.trim(), since };
+		});
+	});
+	if (!oldest) return [];
+	const { id, text, since } = oldest as { id: ActionId; text: string; since: number };
+	return [{ id: 'still', key: id, text: `${quote(text)} hasn't moved in ${Math.floor(since / 7)} weeks. Reword it smaller, or clear the cell for something new.`, weight: 31 }];
 }
 
 function readyToRetire(data: ChartData, now: Date): HelperInsight[] {
@@ -662,7 +712,7 @@ export function nextMove(data: ChartData, now: Date = new Date()): HelperDoor {
 	if (!filled(data.goal)) return { page: 'write', mode: 'new', label: 'Start a chart', detail: '' };
 	if (gapsOf(data).total > 0) return { page: 'write', mode: 'fill', label: 'Fill the gaps', detail: '' };
 	const today = data.days?.[dateKeyOf(now)];
-	if (!today?.focus.length && suggestToday(data, now).length > 0) return { page: 'today', label: "Pick today's three", detail: '' };
+	if (!today?.focus.length && suggestToday(data, now).length > 0) return { page: 'today', label: welcomeBack(data, now) ? 'Pick one for today' : "Pick today's three", detail: '' };
 	return { page: 'progress', label: 'See how it is going', detail: '' };
 }
 
@@ -678,7 +728,7 @@ export function doorsFor(data: ChartData, now: Date = new Date()): HelperDoor[] 
 		const done = today ? today.focus.filter((key) => today.checked.includes(key)).length : 0;
 		doors.push({
 			page: 'today',
-			label: "Pick today's three",
+			label: welcomeBack(data, now) ? 'Pick one for today' : "Pick today's three",
 			detail: today?.focus.length ? `${done} of ${today.focus.length} done today` : names.length ? `From ${listNames(names)}` : 'Nothing open to pick'
 		});
 		const week = suggestWeek(data, 6, now);

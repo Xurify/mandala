@@ -107,17 +107,3 @@ export async function fetchRow(id: string, ifNoneMatch: number | null = null): P
 }
 
 export const fetchShare = fetchRow;
-
-/** For device sync, the sync key doubles as the write secret. */
-export async function pushRow(
-	key: string,
-	secret: string,
-	data: ChartData
-): Promise<{ updatedAt: number }> {
-	const response = await request('PUT', key, secret, { chart: data });
-	if (!response.ok) {
-		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
-		throw new Error(detail ?? `Sync failed (${response.status}).`);
-	}
-	return (await response.json()) as { updatedAt: number };
-}

@@ -75,7 +75,7 @@
 			{/each}
 		</ol>
 		<div class="sticky bottom-0 z-[2] -mx-4 -mb-4 flex items-center gap-2 bg-surface px-4 pt-2 pb-4">
-			<Button class="flex-1" onclick={() => helper.commit()}>{scope === 'today' ? 'Put these on today' : 'Pin these for the week'}</Button>
+			<Button class="flex-1" onclick={() => helper.commit()}>{scope === 'week' ? 'Pin these for the week' : picks.length === 1 ? 'Put it on today' : 'Put these on today'}</Button>
 			<Button variant="ghost" onclick={() => helper.decline()}>Not now</Button>
 		</div>
 	{/if}

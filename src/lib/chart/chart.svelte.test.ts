@@ -38,6 +38,15 @@ describe('chart day log', () => {
 		expect(log?.declined).toEqual([A.a0_0, A.a1_0]);
 		expect(log?.shown).toEqual([`stuck:${A.a3_0}`]);
 	});
+
+	it('notes a line written or reworded once a day, and not a cleared one', () => {
+		chart.setText('a0_0', 'Book');
+		chart.setText('a0_0', 'Book a race');
+		chart.setText('a0_0', 'Book a race ');
+		chart.setText('a1_0', '');
+		chart.setText('g', 'Run a half marathon');
+		expect(chart.todayLog.wrote).toEqual([A.a0_0]);
+	});
 });
 
 describe('chart board', () => {

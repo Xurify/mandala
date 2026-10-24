@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isId, newId } from './id.ts';
+import { isId, newId, timeOf } from './id.ts';
 
 describe('newId', () => {
 	it('names what it is for, then 26 characters', () => {
@@ -28,5 +28,12 @@ describe('newId', () => {
 		expect(Number.parseInt(hex.slice(0, 12), 16)).toBe(at);
 		expect(hex[12]).toBe('7');
 		expect('89ab').toContain(hex[16]);
+	});
+});
+
+describe('timeOf', () => {
+	it('reads back when the id was made', () => {
+		expect(timeOf(newId('action', 1_760_000_000_123))).toBe(1_760_000_000_123);
+		expect(timeOf('action_nope')).toBeNull();
 	});
 });

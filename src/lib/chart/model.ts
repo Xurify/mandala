@@ -46,6 +46,8 @@ export type DayLog = {
 	/** As `id:key`. */
 	shown?: string[];
 	sessions?: Session[];
+	/** Lines written or reworded that day. */
+	wrote?: ActionId[];
 };
 
 /** Where a session came from, when not from this app's own timer or Log time. */
@@ -356,6 +358,7 @@ export function withNewIds(data: ChartData): ChartData {
 							checked: list(log.checked)!,
 							dropped: list(log.dropped),
 							declined: list(log.declined),
+							wrote: list(log.wrote),
 							at: keyed(log.at),
 							sessions: log.sessions?.map((session) => ({ ...session, action: swap(session.action) })),
 							shown: log.shown?.map((signature) => signature.replace(/action_[0-9a-z]{26}/g, (id) => swap(id as ActionId)))

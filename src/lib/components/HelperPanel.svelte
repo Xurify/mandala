@@ -33,7 +33,7 @@
 	};
 
 	const heading = $derived.by((): { title: string; sub: string } => {
-		if (view === 'today') return { title: "Today's three", sub: 'From different pillars' };
+		if (view === 'today') return helper.picks?.picks.length === 1 ? { title: 'One for today', sub: 'A small start is still a start' } : { title: "Today's three", sub: 'From different pillars' };
 		if (view === 'week') return { title: 'This week', sub: 'One per pillar, quiet ones first' };
 		if (view === 'progress') return { title: 'How it is going', sub: 'The last 7 days, from your log' };
 		if (view === 'write') return { title: 'Fill chart using a prompt', sub: helper.connection && helper.aiEnabled ? 'I write the prompt, your provider writes' : 'I write the prompt, a chat app writes the lines' };

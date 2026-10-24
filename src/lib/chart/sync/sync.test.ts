@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from '../fixtures.ts';
 import { emptyChart, idAt, setByKey, type ChartData } from '../model.ts';
-import { overlayLocalEdits } from './sync.ts';
+import { clashesOf, overlayDay, overlayLocalEdits, putWords } from './sync.ts';
 
 function chartWith(goal: string, pillar0 = ''): ChartData {
 	const data = slotted(emptyChart());
@@ -131,5 +131,145 @@ describe('overlayLocalEdits', () => {
 		expect(idAt(merged, 0, 0)).toBe(idAt(edited, 0, 0));
 		expect(idAt(merged, 0, 0)).not.toBe(A.a0_0);
 		expect(merged.days?.['2026-10-02']?.checked).toEqual([A.a0_0]);
+	});
+});
+
+describe('overlayDay', () => {
+	it('keeps a tick from each device on the same day', () => {
+		const base = { focus: [A.a0_0, A.a1_0], checked: [] };
+		const phone = { focus: [A.a0_0, A.a1_0], checked: [A.a0_0], at: { [A.a0_0]: '07:10' } };
+		const laptop = { focus: [A.a0_0, A.a1_0], checked: [A.a1_0], at: { [A.a1_0]: '09:30' } };
+		const merged = overlayDay(base, phone, laptop);
+		expect(merged.checked).toEqual([A.a1_0, A.a0_0]);
+		expect(merged.at).toEqual({ [A.a1_0]: '09:30', [A.a0_0]: '07:10' });
+	});
+
+	it('takes off what this device took off, and leaves what the other added', () => {
+		const base = { focus: [A.a0_0, A.a1_0], checked: [A.a0_0], at: { [A.a0_0]: '07:10' } };
+		const edited = { focus: [A.a1_0], checked: [], dropped: [A.a0_0] };
+		const server = { focus: [A.a0_0, A.a1_0, A.a2_0], checked: [A.a0_0], at: { [A.a0_0]: '07:10' }, wrote: [A.a3_0] };
+		const merged = overlayDay(base, edited, server);
+		expect(merged.focus).toEqual([A.a1_0, A.a2_0]);
+		expect(merged.checked).toEqual([]);
+		expect(merged.at).toBeUndefined();
+		expect(merged.dropped).toEqual([A.a0_0]);
+		expect(merged.wrote).toEqual([A.a3_0]);
+	});
+
+	it('keeps sessions logged on both devices, once each', () => {
+		const one = { action: A.a0_0, at: '07:00', minutes: 20 };
+		const two = { action: A.a1_0, at: '18:00', minutes: 30 };
+		const base = { focus: [], checked: [], sessions: [one] };
+		const merged = overlayDay(base, { focus: [], checked: [], sessions: [one, two] }, { focus: [], checked: [], sessions: [one, { ...one, at: '12:00' }] });
+		expect(merged.sessions).toEqual([one, { ...one, at: '12:00' }, two]);
+	});
+
+	it('is the device\'s day when the server has none', () => {
+		const edited = { focus: [A.a0_0], checked: [A.a0_0], started: true };
+		expect(overlayDay(undefined, edited, undefined)).toEqual(edited);
+	});
+
+	it('merges days inside overlayLocalEdits', () => {
+		const base = chartWith('Goal');
+		base.days = { '2026-10-21': { focus: [A.a0_0, A.a1_0], checked: [] } };
+		const edited = structuredClone(base);
+		edited.days!['2026-10-21']!.checked = [A.a0_0];
+		const server = structuredClone(base);
+		server.days!['2026-10-21']!.checked = [A.a1_0];
+		expect(overlayLocalEdits(base, edited, server).days?.['2026-10-21']?.checked).toEqual([A.a1_0, A.a0_0]);
+	});
+});
+
+describe('overlayLocalEdits removals', () => {
+	it('removes what this device removed, even when its whole group is gone', () => {
+		const base = chartWith('Goal');
+		base.weeks = { '2026-10-19': { note: 'Old note' } };
+		base.days = { '2026-10-21': { focus: [A.a0_0], checked: [] } };
+		const edited = structuredClone(base);
+		delete edited.weeks;
+		delete edited.days!['2026-10-21'];
+		const merged = overlayLocalEdits(base, edited, structuredClone(base));
+		expect(merged.weeks?.['2026-10-19']).toBeUndefined();
+		expect(merged.days && '2026-10-21' in merged.days).toBe(false);
+	});
+});
+
+describe('overlayLocalEdits, field by field', () => {
+	it('keeps an action pinned on one device and moved on the board on the other', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone' } };
+		const edited = structuredClone(base);
+		edited.meta![A.a0_0] = { kind: 'milestone', pinned: true };
+		const server = structuredClone(base);
+		server.meta![A.a0_0] = { kind: 'milestone', lane: 'doing', rank: 0 };
+		expect(overlayLocalEdits(base, edited, server).meta?.[A.a0_0]).toEqual({ kind: 'milestone', lane: 'doing', rank: 0, pinned: true });
+	});
+
+	it('takes a field off when this device took it off', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', pinned: true } };
+		const edited = structuredClone(base);
+		edited.meta![A.a0_0] = { kind: 'milestone' };
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).meta?.[A.a0_0]).toEqual({ kind: 'milestone' });
+	});
+
+	it('merges a shelf by link: added here, renamed there, opened on both', () => {
+		const tool = { id: 'tool_a', url: 'https://example.com/a', title: 'A', kind: 'repeat' as const, opened: ['2026-10-01'] };
+		const base = chartWith('Goal');
+		base.tools = { p0: [tool] };
+		const edited = structuredClone(base);
+		edited.tools!.p0 = [{ ...tool, opened: ['2026-10-01', '2026-10-20'] }, { id: 'tool_b', url: 'https://example.com/b', title: 'B', kind: 'once' }];
+		const server = structuredClone(base);
+		server.tools!.p0 = [{ ...tool, title: 'Renamed', opened: ['2026-10-01', '2026-10-21'] }];
+		expect(overlayLocalEdits(base, edited, server).tools?.p0).toEqual([
+			{ ...tool, title: 'Renamed', opened: ['2026-10-01', '2026-10-20', '2026-10-21'] },
+			{ id: 'tool_b', url: 'https://example.com/b', title: 'B', kind: 'once' }
+		]);
+	});
+
+	it('moves a link to another shelf', () => {
+		const tool = { id: 'tool_a', url: 'https://example.com/a', title: 'A', kind: 'repeat' as const };
+		const base = chartWith('Goal');
+		base.tools = { p0: [tool] };
+		const edited = structuredClone(base);
+		edited.tools = { p3: [tool] };
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).tools).toEqual({ p3: [tool] });
+	});
+
+	it('keeps a passive weight changed here', () => {
+		const base = chartWith('Goal');
+		const edited = structuredClone(base);
+		edited.passiveWeight = 1;
+		expect(overlayLocalEdits(base, edited, structuredClone(base)).passiveWeight).toBe(1);
+	});
+});
+
+describe('clashesOf', () => {
+	it('finds an action note and a week note both devices rewrote, and puts the other words back', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', note: 'Old' } };
+		base.weeks = { '2026-10-19': { note: 'Week' } };
+		const here = structuredClone(base);
+		here.meta![A.a0_0]!.note = 'Mine';
+		here.weeks!['2026-10-19']!.note = 'My week';
+		const there = structuredClone(base);
+		there.meta![A.a0_0]!.note = 'Theirs';
+		there.weeks!['2026-10-19']!.note = 'Their week';
+		const clashes = clashesOf(base, here, there);
+		expect(clashes).toEqual([
+			{ ref: `note:${A.a0_0}`, mine: 'Mine', theirs: 'Theirs' },
+			{ ref: 'week:2026-10-19', mine: 'My week', theirs: 'Their week' }
+		]);
+		for (const clash of clashes) putWords(here, clash.ref, clash.theirs);
+		expect(here.meta![A.a0_0]!.note).toBe('Theirs');
+		expect(here.weeks!['2026-10-19']!.note).toBe('Their week');
+	});
+
+	it('finds nothing when only one side changed a note', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', note: 'Old' } };
+		const here = structuredClone(base);
+		here.meta![A.a0_0]!.note = 'Mine';
+		expect(clashesOf(base, here, structuredClone(base))).toEqual([]);
 	});
 });
