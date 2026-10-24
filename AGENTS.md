@@ -20,7 +20,7 @@ bun run dev          # vite dev server
 bun run check        # svelte-kit sync + svelte-check (must be 0 errors, 0 warnings)
 bun run test         # vitest
 bun run build
-bun run gen:icons    # regenerate app icons, favicon.svg, logo.svg from src/lib/chart/ring.ts
+bun run gen:icons    # regenerate app icons, static/icon.svg, logo.svg from src/lib/chart/ring.ts
 ```
 
 ## Map
@@ -29,7 +29,7 @@ bun run gen:icons    # regenerate app icons, favicon.svg, logo.svg from src/lib/
 src/
   app.css                     tokens, base reset, pillar utilities; imports print.css; dark block duplicated twice
   print.css                   chart print (@page, forced paper colors, cell type)
-  routes/+layout.svelte       fonts, app.css, theme-color metas, favicon
+  routes/+layout.svelte       fonts, app.css, apple touch icon, manifest
   routes/+page.svelte         mounts ChartApp
   lib/chart/
     model.ts                  chart data model, HUES, block/cell indexing, action ids (pure, tested)
@@ -75,7 +75,7 @@ src/
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui
   routes/dev/demo             one-click situations for trying every interaction
-scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
+scripts/generate-pwa-icons.ts rasterizes PNG icons, writes static/icon.svg and logo.svg
 ```
 
 ## Domain rules
@@ -101,7 +101,7 @@ scripts/generate-pwa-icons.ts rasterizes PNG icons, writes SVG favicon/logo
 - Icon-only buttons need `aria-label`. Toggles use `aria-pressed`, tabs `aria-selected`, menus `aria-expanded`.
 - Copy: sentence case, short, warm, no emoji, toasts in past tense ("Copied as text").
 - Nothing on the device guesses meaning from English words. People write charts in any language, so a check that reads words (a regex over English phrases, an `[a-z]` normalizer, whitespace as the only word break) goes to a model through a prompt instead. Normalize with `\p{L}\p{N}`, and break text with `Intl.Segmenter`.
-- Don't edit generated files (`static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/favicon.svg`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.
+- Don't edit generated files (`static/icon.svg`, `static/icon-*.png`, `static/apple-touch-icon.png`, `src/lib/assets/logo.svg`). Change `scripts/generate-pwa-icons.ts` or `ring.ts` and run `bun run gen:icons`.
 - Comments only for constraints the code can't show: a why, a browser or platform quirk, where a magic number comes from. No comment that restates the code, names the element, or repeats the commit message. When in doubt, leave it out.
 
 ## Done means

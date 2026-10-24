@@ -168,6 +168,6 @@ mkdirSync(staticDir, { recursive: true });
 writeFileSync(join(staticDir, 'icon-192.png'), appIcon(192));
 writeFileSync(join(staticDir, 'icon-512.png'), appIcon(512));
 writeFileSync(join(staticDir, 'apple-touch-icon.png'), appIcon(180));
-writeFileSync(join(assetsDir, 'favicon.svg'), faviconSvg());
+writeFileSync(join(staticDir, 'icon.svg'), faviconSvg());
 writeFileSync(join(assetsDir, 'logo.svg'), logoSvg());
-console.log('wrote app icons, favicon.svg, logo.svg');
+console.log('wrote app icons, static/icon.svg, logo.svg');
