@@ -1,4 +1,4 @@
-import type { ActionMeta, ChartData, DayLog, Session, Tool } from '../model.ts';
+import { setByKey, type ActionId, type ActionMeta, type ChartData, type DayLog, type Session, type Tool } from '../model.ts';
 import { cloneChart } from '../library.ts';
 
 /**
@@ -183,10 +183,10 @@ function overlayGroup<K extends string, T>(
 	}
 }
 
-/** A line both devices changed since they last agreed. The merge keeps this device's words; `theirs` were the other's. */
-export type Clash = { ref: string; mine: string; theirs: string };
+/** A line both devices changed since they last agreed. `mine` are this device's words, `theirs` the other's; `kept` says which stayed. */
+export type Clash = { ref: string; mine: string; theirs: string; kept?: 'mine' | 'theirs' };
 
-/** The goal, pillars, and lines that both sides rewrote differently, so the person can take the other words back. */
+/** The goal, pillars, lines, and notes both sides rewrote differently, so the person can take the other words back. */
 export function clashesOf(base: ChartData, local: ChartData, remote: ChartData): Clash[] {
 	const out: Clash[] = [];
 	const check = (ref: string, was: string, mine: string, theirs: string) => {
@@ -201,5 +201,23 @@ export function clashesOf(base: ChartData, local: ChartData, remote: ChartData):
 			check(id, base.actions[pillarIndex]?.[slot] ?? '', local.actions[pillarIndex]?.[slot] ?? '', remote.actions[pillarIndex]?.[slot] ?? '');
 		}
 	}
+	for (const id of new Set([...Object.keys(local.meta ?? {}), ...Object.keys(remote.meta ?? {})]) as Set<ActionId>) {
+		check(`note:${id}`, base.meta?.[id]?.note ?? '', local.meta?.[id]?.note ?? '', remote.meta?.[id]?.note ?? '');
+	}
+	for (const week of new Set([...Object.keys(local.weeks ?? {}), ...Object.keys(remote.weeks ?? {})])) {
+		check(`week:${week}`, base.weeks?.[week]?.note ?? '', local.weeks?.[week]?.note ?? '', remote.weeks?.[week]?.note ?? '');
+	}
 	return out;
+}
+
+/** Writes a clash's words back where they came from: a cell (`g`, `p{k}`, an action id), an action's note, or a week's note. */
+export function putWords(data: ChartData, ref: string, words: string): void {
+	if (ref.startsWith('note:')) {
+		const id = ref.slice(5) as ActionId;
+		const meta = data.meta?.[id];
+		if (meta) data.meta![id] = { ...meta, note: words };
+	} else if (ref.startsWith('week:')) {
+		const week = ref.slice(5);
+		data.weeks = { ...data.weeks, [week]: { ...data.weeks?.[week], note: words } };
+	} else setByKey(data, ref, words);
 }

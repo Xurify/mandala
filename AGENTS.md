@@ -48,6 +48,7 @@ src/
     ingest.ts                 time measured on a page by a browser extension, posted to the open tab and logged once by id (pure, tested)
     morph.ts                  view transitions for view, theme and accent changes
     theme.ts                  theme and accent: read, save, paint (attribute and browser bar), shared by the store and the error page
+    versions.ts               earlier versions of a chart kept in IndexedDB when sync replaces or outvotes it (rules pure, tested)
     contract.ts               where each saved field may travel (shared, yours, device), and every browser storage key
     sync/                     device sync and shares (docs/device-sync.md)
       key.ts                  the sync key, the room and seal derived from it, sealing a chart on the device (tested)
@@ -80,6 +81,7 @@ src/
     TimerSlip, TimerRing, LogTimeDialog  time on an action: the slip on the dock, its ring, time logged afterwards
     SyncDialog.svelte         turning sync on, joining from a QR code, a link or a saved key, turning it off here
     QrCode.svelte             a QR code drawn in tokens, dark on light in both themes
+    VersionsDialog.svelte     earlier versions of each chart, and going back to one
     ChartSwitcher, PresetPicker, MethodGuide, Icon
     MenuTitle                 a page title that opens a menu: fits two lines, chevron always in view
     ui/                       Tailwind primitives (Button, Menu, Dialog, Dock, Pages, …). Catalog: /dev/ui

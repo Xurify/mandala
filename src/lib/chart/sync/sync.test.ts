@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { A, slotted } from '../fixtures.ts';
 import { emptyChart, idAt, setByKey, type ChartData } from '../model.ts';
-import { overlayDay, overlayLocalEdits } from './sync.ts';
+import { clashesOf, overlayDay, overlayLocalEdits, putWords } from './sync.ts';
 
 function chartWith(goal: string, pillar0 = ''): ChartData {
 	const data = slotted(emptyChart());
@@ -241,5 +241,35 @@ describe('overlayLocalEdits, field by field', () => {
 		const edited = structuredClone(base);
 		edited.passiveWeight = 1;
 		expect(overlayLocalEdits(base, edited, structuredClone(base)).passiveWeight).toBe(1);
+	});
+});
+
+describe('clashesOf', () => {
+	it('finds an action note and a week note both devices rewrote, and puts the other words back', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', note: 'Old' } };
+		base.weeks = { '2026-10-19': { note: 'Week' } };
+		const here = structuredClone(base);
+		here.meta![A.a0_0]!.note = 'Mine';
+		here.weeks!['2026-10-19']!.note = 'My week';
+		const there = structuredClone(base);
+		there.meta![A.a0_0]!.note = 'Theirs';
+		there.weeks!['2026-10-19']!.note = 'Their week';
+		const clashes = clashesOf(base, here, there);
+		expect(clashes).toEqual([
+			{ ref: `note:${A.a0_0}`, mine: 'Mine', theirs: 'Theirs' },
+			{ ref: 'week:2026-10-19', mine: 'My week', theirs: 'Their week' }
+		]);
+		for (const clash of clashes) putWords(here, clash.ref, clash.theirs);
+		expect(here.meta![A.a0_0]!.note).toBe('Theirs');
+		expect(here.weeks!['2026-10-19']!.note).toBe('Their week');
+	});
+
+	it('finds nothing when only one side changed a note', () => {
+		const base = chartWith('Goal');
+		base.meta = { [A.a0_0]: { kind: 'milestone', note: 'Old' } };
+		const here = structuredClone(base);
+		here.meta![A.a0_0]!.note = 'Mine';
+		expect(clashesOf(base, here, structuredClone(base))).toEqual([]);
 	});
 });

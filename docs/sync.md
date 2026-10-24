@@ -39,7 +39,7 @@ So a feature that saves something new has to decide where it goes, in the same c
 
 Ordered by how much each would cost to get wrong.
 
-1. **Clocks on fields.** A field changed on two devices between rounds takes the side that reaches the server second. Per-field last write wins with a hybrid logical clock would pick the later edit instead.
+1. **Clocks on fields.** A field changed on two devices between rounds takes the side whose chart was edited last, by the device's own clock and the chart's `updatedAt`. Per-field last write wins with a hybrid logical clock would be exact, field by field, and immune to a device's clock being wrong.
 2. **Ranks set only on the card that moved.** To do and Doing renumber the whole list on every move, so two devices moving cards touch many keys and collide. Use fractional ranks between the neighbours. `rank` on a done card is a timestamp; give it its own field.
 3. **Times with a zone.** Day keys and `doneAt` are local dates, and tick times are local `HH:MM`. Keep the date keys (they are what the person lived), and store a UTC time with the offset beside each tick, so two devices in different zones agree on order.
 4. **Room to grow.** Site icons can reach 96KB each; store them once by content hash outside the chart. Sync keeps a base copy of every chart beside the library. Move both from `localStorage` (about 5MB) to IndexedDB before `days` and the trash outgrow it.

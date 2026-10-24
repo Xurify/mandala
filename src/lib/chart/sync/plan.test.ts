@@ -150,12 +150,13 @@ describe('planSync', () => {
 describe('what the person may want back', () => {
 	const start = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 5k')));
 
-	it('names a line both devices rewrote, keeping this device\'s words', () => {
-		const here = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 6k')), 2);
+	it('names a line both devices rewrote, keeping this device\'s words when they are newer', () => {
+		const here = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 6k')), 4);
 		const there = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 4k')), 3);
 		const plan = planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: there });
 		expect(plan.next?.data.actions[0]![0]).toBe('Easy 6k');
-		expect(plan.clashes).toEqual([{ ref: A.a0_0, mine: 'Easy 6k', theirs: 'Easy 4k' }]);
+		expect(plan.clashes).toEqual([{ ref: A.a0_0, mine: 'Easy 6k', theirs: 'Easy 4k', kept: 'mine' }]);
+		expect(plan.outvoted).toEqual(there);
 	});
 
 	it('names nothing when the devices changed different lines', () => {
@@ -168,5 +169,28 @@ describe('what the person may want back', () => {
 		const here = synced('chart_run', chart('Run a full marathon'), 2);
 		expect(planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: null })).toEqual({ next: null, base: { at: 9, chart: null }, lost: here });
 		expect(planChart(start, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: null }).lost).toBeUndefined();
+	});
+});
+
+describe('the newer words win a clash', () => {
+	const start = synced('chart_run', chart('Run', (data) => (data.actions[0]![0] = 'Easy 5k')));
+
+	it('keeps the other device\'s words when they were written later, whichever device syncs second', () => {
+		const here = synced('chart_run', chart('Run', (data) => (data.actions[0]![0] = 'Easy 6k')), 100);
+		const there = synced('chart_run', chart('Run', (data) => (data.actions[0]![0] = 'Easy 4k')), 200);
+		const plan = planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: there });
+		expect(plan.next?.data.actions[0]![0]).toBe('Easy 4k');
+		expect(plan.clashes).toEqual([{ ref: A.a0_0, mine: 'Easy 6k', theirs: 'Easy 4k', kept: 'theirs' }]);
+		expect(plan.outvoted).toEqual(here);
+		expect(plan.push).toBeUndefined();
+	});
+
+	it('keeps the other device\'s words on the clash and still sends this device\'s other edits', () => {
+		const here = synced('chart_run', chart('Run far', (data) => (data.actions[0]![0] = 'Easy 6k')), 100);
+		const there = synced('chart_run', chart('Run', (data) => (data.actions[0]![0] = 'Easy 4k')), 200);
+		const plan = planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: there });
+		expect(plan.next?.data.goal).toBe('Run far');
+		expect(plan.next?.data.actions[0]![0]).toBe('Easy 4k');
+		expect(plan.push?.chart?.data.actions[0]![0]).toBe('Easy 4k');
 	});
 });

@@ -78,9 +78,10 @@ import {
   type Slip,
 } from "./toast.ts";
 import { publishChart, unpublishChart } from "./sync/publish.ts";
-import { overlayLocalEdits, type Clash } from "./sync/sync.ts";
+import { overlayLocalEdits, putWords, type Clash } from "./sync/sync.ts";
 import { DeviceSync } from "./sync/device.svelte.ts";
 import { localChart, withCharts, type SyncedChart } from "./sync/plan.ts";
+import { keepVersion, type Version } from "./versions.ts";
 import { ingest as ingestSessions, ingestWords, type IngestRequest, type IngestResult } from "./ingest.ts";
 import {
   addSession,
@@ -577,6 +578,7 @@ export class ChartStore {
       }
       if (!now && target.deletedAt === undefined) added += 1;
       const before = localChart(from, id);
+      if (now && JSON.stringify(now.data) !== JSON.stringify(target.data)) void keepVersion({ chartId: id, at: Date.now(), why: "synced", data: now.data });
       const typed = before && now && JSON.stringify(before.data) !== JSON.stringify(now.data);
       const data = typed ? overlayLocalEdits(before.data, now.data, target.data) : target.data;
       const touched = now ? Math.max(now.updatedAt, now.deletedAt ?? 0) + 1 : 0;
@@ -599,14 +601,19 @@ export class ChartStore {
     else if (this.#library.activeId === was && JSON.stringify(this.data) !== shown) this.say("Updated from your other device.");
   }
 
-  #clashed(clashes: readonly { id: string; clashes: Clash[] }[], lost: readonly SyncedChart[]): void {
-    for (const { id, clashes: lines } of clashes) {
+  #clashed(clashes: readonly { id: string; clashes: Clash[]; outvoted: SyncedChart }[], lost: readonly SyncedChart[]): void {
+    for (const { id, clashes: lines, outvoted } of clashes) {
+      const why = lines[0]?.kept === "theirs" ? "yours" : "theirs";
+      void keepVersion({ chartId: id, at: Date.now(), why, data: outvoted.data });
       const token = `sync:${this.#syncSeq++}`;
       this.#syncUndo.set(token, { chartId: id, clashes: lines });
-      const subject = lines.length === 1 ? `“${lines[0]!.mine.trim()}”` : `${lines.length} lines`;
+      const kept = lines[0]!.kept === "theirs" ? lines[0]!.theirs : lines[0]!.mine;
+      const words = kept.trim().replace(/\s+/g, " ");
+      const subject = lines.length > 1 ? `${lines.length} lines` : `“${words.length > 60 ? `${words.slice(0, 59)}…` : words}”`;
       this.#place({ key: token, kicker: "Changed on both devices", subject, undo: [token] });
     }
     for (const chart of lost) {
+      void keepVersion({ chartId: chart.id, at: Date.now(), why: "deleted", data: chart.data });
       const token = `sync:${this.#syncSeq++}`;
       this.#syncUndo.set(token, { lost: chart });
       this.#place({ key: token, kicker: "Deleted on your other device", subject: titleOf(chart.data), undo: [token] });
@@ -625,8 +632,9 @@ export class ChartStore {
       this.saveNow();
       return;
     }
+    const other = (clash: Clash) => (clash.kept === "theirs" ? clash.mine : clash.theirs);
     if (kept.chartId === this.#library.activeId) {
-      for (const clash of kept.clashes) setByKey(this.data, clash.ref, clash.theirs);
+      for (const clash of kept.clashes) putWords(this.data, clash.ref, other(clash));
       this.data = { ...this.data };
       this.save();
       return;
@@ -634,9 +642,33 @@ export class ChartStore {
     const record = this.#library.charts.find((each) => each.id === kept.chartId);
     if (!record) return;
     const data = cloneChart(record.data);
-    for (const clash of kept.clashes) setByKey(data, clash.ref, clash.theirs);
+    for (const clash of kept.clashes) putWords(data, clash.ref, other(clash));
     this.#library.charts = this.#library.charts.map((each) => (each.id === kept.chartId ? { ...each, data, updatedAt: Date.now() } : each));
     this.saveNow();
+  }
+
+  /**
+   * An earlier version takes the chart's place, after a copy of what is there now is kept, so going back can be
+   * undone the same way. A chart no longer here comes back as a new one.
+   */
+  restoreVersion(version: Version): void {
+    this.#flush();
+    const live = this.#library.charts.find((record) => record.id === version.chartId);
+    const data = cloneChart(version.data);
+    if (live) {
+      void keepVersion({ chartId: live.id, at: Date.now(), why: "restored", data: cloneChart(live.data) });
+      this.#library.charts = this.#library.charts.map((record) => (record.id === live.id ? { ...record, data } : record));
+      this.#library.activeId = live.id;
+    } else {
+      const record = newRecord(data);
+      this.#library.charts = [...this.#library.charts, record];
+      this.#library.activeId = record.id;
+    }
+    this.data = cloneChart(activeRecord(this.#library).data);
+    this.#resetView();
+    this.#adoptShareState();
+    this.saveNow();
+    this.say(live ? "Went back to an earlier version." : "Brought it back as a new chart.");
   }
 
   #follow(was: string, editing: boolean): void {

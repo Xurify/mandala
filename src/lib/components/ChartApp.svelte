@@ -56,6 +56,7 @@
 	import { countCompletedBlocks, presetWithMostMatchingPillars } from '$lib/chart/start';
 	import ShareDialog from './ShareDialog.svelte';
 	import SyncDialog from './SyncDialog.svelte';
+	import VersionsDialog from './VersionsDialog.svelte';
 	import Icon from './Icon.svelte';
 	import { cn } from './ui/cn';
 	import { fieldInk, iconButton } from './ui/styles';
@@ -99,6 +100,7 @@
 	let incomingShare = $state<ChartData | null>(null);
 	let syncOpen = $state(false);
 	let syncJoining = $state<string | null>(null);
+	let versionsOpen = $state(false);
 	let paletteOpen = $state(false);
 	let clearOpen = $state(false);
 	let paletteQuery = $state('');
@@ -570,6 +572,7 @@
 			{ id: 'import', label: 'Import chart', section: 'Actions', icon: 'upload', run: () => (importOpen = true) },
 			{ id: 'print', label: 'Print chart', section: 'Actions', icon: 'printer', run: () => window.print() },
 			{ id: 'sync', label: 'Sync devices', section: 'Actions', icon: 'devices', run: () => (syncOpen = true) },
+			{ id: 'versions', label: 'Earlier versions', section: 'Actions', icon: 'clock', run: () => (versionsOpen = true) },
 			{
 				id: 'shortcuts',
 				label: 'Keyboard shortcuts',
@@ -764,6 +767,9 @@
 					{/if}
 				{/if}
 				<MenuItem icon="devices" badge={syncBadge} onclick={() => (syncOpen = true)}>Sync devices</MenuItem>
+				{#if chart.sync.key}
+					<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
+				{/if}
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuDivider />
 				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
@@ -883,6 +889,7 @@
 		<DuplicateChart bind:open={chart.duplicating} />
 		<ShareDialog bind:open={shareOpen} data={incomingShare} onapply={handleApplyShare} />
 		<SyncDialog bind:open={syncOpen} bind:joining={syncJoining} />
+		<VersionsDialog bind:open={versionsOpen} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog
 			bind:open={clearOpen}

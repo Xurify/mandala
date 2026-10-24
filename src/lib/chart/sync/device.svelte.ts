@@ -167,6 +167,7 @@ export class DeviceSync {
 		const from = this.#host.library();
 		const plan = planSync(from, state.bases, rows);
 		if (plan.changed.length > 0) this.#host.adopt(plan.library, from, plan.changed);
+		// After adopting, so its slip with Undo is the one left showing.
 		if (plan.clashes.length > 0 || plan.lost.length > 0) this.#host.clashed(plan.clashes, plan.lost);
 		state.bases = plan.bases;
 		// A row this version cannot read is asked for again next time, in case an update can.
@@ -197,7 +198,9 @@ export class DeviceSync {
 			const plan = planChart(localChart(from, push.id), state.bases[push.id], row);
 			if (plan.base) state.bases[push.id] = plan.base;
 			if (plan.next !== undefined) this.#host.adopt(withCharts(from, new Map([[push.id, plan.next]])), from, [push.id]);
-			if (plan.clashes || plan.lost) this.#host.clashed(plan.clashes ? [{ id: push.id, clashes: plan.clashes }] : [], plan.lost ? [plan.lost] : []);
+			if (plan.clashes || plan.lost) {
+				this.#host.clashed(plan.clashes && plan.outvoted ? [{ id: push.id, clashes: plan.clashes, outvoted: plan.outvoted }] : [], plan.lost ? [plan.lost] : []);
+			}
 			writeState(state);
 			push = plan.push;
 		}
