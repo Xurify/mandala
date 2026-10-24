@@ -63,6 +63,8 @@ What has not gone up is found again by comparing the library with the bases, so 
 
 Against the base, field by field: the goal, each pillar, each cell (words and id together), each action's `meta` by field, each day log list by list (`focus`, `checked`, `dropped`, `declined`, `shown`, `wrote`, sessions by id), tick times by action, each week's note, each shelf by link (a link's `opened` days as a list), site icons by host, the brief, the timer, and the passive weight. A field only this device changed comes from this device; everything else stays as the other device left it.
 
+When both devices rewrote the same goal, pillar, or line (`clashesOf`), the device that merges keeps its own words and says so in a slip with Undo, which puts the other device's words back. When the other device deleted a chart for good that was edited here, it goes, and the slip's Undo brings it back as a new chart, since its id is gone for good. Nothing asks first: a conflict arrives at a random moment, and choosing between two versions is harder than undoing one.
+
 ## Published share (`/s/[id]`)
 
 One row in `charts`: an unguessable public id and an update secret the owner keeps in `mandala-share-secrets-v1`. `PUT /api/chart/<id>` with `x-chart-secret` replaces it, `GET` reads it (with an ETag), `DELETE` removes it. The page is a read-only snapshot, one fetch on open plus a refresh button. A share carries the plan, never the history (`forSharing`).

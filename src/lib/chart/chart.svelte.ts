@@ -78,7 +78,7 @@ import {
   type Slip,
 } from "./toast.ts";
 import { publishChart, unpublishChart } from "./sync/publish.ts";
-import { overlayLocalEdits } from "./sync/sync.ts";
+import { overlayLocalEdits, type Clash } from "./sync/sync.ts";
 import { DeviceSync } from "./sync/device.svelte.ts";
 import { localChart, withCharts, type SyncedChart } from "./sync/plan.ts";
 import { ingest as ingestSessions, ingestWords, type IngestRequest, type IngestResult } from "./ingest.ts";
@@ -291,7 +291,11 @@ export class ChartStore {
       return $state.snapshot(this.#library) as ChartLibrary;
     },
     adopt: (next, from, changed) => this.#adoptSynced(next, from, changed),
+    clashed: (clashes, lost) => this.#clashed(clashes, lost),
   });
+  /** What Undo on a sync slip puts back: the other device's words, or a chart deleted for good elsewhere. */
+  #syncUndo = new Map<string, { chartId: string; clashes: Clash[] } | { lost: SyncedChart }>();
+  #syncSeq = 1;
 
   shareId = $state("");
   shareUpdatedAt = $state<number | null>(null);
@@ -595,6 +599,46 @@ export class ChartStore {
     else if (this.#library.activeId === was && JSON.stringify(this.data) !== shown) this.say("Updated from your other device.");
   }
 
+  #clashed(clashes: readonly { id: string; clashes: Clash[] }[], lost: readonly SyncedChart[]): void {
+    for (const { id, clashes: lines } of clashes) {
+      const token = `sync:${this.#syncSeq++}`;
+      this.#syncUndo.set(token, { chartId: id, clashes: lines });
+      const subject = lines.length === 1 ? `“${lines[0]!.mine.trim()}”` : `${lines.length} lines`;
+      this.#place({ key: token, kicker: "Changed on both devices", subject, undo: [token] });
+    }
+    for (const chart of lost) {
+      const token = `sync:${this.#syncSeq++}`;
+      this.#syncUndo.set(token, { lost: chart });
+      this.#place({ key: token, kicker: "Deleted on your other device", subject: titleOf(chart.data), undo: [token] });
+    }
+  }
+
+  /** Puts the other device's words back, or brings a chart deleted elsewhere back as a new copy, since its id is gone for good. */
+  #undoSync(token: string): void {
+    const kept = this.#syncUndo.get(token);
+    this.#syncUndo.delete(token);
+    if (!kept) return;
+    this.#flush();
+    if ("lost" in kept) {
+      const record = newRecord(cloneChart(kept.lost.data));
+      this.#library.charts = [...this.#library.charts, record];
+      this.saveNow();
+      return;
+    }
+    if (kept.chartId === this.#library.activeId) {
+      for (const clash of kept.clashes) setByKey(this.data, clash.ref, clash.theirs);
+      this.data = { ...this.data };
+      this.save();
+      return;
+    }
+    const record = this.#library.charts.find((each) => each.id === kept.chartId);
+    if (!record) return;
+    const data = cloneChart(record.data);
+    for (const clash of kept.clashes) setByKey(data, clash.ref, clash.theirs);
+    this.#library.charts = this.#library.charts.map((each) => (each.id === kept.chartId ? { ...each, data, updatedAt: Date.now() } : each));
+    this.saveNow();
+  }
+
   #follow(was: string, editing: boolean): void {
     const record = activeRecord(this.#library);
     if (record.id !== was) {
@@ -687,11 +731,13 @@ export class ChartStore {
     if (!front || front.undo.length === 0) return;
     const ids = front.undo;
     this.slips = this.slips.filter((slip) => slip.id !== front.id);
+    const synced = ids.filter((id) => this.#syncUndo.has(id));
+    for (const token of synced) this.#undoSync(token);
     const tools = ids.filter((id) => this.#removedTools.has(id));
     for (const token of tools) this.#restoreTool(token);
     const time = ids.filter((id) => this.#removedTime.has(id));
     for (const token of time) this.#restoreTime(token);
-    this.restoreCharts(ids.filter((id) => !tools.includes(id) && !time.includes(id)));
+    this.restoreCharts(ids.filter((id) => !tools.includes(id) && !time.includes(id) && !synced.includes(id)));
   }
 
   holdToasts(held: boolean): void {

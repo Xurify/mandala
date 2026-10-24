@@ -84,7 +84,7 @@ describe('planChart', () => {
 		expect(planChart(null, { at: 5, chart: run }, undefined).push).toEqual({ id: run.id, chart: null, expected: 5 });
 		expect(planChart(null, { at: 5, chart: run }, { id: run.id, at: 9, chart: there }).push).toEqual({ id: run.id, chart: null, expected: 9 });
 		const edited = synced(run.id, chart('Run a full marathon'), 3);
-		expect(planChart(edited, { at: 5, chart: run }, { id: run.id, at: 9, chart: null })).toEqual({ next: null, base: { at: 9, chart: null } });
+		expect(planChart(edited, { at: 5, chart: run }, { id: run.id, at: 9, chart: null })).toEqual({ next: null, base: { at: 9, chart: null }, lost: edited });
 	});
 
 	it('takes a chart deleted for good off again when a stale copy brings it back', () => {
@@ -144,5 +144,29 @@ describe('planSync', () => {
 		expect(localChart(lib, 'chart_a')?.deletedAt).toBeUndefined();
 		expect(localChart(lib, 'chart_b')?.deletedAt).toBe(6);
 		expect(localChart(lib, 'chart_c')).toBeNull();
+	});
+});
+
+describe('what the person may want back', () => {
+	const start = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 5k')));
+
+	it('names a line both devices rewrote, keeping this device\'s words', () => {
+		const here = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 6k')), 2);
+		const there = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 4k')), 3);
+		const plan = planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: there });
+		expect(plan.next?.data.actions[0]![0]).toBe('Easy 6k');
+		expect(plan.clashes).toEqual([{ ref: A.a0_0, mine: 'Easy 6k', theirs: 'Easy 4k' }]);
+	});
+
+	it('names nothing when the devices changed different lines', () => {
+		const here = synced('chart_run', chart('Run a half marathon', (data) => (data.actions[0]![0] = 'Easy 6k')), 2);
+		const there = synced('chart_run', chart('Run a full marathon', (data) => (data.actions[0]![0] = 'Easy 5k')), 3);
+		expect(planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: there }).clashes).toBeUndefined();
+	});
+
+	it('hands back a chart edited here that the other device deleted for good', () => {
+		const here = synced('chart_run', chart('Run a full marathon'), 2);
+		expect(planChart(here, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: null })).toEqual({ next: null, base: { at: 9, chart: null }, lost: here });
+		expect(planChart(start, { at: 5, chart: start }, { id: 'chart_run', at: 9, chart: null }).lost).toBeUndefined();
 	});
 });

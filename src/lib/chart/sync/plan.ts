@@ -1,6 +1,6 @@
 import { emptyChart, hasContent, type ChartData } from '../model.ts';
 import { newRecord, type ChartLibrary, type ChartRecord, type DeletedRecord } from '../library.ts';
-import { overlayLocalEdits } from './sync.ts';
+import { clashesOf, overlayLocalEdits, type Clash } from './sync.ts';
 
 /** One chart as it travels: live, or in recently deleted with `deletedAt`. */
 export type SyncedChart = { id: string; updatedAt: number; deletedAt?: number; data: ChartData };
@@ -16,9 +16,17 @@ export type Bases = Record<string, Base>;
 /** `expected` is the version this write may replace; null writes only where there is no row yet. */
 export type Push = { id: string; chart: SyncedChart | null; expected: number | null };
 
-export type ChartPlan = { next?: SyncedChart | null; push?: Push; base?: Base };
+/** `clashes`: lines both sides rewrote, where this device's words were kept. `lost`: this device's edits to a chart deleted for good elsewhere. */
+export type ChartPlan = { next?: SyncedChart | null; push?: Push; base?: Base; clashes?: Clash[]; lost?: SyncedChart };
 
-export type Plan = { library: ChartLibrary; push: Push[]; bases: Bases; changed: string[] };
+export type Plan = {
+	library: ChartLibrary;
+	push: Push[];
+	bases: Bases;
+	changed: string[];
+	clashes: { id: string; clashes: Clash[] }[];
+	lost: SyncedChart[];
+};
 
 export function localChart(library: ChartLibrary, id: string): SyncedChart | null {
 	const live = library.charts.find((record) => record.id === id);
@@ -50,12 +58,14 @@ export function planChart(local: SyncedChart | null, base: Base | undefined, row
 	const remote = row!;
 	const seen: Base = { at: remote.at, chart: remote.chart };
 	if (!localChanged || !remote.chart) {
-		return same(local, remote.chart) ? { base: seen } : { next: remote.chart, base: seen };
+		if (same(local, remote.chart)) return { base: seen };
+		return localChanged && local && !remote.chart ? { next: null, base: seen, lost: local } : { next: remote.chart, base: seen };
 	}
 	if (!local) return { base: seen, push: { id: remote.id, chart: null, expected: remote.at } };
 	const merged = mergeCharts(base?.chart ?? remote.chart, local, remote.chart);
 	if (same(merged, remote.chart)) return { next: remote.chart, base: seen };
-	return { next: merged, base: seen, push: { id: merged.id, chart: merged, expected: remote.at } };
+	const clashes = base?.chart ? clashesOf(base.chart.data, local.data, remote.chart.data) : [];
+	return { next: merged, base: seen, push: { id: merged.id, chart: merged, expected: remote.at }, ...(clashes.length > 0 ? { clashes } : {}) };
 }
 
 function mergeCharts(base: SyncedChart, local: SyncedChart, remote: SyncedChart): SyncedChart {
@@ -74,13 +84,17 @@ export function planSync(library: ChartLibrary, bases: Bases, rows: readonly Rem
 	const nextBases: Bases = { ...bases };
 	const changes = new Map<string, SyncedChart | null>();
 	const push: Push[] = [];
+	const clashes: Plan['clashes'] = [];
+	const lost: SyncedChart[] = [];
 	for (const id of ids) {
 		const plan = planChart(localChart(library, id), bases[id], byId.get(id));
 		if (plan.base) nextBases[id] = plan.base;
 		if (plan.next !== undefined) changes.set(id, plan.next);
 		if (plan.push) push.push(plan.push);
+		if (plan.clashes) clashes.push({ id, clashes: plan.clashes });
+		if (plan.lost) lost.push(plan.lost);
 	}
-	return { library: withCharts(library, changes), push, bases: nextBases, changed: [...changes.keys()] };
+	return { library: withCharts(library, changes), push, bases: nextBases, changed: [...changes.keys()], clashes, lost };
 }
 
 /** Puts each chart where it now belongs: live, recently deleted, or nowhere. The open chart stays this device's choice. */

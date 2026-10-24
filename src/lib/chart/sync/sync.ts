@@ -182,3 +182,24 @@ function overlayGroup<K extends string, T>(
 		apply(key, edited?.[key] == null ? null : structuredClone(edited[key]));
 	}
 }
+
+/** A line both devices changed since they last agreed. The merge keeps this device's words; `theirs` were the other's. */
+export type Clash = { ref: string; mine: string; theirs: string };
+
+/** The goal, pillars, and lines that both sides rewrote differently, so the person can take the other words back. */
+export function clashesOf(base: ChartData, local: ChartData, remote: ChartData): Clash[] {
+	const out: Clash[] = [];
+	const check = (ref: string, was: string, mine: string, theirs: string) => {
+		if (mine !== was && theirs !== was && mine.trim() !== theirs.trim()) out.push({ ref, mine, theirs });
+	};
+	check('g', base.goal, local.goal, remote.goal);
+	for (let pillarIndex = 0; pillarIndex < 8; pillarIndex++) {
+		check(`p${pillarIndex}`, base.pillars[pillarIndex] ?? '', local.pillars[pillarIndex] ?? '', remote.pillars[pillarIndex] ?? '');
+		for (let slot = 0; slot < 8; slot++) {
+			const id = base.actionIds[pillarIndex]?.[slot];
+			if (!id || local.actionIds[pillarIndex]?.[slot] !== id || remote.actionIds[pillarIndex]?.[slot] !== id) continue;
+			check(id, base.actions[pillarIndex]?.[slot] ?? '', local.actions[pillarIndex]?.[slot] ?? '', remote.actions[pillarIndex]?.[slot] ?? '');
+		}
+	}
+	return out;
+}

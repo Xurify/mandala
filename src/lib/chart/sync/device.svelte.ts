@@ -1,6 +1,6 @@
 import type { ChartLibrary } from '../library.ts';
 import { newSyncKey, normalizeSyncKey, syncSecrets, type SyncSecrets } from './key.ts';
-import { localChart, planChart, planSync, withCharts, type Bases, type Push, type RemoteRow } from './plan.ts';
+import { localChart, planChart, planSync, withCharts, type Bases, type Plan, type Push, type RemoteRow } from './plan.ts';
 import { listRows, putRow, seal, SyncError, unseal, type SyncFailure } from './remote.ts';
 
 export const SYNC_KEY = 'mandala-sync-key';
@@ -22,6 +22,8 @@ export interface SyncHost {
 	library(): ChartLibrary;
 	/** Charts that came from another device. `from` is the library they were planned against. */
 	adopt(next: ChartLibrary, from: ChartLibrary, changed: readonly string[]): void;
+	/** Lines both devices rewrote, where this device's words were kept, and charts with edits here deleted for good elsewhere. */
+	clashed(clashes: Plan['clashes'], lost: Plan['lost']): void;
 }
 
 /**
@@ -165,6 +167,7 @@ export class DeviceSync {
 		const from = this.#host.library();
 		const plan = planSync(from, state.bases, rows);
 		if (plan.changed.length > 0) this.#host.adopt(plan.library, from, plan.changed);
+		if (plan.clashes.length > 0 || plan.lost.length > 0) this.#host.clashed(plan.clashes, plan.lost);
 		state.bases = plan.bases;
 		// A row this version cannot read is asked for again next time, in case an update can.
 		state.cursor = Math.min(cursor, unread - 1);
@@ -194,6 +197,7 @@ export class DeviceSync {
 			const plan = planChart(localChart(from, push.id), state.bases[push.id], row);
 			if (plan.base) state.bases[push.id] = plan.base;
 			if (plan.next !== undefined) this.#host.adopt(withCharts(from, new Map([[push.id, plan.next]])), from, [push.id]);
+			if (plan.clashes || plan.lost) this.#host.clashed(plan.clashes ? [{ id: push.id, clashes: plan.clashes }] : [], plan.lost ? [plan.lost] : []);
 			writeState(state);
 			push = plan.push;
 		}
