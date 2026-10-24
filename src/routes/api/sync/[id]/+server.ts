@@ -13,8 +13,9 @@ const MAX_ROOM_CHARS = 50_000_000;
 
 /**
  * Writes one sealed chart, or null for one deleted for good. Only over the version the device read
- * (`if-match`), or only where there is no row yet (`if-none-match: *`). When another device wrote first,
- * 412 carries the row as it is now, so the device can merge without asking again.
+ * (`x-sync-version: "<at>"`), or only where there is no row yet (`x-sync-version: new`). When another device
+ * wrote first, 412 carries the row as it is now, so the device can merge without asking again. The condition
+ * is not in if-match / if-none-match: the edge answers those itself (a 304 for `if-none-match: *`).
  */
 export const PUT: RequestHandler = async ({ params, request, getClientAddress }) => {
 	const down = await unavailable();
@@ -33,10 +34,10 @@ export const PUT: RequestHandler = async ({ params, request, getClientAddress })
 	if (data !== null && typeof data !== 'string') return json({ error: 'bad data' }, { status: 400 });
 	if (typeof data === 'string' && data.length > MAX_CHARS) return json({ error: 'chart too large' }, { status: 413 });
 
-	const ifMatch = request.headers.get('if-match');
-	const createOnly = request.headers.get('if-none-match') === '*';
-	const expected = ifMatch ? versionOf(ifMatch) : null;
-	if (expected === null && !createOnly) return json({ error: 'needs if-match or if-none-match' }, { status: 428 });
+	const version = request.headers.get('x-sync-version') ?? '';
+	const createOnly = version === 'new';
+	const expected = createOnly ? null : versionOf(version);
+	if (expected === null && !createOnly) return json({ error: 'needs x-sync-version' }, { status: 428 });
 
 	const who = await clientOf(getClientAddress());
 	const size = typeof data === 'string' ? data.length : 0;

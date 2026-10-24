@@ -34,7 +34,7 @@ A sealed chart is `{ id, updatedAt, deletedAt?, data }`: live, or in recently de
 All requests carry the room id in `x-sync-room`.
 
 - `GET /api/sync?since=<ms>` → `{ rows: [{ id, data, at }], more }`, oldest first, 200 at a time.
-- `PUT /api/sync/<chart id>` with `{ data }` and either `if-match: "<at in base 36>"` (write over the version read) or `if-none-match: *` (create). Returns `{ at }`, or 412 with `{ row }` as it is now when another device wrote first. A write with neither header gets 428. A room holds up to 1,000 rows, 2,000,000 characters a row, and 50,000,000 in all.
+- `PUT /api/sync/<chart id>` with `{ data }` and `x-sync-version`: `"<at in base 36>"` (write over the version read) or `new` (create). Returns `{ at }`, or 412 with `{ row }` as it is now when another device wrote first. A write without the header gets 428. The condition is not sent as `if-match` / `if-none-match`, because the edge network answers those before the server sees them. A room holds up to 1,000 rows, 2,000,000 characters a row, and 50,000,000 in all.
 - 503 when the server has no database, so the dialog can say sync cannot run there.
 
 ### Limits (`lib/server/limit.ts`)

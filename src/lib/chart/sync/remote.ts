@@ -52,8 +52,9 @@ export async function listRows(room: string, since: number): Promise<SealedRow[]
 export type Written = { ok: true; at: number } | { ok: false; row: SealedRow | null };
 
 export async function putRow(room: string, id: string, data: string | null, expected: number | null): Promise<Written> {
-	const condition: Record<string, string> = expected === null ? { 'if-none-match': '*' } : { 'if-match': `"${expected.toString(36)}"` };
-	const response = await call(`/api/sync/${id}`, room, { method: 'PUT', headers: condition, body: JSON.stringify({ data }) });
+	// Not if-match / if-none-match: Vercel's edge answers a PUT with `if-none-match: *` with a 304 before it reaches the server.
+	const version = expected === null ? 'new' : `"${expected.toString(36)}"`;
+	const response = await call(`/api/sync/${id}`, room, { method: 'PUT', headers: { 'x-sync-version': version }, body: JSON.stringify({ data }) });
 	if (response.status === 412) return { ok: false, row: ((await response.json()) as { row: SealedRow | null }).row };
 	if (!response.ok) {
 		const detail = ((await response.json().catch(() => null)) as { error?: string } | null)?.error;
