@@ -610,7 +610,6 @@
 							: 'Keep a backup folder',
 				section: 'Actions',
 				icon: 'folder',
-				tone: chart.backupState === 'on' ? 'danger' : undefined,
 				run: handleBackupMenu
 			});
 		}
@@ -678,7 +677,7 @@
 		}
 		chart.selectGoal();
 		chart.clearFocusedKey();
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+		window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 	}
 </script>
 
@@ -724,7 +723,7 @@
 					{#if searching}
 						<button
 							type="button"
-							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
+							class="absolute end-[9px] top-1/2 flex size-[26px] -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 p-0 text-text bg-sunken-hover after:absolute after:-inset-2.5 after:content-[''] focus-visible:bg-ink focus-visible:text-on-ink focus-visible:outline-none"
 							aria-label="Clear search"
 							onclick={() => chart.setQuery('')}
 						>
@@ -764,7 +763,7 @@
 				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
-						<MenuItem icon="folder" tone="danger" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
+						<MenuItem icon="folder" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
 					{:else}
 						<MenuItem icon="folder" onclick={handleBackupMenu}>
 							{chart.backupState === 'needs-permission' ? 'Resume backups' : 'Keep a backup folder'}
@@ -772,9 +771,7 @@
 					{/if}
 				{/if}
 				<MenuItem icon="devices" badge={syncBadge} onclick={() => (syncOpen = true)}>Sync devices</MenuItem>
-				{#if chart.sync.key}
-					<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
-				{/if}
+				<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
 				<MenuItem icon="eye" badge={chart.shares.length ? String(chart.shares.length) : undefined} onclick={() => (sharesOpen = true)}>Shared pages</MenuItem>
 				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
 				<MenuDivider />
@@ -862,7 +859,7 @@
 			</div>
 
 			{#if !offChart && !showStartSheet && !isMobile}
-			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 pr-6 pl-3.5 shadow-card">
+			<div class="flex items-center gap-5 rounded-[28px] bg-surface py-3.5 ps-3.5 pe-6 shadow-card">
 				<ProgressRing size={76} />
 				<dl class="m-0 grid min-w-[132px] gap-[3px]">
 					<div class="flex items-baseline justify-between gap-[18px] text-[0.86rem]">
@@ -932,7 +929,7 @@
 			{#each shownHits as key (key)}
 				<button
 					type="button"
-					class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none"
+					class="max-w-full min-h-[34px] cursor-pointer truncate rounded-full border-0 px-3.5 text-start font-sans text-[0.86rem] text-text shadow-card bg-surface hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink coarse:min-h-11"
 					onclick={(event) => openHit(event.currentTarget, key)}
 				>
 					<b class="me-1.5 font-[620]">{labelOfKey(chart.data, key)}</b>
@@ -1053,18 +1050,18 @@
 
 	{#if updateReady}
 		<div class="fixed inset-x-0 bottom-[calc(max(18px,env(safe-area-inset-bottom,18px))+74px)] z-40 flex justify-center px-4 print:hidden">
-			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
+			<div class="pointer-events-auto flex items-center gap-3 rounded-full bg-ink py-2 ps-5 pe-2 text-[0.86rem] font-medium text-on-ink shadow-float" role="status">
 				<span>Mandala was updated.</span>
 				<button
 					type="button"
-					class="shadow-press inline-flex min-h-[34px] cursor-pointer appearance-none items-center rounded-full border-0 px-3.5 font-sans text-[0.82rem] font-[560] text-ink bg-on-ink hover:bg-[color-mix(in_oklch,var(--ink)_14%,var(--on-ink))] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="shadow-press inline-flex min-h-[34px] cursor-pointer appearance-none items-center rounded-full border-0 px-3.5 font-sans text-[0.82rem] font-[560] text-ink bg-on-ink hover:bg-[color-mix(in_oklch,var(--ink)_14%,var(--on-ink))] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink coarse:min-h-11"
 					onclick={() => location.reload()}
 				>
 					Refresh
 				</button>
 				<button
 					type="button"
-					class="inline-flex size-[34px] cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_14%,transparent)] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink"
+					class="inline-flex size-[34px] cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-on-ink hover:bg-[color-mix(in_oklch,var(--on-ink)_14%,transparent)] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-on-ink coarse:size-11"
 					aria-label="Dismiss update notice"
 					onclick={() => (updateReady = false)}
 				>
@@ -1112,7 +1109,7 @@
 			title="Your chart: view, edit, or split (V, E, S)"
 			onclick={() => {
 				chart.setViewMode(chart.chartLayout);
-				if (isMobile && chart.chartLayout === 'view') window.scrollTo({ top: 0, behavior: 'smooth' });
+				if (isMobile && chart.chartLayout === 'view') window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 			}}
 		>
 			Chart

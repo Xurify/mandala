@@ -514,9 +514,9 @@
 		<span class="shrink-0 text-[0.8rem] tabular-nums text-muted">{activeChart?.filled ?? 0} of 73</span>
 	</div>
 	{#snippet footer()}
-		<Button variant="ghost" size="sm" class="coarse:min-h-11" onclick={() => (deleteOpen = false)}>Cancel</Button>
+		<Button variant="ghost" size="sm" onclick={() => (deleteOpen = false)}>Cancel</Button>
 		<!-- Undo and recently deleted make this safe to confirm with Enter. -->
-		<Button size="sm" class="coarse:min-h-11" data-autofocus onclick={confirmDelete}>Delete chart</Button>
+		<Button size="sm" data-autofocus onclick={confirmDelete}>Delete chart</Button>
 	{/snippet}
 </Dialog>
 
@@ -530,10 +530,10 @@
 				</p>
 				<p class="m-0 text-[0.8rem] text-muted">You can't restore {count === 1 ? 'it' : 'them'} after this.</p>
 			</div>
-			<Button id="forget-cancel" variant="ghost" size="sm" class="coarse:min-h-11" onclick={cancelForget}>
+			<Button id="forget-cancel" variant="ghost" size="sm" onclick={cancelForget}>
 				Cancel
 			</Button>
-			<Button variant="danger" size="sm" icon="trash" class="coarse:min-h-11" onclick={forgetDeleted}>
+			<Button variant="danger" size="sm" icon="trash" onclick={forgetDeleted}>
 				{count > 1 ? `Delete ${count}` : 'Delete'}
 			</Button>
 		{:else}
@@ -542,7 +542,6 @@
 				variant="danger"
 				size="sm"
 				icon="trash"
-				class="coarse:min-h-11"
 				disabled={count === 0}
 				aria-label={count === 1
 					? `Delete ${pickedItems[0]?.title} for good`
@@ -555,7 +554,6 @@
 				id="deleted-restore"
 				size="sm"
 				icon="undo"
-				class="coarse:min-h-11"
 				disabled={pickedItems.length === 0}
 				aria-label={pickedItems.length === 1
 					? `Restore ${pickedItems[0]?.title}`

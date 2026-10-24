@@ -124,6 +124,7 @@ export const fitCellField: Attachment = (element) => {
 
 	const apply = (): void => {
 		element.style.fontSize = '';
+		if (element === document.activeElement && typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches) return;
 		if (element.clientHeight <= 0 || element.value.trim() === '') return;
 		const max = parseFloat(getComputedStyle(element).fontSize);
 		if (!Number.isFinite(max) || max <= FIELD_FONT_MIN_PX || fitsAt(max)) {
@@ -143,6 +144,8 @@ export const fitCellField: Attachment = (element) => {
 	const stopFace = remeasureWhenFontSettles(schedule);
 	const resizeObserver = new ResizeObserver(schedule);
 	resizeObserver.observe(element);
+	element.addEventListener('focus', schedule);
+	element.addEventListener('blur', schedule);
 	// The value changes without an input event when the editor turns to another block.
 	const textObserver = new MutationObserver(schedule);
 	textObserver.observe(element, { attributes: true, attributeFilter: ['data-fit'] });
@@ -151,6 +154,8 @@ export const fitCellField: Attachment = (element) => {
 		stopFace();
 		resizeObserver.disconnect();
 		textObserver.disconnect();
+		element.removeEventListener('focus', schedule);
+		element.removeEventListener('blur', schedule);
 		element.style.fontSize = '';
 	};
 };

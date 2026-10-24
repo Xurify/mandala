@@ -19,6 +19,7 @@
 	type={type ?? 'button'}
 	role="tab"
 	aria-selected={selected}
+	tabindex={selected ? undefined : -1}
 	class={cn(dockTab(), className)}
 	{...rest}
 >

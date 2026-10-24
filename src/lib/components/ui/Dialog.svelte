@@ -35,11 +35,20 @@
 		if (!node) return;
 		if (open && !node.open) {
 			node.showModal();
-			// First control is Close, and focusing it paints a ring on open, so the panel takes focus. A dialog
-			// whose answer is safe to give with Enter (it can be undone) marks that button `data-autofocus`.
-			(node.querySelector<HTMLElement>('[data-autofocus]') ?? node).focus({ preventScroll: true });
+			refocus();
 		} else if (!open && node.open) node.close();
 	});
+
+	/**
+	 * First control is Close, and focusing it paints a ring on open, so the panel takes focus. A dialog whose
+	 * answer is safe to give with Enter (it can be undone) marks that button `data-autofocus`. A dialog that
+	 * swaps its face calls this again, since the control that had focus is gone with the old face.
+	 */
+	export function refocus(): void {
+		const node = el;
+		if (!node?.open) return;
+		(node.querySelector<HTMLElement>('[data-autofocus]') ?? node).focus({ preventScroll: true });
+	}
 
 	function onDialogClick(event: MouseEvent): void {
 		if (event.target === event.currentTarget) open = false;

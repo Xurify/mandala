@@ -207,8 +207,8 @@
 	const endingTextDelay = $derived(SEAL_DRAW_START_S + completedPillars.length * sealArcStagger + PAUSE_AFTER_SEAL_S);
 
 	const cellFieldClass =
-		'field h-full min-h-0 w-full min-w-0 resize-none rounded-[22px] border-0 px-3 pt-[28px] pb-2.5 text-[15px] leading-[1.3] motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none max-[900px]:rounded-[16px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-1.5 max-[900px]:text-[13px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto';
-	const cellNumberClass = 'pointer-events-none absolute top-2.5 left-3 z-[4] text-[0.72rem] font-[650] tabular-nums max-[900px]:top-[7px] max-[900px]:left-2 max-[900px]:text-[0.66rem]';
+		'field h-full min-h-0 w-full min-w-0 resize-none rounded-[22px] border-0 px-3 pt-[28px] pb-2.5 text-[15px] leading-[1.3] motion-safe:transition-[box-shadow] motion-safe:duration-150 focus:z-[3] focus:shadow-[0_0_0_2px_var(--accent),0_10px_24px_-10px_oklch(0_0_0/0.3)] focus:outline-none max-[900px]:rounded-[16px] max-[900px]:px-2 max-[900px]:pt-[22px] max-[900px]:pb-1.5 max-[900px]:text-[13px] max-[900px]:leading-[1.25] max-[900px]:hyphens-auto coarse:focus:text-base';
+	const cellNumberClass = 'pointer-events-none absolute top-2.5 start-3 z-[4] text-[0.72rem] font-[650] tabular-nums max-[900px]:top-[7px] max-[900px]:start-2 max-[900px]:text-[0.66rem]';
 	const titleClass = 'm-0 font-serif text-[1.85rem] leading-[1.12] font-[480] tracking-[-0.02em] text-balance wrap-anywhere max-[900px]:text-[1.5rem]';
 	const ledeClass = 'm-0 text-[0.98rem] leading-snug text-pretty text-muted';
 	const roomForFocusRingsClass = '-mx-3 px-3 overflow-x-clip overflow-y-visible';
@@ -287,7 +287,7 @@
 						onclick={() => openPillar(k)}
 					>
 						<span class="line-clamp-4 text-[clamp(11px,11cqi,15px)] leading-[1.2] text-balance wrap-anywhere">{name}</span>
-						<span class="absolute top-2 right-2.5 inline-flex items-center gap-0.5 text-[0.7rem] font-[650] tabular-nums max-[900px]:top-1.5 max-[900px]:right-2" aria-hidden="true">
+						<span class="absolute top-2 end-2.5 inline-flex items-center gap-0.5 text-[0.7rem] font-[650] tabular-nums max-[900px]:top-1.5 max-[900px]:end-2" aria-hidden="true">
 							{#if actionCount === 8}
 								<span class="flex size-4 items-center justify-center rounded-full bg-ink text-on-ink"><Icon name="check" size={10} strokeWidth={2.6} /></span>
 							{:else}
@@ -368,7 +368,7 @@
 						</div>
 					</div>
 					<p class={ledeClass}>
-						Pick a goal that you really want to achieve, no matter how big or small. We'll go through the process and you'll figure out on your own how to get there.
+						One clear aim for the center cell. Specific is easier to build around than broad.
 						<br />
 						<b>You can start more charts later.</b>
 					</p>

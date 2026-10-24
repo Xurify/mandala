@@ -48,6 +48,7 @@
 <button
 	type="button"
 	role="menuitem"
+	tabindex={-1}
 	{id}
 	class={cn(styles.base(), className)}
 	aria-current={active || checked ? 'true' : undefined}

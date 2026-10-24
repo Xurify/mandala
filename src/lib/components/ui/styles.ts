@@ -7,10 +7,10 @@ export const fieldInk = 'field-ink h-[42px] w-full rounded-full text-base';
 export const textField = `${fieldInk} px-4`;
 
 export const textArea =
-	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45]';
+	'field-ink w-full resize-y rounded-[20px] px-4 py-3 text-[0.9rem] leading-[1.45] max-[900px]:text-base coarse:text-base';
 
 export const button = tv({
-	base: `inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 py-0 font-sans font-[560] [font-synthesis:none] tracking-[-0.005em] whitespace-nowrap no-underline transition-[color,scale] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 focus-visible:outline-none`,
+	base: `inline-flex cursor-pointer appearance-none items-center justify-center gap-2 rounded-full border-0 py-0 font-sans font-[560] [font-synthesis:none] tracking-[-0.005em] whitespace-nowrap no-underline transition-[color,scale] duration-150 ease-ui active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40 ${focus}`,
 	variants: {
 		variant: {
 			primary:
@@ -23,7 +23,7 @@ export const button = tv({
 		},
 		size: {
 			md: 'min-h-[42px] px-[18px] text-[0.9rem]/none',
-			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]/none'
+			sm: 'min-h-[34px] gap-1.5 px-3.5 text-[0.84rem]/none coarse:min-h-[44px]'
 		}
 	},
 	defaultVariants: { variant: 'primary', size: 'md' }
@@ -45,7 +45,7 @@ export const splitButton = tv({
 });
 
 export const iconButton = tv({
-	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 ${focus}`
+	base: `inline-flex size-[42px] shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 p-0 text-text transition-[color,scale] duration-150 ease-ui hover:bg-sunken aria-expanded:bg-sunken active:scale-[0.94] disabled:pointer-events-none disabled:opacity-30 aria-disabled:pointer-events-none aria-disabled:opacity-30 ${focus}`
 });
 
 export const segmented = tv({
@@ -73,7 +73,7 @@ export const select = tv({
 		panel:
 			'absolute start-0 top-[calc(100%+8px)] z-50 flex max-h-[min(70dvh,20rem)] w-full min-w-full flex-col gap-px overflow-x-clip overflow-y-auto overscroll-contain rounded-[20px] bg-surface p-1.5 shadow-float origin-top-left motion-safe:animate-menu',
 		option:
-			'flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none aria-selected:bg-sunken coarse:min-h-[46px]',
+			'flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink aria-selected:bg-sunken coarse:min-h-[46px]',
 		check: 'shrink-0 text-text'
 	},
 	variants: {
@@ -108,7 +108,7 @@ export const menu = tv({
 
 export const menuItem = tv({
 	slots: {
-		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-none coarse:min-h-[46px] coarse:text-[0.94rem]',
+		base: 'group flex w-full min-h-[42px] cursor-pointer items-center justify-between gap-3 rounded-[14px] border-0 px-3 py-2 text-start font-sans text-[0.9rem] font-medium text-text hover:bg-sunken focus-visible:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink coarse:min-h-[46px] coarse:text-[0.94rem]',
 		main: 'relative flex min-w-0 flex-1 items-center gap-3',
 		icon: 'shrink-0 text-muted',
 		badge: 'shrink-0 font-sans text-[0.8rem] font-normal tracking-[0.01em] text-muted tabular-nums',
@@ -135,11 +135,11 @@ export const dialog = tv({
 		panel:
 			'm-auto h-fit overflow-clip rounded-[30px] border-0 bg-surface p-0 text-text shadow-float outline-none open:flex open:flex-col open:motion-safe:animate-dialog dialog-backdrop print:hidden',
 		sheet: 'relative flex min-h-0 w-full max-h-full flex-col overflow-clip',
-		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] pr-4 pb-3 pl-[26px]',
+		head: 'relative z-20 flex shrink-0 items-start justify-between gap-3 bg-surface pt-[22px] ps-[26px] pe-4 pb-3',
 		title:
 			'm-0 mt-1 font-serif text-[1.6rem] font-[480] leading-[1.15] tracking-[-0.01em] text-balance text-text',
 		// No stacking context of its own, so a select's list (fixed, z-50) can rise over the head and the foot.
-		body: 'relative min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 pr-3.5 pb-[26px] pl-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
+		body: 'relative min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain pt-2.5 ps-[26px] pe-3.5 pb-[26px] text-[0.95rem] text-pretty scrollbar-gutter-stable',
 		sub: 'm-0 mt-1 font-sans text-[0.88rem] leading-[1.4] font-normal tracking-normal text-pretty text-muted',
 		foot: 'relative z-20 flex shrink-0 items-center justify-end gap-2 bg-surface px-[26px] pt-4 pb-[22px]'
 	},
@@ -207,7 +207,7 @@ export const toast = tv({
 });
 
 export const notice = tv({
-	base: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-[22px] bg-surface py-3 pr-3 pl-5 text-[0.9rem] text-muted shadow-card print:hidden'
+	base: 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 rounded-[22px] bg-surface py-3 ps-5 pe-3 text-[0.9rem] text-muted shadow-card print:hidden'
 });
 
 export const eyebrow = tv({
