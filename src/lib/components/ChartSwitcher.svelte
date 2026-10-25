@@ -491,7 +491,14 @@
 		<MenuDivider />
 		<MenuItem icon="list" onclick={() => (chart.selecting = true)}>Select charts</MenuItem>
 		<MenuItem icon="clock" count={chart.deletedCharts.length} onclick={openDeleted}>Recently deleted</MenuItem>
-		<MenuItem icon="trash" tone="danger" shortcut="Del" onclick={handleDelete}>Delete chart</MenuItem>
+		{#if chart.dirty}
+			<div class="flex gap-px">
+				<MenuItem icon="eraser" tone="danger" class="flex-1" onclick={() => (chart.clearing = true)}>Clear chart</MenuItem>
+				<MenuItem icon="trash" tone="danger" shortcut="Del" class="flex-1" onclick={handleDelete}>Delete chart</MenuItem>
+			</div>
+		{:else}
+			<MenuItem icon="trash" tone="danger" shortcut="Del" onclick={handleDelete}>Delete chart</MenuItem>
+		{/if}
 	</div>
 </Menu>
 {#if updatedLabel}

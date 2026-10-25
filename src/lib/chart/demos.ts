@@ -387,7 +387,7 @@ export const DEMOS: readonly Demo[] = [
 		title: 'Shared pages',
 		group: 'Your charts',
 		steps: [
-			'Shared pages opens from More actions with one page listed: the chart it belongs to, when it was last published, and its link.',
+			'Shared pages shows in More actions once a page is published, and opens with one page listed: the chart it belongs to, when it was last published, and its link.',
 			'Stop takes the page down and the row leaves. Copy link copies it without opening Export.',
 			'Deleting a chart with a page stops the page too, and a page another device published shows up here once sync brings the chart.'
 		]
@@ -451,7 +451,7 @@ export const DEMOS: readonly Demo[] = [
 			'Bindu opens on Fill the gaps. Press Connect an AI provider at the foot of the page. The first time, it asks to turn AI on and says what would be sent. Then pick OpenRouter, Gemini, Claude or OpenAI; Save key stays off until the key looks like one of theirs.',
 			'Connect OpenRouter leaves for openrouter.ai and comes back connected, with Bindu open on this page. Its model field takes any OpenRouter model; openrouter/free costs nothing.',
 			'Write with (the provider) sends the prompt from this browser, and the reply lands in step three by itself. Stop drops it. Disconnect forgets the key.',
-			'More actions holds Turn off AI provider, and Turn off Bindu, which takes the face and every door to it away until Turn on Bindu.'
+			'More actions ends on Bindu: Off, On, With AI. On turns the provider off; Off takes the face and every door to it away until On.'
 		]
 	},
 	{

@@ -7,7 +7,7 @@ Bindu is the helper in the corner of the chart. It reads three things: the chart
 
 ## Turning Bindu off
 
-**Turn off Bindu** in More actions (and the command palette) hides it everywhere: the face, the panel, Start a chart, the start sheet's chat app door, Open Bindu, and the weekly reflection's line about Bindu saying it back. `helper.show` opens nothing while it is off. It is a device choice, `mandala_bindu`, and **Turn on Bindu** brings it back where it was. Picks and notes are not computed for a panel nobody sees, and the AI consent is kept as it was.
+**Bindu: Off** in More actions (or Turn off Bindu in the command palette) hides it everywhere: the face, the panel, Start a chart, the start sheet's chat app door, Open Bindu, and the weekly reflection's line about Bindu saying it back. `helper.show` opens nothing while it is off. It is a device choice, `mandala_bindu`, and **On** brings it back where it was. Picks and notes are not computed for a panel nobody sees, and the AI consent is kept as it was.
 
 ## Where it lives
 
@@ -53,7 +53,7 @@ The panel opens where it was left, so a person who went to paste a prompt comes 
 
 ### With the person's own AI provider
 
-Nothing goes to a provider until the person agrees. The first press of **Connect an AI provider** (or **Turn on AI provider** in More actions or the command palette) shows what turning it on means: the chart, what they told Bindu, and their question go to the provider they connect, only when they press Write, Review or Ask, billed to their account under the provider's terms. **Turn on** saves `mandala_ai_consent`. **Turn off AI provider** in More actions removes it and stops a request in flight; a saved key stays until Disconnect, and the page says the key is saved and AI is off. Copying a prompt or opening a chat app needs no consent: the person moves that text themselves.
+Nothing goes to a provider until the person agrees. The first press of **Connect an AI provider** (or **With AI** under Bindu in More actions, or **Turn on AI provider** in the command palette) shows what turning it on means: the chart, what they told Bindu, and their question go to the provider they connect, only when they press Write, Review or Ask, billed to their account under the provider's terms. **Turn on** saves `mandala_ai_consent`. **On** (without AI) in More actions, or **Turn off AI provider** in the command palette, removes it and stops a request in flight; a saved key stays until Disconnect, and the page says the key is saved and AI is off. Copying a prompt or opening a chat app needs no consent: the person moves that text themselves.
 
 **Connect an AI provider** at the foot of the page offers four:
 

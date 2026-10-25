@@ -73,6 +73,7 @@
 		'file-text': true,
 		clipboard: true,
 		trash: true,
+		eraser: true,
 		sparkles: true,
 		undo: true,
 		sun: true,

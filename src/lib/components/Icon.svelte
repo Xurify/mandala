@@ -21,6 +21,7 @@
 		| 'file-text'
 		| 'clipboard'
 		| 'trash'
+		| 'eraser'
 		| 'sparkles'
 		| 'undo'
 		| 'sun'
@@ -174,6 +175,10 @@
 	{:else if name === 'clipboard'}
 		<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
 		<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+	{:else if name === 'eraser'}
+		<path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+		<path d="M22 21H7" />
+		<path d="m5 11 9 9" />
 	{:else if name === 'trash'}
 		<polyline points="3 6 5 6 21 6" />
 		<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />

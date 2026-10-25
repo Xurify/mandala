@@ -365,6 +365,7 @@ export class ChartStore {
   selecting = $state(false);
   browsingShelves = $state(false);
   duplicating = $state(false);
+  clearing = $state(false);
   /** A tool whose settings the shelf opens on, when a door elsewhere asks for them. Never saved. */
   shelfTool = $state<string | null>(null);
 

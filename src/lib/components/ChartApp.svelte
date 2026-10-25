@@ -20,6 +20,7 @@
 	import type { AppTheme, ChartLayout, ViewScale } from '$lib/chart/chart.svelte';
 	import { ACCENTS } from '$lib/chart/accent';
 	import { applyAccent, applyTheme } from '$lib/chart/theme';
+	import { listVersions } from '$lib/chart/versions';
 	import type { Preset } from '$lib/chart/presets';
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { normalizeSyncKey } from '$lib/chart/sync/key';
@@ -80,7 +81,6 @@
 		{ value: 'dark', label: 'Dark', icon: 'moon' as const }
 	];
 
-	const accentName = $derived(ACCENTS.find((item) => item.id === chart.accent)?.label ?? 'Clay');
 
 	const scales = [
 		{ value: 'fit', label: 'Fit', icon: 'minimize' as const, title: 'Fit entire chart on screen without scrolling' },
@@ -104,7 +104,8 @@
 	let versionsOpen = $state(false);
 	let sharesOpen = $state(false);
 	let paletteOpen = $state(false);
-	let clearOpen = $state(false);
+	let moreOpen = $state(false);
+	let keptVersions = $state(0);
 	let paletteQuery = $state('');
 	let shortcutsOpen = $state(false);
 	let modKey = $state('Ctrl');
@@ -184,6 +185,7 @@
 			});
 		}
 		modKey = modifierLabel(isApplePlatform(navigator.userAgent));
+		countVersions();
 		applyTheme(chart.theme);
 		applyAccent(chart.accent);
 		const themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -339,16 +341,8 @@
 		}
 	}
 
-	function handleClearChart() {
-		if (!chart.dirty) {
-			chart.clearAll();
-			return;
-		}
-		clearOpen = true;
-	}
-
 	function confirmClear(): void {
-		clearOpen = false;
+		chart.clearing = false;
 		chart.clearAll();
 	}
 
@@ -441,6 +435,31 @@
 	function turnOffAi(): void {
 		helper.setAiEnabled(false);
 		chart.say('Turned off the AI provider. Your key stays on this device until you disconnect it.');
+	}
+
+	const binduModes = [
+		{ value: 'off', label: 'Off' },
+		{ value: 'on', label: 'On' },
+		{ value: 'ai', label: 'With AI', icon: 'key' as const }
+	];
+	const binduMode = $derived(!helper.enabled ? 'off' : helper.aiEnabled ? 'ai' : 'on');
+
+	function setBinduMode(mode: string): void {
+		if (mode === 'off') {
+			turnOffBindu();
+			return;
+		}
+		if (!helper.enabled) turnOnBindu();
+		if (mode === 'on' && helper.aiEnabled) turnOffAi();
+		if (mode === 'ai' && !helper.aiEnabled) {
+			// Consent is asked inside Bindu, so the menu gets out of its way.
+			moreOpen = false;
+			helper.offerAi();
+		}
+	}
+
+	function countVersions(): void {
+		void listVersions().then((list) => (keptVersions = list.length));
 	}
 
 	function isTheme(value: string): value is AppTheme {
@@ -756,11 +775,12 @@
 				/>
 			{/if}
 
-			<Menu label="More actions" class={showStartSheet ? 'ms-auto' : undefined}>
-				<MenuItem icon="command" shortcut="{modKey}+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
+			<Menu label="More actions" class={showStartSheet ? 'ms-auto' : undefined} bind:open={moreOpen} onopenchange={(open) => open && countVersions()}>
+				<div class="flex gap-px">
+					<MenuItem icon="download" class="flex-1" onclick={handleOpenExport}>Export</MenuItem>
+					<MenuItem icon="upload" class="flex-1" onclick={handleOpenImport}>Import</MenuItem>
+				</div>
 				<MenuItem icon="printer" shortcut="{modKey}+P" onclick={handlePrintChart}>Print chart</MenuItem>
-				<MenuItem icon="download" badge=".png, .json" onclick={handleOpenExport}>Export chart</MenuItem>
-				<MenuItem icon="upload" badge=".json, .txt" onclick={handleOpenImport}>Import chart</MenuItem>
 				{#if supportsDirectoryPicker()}
 					{#if chart.backupState === 'on'}
 						<MenuItem icon="folder" badge={backupBadge} onclick={handleBackupMenu}>Turn off backups</MenuItem>
@@ -771,25 +791,18 @@
 					{/if}
 				{/if}
 				<MenuItem icon="devices" badge={syncBadge} onclick={() => (syncOpen = true)}>Sync devices</MenuItem>
-				<MenuItem icon="clock" onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
-				<MenuItem icon="eye" badge={chart.shares.length ? String(chart.shares.length) : undefined} onclick={() => (sharesOpen = true)}>Shared pages</MenuItem>
-				<MenuItem icon="shelf" badge={shelvedCount ? String(shelvedCount) : undefined} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
-				<MenuDivider />
-				<MenuItem icon="keyboard" shortcut="?" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
-				<MenuItem icon="book" onclick={() => (guideOpen = true)}>How the method works</MenuItem>
-				<MenuDivider />
-				{#if helper.enabled}
-					<MenuItem icon="bindu" onclick={turnOffBindu}>Turn off Bindu</MenuItem>
-					{#if helper.aiEnabled}
-						<MenuItem icon="key" onclick={turnOffAi}>Turn off AI provider</MenuItem>
-					{:else}
-						<MenuItem icon="key" onclick={() => helper.offerAi()}>Turn on AI provider</MenuItem>
-					{/if}
-				{:else}
-					<MenuItem icon="bindu" onclick={turnOnBindu}>Turn on Bindu</MenuItem>
+				{#if keptVersions}
+					<MenuItem icon="clock" count={keptVersions} onclick={() => (versionsOpen = true)}>Earlier versions</MenuItem>
 				{/if}
+				{#if chart.shares.length}
+					<MenuItem icon="eye" count={chart.shares.length} onclick={() => (sharesOpen = true)}>Shared pages</MenuItem>
+				{/if}
+				{#if shelvedCount}
+					<MenuItem icon="shelf" count={shelvedCount} onclick={() => (chart.browsingShelves = true)}>See all shelves</MenuItem>
+				{/if}
+				<MenuItem icon="keyboard" shortcut="?" class="coarse:hidden" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
 				<MenuDivider />
-				<div class="flex items-center justify-between gap-3 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
+				<div class="grid grid-cols-[auto_auto] items-center justify-between gap-x-3 gap-y-2 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
 					<span class="text-muted">Theme</span>
 					<SegmentedControl
 						label="Color theme"
@@ -800,14 +813,12 @@
 							if (isTheme(value)) chart.setTheme(value);
 						}}
 					/>
-				</div>
-				<div class="flex flex-col gap-2 px-3 py-1.5 text-[0.9rem]">
-					<span class="text-muted">Accent <span class="text-text">{accentName}</span></span>
-					<div class="grid w-max grid-cols-6 gap-1.5 max-[420px]:grid-cols-3" role="group" aria-label="Accent color">
+					<span class="text-muted">Accent</span>
+					<div class="flex gap-1.5 justify-self-end coarse:col-span-2 coarse:justify-self-start" role="group" aria-label="Accent color">
 						{#each ACCENTS as item (item.id)}
 							<button
 								type="button"
-								class="size-[42px] cursor-pointer appearance-none rounded-full border-0 p-0 motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)] coarse:size-11"
+								class="relative size-7 cursor-pointer appearance-none rounded-full border-0 p-0 after:absolute after:-inset-[3px] after:content-[''] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)] coarse:size-11"
 								style:background={item.id === 'ink' ? 'var(--ink)' : `var(--swatch-${item.id})`}
 								aria-pressed={chart.accent === item.id}
 								aria-label={item.label}
@@ -816,9 +827,9 @@
 							></button>
 						{/each}
 					</div>
+					<span class="text-muted">Bindu</span>
+					<SegmentedControl label="Bindu" size="sm" options={binduModes} value={binduMode} onchange={setBinduMode} />
 				</div>
-				<MenuDivider />
-				<MenuItem icon="trash" tone="danger" onclick={handleClearChart}>Clear chart</MenuItem>
 			</Menu>
 		</div>
 
@@ -896,7 +907,7 @@
 		<SharedPagesDialog bind:open={sharesOpen} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
 		<Dialog
-			bind:open={clearOpen}
+			bind:open={chart.clearing}
 			title="Clear this chart?"
 			description="The goal, pillars, and actions go away. They do not go to recently deleted."
 			size="sm"
@@ -910,7 +921,7 @@
 				</span>
 			</div>
 			{#snippet footer()}
-				<Button variant="ghost" onclick={() => (clearOpen = false)}>Cancel</Button>
+				<Button variant="ghost" onclick={() => (chart.clearing = false)}>Cancel</Button>
 				<Button variant="danger" onclick={confirmClear}>Clear chart</Button>
 			{/snippet}
 		</Dialog>
