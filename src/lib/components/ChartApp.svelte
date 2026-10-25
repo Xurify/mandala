@@ -25,7 +25,6 @@
 	import { decodeChartShare, isShareHash } from '$lib/chart/share';
 	import { normalizeSyncKey } from '$lib/chart/sync/key';
 	import { supportsDirectoryPicker } from '$lib/chart/backup';
-	import { titleOf } from '$lib/chart/library';
 	import { fromOutside, isApplePlatform, modifierLabel } from '$lib/chart/shortcuts';
 	import Wordmark from './Wordmark.svelte';
 	import BlockSheet from './BlockSheet.svelte';
@@ -341,11 +340,6 @@
 		}
 	}
 
-	function confirmClear(): void {
-		chart.clearing = false;
-		chart.clearAll();
-	}
-
 	function handleOpenPresets() {
 		presetOpen = true;
 	}
@@ -440,7 +434,7 @@
 	const binduModes = [
 		{ value: 'off', label: 'Off' },
 		{ value: 'on', label: 'On' },
-		{ value: 'ai', label: 'With AI', icon: 'key' as const }
+		{ value: 'ai', label: 'With AI' }
 	];
 	const binduMode = $derived(!helper.enabled ? 'off' : helper.aiEnabled ? 'ai' : 'on');
 
@@ -802,11 +796,12 @@
 				{/if}
 				<MenuItem icon="keyboard" shortcut="?" class="coarse:hidden" onclick={() => (shortcutsOpen = true)}>Keyboard shortcuts</MenuItem>
 				<MenuDivider />
-				<div class="grid grid-cols-[auto_auto] items-center justify-between gap-x-3 gap-y-2 py-1.5 ps-3 pe-1.5 text-[0.9rem]">
+				<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2 px-3 py-1.5 text-[0.9rem]">
 					<span class="text-muted">Theme</span>
 					<SegmentedControl
 						label="Color theme"
 						size="sm"
+						class="grid w-full grid-cols-3 [&>button]:justify-center"
 						options={themes}
 						value={chart.theme}
 						onchange={(value) => {
@@ -814,11 +809,11 @@
 						}}
 					/>
 					<span class="text-muted">Accent</span>
-					<div class="flex gap-1.5 justify-self-end coarse:col-span-2 coarse:justify-self-start" role="group" aria-label="Accent color">
+					<div class="flex justify-between px-[3px] coarse:col-span-2" role="group" aria-label="Accent color">
 						{#each ACCENTS as item (item.id)}
 							<button
 								type="button"
-								class="relative size-7 cursor-pointer appearance-none rounded-full border-0 p-0 after:absolute after:-inset-[3px] after:content-[''] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)] coarse:size-11"
+								class="relative size-7 shrink-0 cursor-pointer appearance-none rounded-full border-0 p-0 after:absolute after:-inset-[3px] coarse:after:-inset-1 after:content-[''] motion-safe:transition-[scale] motion-safe:duration-150 motion-safe:ease-ui active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)] coarse:size-9"
 								style:background={item.id === 'ink' ? 'var(--ink)' : `var(--swatch-${item.id})`}
 								aria-pressed={chart.accent === item.id}
 								aria-label={item.label}
@@ -828,7 +823,7 @@
 						{/each}
 					</div>
 					<span class="text-muted">Bindu</span>
-					<SegmentedControl label="Bindu" size="sm" options={binduModes} value={binduMode} onchange={setBinduMode} />
+					<SegmentedControl label="Bindu" size="sm" class="grid w-full grid-cols-3 [&>button]:justify-center" options={binduModes} value={binduMode} onchange={setBinduMode} />
 				</div>
 			</Menu>
 		</div>
@@ -906,25 +901,6 @@
 		<VersionsDialog bind:open={versionsOpen} />
 		<SharedPagesDialog bind:open={sharesOpen} />
 		<CommandPalette bind:open={paletteOpen} bind:query={paletteQuery} commands={paletteCommands} />
-		<Dialog
-			bind:open={chart.clearing}
-			title="Clear this chart?"
-			description="The goal, pillars, and actions go away. They do not go to recently deleted."
-			size="sm"
-		>
-			<div class="flex min-h-[52px] items-center rounded-[16px] bg-sunken px-3 py-2">
-				<span class="min-w-0">
-					<span class="block truncate text-[0.95rem] font-medium text-text">{titleOf(chart.data)}</span>
-					<span class="mt-0.5 block text-[0.72rem] leading-tight text-muted tabular-nums">
-						{chart.filled} of 73
-					</span>
-				</span>
-			</div>
-			{#snippet footer()}
-				<Button variant="ghost" onclick={() => (chart.clearing = false)}>Cancel</Button>
-				<Button variant="danger" onclick={confirmClear}>Clear chart</Button>
-			{/snippet}
-		</Dialog>
 		<ShortcutsDialog bind:open={shortcutsOpen} mod={modKey} desktop={!isMobile} />
 		<WeeklyReflection bind:open={chart.reflecting} />
 		<ShelfSheet />
