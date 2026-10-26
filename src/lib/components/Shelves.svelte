@@ -136,7 +136,7 @@
 
 <Dialog bind:open={chart.browsingShelves} title="Your shelves" {description} footer={total > 0 ? footer : undefined}>
 	{#if stocked.length === 0}
-		<p class="m-0 max-w-[48ch] leading-snug text-muted">
+		<p class="m-0 leading-snug text-pretty text-muted">
 			A shelf holds what a pillar's actions use: videos, texts, sites. Paste a link anywhere on the chart, outside a field, to put it on one.
 		</p>
 	{:else}

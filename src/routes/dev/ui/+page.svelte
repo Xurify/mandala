@@ -376,12 +376,12 @@
 			run: () => chart.say('Poster exported')
 		},
 		{
-			id: 'clear',
-			label: 'Clear chart',
+			id: 'delete',
+			label: 'Delete chart',
 			section: 'Actions',
 			icon: 'trash',
 			tone: 'danger',
-			run: () => chart.say('Chart cleared')
+			run: () => chart.say('Chart deleted')
 		},
 		{
 			id: 'health',
@@ -648,7 +648,7 @@
 			<Button icon="list">Start from a preset</Button>
 			<Button variant="soft" icon="sparkles">Get a prompt</Button>
 			<Button variant="ghost" icon="info">How it works</Button>
-			<Button variant="danger" icon="trash">Clear chart</Button>
+			<Button variant="danger" icon="trash">Delete chart</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			<Button size="sm">Open as a new chart</Button>
@@ -660,7 +660,7 @@
 			<Button disabled>Start from a preset</Button>
 			<Button variant="soft" disabled>Get a prompt</Button>
 			<Button variant="ghost" disabled>How it works</Button>
-			<Button variant="danger" disabled>Clear chart</Button>
+			<Button variant="danger" disabled>Delete chart</Button>
 		</div>
 		<div class="flex flex-wrap items-center gap-3">
 			<Button
@@ -861,7 +861,7 @@
 					</MenuItem>
 					<MenuItem icon="command" badge="Ctrl+K" onclick={() => (paletteOpen = true)}>Open commands</MenuItem>
 					<MenuDivider />
-					<MenuItem icon="trash" tone="danger" onclick={() => (dialogOpen = true)}>Clear chart</MenuItem>
+					<MenuItem icon="trash" tone="danger" onclick={() => (dialogOpen = true)}>Delete chart</MenuItem>
 				</Menu>
 				<Menu align="end" label="Chart actions">
 					{#snippet trigger({ expanded, toggle })}
@@ -1058,16 +1058,16 @@
 	</Card>
 </div>
 
-<Dialog bind:open={dialogOpen} title="Clear this chart?" size="sm">
-	<p class="m-0 text-muted">The goal, pillars, and actions on this chart go away. This stays on this device.</p>
+<Dialog bind:open={dialogOpen} title="Delete this chart?" size="sm">
+	<p class="m-0 text-muted">It waits in recently deleted, so it can come back.</p>
 	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (dialogOpen = false)}>Cancel</Button>
 		<Button
 			variant="danger"
 			onclick={() => {
 				dialogOpen = false;
-				chart.say('Chart cleared');
-			}}>Clear chart</Button
+				chart.say('Chart deleted');
+			}}>Delete chart</Button
 		>
 	{/snippet}
 </Dialog>

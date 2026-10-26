@@ -1614,14 +1614,6 @@ export class ChartStore {
     return { id: best.id, active: false };
   }
 
-  clearAll(): void {
-    const title = titleOf(this.data);
-    const held = this.#copySlips();
-    this.data = emptyChart();
-    this.saveNow();
-    this.#applyNote(held, "Cleared", title, 1, false);
-  }
-
   importChart(importedData: ChartData, message = "Chart imported."): boolean {
     return this.#fillOrSpawn(importedData, message);
   }
