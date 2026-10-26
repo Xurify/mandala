@@ -67,7 +67,7 @@
 		<span class={styles.count()}>{count}</span>
 	{/if}
 	{#if shortcut}
-		<kbd class={cn(styles.badge(), 'coarse:hidden')}>{shortcut}</kbd>
+		<kbd class={cn(styles.badge(), 'min-w-5 text-center coarse:hidden')}>{shortcut}</kbd>
 	{/if}
 	{#if checked}
 		<Icon name="check" size={16} class="shrink-0 text-text" />
