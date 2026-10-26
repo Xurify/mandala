@@ -235,7 +235,7 @@
 				class={cn(
 					'flex size-5 shrink-0 items-center justify-center rounded-full border-2 motion-safe:transition-[border-color] motion-safe:duration-150',
 					isChecked
-						? 'border-success bg-success text-surface'
+						? 'border-accent bg-accent text-on-accent'
 						: 'border-line bg-transparent group-hover:border-muted',
 					justChecked && 'origin-center motion-safe:animate-check-settle'
 				)}

@@ -239,7 +239,7 @@
 								{#each review.closed as milestone, position (milestone.id)}
 									<li class={row}>
 										<span
-											class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface motion-safe:animate-stamp"
+											class="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-on-ink motion-safe:animate-stamp"
 											style:animation-delay="{120 + position * 90}ms"
 											aria-hidden="true"
 										>

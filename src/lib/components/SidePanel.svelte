@@ -415,7 +415,7 @@
 							{#key stamped ? chart.landed?.id : 0}
 								<span
 									class={cn(
-										'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-success text-surface shadow-[0_0_0_2px_var(--surface)]',
+										'absolute -top-[3px] -right-[3px] flex size-3.5 items-center justify-center rounded-full bg-ink text-on-ink shadow-[0_0_0_2px_var(--surface)]',
 										stamped && 'motion-safe:animate-stamp'
 									)}
 									style:animation-delay={stamped && chart.landed?.chart ? `${pillarIndex * 70}ms` : undefined}
@@ -522,7 +522,7 @@
 									<span class="pointer-events-none absolute top-2.5 start-3 z-[2] inline-flex items-center gap-[5px] max-[900px]:top-[7px] max-[900px]:start-2">
 										<span class={cn('text-[0.72rem] font-[650] tabular-nums opacity-80', chart.sel === 4 ? 'text-on-p opacity-70' : 'text-muted')}>{chart.sel === 4 ? `P${idx(cellIndex) + 1}` : idx(cellIndex) + 1}</span>
 										{#if chart.textOf(cellKey(chart.sel, cellIndex)).trim().length > 0}
-											<span class="size-[5px] rounded-full bg-success" aria-hidden="true"></span>
+											<span class="size-[5px] rounded-full bg-ink" aria-hidden="true"></span>
 										{/if}
 									</span>
 									{#if info(chart.sel, cellIndex).type === 'action'}

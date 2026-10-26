@@ -24,6 +24,7 @@
 	let typing = $state(false);
 	let typed = $state('');
 	let wrong = $state(false);
+	let saved = $state(false);
 	let copied = $state<'link' | 'key' | null>(null);
 	let leaving = $state(false);
 	let showKey = $state(false);
@@ -72,6 +73,7 @@
 		leaving = false;
 		showKey = false;
 		typedVisible = false;
+		saved = false;
 		joining = null;
 	});
 
@@ -123,11 +125,18 @@
 	async function saveToPasswords(): Promise<void> {
 		const key = sync.key;
 		if (!key) return;
+		// Other browsers show their own save prompt, so only the credential path needs a word of its own.
+		saved = false;
+		const after = (): void => {
+			saved = true;
+			setTimeout(() => (saved = false), 2000);
+		};
 		// Newer than the TS DOM lib.
 		const Saved = (window as unknown as { PasswordCredential?: new (data: { id: string; name: string; password: string }) => Credential }).PasswordCredential;
 		if (Saved) {
 			try {
 				await navigator.credentials.store(new Saved({ id: SAVED_NAME, name: SAVED_NAME, password: key }));
+				after();
 				return;
 			} catch {}
 		}
@@ -177,8 +186,8 @@
 				<Button variant="soft" size="sm" icon={copied === 'link' ? 'check' : 'link'} onclick={() => void copy('link')}>
 					{copied === 'link' ? 'Link copied' : 'Copy link'}
 				</Button>
-				<Button variant="soft" size="sm" icon="key" onclick={() => void saveToPasswords()}>
-					Save to passwords
+				<Button variant="soft" size="sm" icon={saved ? 'check' : 'key'} onclick={() => void saveToPasswords()}>
+					{saved ? 'Saved to passwords' : 'Save to passwords'}
 				</Button>
 				<Button variant="ghost" size="sm" icon="eye" aria-expanded={showKey} onclick={() => (showKey = !showKey)}>
 					{showKey ? 'Hide the key' : 'Show the key'}

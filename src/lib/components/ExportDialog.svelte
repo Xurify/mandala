@@ -18,6 +18,7 @@
 
 	let isExportingPng = $state(false);
 	let isSharing = $state(false);
+	let copyingLink = $state(false);
 	let sharing = $state<'publish' | 'stop' | null>(null);
 
 	async function handlePublish(): Promise<void> {
@@ -41,9 +42,11 @@
 	}
 
 	async function handleCopyLink(): Promise<void> {
+		if (copyingLink) return;
 		try {
 			await navigator.clipboard.writeText(publishedUrl(chart.shareId));
-			chart.say('Link copied.');
+			copyingLink = true;
+			setTimeout(() => (copyingLink = false), 2000);
 		} catch {
 			chart.say('Could not copy the link here.');
 		}
@@ -195,12 +198,18 @@
 				<div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface text-muted shadow-card group-hover:text-text">
 					<Icon name="link" size={18} />
 				</div>
-			<div class="flex min-w-0 flex-col gap-0.5">
-				<span class="text-[0.92rem] font-[620]">Share link</span>
-				<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
-					The chart carried in the link. No account needed.
-				</span>
-			</div>
+				<div class="flex min-w-0 flex-col gap-0.5">
+					<span class="text-[0.92rem] font-[620]">
+						{#if isSharing}
+							<span class="inline-flex items-center">Publishing<BouncingDots /></span>
+						{:else}
+							Share link
+						{/if}
+					</span>
+					<span class="text-[0.8rem] leading-[1.35] text-pretty text-muted">
+						The chart carried in the link. No account needed.
+					</span>
+				</div>
 			</div>
 			<span class="shrink-0 rounded-[7px] bg-surface px-2 py-0.5 text-[0.72rem] font-[560] text-muted tabular-nums shadow-card">
 				Link
@@ -247,7 +256,9 @@
 							rel="noreferrer"
 						>{publishedUrl(chart.shareId)}</a>
 					</div>
-					<Button size="sm" variant="soft" onclick={handleCopyLink}>Copy link</Button>
+					<Button size="sm" variant="soft" icon={copyingLink ? 'check' : undefined} onclick={handleCopyLink}>
+						{copyingLink ? 'Copied' : 'Copy link'}
+					</Button>
 				</div>
 				<label class="flex cursor-pointer items-center justify-between gap-3 text-[0.84rem]">
 					<span>

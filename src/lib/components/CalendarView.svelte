@@ -271,7 +271,7 @@
 											class="flex min-h-11 w-full min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border-0 bg-transparent px-2.5 py-1.5 text-start font-sans text-text select-text hover:bg-sunken focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ink max-[900px]:rounded-[10px]"
 											onclick={() => openEntry(entry)}
 										>
-											<span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-success text-surface" aria-hidden="true">
+											<span class="flex size-5 shrink-0 items-center justify-center rounded-full bg-ink text-on-ink" aria-hidden="true">
 												<Icon name="check" size={12} strokeWidth={2.6} />
 											</span>
 											<span class="flex min-w-0 flex-1 flex-col gap-px">
